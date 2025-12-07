@@ -1,0 +1,41 @@
+backend:
+  name: git-gateway
+  branch: main # Branch to update (optional; defaults to master)
+  # Enable authentication with Netlify Identity
+  identity_url: https://your-site-name.netlify.app/.netlify/identity
+  gateway_url: https://your-site-name.netlify.app/.netlify/git/gateway
+
+media_folder: images # Media files will be stored in the repo under images
+public_folder: images # The src attribute for uploaded media will begin with /images
+
+# Uncomment below to enable drafts
+# publish_mode: editorial_workflow
+
+collections:
+  - name: "blog" # Used in routes, e.g., /admin/collections/blog
+    label: "מאמרים" # Used in the UI
+    folder: "_posts" # The path to the folder where the documents are stored
+    create: true # Allow users to create new documents in this collection
+    slug: "{{year}}-{{month}}-{{day}}-{{slug}}" # Filename template, e.g., YYYY-MM-DD-title.md
+    fields: # The fields for each document, usually in front matter
+      - {label: "כותרת", name: "title", widget: "string"}
+      - {label: "תאריך פרסום", name: "date", widget: "datetime"}
+      - {label: "תיאור קצר", name: "description", widget: "text"}
+      - {label: "תמונת נושא", name: "image", widget: "image", required: false}
+      - {label: "זמן קריאה (דקות)", name: "readTime", widget: "number", default: 5}
+      - {label: "ID ייחודי", name: "articleId", widget: "string", hint: "אותיות קטנות בלבד, ללא רווחים, לדוגמה: my-article"}
+      - {label: "תוכן המאמר", name: "body", widget: "markdown"}
+  
+  - name: "media" # Used in routes, e.g., /admin/collections/media
+    label: "מדיה וסרטונים" # Used in the UI
+    folder: "_media" # The path to the folder where the documents are stored
+    create: true
+    slug: "{{slug}}"
+    fields:
+      - {label: "כותרת", name: "title", widget: "string"}
+      - {label: "תאריך", name: "date", widget: "datetime"}
+      - {label: "סוג מדיה", name: "type", widget: "select", options: ["סרטון", "פודקאסט", "ראיון", "אחר"]}
+      - {label: "קישור", name: "url", widget: "string", hint: "קישור ליוטיוב או פלטפורמה אחרת"}
+      - {label: "תיאור", name: "description", widget: "text"}
+      - {label: "תמונה", name: "thumbnail", widget: "image", required: false}
+
