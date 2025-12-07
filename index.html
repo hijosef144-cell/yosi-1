@@ -2272,13 +2272,21 @@ function showNextArticle(){
 /* מעבר לצור קשר וגלילה לטופס הניוזלטר - Already defined globally above ===== */
 // showSectionAndScrollToNewsletter is already defined as window.showSectionAndScrollToNewsletter
 
-/* ===== אתחול קטן: אם מגיעים עם hash של מאמר, טען אותו; אחרת #blog ===== */
+/* ===== אתחול קטן: אם מגיעים עם hash של מאמר, טען אותו; אחרת #home ===== */
 window.addEventListener('DOMContentLoaded', () => {
-  const hash = (location.hash || '#blog').replace('#', '');
+  const hash = (location.hash || '#home').replace('#', '');
   if (articleOrder.includes(hash)) {
     showArticle(hash);
+  } else if (hash && hash !== 'home') {
+    // אם יש hash מסוים (כמו #blog, #about וכו'), הצג אותו
+    if(typeof window.showSection === 'function') {
+      window.showSection(hash);
+    }
   } else {
-    showSection('blog');
+    // אם אין hash או hash הוא home, הצג את דף הבית
+    if(typeof window.showSection === 'function') {
+      window.showSection('home');
+    }
   }
 });
 </script>
