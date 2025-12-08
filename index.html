@@ -8,8 +8,10 @@
   <title>מצפן כלכלי - ליווי וייעוץ כלכלי למשפחות | יוסי כץ</title>
   
   <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="32x32" href="images/2אייקון לאתר למעלה.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="images/2אייקון לאתר למעלה.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="images/2אייקון לאתר למעלה.png">
   <link rel="icon" type="image/png" href="images/2אייקון לאתר למעלה.png">
-  <link rel="apple-touch-icon" href="images/2אייקון לאתר למעלה.png">
   
   <!-- Meta Description -->
   <meta name="description" content="חסכנו ללקוחותינו מעל ₪950,000 והחזרנו את השליטה לבית. בניית תכנית אישית, יציאה מחובות מורכבים וליווי 6 שלבים סדור לשקט אמיתי. קבלו תכנית כלכלית בחינם.">
@@ -18,18 +20,25 @@
   
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website">
-  <meta property="og:url" content="https://yoursite.com/">
+  <meta property="og:url" content="https://matzpenkalkali.com/">
   <meta property="og:title" content="מצפן כלכלי - כיוון נכון לכלכלת המשפחה">
   <meta property="og:description" content="חסכנו ללקוחותינו מעל ₪950,000 והחזרנו את השליטה לבית. בניית תכנית אישית, יציאה מחובות מורכבים וליווי 6 שלבים סדור לשקט אמיתי. קבלו תכנית כלכלית בחינם.">
-  <meta property="og:image" content="https://yoursite.com/images/og-image.jpg">
+  <meta property="og:image" content="https://matzpenkalkali.com/images/2אייקון לאתר למעלה.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:type" content="image/png">
   <meta property="og:locale" content="he_IL">
   
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:url" content="https://yoursite.com/">
+  <meta name="twitter:url" content="https://matzpenkalkali.com/">
   <meta name="twitter:title" content="מצפן כלכלי - כיוון נכון לכלכלת המשפחה">
   <meta name="twitter:description" content="חסכנו ללקוחותינו מעל ₪950,000 והחזרנו את השליטה לבית. בניית תכנית אישית, יציאה מחובות מורכבים וליווי 6 שלבים סדור לשקט אמיתי. קבלו תכנית כלכלית בחינם.">
-  <meta name="twitter:image" content="https://yoursite.com/images/og-image.jpg">
+  <meta name="twitter:image" content="https://matzpenkalkali.com/images/2אייקון לאתר למעלה.png">
+  
+  <!-- Additional meta for better mobile display -->
+  <meta name="theme-color" content="#1e3a8a">
+  <meta name="msapplication-TileImage" content="images/2אייקון לאתר למעלה.png">
   
   <!-- Structured Data (Schema.org) -->
   <script type="application/ld+json">
@@ -39,9 +48,9 @@
     "name": "מצפן כלכלי - יוסי כץ",
     "alternateName": "יוסי כץ - ייעוץ כלכלי למשפחות",
     "description": "יועץ כלכלי מוסמך למשפחות. תכנון פיננסי, ייעוץ השקעות וליווי בהחזר חובות.",
-    "url": "https://yoursite.com",
-    "logo": "https://yoursite.com/images/לוגו.svg",
-    "image": "https://yoursite.com/images/og-image.jpg",
+    "url": "https://matzpenkalkali.com",
+    "logo": "https://matzpenkalkali.com/images/לוגו.svg",
+    "image": "https://matzpenkalkali.com/images/2אייקון לאתר למעלה.png",
     "telephone": "+972-XX-XXX-XXXX",
     "address": {
       "@type": "PostalAddress",
@@ -3181,14 +3190,22 @@ window.addEventListener('DOMContentLoaded', () => {
       return loan * (r * Math.pow(1+r,n)) / (Math.pow(1+r,n) - 1);
     }
     function calcMlDeal(){
-      const mlPrice     = Number(document.getElementById('mlPrice').value || 0);
-      const marketPrice = Number(document.getElementById('marketPrice').value || 0);
-      const equity      = Number(document.getElementById('equity').value || 0);
-      const extraCosts  = Number(document.getElementById('extraCosts').value || 0);
-      const netIncome   = Number(document.getElementById('netIncome').value || 0);
-      const rate        = Number(document.getElementById('rate').value || 0);
-      const years       = Number(document.getElementById('years').value || 25);
-      const maxComfort  = Number(document.getElementById('maxComfort').value || 0);
+      // Helper function to get raw numeric value (handles formatted inputs with commas)
+      const getVal = (id) => {
+        const el = document.getElementById(id);
+        if (!el) return 0;
+        const raw = el.dataset.rawValue || el.value || '0';
+        return Number(String(raw).replace(/,/g, '').replace(/[^\d.-]/g, '')) || 0;
+      };
+      
+      const mlPrice     = getVal('mlPrice');
+      const marketPrice = getVal('marketPrice');
+      const equity      = getVal('equity');
+      const extraCosts  = getVal('extraCosts');
+      const netIncome   = getVal('netIncome');
+      const rate        = getVal('rate');
+      const years       = getVal('years') || 25;
+      const maxComfort  = getVal('maxComfort');
       if(!mlPrice || !marketPrice){
         alert('נא להזין לפחות מחיר דירה במחיר למשתכן ושווי שוק משוער.');
         return;
@@ -3729,8 +3746,22 @@ window.addEventListener('DOMContentLoaded', function() {
 =========================== */
 function fmt(n){ const x=Number(n)||0; return '₪'+x.toLocaleString('he-IL',{maximumFractionDigits:0}); }
 function pos(n){ return Math.max(Number(String(n).replace(/[^\d.-]/g,'')||0)||0,0); }
-function readMoney(id){ return pos(document.getElementById(id)?.value); }
-function readNum(id){ return Number(document.getElementById(id)?.value)||0; }
+function readMoney(id){ 
+  const el = document.getElementById(id);
+  if (!el) return 0;
+  // נסה קודם לקבל את הערך הגולמי מ-dataset (אם קיים)
+  let value = el.dataset.rawValue || el.value || '';
+  value = value.toString().replace(/,/g, '').replace(/[^\d.-]/g, '');
+  return pos(value);
+}
+function readNum(id){ 
+  const el = document.getElementById(id);
+  if (!el) return 0;
+  // נסה קודם לקבל את הערך הגולמי מ-dataset (אם קיים)
+  let value = el.dataset.rawValue || el.value || '';
+  value = value.toString().replace(/,/g, '').replace(/[^\d.-]/g, '');
+  return Number(value) || 0;
+}
 function bindMoneyFormat(ids){
   ids.forEach(id=>{
     const el=document.getElementById(id); if(!el) return;
@@ -4539,8 +4570,9 @@ window.closeCertificateModal = function() {
   function num(id) {
     const el = document.getElementById(id);
     if (!el) return 0;
-    // הסר פסיקים מהערך לפני המרה למספר
-    let value = el.value || '';
+    // נסה קודם לקבל את הערך הגולמי מ-dataset (אם קיים)
+    let value = el.dataset.rawValue || el.value || '';
+    // הסר פסיקים מהערך לפני המרה למספר (למקרה שלא היה rawValue)
     value = value.toString().replace(/,/g, '').replace(/[^\d.-]/g, '');
     return Number(value) || 0;
   }
@@ -4684,40 +4716,68 @@ window.closeCertificateModal = function() {
   }
 
   /* ===== יעד חיסכון עם דמי ניהול ומס ===== */
+  // Helper function to get raw numeric value from input (handles formatted values with commas)
+  function getRawValue(id) {
+    const el = document.getElementById(id);
+    if (!el) return 0;
+    // Try to get raw value from dataset, otherwise parse the value (removing commas)
+    const raw = el.dataset.rawValue || el.value || '0';
+    // Remove commas and parse
+    return parseFloat(String(raw).replace(/,/g, '').replace(/[^\d.-]/g, '')) || 0;
+  }
+
   function calculateGoalWithFees() {
-    const target = parseFloat(document.getElementById('goalTargetFee')?.value || '0');
-    const rYear = parseFloat(document.getElementById('goalRateFee')?.value || '0') / 100;
-    const fee = parseFloat(document.getElementById('goalMgmtFee')?.value || '0') / 100;
-    const years = parseFloat(document.getElementById('goalYearsFee')?.value || '0');
+    // Use helper function to get raw numeric values (handles formatted inputs with commas)
+    const target = getRawValue('goalTargetFee');
+    const rYear = getRawValue('goalRateFee') / 100;
+    const fee = getRawValue('goalMgmtFee') / 100;
+    const years = getRawValue('goalYearsFee');
     const taxed = document.getElementById('goalTaxFee')?.checked;
 
     const outLump = document.getElementById('goalLumpFee');
     const outMonthly = document.getElementById('goalMonthlyFee');
 
-    if (target <= 0 || years <= 0) {
-      if (outLump) outLump.innerText = 'אנא הזן יעד ושנים תקינים.';
+    if (target <= 0 || years <= 0 || rYear <= 0) {
+      if (outLump) outLump.innerText = 'אנא הזן יעד, תשואה ושנים תקינים.';
       if (outMonthly) outMonthly.innerText = '';
       return;
     }
 
     const taxRate = taxed ? 0.25 : 0.0;
+    
+    // חישוב תשואה נטו שנתית (לאחר דמי ניהול ומס)
+    // תשואה נטו = תשואה * (1 - דמי ניהול) * (1 - מס)
     const rYearNet = rYear * (1 - fee) * (1 - taxRate);
-    const gYear = 1 + rYearNet;
-    const rMonth = Math.pow(gYear, 1 / 12) - 1;
+    
+    // המרה לתשואה חודשית (ריבית דריבית)
+    const rMonth = Math.pow(1 + rYearNet, 1 / 12) - 1;
+    
+    const n = Math.max(1, Math.round(years * 12)); // לפחות חודש אחד
 
-    const n = Math.round(years * 12);
+    // חישוב Present Value - כמה צריך להפקיד היום (חד-פעמי) כדי להגיע ל-target בעוד n חודשים
+    let pvNeeded = 0;
+    if (rMonth > 0.0000001) {
+      pvNeeded = target / Math.pow(1 + rMonth, n);
+    } else {
+      // אם אין ריבית, פשוט חלוקה
+      pvNeeded = target;
+    }
 
-    const pvNeeded = target / Math.pow(1 + rMonth, n);
-
+    // חישוב Payment - כמה צריך להפקיד כל חודש כדי להגיע ל-target בעוד n חודשים
+    // נוסחה: PMT = FV * r / ((1+r)^n - 1)
     let pmtNeeded = 0;
-    if (rMonth > 0) {
+    if (rMonth > 0.0000001) {
       const pow = Math.pow(1 + rMonth, n);
       pmtNeeded = target * rMonth / (pow - 1);
     } else {
+      // אם אין ריבית, פשוט חלוקה למספר החודשים
       pmtNeeded = target / n;
     }
 
-    const fmtInt = (x) => x.toLocaleString('he-IL', { maximumFractionDigits: 0 });
+    const fmtInt = (x) => {
+      const num = Math.round(x);
+      return num.toLocaleString('he-IL', { maximumFractionDigits: 0 });
+    };
 
     if (outLump) outLump.innerText =
       `הפקדה חד־פעמית נדרשת היום: ₪${fmtInt(pvNeeded)}`;
