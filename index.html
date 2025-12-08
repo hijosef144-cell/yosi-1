@@ -634,7 +634,7 @@
           <a href="#contact" class="nav-link font-medium text-gray-700" onclick="return showSection('contact', event)">יצירת קשר</a>
         </nav>
 
-        <button class="md:hidden text-blue-900" onclick="toggleMobileMenu()" aria-label="פתח תפריט">
+        <button id="mobileMenuBtn" class="md:hidden text-blue-900 p-2 -mr-2" aria-label="פתח תפריט" type="button">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
           </svg>
@@ -642,16 +642,16 @@
       </div>
 
       <!-- Mobile Menu -->
-      <div id="mobileMenu" class="hidden md:hidden mt-4 pb-4">
+      <div id="mobileMenu" class="hidden md:hidden mt-4 pb-4 border-t border-gray-200 pt-4">
         <div class="flex flex-col space-y-3">
-          <a href="#home" class="nav-link text-blue-900 font-medium" onclick="return showSection('home', event)">דף הבית</a>
-          <a href="#about" class="nav-link text-gray-700 font-medium" onclick="return showSection('about', event)">אודות</a>
-          <a href="#services" class="nav-link text-gray-700 font-medium" onclick="return showSection('services', event)">שירותים ומחשבונים</a>
-          <a href="#process" class="nav-link text-gray-700 font-medium" onclick="return showSection('process', event)">תהליך הליווי</a>
-          <a href="#blog" class="nav-link text-gray-700 font-medium" onclick="return showSection('blog', event)">מאמרים</a>
-          <a href="#media" class="nav-link text-gray-700 font-medium" onclick="return showSection('media', event)">מדיה</a>
-          <a href="#gallery" class="nav-link text-gray-700 font-medium" onclick="return showSection('gallery', event)">גלריה וקישורים נחוצים</a>
-          <a href="#contact" class="nav-link text-gray-700 font-medium" onclick="return showSection('contact', event)">יצירת קשר</a>
+          <a href="#home" class="nav-link text-blue-900 font-medium py-2 px-2 rounded-lg hover:bg-blue-50 transition" onclick="toggleMobileMenu(); return showSection('home', event)">דף הבית</a>
+          <a href="#about" class="nav-link text-gray-700 font-medium py-2 px-2 rounded-lg hover:bg-gray-50 transition" onclick="toggleMobileMenu(); return showSection('about', event)">אודות</a>
+          <a href="#services" class="nav-link text-gray-700 font-medium py-2 px-2 rounded-lg hover:bg-gray-50 transition" onclick="toggleMobileMenu(); return showSection('services', event)">שירותים ומחשבונים</a>
+          <a href="#process" class="nav-link text-gray-700 font-medium py-2 px-2 rounded-lg hover:bg-gray-50 transition" onclick="toggleMobileMenu(); return showSection('process', event)">תהליך הליווי</a>
+          <a href="#blog" class="nav-link text-gray-700 font-medium py-2 px-2 rounded-lg hover:bg-gray-50 transition" onclick="toggleMobileMenu(); return showSection('blog', event)">מאמרים</a>
+          <a href="#media" class="nav-link text-gray-700 font-medium py-2 px-2 rounded-lg hover:bg-gray-50 transition" onclick="toggleMobileMenu(); return showSection('media', event)">מדיה</a>
+          <a href="#gallery" class="nav-link text-gray-700 font-medium py-2 px-2 rounded-lg hover:bg-gray-50 transition" onclick="toggleMobileMenu(); return showSection('gallery', event)">גלריה וקישורים נחוצים</a>
+          <a href="#contact" class="nav-link text-gray-700 font-medium py-2 px-2 rounded-lg hover:bg-gray-50 transition" onclick="toggleMobileMenu(); return showSection('contact', event)">יצירת קשר</a>
         </div>
       </div>
     </div>
@@ -3669,7 +3669,60 @@ if(typeof window.showSection !== 'function') {
   };
 }
 
-function toggleMobileMenu(){ document.getElementById('mobileMenu')?.classList.toggle('hidden'); }
+// פונקציה לפתיחה/סגירה של תפריט נייד
+window.toggleMobileMenu = function() {
+  const menu = document.getElementById('mobileMenu');
+  if (menu) {
+    menu.classList.toggle('hidden');
+    // שנה את האייקון לסגור כשפתוח
+    const btn = document.getElementById('mobileMenuBtn');
+    if (btn) {
+      const isOpen = !menu.classList.contains('hidden');
+      if (isOpen) {
+        btn.innerHTML = '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
+      } else {
+        btn.innerHTML = '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>';
+      }
+    }
+  }
+};
+
+// הוסף event listener לכפתור המבורגר (גם ל-click וגם ל-touch)
+window.addEventListener('DOMContentLoaded', function() {
+  const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+  if (mobileMenuBtn) {
+    // עבור click (עכבר)
+    mobileMenuBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      window.toggleMobileMenu();
+    });
+    
+    // עבור touch (מובייל)
+    mobileMenuBtn.addEventListener('touchend', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      window.toggleMobileMenu();
+    });
+  }
+  
+  // סגור תפריט כשקוליקים על הקישורים
+  const mobileMenuLinks = document.querySelectorAll('#mobileMenu a');
+  mobileMenuLinks.forEach(function(link) {
+    link.addEventListener('click', function() {
+      setTimeout(function() {
+        const menu = document.getElementById('mobileMenu');
+        if (menu && !menu.classList.contains('hidden')) {
+          menu.classList.add('hidden');
+          const btn = document.getElementById('mobileMenuBtn');
+          if (btn) {
+            btn.innerHTML = '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>';
+          }
+        }
+      }, 300);
+    });
+  });
+});
 
 /* ===========================
    Helpers & Formatting
