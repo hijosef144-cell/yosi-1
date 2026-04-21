@@ -75,7 +75,7 @@
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
     gtag('js', new Date());
-    gtag('config', 'G-CLWP2CD2EC');
+    gtag('config', 'G-CLWP2CD2EC', { send_page_view: false });
     
     // Helper function for tracking events
     window.trackEvent = function(eventName, eventCategory, eventLabel, value) {
@@ -3334,7 +3334,26 @@ console.log('Popup functions defined globally');
 window.showSection = function(id, ev) {
   if (ev && ev.preventDefault) ev.preventDefault();
   
-  // Track navigation events in Google Analytics
+  // רישום כדף נפרד ב-GA4 — כל סקשן נחשב "עמוד" עצמאי
+  const sectionTitles = {
+    home: 'דף הבית',
+    about: 'אודות',
+    process: 'תהליך הליווי',
+    services: 'שירותים ומחשבונים',
+    blog: 'מאמרים',
+    media: 'מדיה',
+    links: 'קישורים נחוצים',
+    contact: 'יצירת קשר',
+    articleView: 'מאמר'
+  };
+  if (typeof gtag === 'function') {
+    gtag('event', 'page_view', {
+      page_path: '/' + id,
+      page_title: sectionTitles[id] || id,
+      page_location: window.location.origin + '/#' + id
+    });
+  }
+  // שמירה על אירוע section_view לתאימות אחורית
   if (typeof window.trackEvent === 'function') {
     window.trackEvent('section_view', 'navigation', id);
   }
