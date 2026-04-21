@@ -93,7 +93,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
 
   <!-- EmailJS CDN (v3) -->
-  <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
 
   <!-- תוסף נגישות "נגיש לי" – יש להחליף למקטע הקוד הרשמי שתקבל מנגיש לי -->
   <!--
@@ -102,7 +102,7 @@
   -->
 
   <!-- Fonts & base styles -->
-    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;700&display=swap" rel="stylesheet" />
     <style>
         /* ריבון אלכסוני "מוצר דגל" */
         </style>
@@ -506,8 +506,8 @@
   <style>@view-transition { navigation: auto; }</style>
 
   <!-- (If you have these SDKs, keep them; otherwise safe to remove) -->
-  <script src="/_sdk/data_sdk.js" type="text/javascript" onerror="console.warn('SDK data_sdk.js not found, skipping');"></script>
-  <script src="/_sdk/element_sdk.js" type="text/javascript" onerror="console.warn('SDK element_sdk.js not found, skipping');"></script>
+  <script defer src="/_sdk/data_sdk.js" type="text/javascript" onerror="console.warn('SDK data_sdk.js not found, skipping');"></script>
+  <script defer src="/_sdk/element_sdk.js" type="text/javascript" onerror="console.warn('SDK element_sdk.js not found, skipping');"></script>
   
   <!-- Define ALL calculator functions EARLY in head so they're available immediately -->
   <script>
@@ -671,7 +671,7 @@
     <!-- Hero -->
     <div class="gradient-bg text-white py-28 md:py-36 relative overflow-hidden">
       <!-- רקע וידאו -->
-      <video id="heroVideo" autoplay muted loop playsinline preload="auto" class="absolute inset-0 w-full h-full object-cover" style="z-index: 0; min-width: 100%; min-height: 100%;">
+      <video id="heroVideo" autoplay muted loop playsinline preload="metadata" class="absolute inset-0 w-full h-full object-cover" style="z-index: 0; min-width: 100%; min-height: 100%;">
         <source src="images/ים.mp4" type="video/mp4">
       </video>
       <!-- Overlay כהה על הווידאו לקריאות הטקסט -->
@@ -2617,6 +2617,7 @@ window.addEventListener('DOMContentLoaded', () => {
       <div class="max-h-[80vh] overflow-auto">
         <img src="images/תעודה בבנק.jpg"
              alt="תעודה מהבנק - יוסף כץ"
+             loading="lazy"
              class="w-full h-auto rounded-lg shadow-md">
       </div>
     </div>
