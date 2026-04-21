@@ -179,7 +179,7 @@
       box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
       transform: translateY(-1px);
     }
-    .app-section.hidden { display: block; margin-bottom: 100px; scroll-margin-top: 100px; }
+    .app-section { margin-bottom: 100px; scroll-margin-top: 100px; }
     @keyframes scroll { 0% { transform: translateX(100%);} 100% { transform: translateX(-100%);} }
     .animate-scroll { animation: scroll 30s linear infinite; }
     
@@ -3364,6 +3364,11 @@ window.showSection = function(id, ev) {
   const section = document.getElementById(id);
   if (section) {
     section.classList.remove('hidden');
+    // כשמציגים את דף הבית — מציגים גם את socialProof שהוא חלק ממנו
+    if (id === 'home') {
+      const sp = document.getElementById('socialProof');
+      if (sp) sp.classList.remove('hidden');
+    }
     // אם היה מודאל פתוח, המתן קצת לפני הגלילה כדי שהסגירה תיראה
     const scrollDelay = hasModalOpen ? 150 : 50;
     setTimeout(() => {
