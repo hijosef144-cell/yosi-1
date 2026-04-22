@@ -633,6 +633,7 @@
           <a href="#about" class="nav-link font-medium text-gray-700" onclick="return showSection('about', event)">אודות</a>
           <a href="#process" class="nav-link font-medium text-gray-700" onclick="return showSection('process', event)">תהליך הליווי</a>
           <a href="#services" class="nav-link font-medium text-gray-700" onclick="return showSection('services', event)">שירותים ומחשבונים</a>
+          <a href="#faq" class="nav-link font-medium text-gray-700" onclick="return showSection('faq', event)">שאלות נפוצות</a>
           <a href="#blog" class="nav-link font-medium text-gray-700" onclick="return showSection('blog', event)">מאמרים</a>
           <a href="#media" class="nav-link font-medium text-gray-700" onclick="return showSection('media', event)">מדיה</a>
           <a href="#links" class="nav-link font-medium text-gray-700" onclick="return showSection('links', event)">קישורים נחוצים</a>
@@ -653,6 +654,7 @@
           <a href="#about" class="nav-link text-gray-700 font-medium py-2 px-2 rounded-lg hover:bg-gray-50 transition" onclick="toggleMobileMenu(); return showSection('about', event)">אודות</a>
           <a href="#process" class="nav-link text-gray-700 font-medium py-2 px-2 rounded-lg hover:bg-gray-50 transition" onclick="toggleMobileMenu(); return showSection('process', event)">תהליך הליווי</a>
           <a href="#services" class="nav-link text-gray-700 font-medium py-2 px-2 rounded-lg hover:bg-gray-50 transition" onclick="toggleMobileMenu(); return showSection('services', event)">שירותים ומחשבונים</a>
+          <a href="#faq" class="nav-link text-gray-700 font-medium py-2 px-2 rounded-lg hover:bg-gray-50 transition" onclick="toggleMobileMenu(); return showSection('faq', event)">שאלות נפוצות</a>
           <a href="#blog" class="nav-link text-gray-700 font-medium py-2 px-2 rounded-lg hover:bg-gray-50 transition" onclick="toggleMobileMenu(); return showSection('blog', event)">מאמרים</a>
           <a href="#media" class="nav-link text-gray-700 font-medium py-2 px-2 rounded-lg hover:bg-gray-50 transition" onclick="toggleMobileMenu(); return showSection('media', event)">מדיה</a>
           <a href="#links" class="nav-link text-gray-700 font-medium py-2 px-2 rounded-lg hover:bg-gray-50 transition" onclick="toggleMobileMenu(); return showSection('links', event)">קישורים נחוצים</a>
@@ -1521,6 +1523,148 @@
 
 </div> <!-- /below-orbit -->
 
+</section>
+
+<!-- FAQ Section -->
+<section id="faq" class="app-section hidden bg-white">
+  <div class="section-container">
+    <h2 class="section-title">שאלות נפוצות</h2>
+    <p class="text-center text-gray-600 text-lg mb-12 max-w-2xl mx-auto leading-relaxed">
+      ענינו על מאות שאלות — הנה הנפוצות ביותר
+    </p>
+
+    <div class="max-w-3xl mx-auto space-y-10" id="faqContainer">
+
+      <!-- קטגוריה 1 -->
+      <div>
+        <h3 class="section-subtitle mb-4 pb-2 border-b-2 border-blue-100">לפני שמתחילים</h3>
+        <div class="space-y-3">
+
+          <div class="faq-item border border-gray-200 rounded-xl overflow-hidden">
+            <button class="faq-trigger w-full flex justify-between items-center px-6 py-4 text-right bg-white hover:bg-blue-50 transition-colors duration-200"
+                    onclick="toggleFaq(this)">
+              <span class="font-semibold text-blue-900 text-base">האם הייעוץ מתאים לנו גם אם אין לנו חובות?</span>
+              <span class="faq-icon text-blue-700 text-xl font-light flex-shrink-0 mr-4">+</span>
+            </button>
+            <div class="faq-answer hidden px-6 pb-5 pt-1 text-gray-700 leading-relaxed bg-blue-50/40 border-t border-gray-100">
+              בהחלט. רוב הלקוחות מגיעים כי הכסף "נעלם" בסוף החודש, לא חוסכים מספיק, או רוצים לתכנן קדימה. אין צורך להיות במשבר כדי להתחיל.
+            </div>
+          </div>
+
+          <div class="faq-item border border-gray-200 rounded-xl overflow-hidden">
+            <button class="faq-trigger w-full flex justify-between items-center px-6 py-4 text-right bg-white hover:bg-blue-50 transition-colors duration-200"
+                    onclick="toggleFaq(this)">
+              <span class="font-semibold text-blue-900 text-base">האם שני בני הזוג צריכים להשתתף?</span>
+              <span class="faq-icon text-blue-700 text-xl font-light flex-shrink-0 mr-4">+</span>
+            </button>
+            <div class="faq-answer hidden px-6 pb-5 pt-1 text-gray-700 leading-relaxed bg-blue-50/40 border-t border-gray-100">
+              בתהליך הליווי המלא — מומלץ מאוד שיבואו שניכם. כלכלת המשפחה שייכת לשניכם. בפגישות ממוקדות — תלוי במצב.
+            </div>
+          </div>
+
+          <div class="faq-item border border-gray-200 rounded-xl overflow-hidden">
+            <button class="faq-trigger w-full flex justify-between items-center px-6 py-4 text-right bg-white hover:bg-blue-50 transition-colors duration-200"
+                    onclick="toggleFaq(this)">
+              <span class="font-semibold text-blue-900 text-base">איך מתחילים?</span>
+              <span class="faq-icon text-blue-700 text-xl font-light flex-shrink-0 mr-4">+</span>
+            </button>
+            <div class="faq-answer hidden px-6 pb-5 pt-1 text-gray-700 leading-relaxed bg-blue-50/40 border-t border-gray-100">
+              מתחילים בשיחת תיאום ציפיות טלפונית קצרה — מבינים יחד את המצב והמטרות, ורק אחר כך קובעים פגישה.
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- קטגוריה 2 -->
+      <div>
+        <h3 class="section-subtitle mb-4 pb-2 border-b-2 border-blue-100">על התהליך</h3>
+        <div class="space-y-3">
+
+          <div class="faq-item border border-gray-200 rounded-xl overflow-hidden">
+            <button class="faq-trigger w-full flex justify-between items-center px-6 py-4 text-right bg-white hover:bg-blue-50 transition-colors duration-200"
+                    onclick="toggleFaq(this)">
+              <span class="font-semibold text-blue-900 text-base">כמה זמן לוקח הליווי?</span>
+              <span class="faq-icon text-blue-700 text-xl font-light flex-shrink-0 mr-4">+</span>
+            </button>
+            <div class="faq-answer hidden px-6 pb-5 pt-1 text-gray-700 leading-relaxed bg-blue-50/40 border-t border-gray-100">
+              הליווי המשפחתי המלא הוא 6 מפגשים לאורך כ-3-4 חודשים. פגישות ייעוץ ממוקדות הן חד-פעמיות או 2-3 מפגשים לפי הצורך.
+            </div>
+          </div>
+
+          <div class="faq-item border border-gray-200 rounded-xl overflow-hidden">
+            <button class="faq-trigger w-full flex justify-between items-center px-6 py-4 text-right bg-white hover:bg-blue-50 transition-colors duration-200"
+                    onclick="toggleFaq(this)">
+              <span class="font-semibold text-blue-900 text-base">איך מתקיימות הפגישות?</span>
+              <span class="faq-icon text-blue-700 text-xl font-light flex-shrink-0 mr-4">+</span>
+            </button>
+            <div class="faq-answer hidden px-6 pb-5 pt-1 text-gray-700 leading-relaxed bg-blue-50/40 border-t border-gray-100">
+              הפגישות מתקיימות פנים אל פנים.
+            </div>
+          </div>
+
+          <div class="faq-item border border-gray-200 rounded-xl overflow-hidden">
+            <button class="faq-trigger w-full flex justify-between items-center px-6 py-4 text-right bg-white hover:bg-blue-50 transition-colors duration-200"
+                    onclick="toggleFaq(this)">
+              <span class="font-semibold text-blue-900 text-base">מה קורה אחרי סיום הליווי?</span>
+              <span class="faq-icon text-blue-700 text-xl font-light flex-shrink-0 mr-4">+</span>
+            </button>
+            <div class="faq-answer hidden px-6 pb-5 pt-1 text-gray-700 leading-relaxed bg-blue-50/40 border-t border-gray-100">
+              המטרה שלי היא לבנות אתכם לעצמאות כלכלית מלאה — כך שלא תזדקקו לליווי מתמיד. אבל תמיד, אם עולה שאלה אחרי הסיום — אשמח לעזור ללא התחייבות.
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- קטגוריה 3 -->
+      <div>
+        <h3 class="section-subtitle mb-4 pb-2 border-b-2 border-blue-100">עלויות</h3>
+        <div class="space-y-3">
+
+          <div class="faq-item border border-gray-200 rounded-xl overflow-hidden">
+            <button class="faq-trigger w-full flex justify-between items-center px-6 py-4 text-right bg-white hover:bg-blue-50 transition-colors duration-200"
+                    onclick="toggleFaq(this)">
+              <span class="font-semibold text-blue-900 text-base">כמה עולה הליווי?</span>
+              <span class="faq-icon text-blue-700 text-xl font-light flex-shrink-0 mr-4">+</span>
+            </button>
+            <div class="faq-answer hidden px-6 pb-5 pt-1 text-gray-700 leading-relaxed bg-blue-50/40 border-t border-gray-100">
+              המחיר מותאם אישית לפי המסלול והמצב. לפרטים נוספים צרו קשר.
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ציטוט -->
+      <div class="bg-gradient-to-br from-blue-50 to-blue-100/60 border border-blue-200 rounded-2xl px-8 py-6 text-center">
+        <p class="text-blue-900 text-lg font-semibold leading-relaxed mb-3">
+          "אחרי חצי שנה של ליווי, בפעם הראשונה בחיים ישנתי בשקט בלילה. הכסף כבר לא מדיר שינה — אנחנו יודעים בדיוק לאן הוא הולך ומה יהיה בחודש הבא."
+        </p>
+        <p class="text-blue-700 font-medium text-sm">— משפחה מבית שמש</p>
+      </div>
+
+      <!-- CTA -->
+      <div class="text-center pt-2">
+        <button onclick="return showSection('contact', event)"
+                class="bg-gradient-to-r from-blue-900 to-blue-700 text-white px-10 py-4 rounded-xl font-bold text-base hover:from-blue-800 hover:to-blue-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105">
+          צור קשר לפרטים נוספים
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- פופאפ חכם -->
+  <div id="faqSmartPopup" class="hidden fixed bottom-6 left-6 z-50 bg-white border border-blue-200 rounded-2xl shadow-2xl p-5 max-w-xs" dir="rtl">
+    <button onclick="document.getElementById('faqSmartPopup').classList.add('hidden')"
+            class="absolute top-2 left-2 text-gray-400 hover:text-gray-600 text-lg leading-none">✕</button>
+    <p class="text-blue-900 font-semibold mb-3 text-sm leading-relaxed">עדיין יש לך שאלה?<br>נשמח לעזור</p>
+    <button onclick="document.getElementById('faqSmartPopup').classList.add('hidden'); return showSection('contact', event)"
+            class="w-full bg-blue-900 text-white py-2 rounded-lg text-sm font-semibold hover:bg-blue-800 transition">
+      צור קשר עכשיו
+    </button>
+  </div>
 </section>
 
 <!-- Blog -->
@@ -3325,6 +3469,36 @@ window.contactNow = function(){
 };
 window.showLegalDisclaimer = function(){ const el=document.getElementById('legalDisclaimer'); if(el){ el.style.display='block'; el.classList.remove('hidden'); legalDisclaimerShown=true; } };
 window.closeLegalDisclaimer = function(){ const el=document.getElementById('legalDisclaimer'); if(el){ el.style.display='none'; el.classList.add('hidden'); } };
+// FAQ accordion
+window.toggleFaq = function(btn) {
+  const item = btn.closest('.faq-item');
+  const answer = item.querySelector('.faq-answer');
+  const icon = btn.querySelector('.faq-icon');
+  const isOpen = !answer.classList.contains('hidden');
+
+  // סגור את כל השאר באותה קטגוריה
+  btn.closest('.space-y-3').querySelectorAll('.faq-item').forEach(i => {
+    i.querySelector('.faq-answer').classList.add('hidden');
+    i.querySelector('.faq-icon').textContent = '+';
+    i.querySelector('.faq-trigger').classList.remove('bg-blue-50');
+  });
+
+  if (!isOpen) {
+    answer.classList.remove('hidden');
+    icon.textContent = '−';
+    btn.classList.add('bg-blue-50');
+
+    // ספירה לפופאפ החכם
+    window._faqOpenCount = (window._faqOpenCount || 0) + 1;
+    if (window._faqOpenCount >= 3 && !window._faqPopupShown) {
+      window._faqPopupShown = true;
+      setTimeout(() => {
+        document.getElementById('faqSmartPopup')?.classList.remove('hidden');
+      }, 600);
+    }
+  }
+};
+
 console.log('Popup functions defined globally');
 
 // === Define showSection globally (must be accessible from onclick) ===
@@ -3337,6 +3511,7 @@ window.showSection = function(id, ev) {
     about: 'אודות',
     process: 'תהליך הליווי',
     services: 'שירותים ומחשבונים',
+    faq: 'שאלות נפוצות',
     blog: 'מאמרים',
     media: 'מדיה',
     links: 'קישורים נחוצים',
