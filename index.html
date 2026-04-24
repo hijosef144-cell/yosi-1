@@ -1095,10 +1095,9 @@
   </section>
 
   <!-- Services & Calculators -->
-  <section id="services" class="app-section hidden py-16 bg-gray-50">
+  <section id="services" class="app-section hidden pt-8 pb-0 bg-gray-50">
     <div class="container mx-auto px-6">
       <h2 class="section-title">שירותים ומחשבונים</h2>
-      <p class="text-center text-gray-600 text-xl mb-12 font-medium">(תנסה אותי !)</p>
 
 
        
@@ -1144,30 +1143,13 @@
     }
   }
 
-  /* אנימציה למחשבונים נוספים */
-  #additionalCalculatorsGrid {
-    transition: opacity 0.4s ease-in-out, transform 0.4s ease-in-out;
-    transform-origin: top;
-  }
-  #additionalCalculatorsGrid.showing {
-    display: grid !important;
-    animation: slideDown 0.4s ease-in-out;
-  }
-  @keyframes slideDown {
-    from {
-      opacity: 0;
-      transform: translateY(-10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
+  /* מעבר בין טאבים */
+  .calc-tab-panel { transition: opacity 0.2s ease; }
 </style>
 
 
 <!-- WRAPPER חוצה-מסך -->
-<div class="below-orbit full-bleed bg-white py-12" dir="rtl">
+<div class="below-orbit full-bleed bg-white pt-6 pb-12" dir="rtl">
   <!-- תוכן פנימי; אפשר לשנות/להסיר max-width לפי טעם -->
   <div class="mx-auto px-4 sm:px-6 lg:px-8" style="max-width:1600px;">
     <div class="flex items-center justify-center gap-4 mb-8">
@@ -1175,84 +1157,33 @@
       <img src="images/איש מחשבון.svg" alt="איש מחשבון" class="w-12 h-12 md:w-20 md:h-20 opacity-70">
     </div>
 
-    <!-- ===== מחשבונים מקצועיים - ראשונים ===== -->
-    
-    <!-- Comprehensive RE Calc trigger (PRO Card) -->
-    <div class="relative overflow-hidden rounded-2xl border border-gray-200 bg-gradient-to-l from-white to-blue-50/40 shadow-xl ring-1 ring-black/5 px-6 py-8 md:px-10 md:py-10 mb-8" dir="rtl">
-      <!-- רקע דקורטיבי עדין (נקודות/גלים) -->
-      <svg class="pointer-events-none absolute -left-10 -top-10 h-56 w-56 opacity-20 text-blue-200" viewBox="0 0 200 200" fill="none">
-        <defs>
-          <pattern id="dots-pro" x="0" y="0" width="12" height="12" patternUnits="userSpaceOnUse">
-            <circle cx="1.5" cy="1.5" r="1.5" fill="currentColor"/>
-          </pattern>
-        </defs>
-        <rect width="200" height="200" fill="url(#dots-pro)"/>
-      </svg>
-  
-      <div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
-  
-        <!-- צד טקסט / תועלות -->
-        <div class="max-w-3xl">
-          <div class="inline-flex items-center gap-2 rounded-full bg-blue-100/70 px-3 py-1 text-xs font-medium text-blue-900 mb-3">
-            <span>גרסה מקצועית</span>
-            <span class="h-1 w-1 rounded-full bg-blue-900/60"></span>
-            <span>RTL מלא</span>
-          </div>
-  
-          <h4 class="text-2xl md:text-3xl font-extrabold tracking-tight text-blue-900">
-            מחשבון נדל״ן מקיף
-          </h4>
-  
-          <p class="mt-2 text-gray-700 text-sm md:text-base leading-relaxed">
-            כלי מקצועי לחישוב רווחיות השקעה בנדל״ן – כולל כל העלויות, מימון, מסים ותשואה אפקטיבית.
-          </p>
-  
-          <!-- תגיות פיצ'רים -->
-          <div class="mt-4 flex flex-wrap gap-2">
-            <span class="rounded-lg bg-white text-gray-700 border border-gray-200 px-3 py-1 text-xs md:text-sm shadow-sm">מס רכישה ומס שבח</span>
-            <span class="rounded-lg bg-white text-gray-700 border border-gray-200 px-3 py-1 text-xs md:text-sm shadow-sm">עלויות רכישה/שיפוץ</span>
-            <span class="rounded-lg bg-white text-gray-700 border border-gray-200 px-3 py-1 text-xs md:text-sm shadow-sm">מימון וריבית אפקטיבית</span>
-            <span class="rounded-lg bg-white text-gray-700 border border-gray-200 px-3 py-1 text-xs md:text-sm shadow-sm">תזרים חודשי נטו</span>
-          </div>
-        </div>
-  
-        <!-- כפתורים -->
-        <div class="w-full lg:w-auto flex flex-col sm:flex-row gap-3">
-          <button
-            id="openDetailedCalcBtn"
-            onclick="if(typeof window.openRealEstateCalculator==='function'){window.openRealEstateCalculator();}else if(typeof openRealEstateCalculator==='function'){openRealEstateCalculator();}else{alert('שגיאה: המחשבון לא זמין כרגע. נסה לרענן את הדף.');console.error('openRealEstateCalculator not found');}"
-            class="group w-full lg:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-blue-900 px-6 py-3 text-white text-sm md:text-base font-semibold shadow-md hover:shadow-lg hover:bg-blue-800 active:scale-[.99] transition">
-            פתח מחשבון נדל״ן מקיף
-            <svg class="h-4 w-4 transition -scale-x-100 group-hover:translate-x-0.5" 
-                 viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-            </svg>
-          </button>
-
-          <button
-            id="openMlDiscountBtn"
-            onclick="if(window.openMlDiscountCalculator){window.openMlDiscountCalculator();}else{alert('שגיאה: המחשבון לא זמין כרגע. נסה לרענן את הדף.');}"
-            class="group w-full lg:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 py-3 text-white text-sm md:text-base font-semibold shadow-md hover:shadow-lg hover:bg-emerald-700 active:scale-[.99] transition">
-            מחשבון מחיר למשתכן
-            <svg class="h-4 w-4 transition -scale-x-100 group-hover:translate-x-0.5" 
-                 viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-            </svg>
-          </button>
-        </div>
-    
-        <!-- שורת אמון קטנה -->
-        <div class="mt-3 text-[12px] text-gray-500 text-center lg:text-start w-full lg:w-auto">
-          ללא עלות • אין צורך בהרשמה • אופציה להדפסה
-        </div>
-      </div>
+    <!-- ===== כפתורי טאבים ===== -->
+    <div class="flex justify-center flex-wrap gap-1 mb-8 border-b border-gray-200">
+      <button data-tab="calc-tab-savings"
+        onclick="showCalcTab('calc-tab-savings')"
+        class="calc-tab-btn active-calc-tab px-5 py-3 text-sm font-semibold border-b-2 border-blue-900 text-blue-900 bg-white transition-all">
+        חיסכון
+      </button>
+      <button data-tab="calc-tab-realestate"
+        onclick="showCalcTab('calc-tab-realestate')"
+        class="calc-tab-btn px-5 py-3 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-blue-900 bg-white transition-all">
+        נדל״ן
+      </button>
+      <button data-tab="calc-tab-loans"
+        onclick="showCalcTab('calc-tab-loans')"
+        class="calc-tab-btn px-5 py-3 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-blue-900 bg-white transition-all">
+        הלוואות ופרישה
+      </button>
     </div>
-    <!-- /Comprehensive RE Calc trigger -->
+    <!-- ===== /כפתורי טאבים ===== -->
+
+    <!-- ===== TAB 1: חיסכון (ברירת מחדל) ===== -->
+    <div id="calc-tab-savings" class="calc-tab-panel">
 
     <!-- ===== מחשבון יעד (עם דמי ניהול) – אופקי ורחב ===== -->
     <div class="goal-horizontal w-full border border-gray-200 p-6 mb-8">
       <div class="goal-flex flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8">
-        
+
         <!-- צד ימין: טופס קלטים -->
         <div class="flex-1 w-full max-w-xl">
           <div class="flex items-start justify-between mb-3">
@@ -1262,7 +1193,7 @@
           <div id="goal-help" class="hidden mb-3 p-3 bg-blue-50 rounded text-sm text-gray-700">
             מחשבון זה עוזר לך לחשב כמה אתה צריך לחסוך (חד-פעמי או חודשי) כדי להגיע לסכום יעד מסוים בעתיד, תוך התחשבות בתשואה, דמי ניהול ומס רווח הון.
           </div>
-    
+
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">סכום יעד נטו (₪) <span class="text-xs text-gray-500 font-normal">- כמה כסף תרצה להגיע אליו בעתיד</span></label>
@@ -1281,17 +1212,17 @@
               <input type="number" id="goalYearsFee" class="calculator-input w-full px-3 py-2 rounded-md" placeholder="10">
             </div>
           </div>
-    
+
           <div class="flex items-center mt-4">
             <input type="checkbox" id="goalTaxFee" class="ml-2" checked>
             <label class="text-sm text-gray-700">מס רווח הון 25% <span class="text-xs text-gray-500">(אם זה קרן השתלמות, ניתן להסיר את ה-✓)</span></label>
           </div>
-    
+
           <button onclick="calculateGoalWithFees()" class="w-full bg-blue-900 text-white py-2 rounded-md hover:bg-blue-800 transition duration-300 mt-4">
             חשב
           </button>
         </div>
-    
+
         <!-- צד שמאל: תוצאות -->
         <div class="flex-1 w-full">
           <div id="goalResultFee" class="text-center lg:text-right text-sm space-y-3">
@@ -1314,7 +1245,7 @@
             </div>
           </div>
         </div>
-    
+
       </div>
     </div>
     <!-- ===== /מחשבון יעד (עם דמי ניהול) ===== -->
@@ -1372,21 +1303,154 @@
     </div>
     <!-- ===== /מחשבון ריבית דריבית ===== -->
 
-    <!-- ===== מחשבונים נוספים ===== -->
-    <div class="mt-8">
-      <div class="text-center mb-6">
-        <button 
-          id="toggleAdditionalCalculators" 
-          onclick="toggleAdditionalCalculators()"
-          class="inline-flex items-center gap-2 text-xl font-semibold text-blue-900 hover:text-blue-700 transition-colors cursor-pointer group">
-          <span>מחשבונים נוספים לחצו פה</span>
-          <span class="text-base text-gray-600">(מעניין פה...)</span>
-          <svg id="additionalCalculatorsIcon" class="w-5 h-5 transition-transform transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
-          </svg>
-        </button>
+    </div>
+    <!-- ===== /TAB 1: חיסכון ===== -->
+
+    <!-- ===== TAB 2: נדל"ן (מוסתר) ===== -->
+    <div id="calc-tab-realestate" class="calc-tab-panel hidden">
+
+    <!-- Comprehensive RE Calc trigger (PRO Card) -->
+    <div class="relative overflow-hidden rounded-2xl border border-gray-200 bg-gradient-to-l from-white to-blue-50/40 shadow-xl ring-1 ring-black/5 px-6 py-8 md:px-10 md:py-10 mb-8" dir="rtl">
+      <!-- רקע דקורטיבי עדין (נקודות/גלים) -->
+      <svg class="pointer-events-none absolute -left-10 -top-10 h-56 w-56 opacity-20 text-blue-200" viewBox="0 0 200 200" fill="none">
+        <defs>
+          <pattern id="dots-pro" x="0" y="0" width="12" height="12" patternUnits="userSpaceOnUse">
+            <circle cx="1.5" cy="1.5" r="1.5" fill="currentColor"/>
+          </pattern>
+        </defs>
+        <rect width="200" height="200" fill="url(#dots-pro)"/>
+      </svg>
+
+      <div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+
+        <!-- צד טקסט / תועלות -->
+        <div class="max-w-3xl">
+          <div class="inline-flex items-center gap-2 rounded-full bg-blue-100/70 px-3 py-1 text-xs font-medium text-blue-900 mb-3">
+            <span>גרסה מקצועית</span>
+            <span class="h-1 w-1 rounded-full bg-blue-900/60"></span>
+            <span>RTL מלא</span>
+          </div>
+
+          <h4 class="text-2xl md:text-3xl font-extrabold tracking-tight text-blue-900">
+            מחשבון נדל״ן מקיף
+          </h4>
+
+          <p class="mt-2 text-gray-700 text-sm md:text-base leading-relaxed">
+            כלי מקצועי לחישוב רווחיות השקעה בנדל״ן – כולל כל העלויות, מימון, מסים ותשואה אפקטיבית.
+          </p>
+
+          <!-- תגיות פיצ'רים -->
+          <div class="mt-4 flex flex-wrap gap-2">
+            <span class="rounded-lg bg-white text-gray-700 border border-gray-200 px-3 py-1 text-xs md:text-sm shadow-sm">מס רכישה ומס שבח</span>
+            <span class="rounded-lg bg-white text-gray-700 border border-gray-200 px-3 py-1 text-xs md:text-sm shadow-sm">עלויות רכישה/שיפוץ</span>
+            <span class="rounded-lg bg-white text-gray-700 border border-gray-200 px-3 py-1 text-xs md:text-sm shadow-sm">מימון וריבית אפקטיבית</span>
+            <span class="rounded-lg bg-white text-gray-700 border border-gray-200 px-3 py-1 text-xs md:text-sm shadow-sm">תזרים חודשי נטו</span>
+          </div>
+        </div>
+
+        <!-- כפתורים -->
+        <div class="w-full lg:w-auto flex flex-col sm:flex-row gap-3">
+          <button
+            id="openDetailedCalcBtn"
+            onclick="if(typeof window.openRealEstateCalculator==='function'){window.openRealEstateCalculator();}else if(typeof openRealEstateCalculator==='function'){openRealEstateCalculator();}else{alert('שגיאה: המחשבון לא זמין כרגע. נסה לרענן את הדף.');console.error('openRealEstateCalculator not found');}"
+            class="group w-full lg:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-blue-900 px-6 py-3 text-white text-sm md:text-base font-semibold shadow-md hover:shadow-lg hover:bg-blue-800 active:scale-[.99] transition">
+            פתח מחשבון נדל״ן מקיף
+            <svg class="h-4 w-4 transition -scale-x-100 group-hover:translate-x-0.5"
+                 viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+            </svg>
+          </button>
+
+          <button
+            id="openMlDiscountBtn"
+            onclick="if(window.openMlDiscountCalculator){window.openMlDiscountCalculator();}else{alert('שגיאה: המחשבון לא זמין כרגע. נסה לרענן את הדף.');}"
+            class="group w-full lg:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 py-3 text-white text-sm md:text-base font-semibold shadow-md hover:shadow-lg hover:bg-emerald-700 active:scale-[.99] transition">
+            מחשבון מחיר למשתכן
+            <svg class="h-4 w-4 transition -scale-x-100 group-hover:translate-x-0.5"
+                 viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- שורת אמון קטנה -->
+        <div class="mt-3 text-[12px] text-gray-500 text-center lg:text-start w-full lg:w-auto">
+          ללא עלות • אין צורך בהרשמה • אופציה להדפסה
+        </div>
       </div>
-      <div id="additionalCalculatorsGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6" style="display: none;">
+    </div>
+    <!-- /Comprehensive RE Calc trigger -->
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+
+      <!-- Real Estate Basic Return -->
+      <div class="border border-gray-200 p-6 rounded-lg">
+        <div class="flex items-start justify-between mb-3">
+          <h4 class="text-lg font-semibold text-blue-900">מחשבון תשואה בסיסית נדל"ן</h4>
+          <button type="button" onclick="toggleCalculatorHelp('realestate-basic')" class="text-blue-600 text-xs hover:text-blue-800">להסבר על המחשבון לחץ</button>
+        </div>
+        <div id="realestate-basic-help" class="hidden mb-3 p-3 bg-blue-50 rounded text-sm text-gray-700">
+          מחשבון זה מחשב את התשואה הבסיסית על השקעה בנדל"ן - כמה אחוזים מההשקעה יחזרו אליך כל שנה מהכנסה משכירות.
+        </div>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">סכום ההשקעה הכולל (₪) <span class="text-xs text-gray-500 font-normal">- סה"כ כסף שהשקעת בנכס (קנייה + שיפוץ + עלויות)</span></label>
+            <input type="number" id="realEstateInvestment" class="calculator-input w-full px-3 py-2 rounded-md" placeholder="1,000,000">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">הכנסה שנתית נטו (₪) <span class="text-xs text-gray-500 font-normal">- הכנסה משכירות אחרי הוצאות (תחזוקה, ארנונה, וכדומה)</span></label>
+            <input type="number" id="realEstateIncome" class="calculator-input w-full px-3 py-2 rounded-md" placeholder="50,000">
+          </div>
+          <button onclick="calculateRealEstateBasic()" class="w-full bg-blue-900 text-white py-2 rounded-md hover:bg-blue-800 transition duration-300">חשב תשואה</button>
+          <div id="realEstateBasicResult" class="text-center text-sm space-y-2 mt-3">
+            <div id="basicReturn" class="font-semibold text-blue-900 text-lg"></div>
+            <small class="text-gray-500 block">אחוז התשואה השנתית על ההשקעה</small>
+            <div class="text-xs text-gray-600 mt-2">הכנסה שנתית נטו ÷ סכום ההשקעה × 100</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Real Estate Advanced Return -->
+      <div class="border border-gray-200 p-6 rounded-lg">
+        <div class="flex items-start justify-between mb-3">
+          <h4 class="text-lg font-semibold text-blue-900">מחשבון תשואה על הון עצמי</h4>
+          <button type="button" onclick="toggleCalculatorHelp('realestate-advanced')" class="text-blue-600 text-xs hover:text-blue-800">להסבר על המחשבון לחץ</button>
+        </div>
+        <div id="realestate-advanced-help" class="hidden mb-3 p-3 bg-blue-50 rounded text-sm text-gray-700">
+          מחשבון זה מחשב את התשואה האמיתית על ההון העצמי שהשקעת (לא על כל ההשקעה), לאחר ניכוי תשלומי הריבית. זה המדד החשוב למשקיע ממונף.
+        </div>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">הכנסה שנתית נטו (₪) <span class="text-xs text-gray-500 font-normal">- הכנסה משכירות אחרי כל ההוצאות</span></label>
+            <input type="number" id="advancedIncome" class="calculator-input w-full px-3 py-2 rounded-md" placeholder="50,000">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">תשלומי ריבית משכנתא שנתיים (₪) <span class="text-xs text-gray-500 font-normal">- סה"כ ריבית שתשלם בשנה</span></label>
+            <input type="number" id="mortgageInterest" class="calculator-input w-full px-3 py-2 rounded-md" placeholder="25,000">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">סכום ההון העצמי (₪) <span class="text-xs text-gray-500 font-normal">- כמה כסף משלך השקעת (לא כולל הלוואות)</span></label>
+            <input type="number" id="ownCapital" class="calculator-input w-full px-3 py-2 rounded-md" placeholder="300,000">
+          </div>
+          <button onclick="calculateRealEstateAdvanced()" class="w-full bg-blue-900 text-white py-2 rounded-md hover:bg-blue-800 transition duration-300">חשב תשואה</button>
+          <div id="realEstateAdvancedResult" class="text-center text-sm space-y-2 mt-3">
+            <div id="advancedReturn" class="font-semibold text-blue-900 text-lg"></div>
+            <small class="text-gray-500 block">אחוז התשואה השנתית על ההון העצמי שלך</small>
+            <div id="netProfit" class="text-gray-700"></div>
+            <small class="text-gray-500 block">רווח שנתי נטו אחרי ריבית</small>
+            <div class="text-xs text-gray-600 mt-2">(הכנסה נטו - ריבית) ÷ הון עצמי × 100</div>
+          </div>
+        </div>
+      </div>
+
+      </div><!-- /grid נדל"ן -->
+
+    </div>
+    <!-- ===== /TAB 2: נדל"ן ===== -->
+
+    <!-- ===== TAB 3: הלוואות ופרישה (מוסתר) ===== -->
+    <div id="calc-tab-loans" class="calc-tab-panel hidden">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
       <!-- Loan Calculator -->
       <div class="border border-gray-200 p-6 rounded-lg">
@@ -1458,69 +1522,11 @@
         </div>
       </div>
 
-      <!-- Real Estate Basic Return -->
-      <div class="border border-gray-200 p-6 rounded-lg">
-        <div class="flex items-start justify-between mb-3">
-          <h4 class="text-lg font-semibold text-blue-900">מחשבון תשואה בסיסית נדל"ן</h4>
-          <button type="button" onclick="toggleCalculatorHelp('realestate-basic')" class="text-blue-600 text-xs hover:text-blue-800">להסבר על המחשבון לחץ</button>
-        </div>
-        <div id="realestate-basic-help" class="hidden mb-3 p-3 bg-blue-50 rounded text-sm text-gray-700">
-          מחשבון זה מחשב את התשואה הבסיסית על השקעה בנדל"ן - כמה אחוזים מההשקעה יחזרו אליך כל שנה מהכנסה משכירות.
-        </div>
-        <div class="space-y-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">סכום ההשקעה הכולל (₪) <span class="text-xs text-gray-500 font-normal">- סה"כ כסף שהשקעת בנכס (קנייה + שיפוץ + עלויות)</span></label>
-            <input type="number" id="realEstateInvestment" class="calculator-input w-full px-3 py-2 rounded-md" placeholder="1,000,000">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">הכנסה שנתית נטו (₪) <span class="text-xs text-gray-500 font-normal">- הכנסה משכירות אחרי הוצאות (תחזוקה, ארנונה, וכדומה)</span></label>
-            <input type="number" id="realEstateIncome" class="calculator-input w-full px-3 py-2 rounded-md" placeholder="50,000">
-          </div>
-          <button onclick="calculateRealEstateBasic()" class="w-full bg-blue-900 text-white py-2 rounded-md hover:bg-blue-800 transition duration-300">חשב תשואה</button>
-          <div id="realEstateBasicResult" class="text-center text-sm space-y-2 mt-3">
-            <div id="basicReturn" class="font-semibold text-blue-900 text-lg"></div>
-            <small class="text-gray-500 block">אחוז התשואה השנתית על ההשקעה</small>
-            <div class="text-xs text-gray-600 mt-2">הכנסה שנתית נטו ÷ סכום ההשקעה × 100</div>
-          </div>
-        </div>
-      </div>
+      </div><!-- /grid הלוואות ופרישה -->
+    </div>
+    <!-- ===== /TAB 3: הלוואות ופרישה ===== -->
 
-      <!-- Real Estate Advanced Return -->
-      <div class="border border-gray-200 p-6 rounded-lg">
-        <div class="flex items-start justify-between mb-3">
-          <h4 class="text-lg font-semibold text-blue-900">מחשבון תשואה על הון עצמי</h4>
-          <button type="button" onclick="toggleCalculatorHelp('realestate-advanced')" class="text-blue-600 text-xs hover:text-blue-800">להסבר על המחשבון לחץ</button>
-        </div>
-        <div id="realestate-advanced-help" class="hidden mb-3 p-3 bg-blue-50 rounded text-sm text-gray-700">
-          מחשבון זה מחשב את התשואה האמיתית על ההון העצמי שהשקעת (לא על כל ההשקעה), לאחר ניכוי תשלומי הריבית. זה המדד החשוב למשקיע ממונף.
-        </div>
-        <div class="space-y-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">הכנסה שנתית נטו (₪) <span class="text-xs text-gray-500 font-normal">- הכנסה משכירות אחרי כל ההוצאות</span></label>
-            <input type="number" id="advancedIncome" class="calculator-input w-full px-3 py-2 rounded-md" placeholder="50,000">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">תשלומי ריבית משכנתא שנתיים (₪) <span class="text-xs text-gray-500 font-normal">- סה"כ ריבית שתשלם בשנה</span></label>
-            <input type="number" id="mortgageInterest" class="calculator-input w-full px-3 py-2 rounded-md" placeholder="25,000">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">סכום ההון העצמי (₪) <span class="text-xs text-gray-500 font-normal">- כמה כסף משלך השקעת (לא כולל הלוואות)</span></label>
-            <input type="number" id="ownCapital" class="calculator-input w-full px-3 py-2 rounded-md" placeholder="300,000">
-          </div>
-          <button onclick="calculateRealEstateAdvanced()" class="w-full bg-blue-900 text-white py-2 rounded-md hover:bg-blue-800 transition duration-300">חשב תשואה</button>
-          <div id="realEstateAdvancedResult" class="text-center text-sm space-y-2 mt-3">
-            <div id="advancedReturn" class="font-semibold text-blue-900 text-lg"></div>
-            <small class="text-gray-500 block">אחוז התשואה השנתית על ההון העצמי שלך</small>
-            <div id="netProfit" class="text-gray-700"></div>
-            <small class="text-gray-500 block">רווח שנתי נטו אחרי ריבית</small>
-            <div class="text-xs text-gray-600 mt-2">(הכנסה נטו - ריבית) ÷ הון עצמי × 100</div>
-          </div>
-        </div>
-      </div>
-    </div> <!-- סוף גריד המחשבונים הרגילים -->
-  
-
-
+  </div>
 </div> <!-- /below-orbit -->
 
 </section>
@@ -4462,26 +4468,17 @@ window.toggleCalculatorHelp = function(calcId) {
   }
 };
 
-window.toggleAdditionalCalculators = function() {
-  const grid = document.getElementById('additionalCalculatorsGrid');
-  const icon = document.getElementById('additionalCalculatorsIcon');
-  if (grid && icon) {
-    const isHidden = grid.style.display === 'none' || !grid.classList.contains('showing');
-    if (isHidden) {
-      // פתיחה
-      grid.style.display = 'grid';
-      setTimeout(() => {
-        grid.classList.add('showing');
-        icon.style.transform = 'rotate(90deg)';
-      }, 10);
-    } else {
-      // סגירה
-      grid.classList.remove('showing');
-      icon.style.transform = 'rotate(0deg)';
-      setTimeout(() => {
-        grid.style.display = 'none';
-      }, 400);
-    }
+window.showCalcTab = function(tabId) {
+  document.querySelectorAll('.calc-tab-panel').forEach(p => p.classList.add('hidden'));
+  document.getElementById(tabId).classList.remove('hidden');
+  document.querySelectorAll('.calc-tab-btn').forEach(b => {
+    b.classList.remove('border-blue-900', 'text-blue-900', 'active-calc-tab');
+    b.classList.add('border-transparent', 'text-gray-500');
+  });
+  const btn = document.querySelector('[data-tab="' + tabId + '"]');
+  if (btn) {
+    btn.classList.add('border-blue-900', 'text-blue-900', 'active-calc-tab');
+    btn.classList.remove('border-transparent', 'text-gray-500');
   }
 };
 
