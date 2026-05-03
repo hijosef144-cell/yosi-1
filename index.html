@@ -6766,16 +6766,22 @@ if(e.key === 'Escape' && !overlay.hidden) closeModal();
     color: #fff;
     border: none;
     font-size: 22px;
-    cursor: pointer;
+    cursor: grab;
     display: flex;
     align-items: center;
     justify-content: center;
     box-shadow: 0 4px 16px rgba(30,58,138,0.4);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    transition: box-shadow 0.2s ease;
+    user-select: none;
+    touch-action: none;
   }
   #a11y-btn:hover {
-    transform: translateY(-2px);
     box-shadow: 0 8px 24px rgba(30,58,138,0.5);
+  }
+  #a11y-btn.dragging {
+    cursor: grabbing;
+    box-shadow: 0 12px 32px rgba(30,58,138,0.6);
+    opacity: 0.9;
   }
   #a11y-btn:focus-visible {
     outline: 3px solid #60a5fa;
@@ -6866,8 +6872,7 @@ if(e.key === 'Escape' && !overlay.hidden) closeModal();
   aria-label="פתח תפריט נגישות"
   aria-expanded="false"
   aria-controls="a11y-panel"
-  onclick="window.toggleA11yPanel()"
-  title="נגישות">
+  title="נגישות (ניתן לגרור)">
   ♿
 </button>
 
@@ -6983,6 +6988,160 @@ if(e.key === 'Escape' && !overlay.hidden) closeModal();
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', load);
   } else { load(); }
+})();
+</script>
+<!-- גרירת כפתור נגישות -->
+<script>
+(function(){
+  'use strict';
+  var btn   = document.getElementById('a11y-btn');
+  var panel = document.getElementById('a11y-panel');
+  if (!btn) return;
+
+  var THRESHOLD = 6; // px — מרחק מינימלי להכרה בגרירה
+  var dragging  = false;
+  var moved     = false;
+  var startCX, startCY, startBtnL, startBtnT;
+
+  /* --- מיקום פאנל יחסית לכפתור --- */
+  function positionPanel() {
+    if (!panel || panel.hasAttribute('hidden')) return;
+    var bRect = btn.getBoundingClientRect();
+    var pW = panel.offsetWidth  || 230;
+    var pH = panel.offsetHeight || 290;
+    var gap = 10;
+
+    // ברירת מחדל: פאנל מעל הכפתור, מיושר לצד ימין שלו
+    var pL = bRect.right - pW;
+    var pT = bRect.top - pH - gap;
+
+    // אם יוצא מהמסך למעלה — שים מתחת
+    if (pT < 8) pT = bRect.bottom + gap;
+    // גבולות ימין/שמאל
+    pL = Math.max(8, Math.min(window.innerWidth - pW - 8, pL));
+    // גבול תחתון
+    if (pT + pH > window.innerHeight - 8) pT = window.innerHeight - pH - 8;
+
+    panel.style.left   = pL + 'px';
+    panel.style.top    = pT + 'px';
+    panel.style.right  = 'auto';
+    panel.style.bottom = 'auto';
+  }
+
+  /* --- שמירה/טעינה של מיקום --- */
+  function savePos(l, t) {
+    try { localStorage.setItem('a11y_pos', JSON.stringify({l:l, t:t})); } catch(e){}
+  }
+  function initPos() {
+    var saved = null;
+    try { saved = JSON.parse(localStorage.getItem('a11y_pos') || 'null'); } catch(e){}
+    var rect = btn.getBoundingClientRect();
+    var l = saved ? saved.l : rect.left;
+    var t = saved ? saved.t : rect.top;
+    // ווידוא שבגבולות
+    l = Math.max(0, Math.min(window.innerWidth  - btn.offsetWidth,  l));
+    t = Math.max(0, Math.min(window.innerHeight - btn.offsetHeight, t));
+    btn.style.left   = l + 'px';
+    btn.style.top    = t + 'px';
+    btn.style.right  = 'auto';
+    btn.style.bottom = 'auto';
+  }
+
+  /* --- אירועי עכבר --- */
+  btn.addEventListener('mousedown', function(e) {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    var rect = btn.getBoundingClientRect();
+    startCX = e.clientX; startCY = e.clientY;
+    startBtnL = rect.left; startBtnT = rect.top;
+    dragging = true; moved = false;
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup',   onMouseUp);
+  });
+
+  function onMouseMove(e) {
+    if (!dragging) return;
+    var dx = e.clientX - startCX;
+    var dy = e.clientY - startCY;
+    if (!moved && (Math.abs(dx) > THRESHOLD || Math.abs(dy) > THRESHOLD)) {
+      moved = true;
+      btn.classList.add('dragging');
+    }
+    if (moved) moveBtn(startBtnL + dx, startBtnT + dy);
+  }
+
+  function onMouseUp(e) {
+    document.removeEventListener('mousemove', onMouseMove);
+    document.removeEventListener('mouseup',   onMouseUp);
+    btn.classList.remove('dragging');
+    if (moved) {
+      var r = btn.getBoundingClientRect();
+      savePos(r.left, r.top);
+    } else {
+      window.toggleA11yPanel();
+    }
+    dragging = false;
+  }
+
+  /* --- אירועי מגע --- */
+  btn.addEventListener('touchstart', function(e) {
+    var t = e.touches[0];
+    var rect = btn.getBoundingClientRect();
+    startCX = t.clientX; startCY = t.clientY;
+    startBtnL = rect.left; startBtnT = rect.top;
+    dragging = true; moved = false;
+    document.addEventListener('touchmove', onTouchMove, {passive:false});
+    document.addEventListener('touchend',  onTouchEnd);
+  }, {passive:true});
+
+  function onTouchMove(e) {
+    if (!dragging) return;
+    var t = e.touches[0];
+    var dx = t.clientX - startCX;
+    var dy = t.clientY - startCY;
+    if (!moved && (Math.abs(dx) > THRESHOLD || Math.abs(dy) > THRESHOLD)) {
+      moved = true;
+      btn.classList.add('dragging');
+    }
+    if (moved) { moveBtn(startBtnL + dx, startBtnT + dy); e.preventDefault(); }
+  }
+
+  function onTouchEnd() {
+    document.removeEventListener('touchmove', onTouchMove);
+    document.removeEventListener('touchend',  onTouchEnd);
+    btn.classList.remove('dragging');
+    if (moved) {
+      var r = btn.getBoundingClientRect();
+      savePos(r.left, r.top);
+    } else {
+      window.toggleA11yPanel();
+    }
+    dragging = false;
+  }
+
+  /* --- הזזת הכפתור --- */
+  function moveBtn(l, t) {
+    var bw = btn.offsetWidth, bh = btn.offsetHeight;
+    l = Math.max(0, Math.min(window.innerWidth  - bw, l));
+    t = Math.max(0, Math.min(window.innerHeight - bh, t));
+    btn.style.left   = l + 'px';
+    btn.style.top    = t + 'px';
+    btn.style.right  = 'auto';
+    btn.style.bottom = 'auto';
+    positionPanel();
+  }
+
+  /* עדכון פאנל בכל פתיחה */
+  var origToggle = window.toggleA11yPanel;
+  window.toggleA11yPanel = function() {
+    origToggle();
+    positionPanel();
+  };
+
+  /* אתחול מיקום */
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initPos);
+  } else { initPos(); }
 })();
 </script>
 <!-- ===== /כפתור נגישות ===== -->
