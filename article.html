@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title id="pageTitle">מאמר – מצפן כלכלי</title>
+  <meta id="pageDesc" name="description" content="מאמרים בנושאי ניהול כלכלי משפחתי – מצפן כלכלי">
+  <meta property="og:site_name" content="מצפן כלכלי">
+  <meta property="og:type" content="article">
+  <meta property="og:image" content="https://matzpenkalkali.com/images/og-image.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="images/favicon.ico" type="image/x-icon">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Alef", "Assistant", Arial, sans-serif;
+    }
+    /* טיפוגרפיה למאמר */
+    #articleContent p   { margin-bottom: 1.25rem; line-height: 1.85; }
+    #articleContent h3  { margin-top: 2rem; margin-bottom: 0.75rem; }
+    #articleContent h4  { margin-top: 1.25rem; margin-bottom: 0.5rem; }
+    #articleContent ul  { padding-right: 1.5rem; margin-bottom: 1.25rem; }
+    #articleContent ol  { padding-right: 1.5rem; margin-bottom: 1.25rem; }
+    #articleContent li  { margin-bottom: 0.35rem; }
+    #articleContent blockquote { border-right: 4px solid #bfdbfe; padding-right: 1rem; margin: 1.5rem 0; color: #4b5563; font-style: italic; }
+    #articleContent .grid { display: grid; gap: 1rem; margin-bottom: 1.5rem; }
+    @media (min-width: 768px) { #articleContent .grid.md\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    /* כפתורים בתוך המאמר */
+    #articleContent button {
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    #articleContent button:hover { opacity: 0.85; }
+    /* קו בין header ל-content */
+    .article-meta-bar { border-bottom: 1px solid #e5e7eb; }
+    /* כרטיס מאמר קשור */
+    .related-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+    .related-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(30,58,138,0.12); }
+    .related-card img { transition: transform 0.3s ease; }
+    .related-card:hover img { transform: scale(1.04); }
+    /* Skeleton loader */
+    .skeleton { background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 8px; }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-900 min-h-screen">
+
+  <!-- ===== HEADER ===== -->
+  <header class="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
+
+      <!-- לוגו -->
+      <a href="/" class="flex items-center gap-2 text-blue-900 font-bold text-lg shrink-0" aria-label="דף הבית – מצפן כלכלי">
+        <span class="text-2xl" aria-hidden="true">🧭</span>
+        <span class="hidden sm:block leading-tight">
+          מצפן כלכלי<br>
+          <span class="text-xs font-normal text-gray-500">כיוון נכון לכלכלת המשפחה</span>
+        </span>
+      </a>
+
+      <!-- ניווט -->
+      <nav class="flex items-center gap-3 text-sm" aria-label="ניווט ראשי">
+        <a href="/#blog"     class="text-gray-600 hover:text-blue-900 transition hidden sm:block">מאמרים</a>
+        <a href="/#services" class="text-gray-600 hover:text-blue-900 transition hidden sm:block">מחשבונים</a>
+        <a href="/#contact"
+           class="bg-blue-900 text-white px-4 py-2 rounded-lg hover:bg-blue-800 transition font-medium">
+          צור קשר
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ===== MAIN ARTICLE ===== -->
+  <main class="max-w-3xl mx-auto px-4 sm:px-6 py-10" id="articleMain">
+
+    <!-- פירורי לחם -->
+    <nav class="text-sm text-gray-500 mb-6 flex items-center gap-1 flex-wrap" aria-label="מיקום בעמוד">
+      <a href="/" class="hover:text-blue-900 transition">דף הבית</a>
+      <span aria-hidden="true">←</span>
+      <a href="/#blog" class="hover:text-blue-900 transition">מאמרים</a>
+      <span aria-hidden="true">←</span>
+      <span id="breadcrumbTitle" class="text-gray-700 font-medium"></span>
+    </nav>
+
+    <!-- תמונת מאמר -->
+    <div class="rounded-2xl overflow-hidden mb-8 shadow-md bg-gray-200 skeleton" style="height:260px;" id="imageWrapper">
+      <img id="articleImage" src="" alt="" class="w-full h-full object-cover hidden" style="height:260px;"
+           onload="this.classList.remove('hidden'); document.getElementById('imageWrapper').classList.remove('skeleton','bg-gray-200');">
+    </div>
+
+    <!-- כותרת ראשית -->
+    <h1 id="articleTitle" class="text-3xl md:text-4xl font-bold text-blue-900 mb-4 leading-tight"></h1>
+
+    <!-- מטא-מידע -->
+    <div class="article-meta-bar flex items-center gap-3 text-sm text-gray-500 mb-8 pb-5 flex-wrap">
+      <span id="articleDate"></span>
+      <span aria-hidden="true">•</span>
+      <span id="articleReadTime"></span>
+      <span aria-hidden="true">•</span>
+      <span>יוסי כץ — מצפן כלכלי</span>
+    </div>
+
+    <!-- תוכן המאמר -->
+    <article id="articleContent" class="text-right"></article>
+
+    <!-- ===== CTA ===== -->
+    <div class="mt-14 bg-gradient-to-br from-blue-900 to-blue-700 text-white rounded-2xl p-8 text-center shadow-xl">
+      <div class="text-4xl mb-3" aria-hidden="true">🧭</div>
+      <h2 class="text-2xl font-bold mb-3">רוצה לדעת יותר? דבר עם יוסי</h2>
+      <p class="text-blue-100 mb-6 max-w-md mx-auto leading-relaxed">
+        כל משפחה שונה — ובשביל לקבל כיוון נכון, כדאי לדבר.
+        שיחת היכרות ראשונה ללא התחייבות.
+      </p>
+      <a href="/#contact"
+         class="inline-block bg-white text-blue-900 font-bold px-8 py-3 rounded-xl hover:bg-blue-50 transition text-base shadow-md">
+        צור קשר לפרטים נוספים ←
+      </a>
+    </div>
+
+    <!-- כפתור חזרה -->
+    <div class="mt-8 text-center">
+      <a href="/#blog" class="text-blue-700 hover:text-blue-900 text-sm font-medium transition">
+        ← לכל המאמרים
+      </a>
+    </div>
+
+  </main>
+
+  <!-- ===== מאמרים נוספים ===== -->
+  <section class="bg-white border-t border-gray-200 py-14 mt-4" aria-label="מאמרים נוספים">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6">
+      <h2 class="text-2xl font-bold text-blue-900 mb-8 text-center">מאמרים נוספים</h2>
+      <div id="relatedArticles" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+      <div class="text-center mt-8">
+        <a href="/#blog" class="text-blue-700 hover:text-blue-900 font-medium transition text-sm">
+          לכל המאמרים ←
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== FOOTER ===== -->
+  <footer class="bg-blue-900 text-white py-10 text-center text-sm">
+    <p class="font-bold text-base mb-1">מצפן כלכלי – כיוון נכון לכלכלת המשפחה</p>
+    <p class="text-blue-200 mb-3">יוסי כץ &nbsp;|&nbsp; 053-416-8104 &nbsp;|&nbsp; hijosef144@gmail.com</p>
+    <div class="flex justify-center gap-4 flex-wrap text-blue-300 text-xs mb-4">
+      <a href="/" class="hover:text-white transition">דף הבית</a>
+      <a href="/#blog" class="hover:text-white transition">מאמרים</a>
+      <a href="/#services" class="hover:text-white transition">מחשבונים</a>
+      <a href="/#contact" class="hover:text-white transition">צור קשר</a>
+      <a href="/privacy.html" class="hover:text-white transition">פרטיות</a>
+      <a href="/terms.html" class="hover:text-white transition">תקנון</a>
+      <a href="/accessibility.html" class="hover:text-white transition">נגישות</a>
+    </div>
+    <p class="text-blue-400 text-xs max-w-lg mx-auto">
+      אין לראות במאמרים באתר זה ייעוץ פיננסי, השקעות או פנסיוני. המידע הוא לצורך ידע כללי בלבד ואינו מהווה תחליף לייעוץ מקצועי.
+    </p>
+  </footer>
+
+  <!-- ===== נתוני המאמרים ===== -->
+  <script>
+  'use strict';
+
+  /* ===== נתוני כל המאמרים ===== */
+  const ARTICLES = {
+
+    capitalMarketVsRealEstate: {
+      title: '🏦 שוק ההון או נדל״ן — מה באמת עדיף?',
+      image: 'images/בלוג תמונה 3.png',
+      date: '20 בינואר 2024',
+      readTime: '4 דקות קריאה',
+      preview: 'זו אחת השאלות הכי נפוצות — איפה כדאי להשקיע? האמת היא שאין תשובה אחת נכונה',
+      content: `
+        <p class="text-gray-700 mb-6">זו אחת השאלות שאני שומע כמעט בכל פגישה:</p>
+        <blockquote class="border-r-4 border-blue-200 pr-4 text-gray-700 italic mb-6">"יוסי, איפה עדיף להשקיע — שוק ההון או נדל״ן?"</blockquote>
+        <p class="text-gray-700 mb-6">והתשובה תמיד מתחילה באותה מילה: <strong>תלוי</strong> — בך, במטרות שלך, באופי שלך ובמצב הכלכלי האישי שלך.</p>
+        <p class="text-gray-700 mb-8"><strong>אין תשובה אחת נכונה. יש בחירה נכונה עבורך.</strong> בוא נפרק את זה:</p>
+
+        <h3 class="text-2xl font-bold text-blue-900 mb-3">💡 למה זה תלוי-אדם?</h3>
+        <p class="text-gray-700 mb-4">השקעה טובה היא לא רק תשואה — היא התאמה אישית:</p>
+        <ul class="list-disc list-inside text-gray-700 space-y-2 mb-8">
+          <li><strong>רמת סיכון אישית</strong> – כמה תנודתיות אתה מסוגל לספוג בלי לאבד רוגע.</li>
+          <li><strong>צורך בנזילות</strong> – האם תצטרך את הכסף בקרוב או שהוא פנוי לטווח ארוך.</li>
+          <li><strong>אופק ותשואה רצויה</strong> – יציבות חודשית או צמיחה לאורך זמן.</li>
+          <li><strong>התחייבויות קיימות</strong> – משכנתא, הלוואות, התחייבויות משפחתיות.</li>
+          <li><strong>מטרות כספיות</strong> – בניית עתיד, דירה לילדים או חופש כלכלי.</li>
+        </ul>
+
+        <h3 class="text-2xl font-bold text-blue-900 mb-3">🏠 נדל״ן – יציבות, מוחשיות ותזרים קבוע</h3>
+        <p class="text-gray-700 mb-4">היתרון המרכזי: נכס פיזי שאפשר לגור בו, להשכיר ולראות בעיניים.</p>
+        <div class="grid md:grid-cols-2 gap-4 mb-8">
+          <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+            <h4 class="font-semibold text-green-800 mb-2">✅ יתרונות</h4>
+            <ul class="list-disc list-inside text-gray-700 space-y-1">
+              <li>יוצר תזרים חודשי קבוע משכירות.</li>
+              <li>ערך הנכס נוטה לעלות לאורך זמן.</li>
+              <li>משמש בטוחה למינוף לרכישות נוספות.</li>
+            </ul>
+          </div>
+          <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+            <h4 class="font-semibold text-red-800 mb-2">⚠️ חסרונות</h4>
+            <ul class="list-disc list-inside text-gray-700 space-y-1">
+              <li>דורש הון עצמי התחלתי גבוה.</li>
+              <li>נזילות נמוכה — אי אפשר "למכור חצי דירה".</li>
+              <li>מחייב זמן וניהול: שוכרים, תחזוקה, מיסים וביטוחים.</li>
+            </ul>
+          </div>
+        </div>
+        <p class="text-gray-700 mb-10">מתאים למי שמחפש ביטחון, יציבות ותזרים ארוך טווח — גם אם זה דורש סבלנות.</p>
+
+        <h3 class="text-2xl font-bold text-blue-900 mb-3">📈 שוק ההון – גמישות, נזילות וצמיחה</h3>
+        <p class="text-gray-700 mb-4">מאפשר להתחיל בסכומים קטנים, עם גמישות לקנות/למכור בכל רגע.</p>
+        <div class="grid md:grid-cols-2 gap-4 mb-8">
+          <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+            <h4 class="font-semibold text-green-800 mb-2">✅ יתרונות</h4>
+            <ul class="list-disc list-inside text-gray-700 space-y-1">
+              <li>נזילות מלאה — הכסף לא נעול.</li>
+              <li>פוטנציאל תשואה גבוה לטווח ארוך.</li>
+              <li>ללא תחזוקה, שוכרים או רישומים.</li>
+            </ul>
+          </div>
+          <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+            <h4 class="font-semibold text-red-800 mb-2">⚠️ חסרונות</h4>
+            <ul class="list-disc list-inside text-gray-700 space-y-1">
+              <li>תנודתיות — ערך התיק יכול לרדת בטווח הקצר.</li>
+              <li>דורש ידע, סבלנות ומשמעת.</li>
+              <li>לא כולם מתמודדים רגשית עם ירידות זמניות.</li>
+            </ul>
+          </div>
+        </div>
+        <p class="text-gray-700 mb-10">מתאים למי שמוכן ללמוד, להתמיד ולשמור על קור רוח — גם כשהמסכים אדומים.</p>
+
+        <h3 class="text-2xl font-bold text-blue-900 mb-3">⚖️ אז מה עדיף?</h3>
+        <p class="text-gray-700 mb-6">אין "נכון" אחד — יש <strong>איזון נכון</strong> בין השניים. רבים משלבים: נדל״ן ליציבות וביטחון, ושוק ההון לצמיחה וגמישות.</p>
+        <p class="text-gray-700 mb-10">כל אחד משלים את השני — כמו שני גלגלים שמניעים את העגלה הכלכלית קדימה.</p>
+
+        <h3 class="text-2xl font-bold text-blue-900 mb-3">✋ בשורה התחתונה</h3>
+        <p class="text-gray-700 mb-8">השאלה היא לא "איפה עדיף להשקיע?", אלא <strong>מה מתאים לך</strong> — למטרות ולמצב המשפחתי שלך.</p>
+      `
+    },
+
+    youngCouplesFinance: {
+      title: 'תכנון פיננסי לזוגות צעירים',
+      image: 'images/בלוג תמונה 4.png',
+      date: '2 בינואר 2024',
+      readTime: '6 דקות קריאה',
+      preview: 'צעדים ראשונים לבניית יציבות כלכלית בתחילת הדרך המשותפת',
+      content: `
+        <p class="text-gray-700 mb-6 leading-relaxed">השלב שבו מתחילים את החיים המשותפים הוא אחד התקופות היפות — אבל גם התקופה שבה ההחלטות הכלכליות משפיעות לשנים קדימה. בין שכר דירה, לימודים, עבודה ראשונה או ילדים — האתגר הוא לא רק להסתדר, אלא לבנות יסודות כלכליים יציבים.</p>
+
+        <h3 class="text-2xl font-bold text-blue-900 mb-3">💡 תקציב חכם – לא רק מספרים</h3>
+        <p class="text-gray-700 mb-6">תכנון נכון מתחיל בהבנה: <strong>הכסף הוא כלי, לא מטרה.</strong><br>בונים תקציב שמאפשר לחיות בכבוד, לחסוך, ולהשאיר מקום גם להנאה. כששולטים בכסף — הוא עובד בשבילכם, לא להפך.</p>
+
+        <h3 class="text-2xl font-bold text-blue-900 mb-3">🪙 קרן חירום – שקט נפשי בזמנים לא צפויים</h3>
+        <p class="text-gray-700 mb-6">תמיד קורים דברים שלא תכננו: רכב, בריאות, חופשה או תקופה בלי הכנסה. <strong>קרן חירום של 3–6 חודשי מחיה</strong> נותנת שקט אמיתי ומונעת הידרדרות לחובות. זו לא מותרות — זו חובת ביטחון כלכלי לכל זוג.</p>
+
+        <h3 class="text-2xl font-bold text-blue-900 mb-3">🎯 מטרות משותפות – הדרך לתיאום ולשלום בית</h3>
+        <p class="text-gray-700 mb-6">זוג שמתכנן יחד גם חולם יחד. קובעים מטרות קצרות וארוכות טווח: דירה, חיסכון לילדים, רכב, או השקעה. כששני בני הזוג מעורבים בהחלטות — נוצרת אחדות כלכלית וערכית.</p>
+
+        <h3 class="text-2xl font-bold text-blue-900 mb-3">💹 השקעה מוקדמת – זמן הוא הנכס החשוב ביותר</h3>
+        <p class="text-gray-700 mb-6">כל שקל שמושקע בגיל צעיר עובד עבורך במשך שנים. השקעה נבונה – גם אם קטנה – יכולה להניב חיסכון משמעותי לעתיד. העיקר להתחיל מוקדם ולהיות עקביים.</p>
+
+        <h3 class="text-2xl font-bold text-blue-900 mb-3">📊 שקיפות ובקרה תקופתית – המפתח להתמדה</h3>
+        <p class="text-gray-700 mb-8">אחת לחודש יושבים יחד, מסתכלים על התקציב, על ההוצאות ועל ההתקדמות. שקיפות מלאה יוצרת אמון, ובקרה קבועה מונעת "זליגה" ושומרת אתכם במסלול הנכון.</p>
+
+        <h3 class="text-2xl font-bold text-blue-900 mb-3">✋ לסיכום</h3>
+        <p class="text-gray-700 mb-8">תכנון פיננסי לזוג צעיר הוא לא רק מספרים — זו השקעה באמון, בשקט ובביטחון של הבית שלכם.<br>הזוגות שמתחילים מוקדם בונים בסיס כלכלי חזק שמאפשר להם לחיות טוב היום — ולהתפתח כלכלית מחר.</p>
+      `
+    },
+
+    realEstateInvestment: {
+      title: '🏠 השקעה בנדל״ן – חישוב תשואה חכם',
+      image: 'images/בלוג תמונה 5.png',
+      date: '28 בדצמבר 2023',
+      readTime: '8 דקות קריאה',
+      preview: 'חושב להשקיע בנדל"ן? כך תחשב את התשואה על הנכס בצורה נכונה ומדויקת',
+      content: `
+        <p class="text-gray-700 mb-6 leading-relaxed">רבים שומעים על "תשואה של 5% בנדל״ן" – אבל לא תמיד מבינים מה עומד מאחורי המספר הזה.<br>האם זו תשואה ברוטו או נטו? ומה בעצם נחשב כחלק מהתשואה הכוללת?<br>כדי להשקיע נכון, צריך להבין לא רק את המספרים, אלא גם את המשמעות הכלכלית האמיתית מאחוריהם.</p>
+
+        <h3 class="text-2xl font-bold text-blue-900 mb-3">📊 תשואת ברוטו – התמונה הראשונית</h3>
+        <p class="text-gray-700 mb-4">תשואת הברוטו היא חישוב בסיסי של ההכנסה מהשכירות ביחס למחיר הנכס:</p>
+        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6 text-sm text-gray-800">שכירות שנתית ÷ מחיר הנכס × 100 = תשואת ברוטו</div>
+        <p class="text-gray-700 mb-8"><strong>דוגמה:</strong><br>דירה שנרכשה ב־₪1,200,000 ומניבה שכירות של ₪2,400 לחודש.<br>₪2,400 × 12 = ₪28,800 לשנה.<br>₪28,800 ÷ ₪1,200,000 = 2.4% תשואה ברוטו.<br><br>זהו מספר ראשוני בלבד – הוא לא משקף את התשואה האמיתית.</p>
+
+        <h3 class="text-2xl font-bold text-blue-900 mb-3">💰 תשואת נטו – מה באמת נשאר לך</h3>
+        <p class="text-gray-700 mb-4">תשואת נטו מחשבת את כל ההוצאות השוטפות סביב הנכס:</p>
+        <ul class="list-disc list-inside text-gray-700 mb-8 space-y-2">
+          <li><strong>🧾 חודשים ריקים:</strong> גם דירה טובה עומדת לעיתים חודש או שניים ריקה – מומלץ להפחית כ־8% מההכנסות לצורך זה.</li>
+          <li><strong>🧰 תחזוקה וביטוחים:</strong> תיקונים, צבע, ביטוח מבנה, ועד בית – כדאי להניח עוד כ־5%–7% לשנה מההכנסה.</li>
+          <li><strong>🏦 הוצאות מימון:</strong> אם יש משכנתא – הריבית היא הוצאה לכל דבר, ומשפיעה משמעותית על הרווח האמיתי שלך.</li>
+        </ul>
+
+        <h3 class="text-2xl font-bold text-blue-900 mb-3">📉 דוגמה מספרית מלאה</h3>
+        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6 text-gray-700 text-sm">
+          <p><strong>מחיר רכישה:</strong> ₪1,200,000</p>
+          <p><strong>שכירות חודשית:</strong> ₪2,400 → שנתי ₪28,800</p>
+          <p><strong>חודשים ריקים (8%):</strong> ₪2,300−</p>
+          <p><strong>תחזוקה וביטוחים (6%):</strong> ₪1,700−</p>
+          <p><strong>הכנסה שנתית נטו:</strong> ₪24,800</p>
+          <p><strong>תשואת נטו:</strong> ₪24,800 ÷ ₪1,200,000 = 2.06%</p>
+        </div>
+
+        <h3 class="text-2xl font-bold text-blue-900 mb-3">📈 עליית ערך – התשואה הסמויה</h3>
+        <p class="text-gray-700 mb-8">השכירות היא רק חלק מהתמונה. ברוב המקרים, ערך הנכס עצמו עולה לאורך זמן. אם לדוגמה ערך הדירה עלה ב־3% לשנה, זה אומר תוספת של כ־₪36,000 לשווי הנכס. כאשר מחברים את עליית הערך לתשואת השכירות (2%), המשקיע הרוויח בפועל כ־5% לשנה על הנכס כולו.</p>
+
+        <h3 class="text-2xl font-bold text-blue-900 mb-3">💹 תשואה על ההון העצמי (מינוף)</h3>
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-gray-700 text-sm">
+          <p><strong>הון עצמי:</strong> ₪300,000</p>
+          <p><strong>רווח שנתי כולל (שכירות + עליית ערך):</strong> ₪60,000</p>
+          <p><strong>תשואה על ההון העצמי:</strong> ₪60,000 ÷ ₪300,000 = 20%</p>
+        </div>
+        <p class="text-gray-700 mb-8">זו עוצמת <strong>המינוף</strong> – כשמשתמשים בכסף של הבנק (בזהירות), הרווח על ההון שלך גדל משמעותית.</p>
+
+        <h3 class="text-2xl font-bold text-blue-900 mb-3">⚖️ בשורה התחתונה</h3>
+        <ul class="list-disc list-inside text-gray-700 mb-8 space-y-2">
+          <li>תשואת ברוטו – מספר יפה לשיווק, אבל לא אמיתי.</li>
+          <li>תשואת נטו – משקפת את התזרים בפועל.</li>
+          <li>עליית ערך – מוסיפה שכבת רווח ארוכת טווח.</li>
+          <li>תשואה על ההון העצמי – המדד החשוב ביותר למשקיע ממונף.</li>
+        </ul>
+        <p class="text-gray-700 mb-8">השקעה חכמה היא לא רק למצוא נכס טוב, אלא להבין את המספרים שמאחוריו – ולוודא שהתשואה אמיתית, יציבה וברת קיימא.</p>
+      `
+    },
+
+    insuranceGuide: {
+      title: '🛡️ ביטוחים – מה באמת צריך, ומה סתם גוזל כסף?',
+      image: 'images/בלוג תמונה 6.png',
+      date: '22 בדצמבר 2023',
+      readTime: '6 דקות קריאה',
+      preview: 'סקירה של הביטוחים החיוניים לכל משפחה, ואיך לבחור נכון בלי לשלם כפול',
+      content: `
+        <p class="text-gray-700 mb-6 leading-relaxed">לכל משפחה בישראל יש ביטוחים – לפעמים אפילו יותר מדי.<br>חברות הביטוח אוהבות למכור "שקט נפשי", אבל בפועל – לא כל ביטוח באמת נחוץ, וחלקם פשוט כפולים או לא מתאימים לצרכים שלך.<br><br>אז איך יודעים מה באמת חובה, ומה סתם שואב מאות שקלים מהחשבון כל חודש?</p>
+
+        <h3 class="text-2xl font-bold text-blue-900 mb-3">📋 השלב הראשון – מיפוי ובדיקה</h3>
+        <p class="text-gray-700 mb-4">לפני שמוסיפים ביטוח חדש, צריך לעצור ולבדוק מה כבר יש:</p>
+        <ul class="list-disc list-inside text-gray-700 mb-6 space-y-1">
+          <li>ביטוחי בריאות דרך הקופה</li>
+          <li>ביטוחים פרטיים ישנים</li>
+          <li>ביטוחים דרך העבודה או הקרן הפנסיונית</li>
+        </ul>
+        <p class="text-gray-700 mb-6">הרבה אנשים מגלים שיש להם אותו כיסוי בדיוק פעמיים, ולעיתים גם משלמים על ביטוחים שהם בכלל לא זכאים להשתמש בהם.</p>
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8 text-blue-900">
+          💡 <strong>טיפ חשוב:</strong> לפני חידוש ביטוח – בקש דו"ח ביטוחים מאתר "הר הביטוח". תוך כמה דקות תדע בדיוק על מה אתה משלם.
+        </div>
+
+        <h3 class="text-2xl font-bold text-blue-900 mb-3">🏥 בריאות וסיעוד – בסיסי מול מומלץ</h3>
+        <p class="text-gray-700 mb-4">ביטוח הבריאות הבסיסי של קופת החולים מכסה מצבים רבים, אבל לא את כולם.</p>
+        <p class="text-gray-700 mb-4"><strong>מה חובה:</strong></p>
+        <ul class="list-disc list-inside text-gray-700 mb-6 space-y-1">
+          <li>ביטוח בריאות משלים של הקופה (כמו "מכבי שלי", "כללית מושלם")</li>
+          <li>ביטוח סיעודי בסיסי – רצוי לכל אחד, במיוחד אחרי גיל 40</li>
+        </ul>
+        <p class="text-gray-700 mb-4"><strong>מה מומלץ:</strong></p>
+        <ul class="list-disc list-inside text-gray-700 mb-6 space-y-1">
+          <li>ביטוח בריאות פרטי רק עבור ניתוחים בחו"ל או תרופות שאינן בסל</li>
+          <li>לוודא שאין כפל בין הביטוח המשלים לפרטי</li>
+        </ul>
+        <p class="bg-green-50 border border-green-200 rounded-lg p-4 text-green-900 mb-8">💬 הכלל: לא צריך "חבילת פרימיום", צריך כיסוי ממוקד ואמיתי.</p>
+
+        <h3 class="text-2xl font-bold text-blue-900 mb-3">🚗 רכב ודירה – התאמה לסיכון אמיתי</h3>
+        <h4 class="text-lg font-semibold text-blue-800 mb-2">🚘 רכב:</h4>
+        <ul class="list-disc list-inside text-gray-700 mb-4 space-y-1">
+          <li>אם הרכב ישן – ייתכן שלא שווה לשלם ביטוח מקיף מלא.</li>
+          <li>רכב חדש או ממומן? אז כדאי גם מקיף וצד ג׳.</li>
+          <li>ביטוח חובה – חובה לכל רכב על הכביש.</li>
+        </ul>
+        <h4 class="text-lg font-semibold text-blue-800 mb-2">🏠 דירה:</h4>
+        <ul class="list-disc list-inside text-gray-700 mb-8 space-y-1">
+          <li>חובה לבעלי משכנתא (נדרש ביטוח מבנה).</li>
+          <li>מומלץ להוסיף ביטוח תכולה רק אם יש ציוד יקר בבית.</li>
+          <li>מי שגר בשכירות – מבטח רק את התכולה, לא את המבנה.</li>
+        </ul>
+        <p class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-yellow-900 mb-8">💡 שורה תחתונה: תתאים את הביטוח לסיכון שלך – לא לפי מה שהסוכן אומר.</p>
+
+        <h3 class="text-2xl font-bold text-blue-900 mb-3">💼 ביטוחי חיים – לפי צורך, לא לפי חבילה</h3>
+        <p class="text-gray-700 mb-4"><strong>מתי זה חובה:</strong></p>
+        <ul class="list-disc list-inside text-gray-700 mb-6 space-y-1">
+          <li>כשיש משכנתא – הבנק מחייב ביטוח חיים ללווה.</li>
+          <li>כשיש תלויים בהכנסה שלך (ילדים, בן/בת זוג).</li>
+        </ul>
+        <p class="text-gray-700 mb-4"><strong>מתי זה מיותר:</strong></p>
+        <ul class="list-disc list-inside text-gray-700 mb-8 space-y-1">
+          <li>כשאין הלוואות ואין מי שתלוי בהכנסה שלך.</li>
+          <li>כשיש כבר ביטוח חיים במסגרת קרן הפנסיה – אין צורך בכפול.</li>
+        </ul>
+
+        <h3 class="text-2xl font-bold text-blue-900 mb-3">🧭 סיכום – פחות פוליסות, יותר שקט</h3>
+        <p class="text-gray-700 mb-8">ניהול ביטוחים נכון הוא לא רק חיסכון של כסף, אלא גם שקט נפשי אמיתי: לדעת שאתה מכוסה באמת, בלי לשלם על מה שלא רלוונטי.<br><br>תבדוק אחת לשנה את כל הפוליסות. תוודא שאין כפילויות. תתאים את הביטוחים לשלב החיים שלך.<br><br>במילים אחרות: <strong>אל תקנה ביטוח – תבנה הגנה כלכלית.</strong></p>
+      `
+    },
+
+    realEstateGuide: {
+      title: '🏠 השקעה בנדל״ן – מה חשוב לדעת',
+      image: 'images/בלוג תמונה 7.png',
+      date: '10 בדצמבר 2023',
+      readTime: '7 דקות קריאה',
+      preview: 'מדריך למשקיעים מתחילים: הזדמנויות וסיכונים בהשקעות נדל"ן',
+      content: `
+        <p class="text-gray-700 mb-6 leading-relaxed">שוק הנדל״ן מושך יותר ויותר משקיעים, ובצדק. נכס מוחשי, הכנסה משכירות, פוטנציאל עליית ערך – הכול נשמע מבטיח.<br>אבל מאחורי כל עסקה טובה עומד תהליך מקצועי של בדיקה, תכנון והבנה.<br><br>לפני שמחליטים להשקיע, חשוב לדעת מהם הצעדים הנכונים — ומה הטעויות שכדאי להימנע מהן.</p>
+
+        <h3 class="text-2xl font-bold text-blue-900 mb-3">📍 בדיקת שוק – להבין איפה אתה קונה</h3>
+        <p class="text-gray-700 mb-4">לפני שמסתכלים על מספרים, מסתכלים על המפה. כל עיר, שכונה ואפילו רחוב יכולים לשנות את התשואה והביקוש.</p>
+        <ul class="list-disc list-inside text-gray-700 mb-8 space-y-2">
+          <li>מי קהל היעד באזור – זוגות צעירים? סטודנטים? משפחות?</li>
+          <li>מה מצב הפיתוח והתחבורה סביב הנכס?</li>
+          <li>האם יש עודף דירות להשכרה או ביקוש גבוה?</li>
+          <li>ומה קורה עם תוכניות הבנייה לעתיד?</li>
+        </ul>
+        <p class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-blue-900 mb-8">💡 עסקה טובה מתחילה בידע מקומי. לפעמים ההבדל בין 3% ל־5% תשואה הוא פשוט מיקום.</p>
+
+        <h3 class="text-2xl font-bold text-blue-900 mb-3">🏦 מימון – לדעת איך הבנק רואה אותך</h3>
+        <p class="text-gray-700 mb-4">נדל״ן זו השקעה עם מינוף – שימוש בכסף של הבנק. אבל כל אחוז ריבית וכל תנאי משכנתא משפיעים ישירות על הרווחיות.</p>
+        <ul class="list-disc list-inside text-gray-700 mb-8 space-y-2">
+          <li>בדוק את אחוז המימון המקסימלי האפשרי (לרוב עד 75%).</li>
+          <li>הבן כמה תשלם בחודש ומה זה עושה לתזרים.</li>
+          <li>השווה בין בנקים ותמהילים – ריבית קבועה, פריים, צמודה למדד וכו'.</li>
+          <li>תכנן גם תרחיש של עליית ריבית – כדי לא להיות מופתע.</li>
+        </ul>
+        <p class="bg-green-50 border border-green-200 rounded-lg p-4 text-green-900 mb-8">📊 תכנון פיננסי נכון חוסך עשרות אלפי שקלים ומונע עומס תזרימי.</p>
+
+        <h3 class="text-2xl font-bold text-blue-900 mb-3">⚠️ סיכונים – לדעת מראש למה אתה נכנס</h3>
+        <ul class="list-disc list-inside text-gray-700 mb-8 space-y-2">
+          <li>חודשים ריקים בין שוכרים</li>
+          <li>תיקונים, תחזוקה ובלאי</li>
+          <li>עלייה בריבית או בשער הדולר (אם יש מימון חיצוני)</li>
+          <li>שינויי שוק או ירידת ערך זמנית</li>
+        </ul>
+        <p class="text-gray-700 mb-8">אבל — סיכון מנוהל הוא לא בהכרח דבר רע. כאשר מודעים לו מראש, מתכננים רזרבה כספית, ביטוחים ובחירת נכס נכונה – ההשקעה נשארת יציבה ובטוחה.</p>
+
+        <h3 class="text-2xl font-bold text-blue-900 mb-3">🧾 מודלי ניהול – עצמאי או דרך חברה?</h3>
+        <div class="bg-white border border-gray-200 rounded-lg p-4 mb-4">
+          <h4 class="text-blue-900 font-semibold mb-2">👤 ניהול עצמי</h4>
+          <ul class="list-disc list-inside text-gray-700 ml-4">
+            <li>יתרון: חיסכון בעמלת ניהול (כ־7%–10%).</li>
+            <li>חיסרון: דורש זמן, סבלנות ומענה לשוכרים.</li>
+          </ul>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-lg p-4 mb-8">
+          <h4 class="text-blue-900 font-semibold mb-2">🏢 ניהול דרך חברה</h4>
+          <ul class="list-disc list-inside text-gray-700 ml-4">
+            <li>יתרון: שקט נפשי, אין התעסקות יומיומית.</li>
+            <li>חיסרון: עלות קבועה שמקטינה את התשואה.</li>
+          </ul>
+        </div>
+
+        <h3 class="text-2xl font-bold text-blue-900 mb-3">💬 לסיכום</h3>
+        <p class="text-gray-700 mb-8">השקעה בנדל״ן היא לא רק לקנות דירה – זו מערכת שלמה של החלטות: שוק, מימון, סיכון, ניהול ותכנון.<br><br>כשעושים את זה נכון, הנדל״ן הופך לא רק לנכס, אלא ליסוד של יציבות וביטחון כלכלי למשפחה שלך.</p>
+      `
+    },
+
+    retirementPlanning: {
+      title: '🌅 תכנון פרישה – ההתחלה שמביאה שקט',
+      image: 'images/בלוג תמונה 8.png',
+      date: '5 בדצמבר 2023',
+      readTime: '6 דקות קריאה',
+      preview: 'מי שמתחיל לתכנן מוקדם – חי בשקט כלכלי שנים לפני כולם',
+      content: `
+        <p class="text-gray-700 mb-6 leading-relaxed">רוב האנשים חושבים על פרישה רק כשהיא כבר מתקרבת.<br>אבל מי שמתחיל מוקדם – חי בשקט כלכלי שנים לפני כן.<br><br>תכנון פרישה הוא לא רק "חיסכון לפנסיה", אלא תהליך של בניית יציבות, ודאות ויכולת ליהנות מהחיים גם בגיל העבודה וגם אחריו.</p>
+
+        <h3 class="text-2xl font-bold text-blue-900 mb-3">💡 כוח הריבית דריבית – הזמן הוא הנכס הכי יקר</h3>
+        <p class="text-gray-700 mb-6">המרכיב החזק ביותר בפרישה הוא לא גובה ההכנסה – אלא הזמן.<br>כל שקל שמושקע היום צובר תשואה על תשואה – מה שנקרא <strong>"ריבית דריבית".</strong></p>
+        <p class="text-gray-700 mb-6">התחלה מוקדמת מאפשרת לחיסכון לגדול אקספוננציאלית, ומקטינה את הצורך "להדביק פערים" בשנים האחרונות.</p>
+        <p class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-blue-900 mb-8">💬 אפילו הפרש של <strong>5 שנים בהתחלה</strong> יכול להבדיל בין חיים רגועים לפנסיה מצומצמת.</p>
+
+        <h3 class="text-2xl font-bold text-blue-900 mb-3">🎯 תיעדוף יעדים – לדעת לאן הולכים</h3>
+        <p class="text-gray-700 mb-6">תכנון פרישה נכון מתחיל מהשאלה: <strong>איך אני רוצה שהחיים שלי ייראו אחרי העבודה?</strong><br><br>באיזה גיל אני רוצה לפרוש באמת?<br>איזה רמת חיים אני רוצה לשמור?<br>האם יש הכנסות נוספות (נדל״ן, חסכונות, השקעות)?</p>
+        <p class="bg-green-50 border border-green-200 rounded-lg p-4 text-green-900 mb-8">💡 רק אחרי שמגדירים את התמונה הגדולה – אפשר לתכנן את הדרך לשם: דרך השקעות, חיסכון והפחתת סיכונים.</p>
+
+        <h3 class="text-2xl font-bold text-blue-900 mb-3">📊 מעקב תדיר – המפתח לשקט אמיתי</h3>
+        <p class="text-gray-700 mb-6">תיק הפנסיה הוא לא "לשים ולשכוח". שינויים בשוק, בהכנסה או במצב המשפחתי דורשים בחינה מחודשת אחת לשנה לפחות.</p>
+        <p class="text-gray-700 mb-4"><strong>בדיקה תקופתית כוללת:</strong></p>
+        <ul class="list-disc list-inside text-gray-700 mb-8 space-y-1">
+          <li>דמי ניהול ותשואות</li>
+          <li>רמות סיכון</li>
+          <li>עדכון מסלולים בהתאם לגיל ולצרכים</li>
+          <li>שילוב בין קרנות פנסיה, ביטוחים וקופות גמל להשקעה</li>
+        </ul>
+        <p class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-yellow-900 mb-8">💡 השקעה של שעה בשנה – יכולה לחסוך עשרות אלפי שקלים לאורך הדרך.</p>
+
+        <h3 class="text-2xl font-bold text-blue-900 mb-3">🧭 לסיכום</h3>
+        <p class="text-gray-700 mb-8">תכנון פרישה הוא לא סוף הדרך – אלא ההתחלה של שקט כלכלי אמיתי.<br>ככל שמתחילים מוקדם יותר, כך נהנים מחופש, ודאות והרגשה ש"הכול בשליטה", בעזרת השם.<br><br>כי פרישה מוצלחת לא מתחילה בגיל 67 – היא מתחילה בהחלטה חכמה היום.</p>
+      `
+    }
+
+  }; // end ARTICLES
+
+  /* ===== showSection — מפנה לדף הראשי עם hash ===== */
+  window.showSection = function(sectionId) {
+    window.location.href = '/#' + sectionId;
+  };
+  window.showSectionAndScrollToNewsletter = function() {
+    window.location.href = '/#contact';
+  };
+
+  /* ===== קריאת ה-id מה-URL ===== */
+  var params    = new URLSearchParams(location.search);
+  var articleId = params.get('id') || '';
+  var article   = ARTICLES[articleId];
+
+  if (!article) {
+    /* מאמר לא נמצא */
+    document.title = 'מאמר לא נמצא – מצפן כלכלי';
+    document.getElementById('articleMain').innerHTML =
+      '<div class="text-center py-20">' +
+        '<p class="text-4xl mb-4">🔍</p>' +
+        '<h1 class="text-2xl font-bold text-blue-900 mb-4">המאמר לא נמצא</h1>' +
+        '<p class="text-gray-500 mb-8">ייתכן שהקישור אינו תקין</p>' +
+        '<a href="/#blog" class="bg-blue-900 text-white px-6 py-3 rounded-xl hover:bg-blue-800 transition">לכל המאמרים</a>' +
+      '</div>';
+  } else {
+    /* ===== עדכון מטא-תגים ===== */
+    var cleanTitle = article.title.replace(/[\u{1F300}-\u{1FFFF}]/gu, '').trim();
+    document.getElementById('pageTitle').textContent  = cleanTitle + ' – מצפן כלכלי';
+    document.getElementById('pageDesc').content       = article.preview;
+    document.getElementById('breadcrumbTitle').textContent = cleanTitle;
+
+    /* ===== מילוי תוכן ===== */
+    document.getElementById('articleTitle').textContent    = article.title;
+    document.getElementById('articleDate').textContent     = article.date;
+    document.getElementById('articleReadTime').textContent = article.readTime;
+    document.getElementById('articleContent').innerHTML    = article.content;
+
+    /* תמונה */
+    var img = document.getElementById('articleImage');
+    img.src = article.image;
+    img.alt = article.title;
+
+    /* ===== מאמרים קשורים ===== */
+    var otherIds = Object.keys(ARTICLES).filter(function(id){ return id !== articleId; });
+    /* ערבוב */
+    for (var i = otherIds.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = otherIds[i]; otherIds[i] = otherIds[j]; otherIds[j] = tmp;
+    }
+    var related = otherIds.slice(0, 3);
+    var container = document.getElementById('relatedArticles');
+    container.innerHTML = related.map(function(id) {
+      var a = ARTICLES[id];
+      return '<a href="article.html?id=' + id + '" class="related-card bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm block group">' +
+        '<div class="h-44 overflow-hidden">' +
+          '<img src="' + a.image + '" alt="' + a.title + '" class="w-full h-full object-cover" loading="lazy">' +
+        '</div>' +
+        '<div class="p-4">' +
+          '<h3 class="font-semibold text-blue-900 mb-1 text-sm leading-snug">' + a.title + '</h3>' +
+          '<p class="text-gray-500 text-xs mt-1">' + a.date + ' · ' + a.readTime + '</p>' +
+        '</div>' +
+      '</a>';
+    }).join('');
+
+    /* ===== גלילה לראש בכל טעינת מאמר ===== */
+    window.scrollTo(0, 0);
+  }
+  </script>
+</body>
+</html>
