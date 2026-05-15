@@ -9,6 +9,9 @@
   <meta property="og:type" content="article">
   <meta property="og:image" content="https://matzpenkalkali.com/images/og-image.png">
   <meta name="twitter:card" content="summary_large_image">
+  <link id="pageCanonical" rel="canonical" href="https://matzpenkalkali.com/article.html">
+  <script id="ldBreadcrumb" type="application/ld+json"></script>
+  <script id="ldArticle" type="application/ld+json"></script>
   <link rel="icon" type="image/png" sizes="32x32" href="https://matzpenkalkali.com/images/2אייקון לאתר למעלה.png">
   <link rel="icon" type="image/png" sizes="16x16" href="https://matzpenkalkali.com/images/2אייקון לאתר למעלה.png">
   <link rel="apple-touch-icon" href="https://matzpenkalkali.com/images/2אייקון לאתר למעלה.png">
@@ -549,6 +552,51 @@
         '</div>' +
       '</a>';
     }).join('');
+
+    /* ===== Canonical URL ===== */
+    var canonicalHref = 'https://matzpenkalkali.com/article.html?id=' + articleId;
+    document.getElementById('pageCanonical').href = canonicalHref;
+
+    /* ===== JSON-LD: BreadcrumbList ===== */
+    document.getElementById('ldBreadcrumb').textContent = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {"@type":"ListItem","position":1,"name":"דף הבית","item":"https://matzpenkalkali.com/"},
+        {"@type":"ListItem","position":2,"name":"מאמרים","item":"https://matzpenkalkali.com/#blog"},
+        {"@type":"ListItem","position":3,"name":cleanTitle,"item":canonicalHref}
+      ]
+    });
+
+    /* ===== JSON-LD: Article ===== */
+    document.getElementById('ldArticle').textContent = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "headline": cleanTitle,
+      "description": article.preview,
+      "image": article.image,
+      "url": canonicalHref,
+      "datePublished": article.date,
+      "dateModified": article.date,
+      "author": {
+        "@type": "Person",
+        "name": "יוסי כץ",
+        "url": "https://matzpenkalkali.com/"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "מצפן כלכלי",
+        "url": "https://matzpenkalkali.com/",
+        "logo": {
+          "@type": "ImageObject",
+          "url": "https://matzpenkalkali.com/images/2אייקון לאתר למעלה.png"
+        }
+      },
+      "mainEntityOfPage": {
+        "@type": "WebPage",
+        "@id": canonicalHref
+      }
+    });
 
     /* ===== גלילה לראש בכל טעינת מאמר ===== */
     window.scrollTo(0, 0);

@@ -1,33 +1,84 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+
+  <!-- דף ראשי -->
   <url>
     <loc>https://matzpenkalkali.com/</loc>
-    <lastmod>2026-04-21</lastmod>
+    <lastmod>2026-05-15</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
+
+  <!-- מחשבונים -->
   <url>
-    <loc>https://matzpenkalkali.com/contact</loc>
+    <loc>https://matzpenkalkali.com/pension-calc.html</loc>
+    <lastmod>2026-05-15</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- מאמרים -->
+  <url>
+    <loc>https://matzpenkalkali.com/article.html?id=capitalMarketVsRealEstate</loc>
+    <lastmod>2026-05-15</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://matzpenkalkali.com/article.html?id=youngCouplesFinance</loc>
+    <lastmod>2026-05-15</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://matzpenkalkali.com/article.html?id=realEstateInvestment</loc>
+    <lastmod>2026-05-15</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://matzpenkalkali.com/article.html?id=insuranceGuide</loc>
+    <lastmod>2026-05-15</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://matzpenkalkali.com/article.html?id=realEstateGuide</loc>
+    <lastmod>2026-05-15</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://matzpenkalkali.com/article.html?id=retirementPlanning</loc>
+    <lastmod>2026-05-15</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- דפים נוספים -->
+  <url>
+    <loc>https://matzpenkalkali.com/contact.html</loc>
     <lastmod>2026-04-21</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://matzpenkalkali.com/accessibility</loc>
+    <loc>https://matzpenkalkali.com/accessibility.html</loc>
     <lastmod>2026-04-21</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
-    <loc>https://matzpenkalkali.com/privacy</loc>
+    <loc>https://matzpenkalkali.com/privacy.html</loc>
     <lastmod>2026-04-21</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
-    <loc>https://matzpenkalkali.com/terms</loc>
+    <loc>https://matzpenkalkali.com/terms.html</loc>
     <lastmod>2026-04-21</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
+
 </urlset>
