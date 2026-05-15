@@ -41,6 +41,23 @@
     .tip .tp { visibility:hidden; opacity:0; background:#1e3a8a; color:#fff; font-size:12px; border-radius:8px; padding:8px 12px; position:absolute; z-index:10; bottom:125%; right:0; width:220px; line-height:1.5; transition:opacity 0.2s; pointer-events:none; }
     .tip:hover .tp { visibility:visible; opacity:1; }
     @media print { .no-print { display:none!important; } }
+    /* גלו מרצד על ערך ריאלי */
+    .real-highlight {
+      position: relative;
+      border-radius: 12px;
+      padding: 10px 12px;
+      animation: realGlow 2.4s ease-in-out infinite;
+    }
+    @keyframes realGlow {
+      0%, 100% {
+        background: rgba(255,255,255,0.07);
+        box-shadow: 0 0 8px 2px rgba(255,255,255,0.15);
+      }
+      50% {
+        background: rgba(255,255,255,0.18);
+        box-shadow: 0 0 22px 7px rgba(255,255,255,0.40), 0 0 40px 12px rgba(147,197,253,0.25);
+      }
+    }
 
     /* כפתור נגישות צף */
     #a11y-btn {
@@ -208,7 +225,7 @@
           <label class="lbl">אופן הפקדה</label>
           <div class="flex gap-2">
             <button type="button" id="freeBtn" class="tog on" onclick="setSelfMode('free')">הפקדה חופשית</button>
-            <button type="button" id="minBtn" class="tog" onclick="setSelfMode('min')">לפי מינימום חוקי (4.45%)</button>
+            <button type="button" id="minBtn" class="tog" onclick="setSelfMode('min')">לפי מינימום חוקי (2 מדרגות)</button>
           </div>
         </div>
         <div id="freeContribRow">
@@ -338,7 +355,7 @@
           <div class="bv" id="r-netNominal">—</div>
           <div class="bs">אחרי מס הכנסה</div>
         </div>
-        <div>
+        <div class="real-highlight">
           <div class="bl">📉 ערך ריאלי (היום)</div>
           <div class="bv" id="r-netReal">—</div>
           <div class="bs">כוח קנייה של היום</div>
@@ -684,6 +701,16 @@
     return '₪' + n.toLocaleString('he-IL');
   }
 
+  // חישוב הפקדה מינימלית לעצמאי — 2 מדרגות (חוק 2017)
+  // שכר ממוצע במשק 2026 ≈ ₪13,500
+  var SELF_AVG_WAGE = 13500;
+  var SELF_HALF_AVG = SELF_AVG_WAGE / 2; // ≈ 6,750
+  function calcSelfMinContrib(monthlyIncome) {
+    var part1 = Math.min(monthlyIncome, SELF_HALF_AVG) * 0.0445;
+    var part2 = Math.max(0, Math.min(monthlyIncome, SELF_AVG_WAGE) - SELF_HALF_AVG) * 0.1255;
+    return part1 + part2;
+  }
+
   // Gender
   window.setGender = function(g) {
     gender = g;
@@ -731,7 +758,7 @@
   window.onSelfModeChange = function() {
     if (selfMode === 'min') {
       var inc = val('selfIncome');
-      id('minContribDisplay').value = fmtFull(inc * 0.0445);
+      id('minContribDisplay').value = fmtFull(calcSelfMinContrib(inc));
     }
     onInput();
   };
@@ -774,7 +801,7 @@
       var totalPct = (inp.employerPct + inp.employeePct + inp.compensationPct) / 100;
       baseMC = totalPct * inp.grossSalary;
     } else if (inp.contributionMode === 'min') {
-      baseMC = inp.selfIncome * 0.0445;
+      baseMC = calcSelfMinContrib(inp.selfIncome);
     } else {
       baseMC = inp.freeContribution;
     }
@@ -1045,11 +1072,12 @@
     w.document.write('.hero-item .val{font-size:20px;font-weight:800;}');
     w.document.write('.hero-item .sub2{font-size:10px;opacity:0.5;margin-top:2px;}');
     w.document.write('.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px;}');
-    w.document.write('.box{border:1px solid #e5e7eb;border-radius:10px;padding:14px;}');
-    w.document.write('.box h3{font-size:13px;font-weight:700;color:#1e3a8a;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #f0f0f0;}');
-    w.document.write('.row{display:flex;justify-content:space-between;padding:3px 0;font-size:13px;}');
-    w.document.write('.row .k{color:#555;}');
-    w.document.write('.row .v{font-weight:600;}');
+    w.document.write('.box{border:1.5px solid #c7d2e8;border-radius:10px;padding:14px;background:#fafbff;}');
+    w.document.write('.box h3{font-size:14px;font-weight:700;color:#1e3a8a;margin-bottom:10px;padding-bottom:7px;border-bottom:2px solid #e0e8f8;}');
+    w.document.write('.row{display:flex;justify-content:space-between;padding:5px 0;font-size:13px;border-bottom:1px solid #eef0f6;}');
+    w.document.write('.row:last-child{border-bottom:none;}');
+    w.document.write('.row .k{color:#333;font-weight:500;}');
+    w.document.write('.row .v{font-weight:700;color:#1e3a8a;}');
     w.document.write('.note{background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:12px;font-size:12px;color:#92400e;margin-bottom:18px;}');
     w.document.write('.ftr{text-align:center;border-top:1px solid #e5e7eb;padding-top:14px;color:#555;font-size:12px;}');
     w.document.write('.disc{font-size:11px;color:#888;margin-top:8px;}');
