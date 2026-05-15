@@ -1158,21 +1158,21 @@
     </div>
 
     <!-- ===== כפתורי טאבים ===== -->
-    <div class="flex justify-center flex-wrap gap-1 mb-8 border-b border-gray-200">
+    <div class="flex justify-center flex-wrap gap-3 mb-10">
       <button data-tab="calc-tab-savings"
         onclick="showCalcTab('calc-tab-savings')"
-        class="calc-tab-btn active-calc-tab px-5 py-3 text-sm font-semibold border-b-2 border-blue-900 text-blue-900 bg-white transition-all">
-        חיסכון
+        class="calc-tab-btn active-calc-tab px-7 py-3 text-base font-bold rounded-2xl shadow-md bg-blue-900 text-white transition-all">
+        💰 חיסכון
       </button>
       <button data-tab="calc-tab-realestate"
         onclick="showCalcTab('calc-tab-realestate')"
-        class="calc-tab-btn px-5 py-3 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-blue-900 bg-white transition-all">
-        נדל״ן
+        class="calc-tab-btn px-7 py-3 text-base font-bold rounded-2xl border-2 border-gray-300 text-gray-600 bg-white hover:border-blue-400 hover:text-blue-900 transition-all">
+        🏠 נדל״ן
       </button>
       <button data-tab="calc-tab-loans"
         onclick="showCalcTab('calc-tab-loans')"
-        class="calc-tab-btn px-5 py-3 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-blue-900 bg-white transition-all">
-        הלוואות ופרישה
+        class="calc-tab-btn px-7 py-3 text-base font-bold rounded-2xl border-2 border-gray-300 text-gray-600 bg-white hover:border-blue-400 hover:text-blue-900 transition-all">
+        📊 הלוואות ופרישה
       </button>
     </div>
     <!-- ===== /כפתורי טאבים ===== -->
@@ -1302,6 +1302,13 @@
       </div>
     </div>
     <!-- ===== /מחשבון ריבית דריבית ===== -->
+
+    <!-- ניווט לטאבים אחרים -->
+    <div class="mt-10 pt-6 border-t border-gray-100 flex items-center justify-center gap-3 flex-wrap">
+      <span class="text-sm text-gray-400 font-medium">לקטגוריה אחרת:</span>
+      <button onclick="showCalcTab('calc-tab-realestate')" class="px-5 py-2 rounded-xl border-2 border-gray-200 text-sm font-semibold text-gray-600 bg-white hover:border-blue-400 hover:text-blue-900 hover:shadow transition-all">🏠 נדל״ן</button>
+      <button onclick="showCalcTab('calc-tab-loans')" class="px-5 py-2 rounded-xl border-2 border-gray-200 text-sm font-semibold text-gray-600 bg-white hover:border-blue-400 hover:text-blue-900 hover:shadow transition-all">📊 הלוואות ופרישה</button>
+    </div>
 
     </div>
     <!-- ===== /TAB 1: חיסכון ===== -->
@@ -1445,6 +1452,13 @@
 
       </div><!-- /grid נדל"ן -->
 
+    <!-- ניווט לטאבים אחרים -->
+    <div class="mt-10 pt-6 border-t border-gray-100 flex items-center justify-center gap-3 flex-wrap">
+      <span class="text-sm text-gray-400 font-medium">לקטגוריה אחרת:</span>
+      <button onclick="showCalcTab('calc-tab-savings')" class="px-5 py-2 rounded-xl border-2 border-gray-200 text-sm font-semibold text-gray-600 bg-white hover:border-blue-400 hover:text-blue-900 hover:shadow transition-all">💰 חיסכון</button>
+      <button onclick="showCalcTab('calc-tab-loans')" class="px-5 py-2 rounded-xl border-2 border-gray-200 text-sm font-semibold text-gray-600 bg-white hover:border-blue-400 hover:text-blue-900 hover:shadow transition-all">📊 הלוואות ופרישה</button>
+    </div>
+
     </div>
     <!-- ===== /TAB 2: נדל"ן ===== -->
 
@@ -1523,6 +1537,14 @@
       </div>
 
       </div><!-- /grid הלוואות ופרישה -->
+
+    <!-- ניווט לטאבים אחרים -->
+    <div class="mt-10 pt-6 border-t border-gray-100 flex items-center justify-center gap-3 flex-wrap">
+      <span class="text-sm text-gray-400 font-medium">לקטגוריה אחרת:</span>
+      <button onclick="showCalcTab('calc-tab-savings')" class="px-5 py-2 rounded-xl border-2 border-gray-200 text-sm font-semibold text-gray-600 bg-white hover:border-blue-400 hover:text-blue-900 hover:shadow transition-all">💰 חיסכון</button>
+      <button onclick="showCalcTab('calc-tab-realestate')" class="px-5 py-2 rounded-xl border-2 border-gray-200 text-sm font-semibold text-gray-600 bg-white hover:border-blue-400 hover:text-blue-900 hover:shadow transition-all">🏠 נדל״ן</button>
+    </div>
+
     </div>
     <!-- ===== /TAB 3: הלוואות ופרישה ===== -->
 
@@ -4465,15 +4487,20 @@ window.toggleCalculatorHelp = function(calcId) {
 window.showCalcTab = function(tabId) {
   document.querySelectorAll('.calc-tab-panel').forEach(p => p.classList.add('hidden'));
   document.getElementById(tabId).classList.remove('hidden');
+  /* איפוס כל הכפתורים לסגנון לא-פעיל */
   document.querySelectorAll('.calc-tab-btn').forEach(b => {
-    b.classList.remove('border-blue-900', 'text-blue-900', 'active-calc-tab');
-    b.classList.add('border-transparent', 'text-gray-500');
+    b.classList.remove('bg-blue-900', 'text-white', 'shadow-md', 'active-calc-tab');
+    b.classList.add('border-2', 'border-gray-300', 'text-gray-600', 'bg-white');
   });
+  /* כפתור פעיל */
   const btn = document.querySelector('[data-tab="' + tabId + '"]');
   if (btn) {
-    btn.classList.add('border-blue-900', 'text-blue-900', 'active-calc-tab');
-    btn.classList.remove('border-transparent', 'text-gray-500');
+    btn.classList.add('bg-blue-900', 'text-white', 'shadow-md', 'active-calc-tab');
+    btn.classList.remove('border-2', 'border-gray-300', 'text-gray-600', 'bg-white');
   }
+  /* גלילה חלקה לראש הסקשן */
+  var el = document.getElementById(tabId);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
 };
 
 window.addEventListener('DOMContentLoaded',()=>{
