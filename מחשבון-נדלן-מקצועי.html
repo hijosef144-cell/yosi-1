@@ -1,0 +1,1810 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>מחשבון נדל"ן מקצועי – מצפן כלכלי</title>
+<meta name="description" content="מחשבון נדל"ן מקצועי לאנשי מקצוע ומשקיעים — ROI, ROE, תזרים שנתי, נקודת איזון, השוואת נדל"ן לשוק ההון. מצפן כלכלי – יוסי כץ.">
+<meta property="og:site_name" content="מצפן כלכלי">
+<meta property="og:type" content="website">
+<meta property="og:title" content="מחשבון נדל"ן מקצועי – מצפן כלכלי">
+<meta property="og:description" content="ניתוח עסקת נדל"ן מלא: ROI, תזרים, מסים, משכנתא והשוואה לשוק ההון">
+<meta property="og:image" content="https://matzpenkalkali.com/images/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="https://matzpenkalkali.com/%D7%9E%D7%97%D7%A9%D7%91%D7%95%D7%9F-%D7%A0%D7%93%D7%9C%D7%9F-%D7%9E%D7%A7%D7%A6%D7%95%D7%A2%D7%99.html">
+<link rel="icon" type="image/png" sizes="32x32" href="https://matzpenkalkali.com/images/2אייקון לאתר למעלה.png">
+<link rel="icon" type="image/png" href="https://matzpenkalkali.com/images/2אייקון לאתר למעלה.png">
+<link rel="apple-touch-icon" href="https://matzpenkalkali.com/images/2אייקון לאתר למעלה.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {"@type":"ListItem","position":1,"name":"דף הבית","item":"https://matzpenkalkali.com/"},
+    {"@type":"ListItem","position":2,"name":"מחשבונים","item":"https://matzpenkalkali.com/#services"},
+    {"@type":"ListItem","position":3,"name":"מחשבון נדל\"ן מקצועי","item":"https://matzpenkalkali.com/%D7%9E%D7%97%D7%A9%D7%91%D7%95%D7%9F-%D7%A0%D7%93%D7%9C%D7%9F-%D7%9E%D7%A7%D7%A6%D7%95%D7%A2%D7%99.html"}
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "מחשבון נדל\"ן מקצועי – מצפן כלכלי",
+  "applicationCategory": "FinanceApplication",
+  "operatingSystem": "Web",
+  "url": "https://matzpenkalkali.com/%D7%9E%D7%97%D7%A9%D7%91%D7%95%D7%9F-%D7%A0%D7%93%D7%9C%D7%9F-%D7%9E%D7%A7%D7%A6%D7%95%D7%A2%D7%99.html",
+  "description": "מחשבון נדל\"ן מקצועי לחישוב ROI, ROE, תזרים שנתי, נקודת איזון והשוואת נדל\"ן לשוק ההון",
+  "offers": {"@type":"Offer","price":"0","priceCurrency":"ILS"},
+  "author": {"@type":"Person","name":"יוסי כץ","url":"https://matzpenkalkali.com/"}
+}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --bg:#f8f9fa; --bg2:#ffffff; --bg3:#f8f9fa; --bg4:#eef2f7;
+  --border:#e2e8f0; --border2:#cbd5e0;
+  --accent:#1e3a5f; --accent-dim:rgba(30,58,95,.08);
+  --green:#166534; --green-dim:#f0fdf4;
+  --red:#991b1b; --red-dim:#fef2f2;
+  --amber:#92400e; --amber-dim:#fffbeb;
+  --text:#1a1a2e; --text2:#4a5568; --text3:#718096;
+  --radius:12px; --radius-sm:8px;
+  --mono:'Courier New',monospace; --sans:'Heebo',system-ui,Arial,sans-serif;
+  --shadow:0 4px 12px rgba(0,0,0,.08),0 1px 3px rgba(0,0,0,.04);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;font-size:15px;line-height:1.6}
+
+/* ── HEADER ── */
+.hdr{background:var(--bg2);border-bottom:1px solid var(--border);padding:14px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;backdrop-filter:blur(10px)}
+.hdr-logo{display:flex;align-items:center;gap:12px}
+.hdr-logo .badge{background:var(--accent);color:#fff;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;letter-spacing:.5px}
+.hdr-title{font-size:17px;font-weight:700;color:var(--text)}
+.hdr-actions{display:flex;gap:10px;align-items:center}
+.btn-ghost{background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:7px 16px;border-radius:8px;cursor:pointer;font-family:var(--sans);font-size:13px;font-weight:500;transition:all .2s}
+.btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
+.btn-primary{background:var(--accent);border:none;color:#fff;padding:7px 18px;border-radius:8px;cursor:pointer;font-family:var(--sans);font-size:13px;font-weight:600;transition:all .2s}
+.btn-primary:hover{background:#152d4a}
+
+/* ── SUMMARY BAR ── */
+.sbar{background:var(--bg2);border-bottom:1px solid var(--border);padding:10px 28px;display:flex;gap:0;align-items:stretch;overflow-x:auto}
+.sitem{display:flex;flex-direction:column;gap:2px;padding:6px 22px;border-right:1px solid var(--border);min-width:120px}
+.sitem:first-child{padding-right:28px}
+.sitem:last-child{border-right:none}
+.slabel{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;font-weight:600}
+.sval{font-family:var(--mono);font-size:16px;font-weight:500;color:var(--text)}
+.sval.g{color:var(--green)}.sval.r{color:var(--red)}.sval.a{color:var(--accent)}
+
+/* ── MAIN ── */
+.main{max-width:1280px;margin:0 auto;padding:28px;display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media(max-width:860px){.main{grid-template-columns:1fr;padding:16px}}
+.full{grid-column:1/-1}
+
+/* ── MODULE ── */
+.mod{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;transition:box-shadow .2s}
+.mod:hover{box-shadow:var(--shadow)}
+.mod-hdr{padding:15px 20px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;border-bottom:1px solid var(--border)}
+.mod-hdr:hover{background:var(--bg3)}
+.mod-icon-wrap{display:flex;align-items:center;gap:12px}
+.mod-icon{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.mod-title{font-size:14px;font-weight:700;letter-spacing:.2px}
+.mod-sub{font-size:11px;color:var(--text3);margin-top:1px}
+.mod-chev{color:var(--text3);font-size:12px;transition:transform .3s;font-family:var(--mono)}
+.mod-chev.open{transform:rotate(180deg)}
+.mod-body{padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.mod-body.one{grid-template-columns:1fr}
+.mod-body.three{grid-template-columns:1fr 1fr 1fr}
+.collapsed .mod-body{display:none}
+.collapsed .mod-chev{transform:none!important}
+
+/* ── FIELD ── */
+.fld{display:flex;flex-direction:column;gap:7px}
+.fld.full{grid-column:1/-1}
+.fld label{font-size:12px;color:var(--text2);font-weight:600;display:flex;align-items:center;gap:6px;letter-spacing:.2px}
+.tip-icon{width:16px;height:16px;border-radius:50%;background:var(--bg4);border:1px solid var(--border);color:var(--text3);font-size:10px;display:flex;align-items:center;justify-content:center;cursor:help;flex-shrink:0;position:relative}
+.tip-icon:hover::after{content:attr(data-tip);position:absolute;top:22px;right:0;background:var(--bg4);border:1px solid var(--border2);color:var(--text2);padding:10px 14px;border-radius:10px;font-size:12px;width:240px;white-space:normal;z-index:300;line-height:1.55;font-family:var(--sans);font-weight:400;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.inp-wrap{position:relative}
+.inp-wrap .sym{position:absolute;top:50%;transform:translateY(-50%);color:var(--text3);font-size:13px;font-family:var(--mono);pointer-events:none}
+.inp-wrap .sym.r{right:12px}
+.inp-wrap .sym.l{left:12px}
+input,select{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:var(--mono);font-size:14px;padding:10px 12px;transition:border-color .2s,box-shadow .2s;-webkit-appearance:none;appearance:none}
+input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-dim)}
+input.pr{padding-right:30px}
+input.pl{padding-left:30px}
+input.err{border-color:var(--red)!important}
+select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23718096' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:left 12px center;padding-left:32px}
+input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
+input::placeholder{color:var(--text3)}
+
+/* ── TOGGLE GROUP ── */
+.tgl{display:flex;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:3px;gap:3px}
+.tgl button{flex:1;border:none;background:transparent;color:var(--text3);font-family:var(--sans);font-size:13px;font-weight:500;padding:7px 12px;border-radius:6px;cursor:pointer;transition:all .2s}
+.tgl button.on{background:var(--accent);color:#fff;box-shadow:0 2px 8px rgba(30,58,95,.25)}
+
+/* ── CALC ROW / STAT STRIP ── */
+.stat-strip{grid-column:1/-1;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:16px 18px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:14px}
+.stat-item{display:flex;flex-direction:column;gap:3px}
+.stat-lbl{font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+.stat-val{font-family:var(--mono);font-size:15px;font-weight:500;color:var(--accent)}
+.stat-val.g{color:var(--green)}.stat-val.r{color:var(--red)}.stat-val.w{color:var(--text)}
+
+/* ── ALERT BOX ── */
+.alert{grid-column:1/-1;border-radius:var(--radius-sm);padding:14px 18px;font-size:13px;line-height:1.6;display:flex;gap:12px;align-items:flex-start}
+.alert.warn{background:var(--amber-dim);border:1px solid rgba(146,64,14,.25);color:var(--amber)}
+.alert.danger{background:var(--red-dim);border:1px solid rgba(153,27,27,.25);color:var(--red)}
+.alert.ok{background:var(--green-dim);border:1px solid rgba(22,101,52,.25);color:var(--green)}
+.alert.info{background:var(--accent-dim);border:1px solid rgba(30,58,95,.2);color:var(--accent)}
+.alert-icon{font-size:18px;flex-shrink:0;margin-top:1px}
+.alert-body{color:var(--text);font-size:13px}
+.alert-body strong{font-weight:700}
+
+/* ── TRACK DESC ── */
+.track-box{grid-column:1/-1;background:var(--accent-dim);border:1px solid rgba(30,58,95,.15);border-radius:var(--radius-sm);padding:14px 16px;font-size:13px;color:var(--text2);line-height:1.65}
+.track-box strong{color:var(--accent);font-weight:600}
+
+/* ── METRIC CARDS ── */
+.metrics{grid-column:1/-1;display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+@media(max-width:900px){.metrics{grid-template-columns:repeat(2,1fr)}}
+.mcard{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:18px 16px;display:flex;flex-direction:column;gap:5px;transition:border-color .2s}
+.mcard.hi{border-color:var(--accent);background:var(--accent-dim)}
+.mcard.hi2{border-color:var(--green);background:var(--green-dim)}
+.mlbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;font-weight:600}
+.mval{font-family:var(--mono);font-size:26px;font-weight:500;color:var(--text)}
+.mval.a{color:var(--accent)}.mval.g{color:var(--green)}.mval.r{color:var(--red)}
+.msub{font-size:11px;color:var(--text3)}
+
+/* ── COMPARISON ── */
+.comp-grid{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.ccard{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:22px 20px;position:relative;overflow:hidden;transition:border-color .3s}
+.ccard.win{border-color:var(--green)}
+.ccard.win::before{content:'🏆 עדיף';position:absolute;top:14px;left:16px;font-size:11px;font-weight:700;color:var(--green);letter-spacing:.4px}
+.ctitle{font-size:13px;font-weight:700;color:var(--text2);margin-bottom:6px}
+.cval{font-family:var(--mono);font-size:30px;font-weight:500;color:var(--text)}
+.csub{font-size:12px;color:var(--text3);margin-top:4px}
+.cbar{height:5px;background:var(--border);border-radius:3px;margin-top:14px;overflow:hidden}
+.cbar-fill{height:100%;border-radius:3px;transition:width .8s cubic-bezier(.4,0,.2,1)}
+
+/* ── MORTGAGE BREAKDOWN ── */
+.mort-breakdown{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+@media(max-width:700px){.mort-breakdown{grid-template-columns:1fr 1fr}}
+.mb-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px}
+.mb-dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-left:8px}
+.mb-lbl{font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.4px;display:flex;align-items:center;margin-bottom:5px}
+.mb-val{font-family:var(--mono);font-size:18px;font-weight:500;color:var(--text)}
+.mb-sub{font-size:11px;color:var(--text3);margin-top:2px}
+
+/* ── TABLE ── */
+.tbl-wrap{grid-column:1/-1;overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius-sm)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead th{background:var(--bg3);padding:11px 14px;text-align:right;color:var(--text3);font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;border-bottom:1px solid var(--border)}
+tbody td{padding:10px 14px;border-bottom:1px solid var(--border);font-family:var(--mono);font-size:12px;white-space:nowrap}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:var(--bg3)}
+tbody tr.be td{background:rgba(30,58,95,.05)!important}
+.g{color:var(--green)}.r{color:var(--red)}.a{color:var(--accent)}.am{color:var(--amber)}
+.yr-badge{background:var(--bg4);border-radius:5px;padding:2px 8px;font-weight:600;color:var(--text);display:inline-block}
+
+/* ── CHART ── */
+.chart-wrap{position:relative;height:290px;width:100%}
+.chart-title{font-size:12px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:12px}
+
+/* ── EQUITY GAP SECTION ── */
+.gap-section{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.gap-bar-wrap{grid-column:1/-1;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:18px;display:flex;flex-direction:column;gap:10px}
+.gap-bar-track{height:12px;background:var(--border);border-radius:6px;overflow:hidden;display:flex}
+.gap-bar-fill{height:100%;border-radius:6px;transition:width .6s}
+
+/* ── DIVIDER ── */
+.sect-div{grid-column:1/-1;height:1px;background:var(--border);margin:6px 0}
+
+/* ── SECTION LABEL ── */
+.sect-label{grid-column:1/-1;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;padding:4px 0 0;display:flex;align-items:center;gap:10px}
+.sect-label::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* ── FLOATING WIDGET ── */
+.float-btn{
+  position:fixed;bottom:28px;left:28px;
+  width:52px;height:52px;border-radius:50%;
+  background:var(--accent);border:none;
+  color:#fff;font-size:22px;cursor:pointer;
+  box-shadow:0 4px 20px rgba(30,58,95,.35);
+  z-index:500;transition:all .3s;
+  display:flex;align-items:center;justify-content:center;
+}
+.float-btn:hover{transform:scale(1.08);box-shadow:0 6px 28px rgba(30,58,95,.45)}
+.float-btn.open{background:var(--bg3);border:1px solid var(--border);color:var(--text2)}
+.float-panel{
+  position:fixed;bottom:90px;left:28px;
+  width:320px;
+  background:var(--bg2);border:1px solid var(--border);
+  border-radius:var(--radius);box-shadow:0 8px 32px rgba(0,0,0,.14);
+  z-index:499;padding:0;
+  transform:translateY(20px) scale(.96);opacity:0;pointer-events:none;
+  transition:all .25s cubic-bezier(.4,0,.2,1);
+  max-height:80vh;overflow-y:auto;
+}
+.float-panel.visible{transform:translateY(0) scale(1);opacity:1;pointer-events:all}
+.fp-header{
+  padding:14px 18px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;background:var(--bg2);border-radius:var(--radius) var(--radius) 0 0;
+}
+.fp-title{font-size:14px;font-weight:700;color:var(--text)}
+.fp-close{background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer;line-height:1}
+.fp-body{padding:16px}
+.fp-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)}
+.fp-row:last-child{border-bottom:none}
+.fp-lbl{font-size:12px;color:var(--text2);flex:1}
+.fp-val{font-family:var(--mono);font-size:13px;font-weight:500;color:var(--text);text-align:left}
+.fp-val.g{color:var(--green)}.fp-val.r{color:var(--red)}.fp-val.a{color:var(--accent)}
+.fp-section{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin:12px 0 6px;padding-top:10px;border-top:1px solid var(--border)}
+.fp-total{background:var(--bg3);border-radius:8px;padding:12px 14px;margin-top:12px;display:flex;justify-content:space-between;align-items:center}
+.fp-total-lbl{font-size:12px;color:var(--text2);font-weight:600}
+.fp-total-val{font-family:var(--mono);font-size:16px;font-weight:700;color:var(--text)}
+@media print{ .float-btn,.float-panel{display:none!important} }
+
+@media print{
+  @page { size: A4 landscape; margin: 15mm; }
+  body{background:#fff!important;color:#111!important;font-size:12px}
+  .hdr{position:static;background:#fff!important;border-bottom:2px solid #333!important;margin-bottom:12px}
+  .hdr,.sbar{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .btn-ghost,.btn-primary,.lang-btn{display:none!important}
+  .sbar{background:#f5f5f5!important;border:1px solid #ccc!important;margin-bottom:12px;flex-wrap:wrap}
+  .sval{color:#111!important}.sval.g{color:#166534!important}.sval.r{color:#991b1b!important}.sval.a{color:#1e3a8a!important}
+  .main{display:block!important;padding:0!important}
+  .mod{border:1px solid #ccc!important;background:#fff!important;margin-bottom:14px;page-break-inside:avoid;break-inside:avoid}
+  .mod.full{page-break-inside:avoid;break-inside:avoid}
+  .mod-hdr{background:#f5f5f5!important;border-bottom:1px solid #ccc!important}
+  .mod-body{background:#fff!important;display:block!important}
+  .mod-body > *{margin-bottom:8px}
+  .stat-strip,.mort-breakdown,.metrics,.comp-grid{page-break-inside:avoid;break-inside:avoid}
+  .tbl-wrap{page-break-inside:avoid;break-inside:avoid;overflow:visible!important}
+  table{font-size:10px}
+  thead th{background:#e5e7eb!important;color:#111!important}
+  tbody td{color:#111!important;border-bottom:1px solid #e5e7eb!important}
+  .g{color:#166534!important}.r{color:#991b1b!important}.a{color:#1e3a8a!important}.am{color:#92400e!important}
+  .mcard{background:#f9fafb!important;border:1px solid #d1d5db!important;page-break-inside:avoid;break-inside:avoid}
+  .mval{color:#111!important}.mval.a{color:#1e3a8a!important}.mval.g{color:#166534!important}
+  .ccard{background:#f9fafb!important;border:1px solid #d1d5db!important;page-break-inside:avoid;break-inside:avoid}
+  .track-box{background:#eff6ff!important;border:1px solid #bfdbfe!important;color:#1e3a8a!important}
+  .alert{page-break-inside:avoid;break-inside:avoid}
+  .chart-wrap{height:200px!important;page-break-inside:avoid;break-inside:avoid}
+  .sect-label{color:#6b7280!important}
+  .mb-card{background:#f9fafb!important;border:1px solid #d1d5db!important}
+  .mb-val{color:#111!important}.mb-val.g{color:#166534!important}.mb-val.r{color:#991b1b!important}.mb-val.am{color:#92400e!important}
+  input,select{background:#f9fafb!important;border:1px solid #d1d5db!important;color:#111!important}
+  .tgl button{background:#e5e7eb!important;color:#374151!important}
+  .tgl button.on{background:#1e3a8a!important;color:#fff!important}
+  .gap-bar-track{background:#e5e7eb!important}
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="hdr">
+  <div class="hdr-logo">
+    <div class="badge">PRO</div>
+    <div>
+      <div class="hdr-title" data-he='מחשבון נדל"ן מקצועי' data-en="Professional Real Estate Calculator">מחשבון נדל"ן מקצועי</div>
+    </div>
+  </div>
+  <div class="hdr-actions">
+    <button class="btn-ghost" onclick="window.print()">🖨️ <span data-he="הדפס דוח" data-en="Print Report">הדפס דוח</span></button>
+    <button class="btn-ghost" onclick="toggleLang()" id="langBtn">🌐 EN</button>
+  </div>
+</div>
+
+<!-- SUMMARY BAR -->
+<div class="sbar">
+  <div class="sitem"><div class="slabel" data-he="רווח נטו" data-en="Net Profit">רווח נטו</div><div class="sval" id="sProfit">—</div></div>
+  <div class="sitem"><div class="slabel">ROI</div><div class="sval a" id="sROI">—</div></div>
+  <div class="sitem"><div class="slabel">ROE</div><div class="sval a" id="sROE">—</div></div>
+  <div class="sitem"><div class="slabel" data-he="תשואת שכירות נטו" data-en="Net Rental Yield">תשואה נטו</div><div class="sval" id="sYield">—</div></div>
+  <div class="sitem"><div class="slabel" data-he="שנת איזון" data-en="Break-even">שנת איזון</div><div class="sval" id="sBE">—</div></div>
+  <div class="sitem"><div class="slabel" data-he="ריבית ששולמה" data-en="Total Interest Paid">ריבית ששולמה</div><div class="sval r" id="sInterest">—</div></div>
+  <div class="sitem"><div class="slabel" data-he="הון נזיל עדיף" data-en="Better Net Capital">הון נזיל עדיף</div><div class="sval" id="sWinner">—</div></div>
+</div>
+
+<div class="main">
+
+<!-- ═══════════ MODULE 2: DEAL ═══════════ -->
+<div class="mod" id="mod1">
+  <div class="mod-hdr" onclick="toggleMod('mod1')">
+    <div class="mod-icon-wrap">
+      <div class="mod-icon" style="background:rgba(79,142,247,.15)">🏠</div>
+      <div><div class="mod-title" data-he="נתוני העסקה" data-en="Deal Parameters">נתוני העסקה</div><div class="mod-sub" data-he="פרטי הנכס, משכנתא ועלויות רכישה" data-en="Property, mortgage and purchase costs">פרטי הנכס, משכנתא ועלויות רכישה</div></div>
+    </div>
+    <div class="mod-chev open" id="mod1-chev">▾</div>
+  </div>
+  <div class="mod-body">
+    <div class="fld">
+      <label><span data-he="מחיר רכישה" data-en="Purchase Price">מחיר רכישה</span></label>
+      <div class="inp-wrap"><span class="sym r">₪</span><input type="text" id="price" class="pr" value="2,500,000" oninput="fmtLive(this);calc()" onblur="fmtBlur(this)"></div>
+    </div>
+    <!-- JOINT OWNERSHIP TOGGLE -->
+    <div class="fld full" style="margin-bottom:4px">
+      <label><span data-he="מבנה בעלות" data-en="Ownership Structure">מבנה בעלות</span></label>
+      <div class="tgl" style="max-width:380px">
+        <button class="on" id="btnSolo" onclick="setOwnership('solo')" style="padding:8px 16px;display:flex;flex-direction:column;align-items:center;gap:1px">
+          <span style="font-size:13px;font-weight:700">👤</span>
+          <span style="font-size:10px;opacity:.8;font-family:var(--sans)" data-he="רכישה יחידה" data-en="Single Owner">רכישה יחידה</span>
+        </button>
+        <button id="btnJoint" onclick="setOwnership('joint')" style="padding:8px 16px;display:flex;flex-direction:column;align-items:center;gap:1px">
+          <span style="font-size:13px;font-weight:700">👥</span>
+          <span style="font-size:10px;opacity:.8;font-family:var(--sans)" data-he="טאבו משותף" data-en="Joint Ownership">טאבו משותף</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="fld">
+      <label><span data-he="סוג נכס" data-en="Property Type">סוג נכס</span></label>
+      <select id="propType" onchange="updateLTV();calc()">
+        <option value="first" data-he="דירה ראשונה/יחידה" data-en="First/Single Apartment">דירה ראשונה/יחידה</option>
+        <option value="second" data-he="דירה שנייה ומעלה" data-en="Second Apartment+">דירה שנייה ומעלה</option>
+        <option value="replace" data-he="דירה חליפית" data-en="Replacement Apartment">דירה חליפית</option>
+        <option value="company" data-he="חברה" data-en="Company">חברה</option>
+        <option value="disabled" data-he="נכה" data-en="Disabled">נכה</option>
+      </select>
+    </div>
+    <div class="fld">
+      <label><span data-he="שנת רכישה" data-en="Purchase Year">שנת רכישה</span></label>
+      <input type="number" id="buyYear" value="2024" oninput="calc()">
+    </div>
+
+    <div class="sect-label full" data-he="מחיר למטר רבוע" data-en="Price Per SQM">מחיר למטר רבוע</div>
+    <div class="fld">
+      <label><span data-he='מ"ר דירה (ללא מרפסת)' data-en="Apt SQM (no balcony)">מ"ר דירה</span></label>
+      <div class="inp-wrap"><input type="number" id="sqmApt" value="" placeholder="למשל 80" oninput="calc()"><span class="sym l">מ"ר</span></div>
+    </div>
+    <div class="fld">
+      <label><span data-he='מ"ר מרפסת' data-en="Balcony SQM">מ"ר מרפסת</span></label>
+      <div class="inp-wrap"><input type="number" id="sqmBalcony" value="" placeholder="למשל 12" oninput="calc()"><span class="sym l">מ"ר</span></div>
+    </div>
+    <div class="stat-strip full" id="sqmStrip" style="display:none">
+      <div class="stat-item"><div class="stat-lbl" data-he='מחיר/מ"ר ללא מרפסת' data-en="₪/SQM no balcony">₪/מ"ר (ללא מרפסת)</div><div class="stat-val a" id="sqmPriceApt">—</div></div>
+      <div class="stat-item"><div class="stat-lbl" data-he='מחיר/מ"ר כולל מרפסת' data-en="₪/SQM with balcony">₪/מ"ר (כולל מרפסת)</div><div class="stat-val a" id="sqmPriceFull">—</div></div>
+      <div class="stat-item"><div class="stat-lbl" data-he='₪/מ"ר עתידי (ללא מרפסת)' data-en="Future ₪/SQM">₪/מ"ר עתידי</div><div class="stat-val g" id="sqmFuture">—</div></div>
+    </div>
+    <div class="fld">
+      <label><span data-he="תקופת אחזקה (שנים)" data-en="Holding Period (yrs)">תקופת אחזקה</span></label>
+      <input type="number" id="holdYears" value="10" min="1" max="40" oninput="calc()">
+    </div>
+
+    <!-- JOINT OWNERSHIP SECTION -->
+    <div id="jointSection" class="full" style="display:none">
+      <div class="sect-label full" data-he="פרטי שותפות" data-en="Partnership Details">פרטי שותפות</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+
+        <!-- PARTNER A -->
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:16px">
+          <div style="font-size:12px;font-weight:700;color:var(--accent);margin-bottom:12px;display:flex;align-items:center;gap:8px">
+            <span style="background:var(--accent);color:#fff;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px">א</span>
+            <span data-he="שותף א" data-en="Partner A">שותף א</span>
+          </div>
+          <div class="fld" style="margin-bottom:10px">
+            <label style="font-size:11px;color:var(--text3)"><span data-he="% בעלות" data-en="Ownership %">% בעלות</span></label>
+            <div class="inp-wrap"><input type="number" id="partnerAPct" value="50" min="1" max="99" step="1" oninput="syncPartnerB();calc()"><span class="sym l">%</span></div>
+          </div>
+          <div class="fld" style="margin-bottom:10px">
+            <label style="font-size:11px;color:var(--text3)"><span data-he="מצב דירות" data-en="Property Status">מצב דירות</span></label>
+            <select id="partnerAType" onchange="calc()" style="background:var(--bg4);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--mono);font-size:13px;padding:9px 12px;width:100%;padding-left:28px">
+              <option value="first" data-he="דירה ראשונה/יחידה" data-en="First apartment">דירה ראשונה/יחידה</option>
+              <option value="second" data-he="דירה שנייה ומעלה" data-en="Second+ apartment">דירה שנייה ומעלה</option>
+            </select>
+          </div>
+          <div class="fld">
+            <label style="font-size:11px;color:var(--text3)"><span data-he="נקודות זיכוי" data-en="Tax Credit Points">נקודות זיכוי</span></label>
+            <div class="inp-wrap"><input type="number" id="partnerACreditPts" value="2.25" step="0.25" oninput="calc()"><span class="sym l">נק׳</span></div>
+          </div>
+          <div style="margin-top:12px;background:var(--bg4);border-radius:7px;padding:10px 12px">
+            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px" data-he="מס רכישה לשותף א" data-en="Purchase Tax — Partner A">מס רכישה לשותף א</div>
+            <div style="font-family:var(--mono);font-size:15px;color:var(--red);font-weight:500" id="ptaxA">—</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:2px" id="ptaxALabel">—</div>
+          </div>
+        </div>
+
+        <!-- PARTNER B -->
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:16px">
+          <div style="font-size:12px;font-weight:700;color:var(--green);margin-bottom:12px;display:flex;align-items:center;gap:8px">
+            <span style="background:var(--green);color:#fff;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px">ב</span>
+            <span data-he="שותף ב" data-en="Partner B">שותף ב</span>
+          </div>
+          <div class="fld" style="margin-bottom:10px">
+            <label style="font-size:11px;color:var(--text3)"><span data-he="% בעלות (אוטומטי)" data-en="Ownership % (auto)">% בעלות</span></label>
+            <div class="inp-wrap"><input type="number" id="partnerBPct" value="50" min="1" max="99" readonly style="opacity:.6;cursor:default"><span class="sym l">%</span></div>
+          </div>
+          <div class="fld" style="margin-bottom:10px">
+            <label style="font-size:11px;color:var(--text3)"><span data-he="מצב דירות" data-en="Property Status">מצב דירות</span></label>
+            <select id="partnerBType" onchange="calc()" style="background:var(--bg4);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--mono);font-size:13px;padding:9px 12px;width:100%;padding-left:28px">
+              <option value="first" data-he="דירה ראשונה/יחידה" data-en="First apartment">דירה ראשונה/יחידה</option>
+              <option value="second" data-he="דירה שנייה ומעלה" data-en="Second+ apartment">דירה שנייה ומעלה</option>
+            </select>
+          </div>
+          <div class="fld">
+            <label style="font-size:11px;color:var(--text3)"><span data-he="נקודות זיכוי" data-en="Tax Credit Points">נקודות זיכוי</span></label>
+            <div class="inp-wrap"><input type="number" id="partnerBCreditPts" value="2.25" step="0.25" oninput="calc()"><span class="sym l">נק׳</span></div>
+          </div>
+          <div style="margin-top:12px;background:var(--bg4);border-radius:7px;padding:10px 12px">
+            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px" data-he="מס רכישה לשותף ב" data-en="Purchase Tax — Partner B">מס רכישה לשותף ב</div>
+            <div style="font-family:var(--mono);font-size:15px;color:var(--red);font-weight:500" id="ptaxB">—</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:2px" id="ptaxBLabel">—</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- JOINT SUMMARY STRIP -->
+      <div class="stat-strip" style="margin-top:12px">
+        <div class="stat-item"><div class="stat-lbl" data-he="סה״כ מס רכישה (שניהם)" data-en="Total Purchase Tax">סה״כ מס רכישה</div><div class="stat-val r" id="ptaxJointTotal">—</div></div>
+        <div class="stat-item"><div class="stat-lbl" data-he="חלק א בשכירות" data-en="Partner A Rent Share">שכירות לשותף א</div><div class="stat-val g" id="rentShareA">—</div></div>
+        <div class="stat-item"><div class="stat-lbl" data-he="חלק ב בשכירות" data-en="Partner B Rent Share">שכירות לשותף ב</div><div class="stat-val g" id="rentShareB">—</div></div>
+        <div class="stat-item"><div class="stat-lbl" data-he="חיסכון vs. רכישה יחידה" data-en="Tax Saving vs. Single">חיסכון מס לעומת רכישה יחידה</div><div class="stat-val g" id="ptaxSaving">—</div></div>
+      </div>
+
+      <!-- PARTNER FINANCIAL BREAKDOWN -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+
+        <!-- PARTNER A FINANCES -->
+        <div style="background:rgba(79,142,247,.06);border:1px solid rgba(79,142,247,.2);border-radius:var(--radius-sm);padding:16px">
+          <div style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;display:flex;align-items:center;gap:6px">
+            <span style="background:var(--accent);color:#fff;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px">א</span>
+            <span data-he="פירוט פיננסי — שותף א" data-en="Financials — Partner A">פירוט פיננסי — שותף א</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(79,142,247,.15)">
+              <span style="font-size:12px;color:var(--text2)" data-he="הון עצמי נדרש" data-en="Required Equity">הון עצמי נדרש</span>
+              <span style="font-family:var(--mono);font-size:13px;color:var(--text)" id="pA-equity-req">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(79,142,247,.15)">
+              <span style="font-size:12px;color:var(--text2)" data-he="הון עצמי זמין" data-en="Available Equity">הון עצמי זמין</span>
+              <div class="inp-wrap" style="width:140px"><span class="sym r" style="font-size:12px">₪</span><input type="text" id="pA-equity-avail" class="pr" placeholder="הזן..." oninput="fmtLive(this);calc()" onblur="fmtBlur(this)" style="background:var(--bg4);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:var(--mono);font-size:12px;padding:6px 10px 6px 28px;width:100%"></div>
+            </div>
+            <!-- Supp loan A -->
+            <div style="background:rgba(79,142,247,.06);border-radius:7px;padding:8px 10px;margin:4px 0">
+              <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+                <span style="font-size:11px;font-weight:700;color:var(--accent)">הלוואה משלימה</span>
+                <span style="font-family:var(--mono);font-size:13px" id="pA-supp-loan">—</span>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 8px">
+                <div class="fld" style="margin:0">
+                  <label style="font-size:10px;color:var(--text3)">ריבית</label>
+                  <div class="inp-wrap"><input type="number" id="pA-loan-rate" value="7" step="0.1" oninput="calc()" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--mono);font-size:12px;padding:5px 8px 5px 22px;width:100%"><span class="sym l" style="font-size:11px">%</span></div>
+                </div>
+                <div class="fld" style="margin:0">
+                  <label style="font-size:10px;color:var(--text3)">שנים</label>
+                  <input type="number" id="pA-loan-years" value="5" min="1" max="30" onchange="calc()" oninput="this._v=this.value" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--mono);font-size:12px;padding:5px 8px;width:100%">
+                </div>
+              </div>
+              <div style="display:flex;justify-content:space-between;margin-top:6px;padding-top:5px;border-top:1px solid rgba(79,142,247,.15)">
+                <span style="font-size:11px;color:var(--text3)">החזר חודשי — הלוואה</span>
+                <span style="font-family:var(--mono);font-size:12px;color:var(--amber)" id="pA-loan-monthly">—</span>
+              </div>
+            </div>
+            <!-- Mortgage A -->
+            <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(79,142,247,.15)">
+              <span style="font-size:12px;color:var(--text2)">חלק במשכנתא</span>
+              <span style="font-family:var(--mono);font-size:13px;color:var(--accent)" id="pA-mortgage">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(79,142,247,.15)">
+              <span style="font-size:12px;color:var(--text2)">החזר חודשי — משכנתא</span>
+              <span style="font-family:var(--mono);font-size:13px;color:var(--red)" id="pA-monthly-mort">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(79,142,247,.15);background:rgba(239,68,68,.05);border-radius:5px;padding:8px">
+              <span style="font-size:12px;color:var(--text2);font-weight:600">סה״כ חודשי (משכנתא+הלוואה)</span>
+              <span style="font-family:var(--mono);font-size:14px;font-weight:700;color:var(--red)" id="pA-monthly-total">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(79,142,247,.15)">
+              <span style="font-size:12px;color:var(--text2)">יתרת משכנתא לבנק (סוף תקופה)</span>
+              <span style="font-family:var(--mono);font-size:13px;color:var(--amber)" id="pA-mort-remaining">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(79,142,247,.15)">
+              <span style="font-size:12px;color:var(--text2)">הון זמין ביד (אחרי פירעון)</span>
+              <span style="font-family:var(--mono);font-size:13px;color:var(--green)" id="pA-equity-end">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(79,142,247,.15)">
+              <span style="font-size:12px;color:var(--text2)" data-he="רווח נטו בסוף תקופה" data-en="Net Profit at End">רווח נטו בסוף תקופה</span>
+              <span style="font-family:var(--mono);font-size:13px;color:var(--green)" id="pA-profit">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:7px 0">
+              <span style="font-size:12px;color:var(--text2)">ROI</span>
+              <span style="font-family:var(--mono);font-size:13px;color:var(--accent)" id="pA-roi">—</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- PARTNER B FINANCES -->
+        <div style="background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.2);border-radius:var(--radius-sm);padding:16px">
+          <div style="font-size:11px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;display:flex;align-items:center;gap:6px">
+            <span style="background:var(--green);color:#fff;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px">ב</span>
+            <span data-he="פירוט פיננסי — שותף ב" data-en="Financials — Partner B">פירוט פיננסי — שותף ב</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(34,197,94,.15)">
+              <span style="font-size:12px;color:var(--text2)" data-he="הון עצמי נדרש" data-en="Required Equity">הון עצמי נדרש</span>
+              <span style="font-family:var(--mono);font-size:13px;color:var(--text)" id="pB-equity-req">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(34,197,94,.15)">
+              <span style="font-size:12px;color:var(--text2)" data-he="הון עצמי זמין" data-en="Available Equity">הון עצמי זמין</span>
+              <div class="inp-wrap" style="width:140px"><span class="sym r" style="font-size:12px">₪</span><input type="text" id="pB-equity-avail" class="pr" placeholder="הזן..." oninput="fmtLive(this);calc()" onblur="fmtBlur(this)" style="background:var(--bg4);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:var(--mono);font-size:12px;padding:6px 10px 6px 28px;width:100%"></div>
+            </div>
+            <!-- Supp loan B -->
+            <div style="background:rgba(34,197,94,.06);border-radius:7px;padding:8px 10px;margin:4px 0">
+              <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+                <span style="font-size:11px;font-weight:700;color:var(--green)">הלוואה משלימה</span>
+                <span style="font-family:var(--mono);font-size:13px" id="pB-supp-loan">—</span>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 8px">
+                <div class="fld" style="margin:0">
+                  <label style="font-size:10px;color:var(--text3)">ריבית</label>
+                  <div class="inp-wrap"><input type="number" id="pB-loan-rate" value="7" step="0.1" oninput="calc()" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--mono);font-size:12px;padding:5px 8px 5px 22px;width:100%"><span class="sym l" style="font-size:11px">%</span></div>
+                </div>
+                <div class="fld" style="margin:0">
+                  <label style="font-size:10px;color:var(--text3)">שנים</label>
+                  <input type="number" id="pB-loan-years" value="5" min="1" max="30" onchange="calc()" oninput="this._v=this.value" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--mono);font-size:12px;padding:5px 8px;width:100%">
+                </div>
+              </div>
+              <div style="display:flex;justify-content:space-between;margin-top:6px;padding-top:5px;border-top:1px solid rgba(34,197,94,.15)">
+                <span style="font-size:11px;color:var(--text3)">החזר חודשי — הלוואה</span>
+                <span style="font-family:var(--mono);font-size:12px;color:var(--amber)" id="pB-loan-monthly">—</span>
+              </div>
+            </div>
+            <!-- Mortgage B -->
+            <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(34,197,94,.15)">
+              <span style="font-size:12px;color:var(--text2)">חלק במשכנתא</span>
+              <span style="font-family:var(--mono);font-size:13px;color:var(--green)" id="pB-mortgage">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(34,197,94,.15)">
+              <span style="font-size:12px;color:var(--text2)">החזר חודשי — משכנתא</span>
+              <span style="font-family:var(--mono);font-size:13px;color:var(--red)" id="pB-monthly-mort">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:7px 0;background:rgba(239,68,68,.05);border-radius:5px;padding:8px">
+              <span style="font-size:12px;color:var(--text2);font-weight:600">סה״כ חודשי (משכנתא+הלוואה)</span>
+              <span style="font-family:var(--mono);font-size:14px;font-weight:700;color:var(--red)" id="pB-monthly-total">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(34,197,94,.15)">
+              <span style="font-size:12px;color:var(--text2)">יתרת משכנתא לבנק (סוף תקופה)</span>
+              <span style="font-family:var(--mono);font-size:13px;color:var(--amber)" id="pB-mort-remaining">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(34,197,94,.15)">
+              <span style="font-size:12px;color:var(--text2)">הון זמין ביד (אחרי פירעון)</span>
+              <span style="font-family:var(--mono);font-size:13px;color:var(--green)" id="pB-equity-end">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(34,197,94,.15)">
+              <span style="font-size:12px;color:var(--text2)" data-he="רווח נטו בסוף תקופה" data-en="Net Profit at End">רווח נטו בסוף תקופה</span>
+              <span style="font-family:var(--mono);font-size:13px;color:var(--green)" id="pB-profit">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:7px 0">
+              <span style="font-size:12px;color:var(--text2)">ROI</span>
+              <span style="font-family:var(--mono);font-size:13px;color:var(--accent)" id="pB-roi">—</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+        <div class="sect-label full" data-he="משכנתא" data-en="Mortgage">משכנתא</div>
+
+    <div class="fld full">
+      <label><span data-he="הזנת משכנתא" data-en="Mortgage Input">הזנת משכנתא</span></label>
+      <div class="tgl" id="mortTgl" style="max-width:400px">
+        <button class="on" onclick="setMortMode('pct')" style="display:flex;flex-direction:column;align-items:center;gap:1px;padding:8px 16px">
+          <span style="font-size:13px;font-weight:700">%</span>
+          <span style="font-size:10px;opacity:.8;font-family:var(--sans)" data-he="אחוז מימון" data-en="LTV %">אחוז מימון</span>
+        </button>
+        <button onclick="setMortMode('val')" style="display:flex;flex-direction:column;align-items:center;gap:1px;padding:8px 16px">
+          <span style="font-size:13px;font-weight:700">₪</span>
+          <span style="font-size:10px;opacity:.8;font-family:var(--sans)" data-he="סכום קבוע" data-en="Fixed Amount">סכום קבוע</span>
+        </button>
+      </div>
+    </div>
+    <div class="fld" id="fMortPct">
+      <label><span data-he="אחוז מימון" data-en="LTV %">אחוז מימון</span></label>
+      <div class="inp-wrap"><input type="number" id="mortPct" value="75" min="0" max="90" oninput="calc()"><span class="sym l">%</span></div>
+    </div>
+    <div class="fld" id="fMortVal" style="display:none">
+      <label><span data-he="סכום משכנתא" data-en="Mortgage Amount">סכום משכנתא</span></label>
+      <div class="inp-wrap"><span class="sym r">₪</span><input type="text" id="mortVal" class="pr" value="0" oninput="fmtLive(this);calc()" onblur="fmtBlur(this)"></div>
+    </div>
+    <div class="fld">
+      <label><span data-he="ריבית ממוצעת" data-en="Avg. Interest">ריבית ממוצעת</span> <span class="tip-icon" data-tip="ממוצע משוקלל של כל מסלולי המשכנתא שלך">?</span></label>
+      <div class="inp-wrap"><input type="number" id="mortRate" value="4.5" step="0.1" oninput="calc()"><span class="sym l">%</span></div>
+    </div>
+    <div class="fld">
+      <label><span data-he="תקופת משכנתא (שנים)" data-en="Mortgage Term (yrs)">תקופת משכנתא</span></label>
+      <input type="number" id="mortYears" value="30" oninput="calc()">
+    </div>
+
+    <div class="sect-label full" data-he="עלויות רכישה" data-en="Purchase Costs">עלויות רכישה</div>
+
+    <div class="fld">
+      <label><span data-he="תיווך קנייה" data-en="Buy Brokerage">תיווך קנייה</span></label>
+      <div class="inp-wrap"><input type="number" id="buyBroker" value="2" step="0.1" oninput="calc()"><span class="sym l">%</span></div>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:5px">
+        <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:var(--text2)">
+          <input type="checkbox" id="buyBrokerVat" checked onchange="calc()" style="width:14px;height:14px;accent-color:var(--accent)">
+          <span data-he="כולל מע״מ 18%" data-en="Incl. 18% VAT">כולל מע״מ 18%</span>
+        </label>
+        <span style="font-size:11px;color:var(--accent);font-family:var(--mono)" id="buyBrokerPreview"></span>
+      </div>
+    </div>
+    <div class="fld">
+      <label><span data-he="עו״ד קנייה" data-en="Lawyer (buy)">עו״ד קנייה</span> <span class="tip-icon" data-tip="בדרך כלל 0.5% מערך הדירה, או סכום קבוע">?</span></label>
+      <div style="display:flex;gap:6px;align-items:center">
+        <div class="tgl" id="lawyerTgl" style="flex-shrink:0;min-width:72px">
+          <button class="on" onclick="setLawyerMode('val')">₪</button>
+          <button onclick="setLawyerMode('pct')">%</button>
+        </div>
+        <div class="inp-wrap" style="flex:1" id="lawyerValWrap"><span class="sym r">₪</span><input type="text" id="buyLawyer" class="pr" value="8,000" oninput="fmtLive(this);calc()" onblur="fmtBlur(this)"></div>
+        <div style="flex:1;display:none" id="lawyerPctWrap">
+          <div class="inp-wrap"><input type="number" id="buyLawyerPct" value="0.5" step="0.05" oninput="calc()"><span class="sym l">%</span></div>
+          <div style="font-size:11px;color:var(--accent);margin-top:4px;font-family:var(--mono)" id="lawyerPctPreview"></div>
+        </div>
+      </div>
+    </div>
+    <div class="fld">
+      <label><span data-he="שמאי" data-en="Appraiser">שמאי</span> <span class="tip-icon" data-tip="בדרך כלל כ-3,000 ₪ — נדרש על ידי הבנק לפני אישור משכנתא">?</span></label>
+      <div class="inp-wrap"><span class="sym r">₪</span><input type="text" id="appraiser" class="pr" value="3,000" oninput="fmtLive(this);calc()" onblur="fmtBlur(this)"></div>
+    </div>
+    <div class="fld">
+      <label><span data-he="יועץ נדל״ן / כלכלי" data-en="Real Estate / Financial Advisor">יועץ נדל״ן / כלכלי</span> <span class="tip-icon" data-tip="הזן סכום קבוע או אחוז מערך הדירה">?</span></label>
+      <div style="display:flex;gap:6px;align-items:center">
+        <div class="tgl" id="reAdvTgl" style="flex-shrink:0;min-width:72px">
+          <button class="on" onclick="setReAdvMode('val')">₪</button>
+          <button onclick="setReAdvMode('pct')">%</button>
+        </div>
+        <div class="inp-wrap" style="flex:1" id="reAdvValWrap"><span class="sym r">₪</span><input type="text" id="reAdv" class="pr" value="0" oninput="fmtLive(this);calc()" onblur="fmtBlur(this)"></div>
+        <div style="flex:1;display:none" id="reAdvPctWrap">
+          <div class="inp-wrap"><input type="number" id="reAdvPct" value="0.5" step="0.05" oninput="calc()"><span class="sym l">%</span></div>
+          <div style="font-size:11px;color:var(--accent);margin-top:4px;font-family:var(--mono)" id="reAdvPctPreview"></div>
+        </div>
+      </div>
+    </div>
+    <div class="fld">
+      <label><span data-he="שיפוץ / אחר" data-en="Renovation / Other">שיפוץ / אחר</span></label>
+      <div class="inp-wrap"><span class="sym r">₪</span><input type="text" id="reno" class="pr" value="0" oninput="fmtLive(this);calc()" onblur="fmtBlur(this)"></div>
+    </div>
+    <div class="fld">
+      <label><span data-he="ייעוץ משכנתא" data-en="Mortgage Advisor">ייעוץ משכנתא</span> <span class="tip-icon" data-tip="בדרך כלל 0.5% מגובה המשכנתא, או סכום קבוע">?</span></label>
+      <div style="display:flex;gap:6px;align-items:center">
+        <div class="tgl" id="mortAdvTgl" style="flex-shrink:0;min-width:72px">
+          <button class="on" onclick="setMortAdvMode('val')">₪</button>
+          <button onclick="setMortAdvMode('pct')">%</button>
+        </div>
+        <div class="inp-wrap" style="flex:1" id="mortAdvValWrap"><span class="sym r">₪</span><input type="text" id="mortAdv" class="pr" value="5,000" oninput="fmtLive(this);calc()" onblur="fmtBlur(this)"></div>
+        <div style="flex:1;display:none" id="mortAdvPctWrap">
+          <div class="inp-wrap"><input type="number" id="mortAdvPct" value="0.5" step="0.05" oninput="calc()"><span class="sym l">%</span></div>
+          <div style="font-size:11px;color:var(--accent);margin-top:4px;font-family:var(--mono)" id="mortAdvPctPreview"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stat-strip">
+      <div class="stat-item"><div class="stat-lbl" data-he="מס רכישה" data-en="Purchase Tax">מס רכישה</div><div class="stat-val r" id="dPurchaseTax">—</div></div>
+      <div class="stat-item"><div class="stat-lbl" data-he="עלויות רכישה" data-en="Purchase Costs">עלויות רכישה</div><div class="stat-val r" id="dBuyCosts">—</div></div>
+      <div class="stat-item"><div class="stat-lbl" data-he="הון עצמי נדרש" data-en="Equity Required">הון עצמי נדרש</div><div class="stat-val w" id="dEquityReq">—</div></div>
+      <div class="stat-item"><div class="stat-lbl" data-he="החזר חודשי — משכנתא" data-en="Monthly — Mortgage">משכנתא</div><div class="stat-val w" id="dMonthly">—</div></div>
+      <div class="stat-item"><div class="stat-lbl" data-he="סה״כ חודשי (משכנתא+הלוואה)" data-en="Total Monthly (all loans)">סה״כ חודשי</div><div class="stat-val r" id="dTotalMonthly">—</div></div>
+    </div>
+
+    <!-- MORTGAGE BREAKDOWN -->
+    <div class="sect-label full" data-he="פירוט משכנתא לאורך תקופת האחזקה" data-en="Mortgage Breakdown Over Holding Period">פירוט משכנתא לאורך תקופת האחזקה</div>
+    <div class="mort-breakdown full">
+      <div class="mb-card">
+        <div class="mb-lbl"><span class="mb-dot" style="background:var(--accent)"></span><span data-he="קרן ששולמה" data-en="Principal Paid">קרן ששולמה</span></div>
+        <div class="mb-val g" id="mbPrincipalPaid">—</div>
+        <div class="mb-sub" id="mbPrincipalPaidPct">—</div>
+      </div>
+      <div class="mb-card">
+        <div class="mb-lbl"><span class="mb-dot" style="background:var(--red)"></span><span data-he="ריבית ששולמה לבנק" data-en="Interest Paid to Bank">ריבית ששולמה לבנק</span></div>
+        <div class="mb-val r" id="mbInterestPaid">—</div>
+        <div class="mb-sub" id="mbInterestPaidSub">—</div>
+      </div>
+      <div class="mb-card">
+        <div class="mb-lbl"><span class="mb-dot" style="background:var(--amber)"></span><span data-he="קרן שנותרה לבנק" data-en="Principal Remaining">קרן שנותרה לבנק</span></div>
+        <div class="mb-val am" id="mbPrincipalLeft">—</div>
+        <div class="mb-sub" id="mbPrincipalLeftSub">—</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ MODULE 1: EQUITY CHECK ═══════════ -->
+<div class="mod" id="mod0">
+  <div class="mod-hdr" onclick="toggleMod('mod0')">
+    <div class="mod-icon-wrap">
+      <div class="mod-icon" style="background:rgba(245,158,11,.15)">💼</div>
+      <div><div class="mod-title" data-he="בדיקת הון עצמי" data-en="Equity Check">בדיקת הון עצמי</div><div class="mod-sub" data-he="כמה הון עצמי יש לך ואיפה חסר?" data-en="How much equity do you have and what's missing?">כמה הון עצמי יש לך ואיפה חסר?</div></div>
+    </div>
+    <div class="mod-chev open" id="mod0-chev">▾</div>
+  </div>
+  <div class="mod-body">
+    <div class="fld">
+      <label><span data-he="הון עצמי זמין" data-en="Available Equity">הון עצמי זמין</span> <span class="tip-icon" data-tip="סך הכסף שיש לך להשקעה — מזומן, חיסכון, ניירות ערך">?</span></label>
+      <div class="inp-wrap"><span class="sym r">₪</span><input type="text" id="availEquity" class="pr" value="800,000" oninput="fmtLive(this);calc()" onblur="fmtBlur(this)"></div>
+    </div>
+    <div class="fld">
+      <label><span data-he="הון עצמי נדרש (מחושב)" data-en="Required Equity (calculated)">הון עצמי נדרש</span></label>
+      <div class="inp-wrap"><input type="text" id="reqEquityDisplay" class="pr" readonly style="opacity:.6;cursor:default" placeholder="—"></div>
+    </div>
+
+    <!-- gap alert injected here -->
+    <div id="equityAlert" class="full"></div>
+
+    <!-- SUPPLEMENTARY LOANS — shown when gap exists -->
+    <div id="loanSection" class="full" style="display:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div class="sect-label" style="margin:0;flex:1" data-he="הלוואות משלימות" data-en="Supplementary Loans">הלוואות משלימות</div>
+        <button onclick="addLoan()" style="background:var(--accent);border:none;color:#fff;padding:6px 14px;border-radius:7px;cursor:pointer;font-family:var(--sans);font-size:12px;font-weight:600;margin-right:8px">+ הוסף הלוואה</button>
+      </div>
+      <div id="loansContainer"></div>
+      <div class="stat-strip" style="margin-top:14px">
+        <div class="stat-item"><div class="stat-lbl" data-he="סה״כ החזר חודשי — הלוואות" data-en="Total Monthly — Loans">סה״כ חודשי — הלוואות</div><div class="stat-val r" id="suppLoanMonthly">—</div></div>
+        <div class="stat-item"><div class="stat-lbl" data-he="סה״כ ריבית — הלוואות" data-en="Total Interest — Loans">סה״כ ריבית — הלוואות</div><div class="stat-val r" id="suppLoanTotalInt">—</div></div>
+        <div class="stat-item"><div class="stat-lbl" data-he="סה״כ עלות הלוואות" data-en="Total Loans Cost">סה״כ עלות הלוואות</div><div class="stat-val w" id="suppLoanTotal">—</div></div>
+      </div>
+    </div>
+
+    <!-- equity bar -->
+    <div class="gap-bar-wrap full">
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text2)">
+        <span data-he="הון עצמי זמין" data-en="Available">הון עצמי זמין</span>
+        <span data-he="סה״כ נדרש" data-en="Total Required">סה״כ נדרש</span>
+      </div>
+      <div class="gap-bar-track">
+        <div class="gap-bar-fill" id="equityBarFill" style="background:var(--green);width:0%"></div>
+        <div class="gap-bar-fill" id="loanBarFill" style="background:var(--amber);width:0%"></div>
+      </div>
+      <div style="display:flex;gap:20px;font-size:11px;color:var(--text3)">
+        <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--green);margin-left:5px"></span><span data-he="הון זמין" data-en="Available">הון זמין</span></span>
+        <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--amber);margin-left:5px"></span><span data-he="הלוואה משלימה" data-en="Supp. Loan">הלוואה משלימה</span></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ MODULE 3: CASH FLOW ═══════════ -->
+<div class="mod" id="mod2">
+  <div class="mod-hdr" onclick="toggleMod('mod2')">
+    <div class="mod-icon-wrap">
+      <div class="mod-icon" style="background:rgba(34,197,94,.15)">💸</div>
+      <div><div class="mod-title" data-he="תזרים שנתי" data-en="Annual Cash Flow">תזרים שנתי</div><div class="mod-sub" data-he="שכירות, הוצאות שוטפות ומיסוי" data-en="Rent, operating expenses and tax">שכירות, הוצאות שוטפות ומיסוי</div></div>
+    </div>
+    <div class="mod-chev open" id="mod2-chev">▾</div>
+  </div>
+  <div class="mod-body">
+    <div class="fld">
+      <label><span data-he="שכירות" data-en="Rent">שכירות</span> <span style="font-size:10px;background:var(--bg4);border-radius:4px;padding:1px 6px;color:var(--accent)">חודשי</span></label>
+      <div class="inp-wrap"><span class="sym r">₪</span><input type="text" id="rent" class="pr" value="6,500" oninput="fmtLive(this);calc()" onblur="fmtBlur(this)"></div>
+    </div>
+    <div class="fld">
+      <label><span data-he="עליית שכירות" data-en="Rent Growth">עליית שכירות</span> <span style="font-size:10px;background:var(--bg4);border-radius:4px;padding:1px 6px;color:var(--text3)">שנתי</span></label>
+      <div class="inp-wrap"><input type="number" id="rentGrowth" value="2" step="0.1" oninput="calc()"><span class="sym l">%</span></div>
+    </div>
+    <div class="fld">
+      <label><span data-he="חודשי ריקנות בשנה" data-en="Vacancy Months/Yr">חודשי ריקנות</span> <span class="tip-icon" data-tip="ממוצע חודשים ללא שוכר בשנה — ברירת מחדל 1">?</span></label>
+      <input type="number" id="vacancy" value="1" min="0" max="12" oninput="calc()">
+    </div>
+    <div class="fld">
+      <label><span data-he="מס שכירות" data-en="Rental Income Tax">מס שכירות</span> <span style="font-size:10px;background:var(--bg4);border-radius:4px;padding:1px 6px;color:var(--text3)">מהכנסה שנתית</span> <span class="tip-icon" data-tip="שיעור המס הפשוט על הכנסות שכירות — כיום 10% מס מופחת">?</span></label>
+      <div class="inp-wrap"><input type="number" id="rentTax" value="10" step="0.1" oninput="calc()"><span class="sym l">%</span></div>
+    </div>
+    <div class="fld">
+      <label><span data-he="ועד בית" data-en="Building Fee">ועד בית</span> <span style="font-size:10px;background:var(--bg4);border-radius:4px;padding:1px 6px;color:var(--accent)">חודשי</span></label>
+      <div class="inp-wrap"><span class="sym r">₪</span><input type="text" id="vaad" class="pr" value="300" oninput="fmtLive(this);calc()" onblur="fmtBlur(this)"></div>
+    </div>
+    <div class="fld">
+      <label><span data-he="ארנונה" data-en="Prop. Tax">ארנונה</span> <span style="font-size:10px;background:var(--bg4);border-radius:4px;padding:1px 6px;color:var(--accent)">חודשי</span></label>
+      <div class="inp-wrap"><span class="sym r">₪</span><input type="text" id="arnona" class="pr" value="0" oninput="fmtLive(this);calc()" onblur="fmtBlur(this)"></div>
+    </div>
+    <div class="fld">
+      <label><span data-he="ביטוח" data-en="Insurance">ביטוח</span> <span style="font-size:10px;background:var(--bg4);border-radius:4px;padding:1px 6px;color:var(--text3)">שנתי</span></label>
+      <div class="inp-wrap"><span class="sym r">₪</span><input type="text" id="insurance" class="pr" value="1,200" oninput="fmtLive(this);calc()" onblur="fmtBlur(this)"></div>
+    </div>
+    <div class="fld">
+      <label><span data-he="תחזוקה" data-en="Maintenance">תחזוקה</span> <span style="font-size:10px;background:var(--bg4);border-radius:4px;padding:1px 6px;color:var(--text3)">שנתי</span></label>
+      <div class="inp-wrap"><span class="sym r">₪</span><input type="text" id="maintenance" class="pr" value="2,000" oninput="fmtLive(this);calc()" onblur="fmtBlur(this)"></div>
+    </div>
+    <div class="stat-strip">
+      <div class="stat-item"><div class="stat-lbl" data-he="תשואה ברוטו" data-en="Gross Yield">תשואה ברוטו</div><div class="stat-val" id="dGrossYield">—</div></div>
+      <div class="stat-item"><div class="stat-lbl" data-he="תשואה נטו" data-en="Net Yield">תשואה נטו</div><div class="stat-val g" id="dNetYield">—</div></div>
+      <div class="stat-item"><div class="stat-lbl" data-he="תזרים חודשי שנה 1" data-en="Monthly CF Year 1">תזרים שנה 1</div><div class="stat-val" id="dCFY1">—</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ MODULE 4: EXIT ═══════════ -->
+<div class="mod" id="mod3">
+  <div class="mod-hdr" onclick="toggleMod('mod3')">
+    <div class="mod-icon-wrap">
+      <div class="mod-icon" style="background:rgba(239,68,68,.15)">🚪</div>
+      <div><div class="mod-title" data-he="ניתוח יציאה ומס שבח" data-en="Exit Analysis & Capital Gains">ניתוח יציאה ומס שבח</div><div class="mod-sub" data-he="ערך עתידי, עלויות מכירה ומיסוי" data-en="Future value, sale costs and taxation">ערך עתידי, עלויות מכירה ומיסוי</div></div>
+    </div>
+    <div class="mod-chev open" id="mod3-chev">▾</div>
+  </div>
+  <div class="mod-body">
+    <div class="fld">
+      <label><span data-he="עליית ערך שנתית" data-en="Annual Appreciation">עליית ערך שנתית</span></label>
+      <div class="inp-wrap"><input type="number" id="appreciation" value="3" step="0.1" oninput="calc()"><span class="sym l">%</span></div>
+    </div>
+    <div class="fld">
+      <label><span data-he="ערך עתידי (עקיפה ידנית)" data-en="Future Value (override)">ערך עתידי (עקיפה)</span> <span class="tip-icon" data-tip="השאר ריק לחישוב אוטומטי לפי אחוז עליית הערך">?</span></label>
+      <div class="inp-wrap"><span class="sym r">₪</span><input type="text" id="futureValOverride" class="pr" placeholder="אוטומטי" oninput="fmtLive(this);calc()" onblur="fmtBlur(this)"></div>
+    </div>
+    <div class="fld">
+      <label><span data-he="תיווך מכירה" data-en="Sale Brokerage">תיווך מכירה</span></label>
+      <div class="inp-wrap"><input type="number" id="sellBroker" value="2" step="0.1" oninput="calc()"><span class="sym l">%</span></div>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:5px">
+        <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:var(--text2)">
+          <input type="checkbox" id="sellBrokerVat" checked onchange="calc()" style="width:14px;height:14px;accent-color:var(--accent)">
+          <span data-he="כולל מע״מ 18%" data-en="Incl. 18% VAT">כולל מע״מ 18%</span>
+        </label>
+        <span style="font-size:11px;color:var(--accent);font-family:var(--mono)" id="sellBrokerPreview"></span>
+      </div>
+    </div>
+    <div class="fld">
+      <label><span data-he="עו״ד מכירה" data-en="Sale Lawyer">עו״ד מכירה</span></label>
+      <div class="inp-wrap"><span class="sym r">₪</span><input type="text" id="sellLawyer" class="pr" value="8,000" oninput="fmtLive(this);calc()" onblur="fmtBlur(this)"></div>
+    </div>
+
+    <div class="sect-label full" data-he="מסלול מס שבח" data-en="Capital Gains Track">מסלול מס שבח</div>
+    <div class="fld full">
+      <label><span data-he="בחר מסלול" data-en="Select Track">בחר מסלול</span></label>
+      <select id="shevachTrack" onchange="updateTrackDesc();calc()">
+        <option value="exempt" data-he="פטור דירה יחידה" data-en="Single Apt Exemption">פטור דירה יחידה</option>
+        <option value="linear_good" data-he="ליניארי מוטב (רכישה לפני 2014)" data-en="Linear Beneficial (pre-2014)">ליניארי מוטב (רכישה לפני 2014)</option>
+        <option value="linear_std" data-he="ליניארי רגיל (דירה שנייה)" data-en="Linear Standard (2nd apt)">ליניארי רגיל (דירה שנייה)</option>
+        <option value="none" data-he="ללא פטורים — 25% על הרווח" data-en="No Exemptions — 25% flat">ללא פטורים — 25% על הרווח</option>
+      </select>
+    </div>
+    <div class="track-box full" id="trackBox"></div>
+
+    <div class="fld" id="fCpiPurchase" style="display:none">
+      <label><span data-he="מדד CPI ברכישה" data-en="CPI at Purchase">מדד CPI ברכישה</span></label>
+      <input type="number" id="cpiPurchase" value="100" oninput="calc()">
+    </div>
+    <div class="fld" id="fCpiSale" style="display:none">
+      <label><span data-he="מדד CPI במכירה (צפוי)" data-en="CPI at Sale (est.)">מדד CPI במכירה</span></label>
+      <input type="number" id="cpiSale" value="130" oninput="calc()">
+    </div>
+
+    <div class="stat-strip">
+      <div class="stat-item"><div class="stat-lbl" data-he="ערך עתידי" data-en="Future Value">ערך עתידי</div><div class="stat-val a" id="dFutureVal">—</div></div>
+      <div class="stat-item"><div class="stat-lbl" data-he="רווח גולמי" data-en="Gross Profit">רווח גולמי</div><div class="stat-val g" id="dGrossProfit">—</div></div>
+      <div class="stat-item"><div class="stat-lbl" data-he="מס שבח" data-en="Cap. Gains Tax">מס שבח</div><div class="stat-val r" id="dShevach">—</div></div>
+      <div class="stat-item"><div class="stat-lbl" data-he="הון זמין אחרי מכירה" data-en="Net Equity After Sale">הון זמין</div><div class="stat-val g" id="dNetEquity">—</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ MODULE 5: METRICS ═══════════ -->
+<div class="mod full" id="mod4">
+  <div class="mod-hdr" onclick="toggleMod('mod4')">
+    <div class="mod-icon-wrap">
+      <div class="mod-icon" style="background:rgba(79,142,247,.15)">📊</div>
+      <div><div class="mod-title" data-he="מדדי ביצוע והשוואה" data-en="Performance & Comparison">מדדי ביצוע והשוואה</div><div class="mod-sub" data-he="ROI, ROE, CAGR והשוואה לשוק ההון" data-en="ROI, ROE, CAGR and stock market comparison">ROI, ROE, CAGR והשוואה לשוק ההון</div></div>
+    </div>
+    <div class="mod-chev open" id="mod4-chev">▾</div>
+  </div>
+  <div class="mod-body one">
+    <div class="metrics">
+      <div class="mcard hi">
+        <div class="mlbl" style="display:flex;align-items:center;gap:5px">ROI כולל <span class="tip-icon" data-tip="Return on Investment — כמה אחוזים הרוויח כל ₪ שהושקע. מחושב: (רווח נטו ÷ סך ההון שהושקע) × 100. כולל רווח ממכירה + כל התזרים מהשכירות.">?</span></div>
+        <div class="mval a" id="mROI">—</div>
+        <div class="msub">תשואה כוללת על כל ההון שהושקע</div>
+      </div>
+      <div class="mcard hi">
+        <div class="mlbl" style="display:flex;align-items:center;gap:5px">ROE <span class="tip-icon" data-tip="Return on Equity — תשואה על ההון העצמי בלבד. מראה את כוח המינוף: כי השקעת רק חלק מהכסף (מקדמה) ולקחת משכנתא, התשואה על הכסף שלך גבוהה יותר מה-ROI הכולל.">?</span></div>
+        <div class="mval a" id="mROE">—</div>
+        <div class="msub">תשואה על ההון העצמי בלבד (עם מינוף)</div>
+      </div>
+      <div class="mcard">
+        <div class="mlbl" style="display:flex;align-items:center;gap:5px">CAGR שנתי <span class="tip-icon" data-tip="Compound Annual Growth Rate — התשואה השנתית הממוצעת המורכבת. מאפשר להשוות להשקעות אחרות (למשל: ת.א. 125 הניב ~8% CAGR ב-10 שנים האחרונות). מחושב: (סך ההחזר)^(1/שנים) - 1.">?</span></div>
+        <div class="mval" id="mCAGR">—</div>
+        <div class="msub">תשואה שנתית מורכבת (לשם השוואה)</div>
+      </div>
+      <div class="mcard hi2">
+        <div class="mlbl" style="display:flex;align-items:center;gap:5px"><span data-he="מכפיל הון" data-en="Equity Multiplier">מכפיל הון</span> <span class="tip-icon" data-tip="כמה פעמים גדל ההון העצמי שלך. לדוגמה: מכפיל 2.5x אומר שהשקעת ₪500,000 והפכת אותם ל-₪1,250,000. מחושב: (הון סופי ÷ הון ראשוני).">?</span></div>
+        <div class="mval g" id="mMult">—</div>
+        <div class="msub">כמה פעמים גדל ההון המושקע</div>
+      </div>
+    </div>
+
+    <!-- COMPARISON -->
+    <div class="fld" style="max-width:280px">
+      <label><span data-he="תשואת שוק הון (השוואה)" data-en="Stock Market Return %">תשואת שוק ההון להשוואה</span></label>
+      <div class="inp-wrap"><input type="number" id="stockReturn" value="7" step="0.1" oninput="calc()"><span class="sym l">%</span></div>
+    </div>
+    <div class="comp-grid">
+      <div class="ccard" id="ccRE">
+        <div class="ctitle" data-he="🏠 נדל״ן — הון נזיל מצטבר" data-en="🏠 Real Estate — Net Liquid Capital">🏠 נדל״ן — הון נזיל מצטבר</div>
+        <div class="cval" id="ccREval">—</div>
+        <div class="csub" id="ccRESub">—</div>
+        <div class="cbar"><div class="cbar-fill" id="ccREbar" style="background:var(--green)"></div></div>
+      </div>
+      <div class="ccard" id="ccStock">
+        <div class="ctitle" data-he="📈 שוק ההון — הון נזיל מצטבר" data-en="📈 Stocks — Net Liquid Capital">📈 שוק ההון — הון נזיל מצטבר</div>
+        <div class="cval" id="ccStockVal">—</div>
+        <div class="csub" id="ccStockSub">—</div>
+        <div class="cbar"><div class="cbar-fill" id="ccStockBar" style="background:var(--amber)"></div></div>
+      </div>
+    </div>
+
+    <!-- TABLE -->
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th data-he="שנה" data-en="Year">שנה</th>
+          <th data-he="שכירות ברוטו" data-en="Gross Rent">שכירות ברוטו</th>
+          <th data-he="הוצאות + מס" data-en="Exp + Tax">הוצאות + מס</th>
+          <th data-he="תשלום משכנתא" data-en="Mortgage">משכנתא</th>
+          <th data-he="קרן שנשארת" data-en="Principal Left">קרן נשאר</th>
+          <th data-he="ריבית שנתית" data-en="Annual Interest">ריבית שנתית</th>
+          <th data-he="תזרים נטו" data-en="Net CF">תזרים נטו</th>
+          <th data-he="תזרים מצטבר" data-en="Cumul. CF">מצטבר</th>
+          <th data-he="הון עצמי" data-en="Equity">הון עצמי</th>
+        </tr></thead>
+        <tbody id="cfBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ MODULE 6: CHARTS ═══════════ -->
+<div class="mod full" id="mod5">
+  <div class="mod-hdr" onclick="toggleMod('mod5')">
+    <div class="mod-icon-wrap">
+      <div class="mod-icon" style="background:rgba(34,197,94,.15)">📈</div>
+      <div><div class="mod-title" data-he="גרפים" data-en="Charts">גרפים</div><div class="mod-sub" data-he="ויזואליזציה של תזרים וצמיחת הון" data-en="Cash flow and equity growth visualization">ויזואליזציה של תזרים וצמיחת הון</div></div>
+    </div>
+    <div class="mod-chev open" id="mod5-chev">▾</div>
+  </div>
+  <div class="mod-body" style="grid-template-columns:1fr 1fr;gap:24px;min-height:320px">
+    <div>
+      <div class="chart-title" data-he="תזרים שנתי נטו" data-en="Annual Net Cash Flow">תזרים שנתי נטו</div>
+      <div class="chart-wrap"><canvas id="cfChart"></canvas></div>
+    </div>
+    <div>
+      <div class="chart-title" data-he="צמיחת הון עצמי לעומת שוק ההון" data-en="Equity Growth vs. Stock Market">צמיחת הון עצמי לעומת שוק ההון</div>
+      <div class="chart-wrap"><canvas id="eqChart"></canvas></div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /main -->
+
+<script>
+let isHe=true, mortMode='pct';
+let loans=[{id:1,amt:'',rate:7,years:5}];
+let loanCounter=1;
+
+function addLoan(){
+  loanCounter++;
+  loans.push({id:loanCounter,amt:'',rate:7,years:5});
+  renderLoans();
+  calc();
+}
+function removeLoan(id){
+  if(loans.length<=1)return;
+  loans=loans.filter(l=>l.id!==id);
+  renderLoans();
+  calc();
+}
+function renderLoans(){
+  const c=document.getElementById('loansContainer');
+  if(!c)return;
+  c.innerHTML='';
+  loans.forEach((loan,idx)=>{
+    const div=document.createElement('div');
+    div.style.cssText='display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:10px;align-items:end;margin-bottom:12px;background:var(--bg3);border:1px solid var(--border);border-radius:9px;padding:14px';
+    div.innerHTML=`
+      <div class="fld" style="margin:0">
+        <label style="font-size:11px;color:var(--text3);font-weight:600">${isHe?'סכום הלוואה':'Loan Amount'} ${idx+1}</label>
+        <div class="inp-wrap"><span class="sym r">₪</span><input type="text" class="pr" value="${loan.amt}" placeholder="${isHe?'אוטומטי — לפי גירעון':'Auto — per gap'}" oninput="fmtLive(this);loans[${idx}].amt=this.value.replace(/[^0-9]/g,'');calc()" onblur="fmtBlur(this)" style="background:var(--bg4);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:var(--mono);font-size:14px;padding:9px 12px;width:100%;padding-right:30px"></div>
+      </div>
+      <div class="fld" style="margin:0">
+        <label style="font-size:11px;color:var(--text3);font-weight:600">${isHe?'ריבית':'Interest'}</label>
+        <div class="inp-wrap"><input type="number" value="${loan.rate}" step="0.1" oninput="loans[${idx}].rate=parseFloat(this.value)||0;calc()" style="background:var(--bg4);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:var(--mono);font-size:14px;padding:9px 12px;width:100%;padding-left:28px"><span class="sym l">%</span></div>
+        <div id="loanMonthly${loan.id}" style="font-size:11px;color:var(--accent);margin-top:4px;font-family:var(--mono)"></div>
+      </div>
+      <div class="fld" style="margin:0">
+        <label style="font-size:11px;color:var(--text3);font-weight:600">${isHe?'שנים':'Years'}</label>
+        <input type="number" value="${loan.years}" min="1" max="30" onchange="loans[${idx}].years=Math.max(1,Math.min(30,parseInt(this.value)||1));this.value=loans[${idx}].years;calc()" oninput="loans[${idx}].years=parseInt(this.value)||1" style="background:var(--bg4);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:var(--mono);font-size:14px;padding:9px 12px;width:100%">
+      </div>
+      ${loans.length>1?`<button onclick="removeLoan(${loan.id})" style="background:var(--red-dim);border:1px solid rgba(239,68,68,.3);color:var(--red);width:34px;height:34px;border-radius:7px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-bottom:2px">×</button>`:'<div></div>'}
+    `;
+    c.appendChild(div);
+  });
+}
+let cfCI=null, eqCI=null, debT=null;
+
+// ── LANG ──
+function toggleLang(){
+  isHe=!isHe;
+  document.documentElement.dir=isHe?'rtl':'ltr';
+  document.documentElement.lang=isHe?'he':'en';
+  setEl('langBtn',isHe?'🌐 EN':'🌐 עב');
+  document.querySelectorAll('[data-he]').forEach(el=>{el.textContent=isHe?el.dataset.he:el.dataset.en});
+  document.querySelectorAll('option[data-he]').forEach(el=>{el.textContent=isHe?el.dataset.he:el.dataset.en});
+  updateTrackDesc(); doCalc();
+}
+
+// ── MODULE TOGGLE ──
+function toggleMod(id){
+  const m=document.getElementById(id);
+  m.classList.toggle('collapsed');
+  document.getElementById(id+'-chev').classList.toggle('open');
+}
+
+// ── MORTGAGE MODE ──
+let lawyerMode='val', mortAdvMode='val', reAdvMode='val';
+function setLawyerMode(m){
+  lawyerMode=m;
+  document.querySelectorAll('#lawyerTgl button').forEach((b,i)=>b.classList.toggle('on',i===(m==='val'?0:1)));
+  document.getElementById('lawyerValWrap').style.display=m==='val'?'':'none';
+  document.getElementById('lawyerPctWrap').style.display=m==='pct'?'':'none';
+  calc();
+}
+function setMortAdvMode(m){
+  mortAdvMode=m;
+  document.querySelectorAll('#mortAdvTgl button').forEach((b,i)=>b.classList.toggle('on',i===(m==='val'?0:1)));
+  document.getElementById('mortAdvValWrap').style.display=m==='val'?'':'none';
+  document.getElementById('mortAdvPctWrap').style.display=m==='pct'?'':'none';
+  calc();
+}
+function setReAdvMode(m){
+  reAdvMode=m;
+  document.querySelectorAll('#reAdvTgl button').forEach((b,i)=>b.classList.toggle('on',i===(m==='val'?0:1)));
+  document.getElementById('reAdvValWrap').style.display=m==='val'?'':'none';
+  document.getElementById('reAdvPctWrap').style.display=m==='pct'?'':'none';
+  calc();
+}
+function updateLTV(){
+  const t=document.getElementById('propType').value;
+  const defaults={first:75,second:50,replace:70,company:75,disabled:75};
+  const el=document.getElementById('mortPct');
+  if(el) el.value=defaults[t]||75;
+  calc();
+}
+function setMortMode(m){
+  mortMode=m;
+  document.querySelectorAll('#mortTgl button').forEach((b,i)=>b.classList.toggle('on',i===(m==='pct'?0:1)));
+  document.getElementById('fMortPct').style.display=m==='pct'?'':'none';
+  document.getElementById('fMortVal').style.display=m==='val'?'':'none';
+  calc();
+}
+
+// ── FORMAT LIVE (while typing) ──
+function fmtLive(el){
+  const pos=el.selectionStart;
+  const raw=el.value.replace(/[^0-9]/g,'');
+  if(!raw){el.value='';return;}
+  const num=parseInt(raw,10);
+  const formatted=num.toLocaleString('he-IL');
+  el.value=formatted;
+  // restore cursor roughly
+  try{const diff=formatted.length-el.value.length; el.setSelectionRange(pos+diff,pos+diff);}catch(e){}
+}
+
+function fmtBlur(el){
+  const n=parseRaw(el.id);
+  if(n>0) el.value=n.toLocaleString('he-IL');
+}
+
+function parseRaw(id){
+  const el=document.getElementById(id);
+  if(!el) return 0;
+  return parseFloat((el.value||'0').replace(/[^0-9.]/g,''))||0;
+}
+
+function setEl(id,val,cls){
+  const el=document.getElementById(id);
+  if(!el)return;
+  el.textContent=val;
+  if(cls!==undefined)el.className=cls;
+}
+function fmt(n,d=0){
+  if(!isFinite(n)||isNaN(n)) return '—';
+  return '₪'+Math.round(n).toLocaleString('he-IL');
+}
+function pct(n,d=1){if(!isFinite(n)||isNaN(n))return'—';return n.toFixed(d)+'%';}
+function k(n){return n>=1e6?(n/1e6).toFixed(1)+'M':n>=1000?(n/1000).toFixed(0)+'K':Math.round(n).toString();}
+
+// ── PURCHASE TAX ──
+function purchaseTax(price,type){
+  if(type==='company') return price*0.06;
+  if(type==='disabled') return Math.min(price,2500000)*0.005+Math.max(0,price-2500000)*0.05;
+  if(type==='second') return price*0.08;
+  const br=[[1978745,0],[2347040,.035],[6055070,.05],[20183565,.08],[Infinity,.10]];
+  let tax=0,prev=0;
+  for(const[lim,r] of br){if(price<=prev)break;tax+=(Math.min(price,lim)-prev)*r;prev=lim;}
+  return tax;
+}
+
+// ── SHEVACH TAX ──
+function shevachTax(profit,track,buyYear,holdYrs,cpiP,cpiS){
+  if(track==='exempt'){const ceil=4846000;if(profit<=ceil)return 0;return(profit-ceil)*.25;}
+  if(track==='linear_good'){const saleY=buyYear+holdYrs;const post=Math.max(0,saleY-2014)/holdYrs;return profit*post*.25;}
+  if(track==='linear_std'){const real=profit/(cpiS/cpiP);return Math.max(0,real)*.25;}
+  return profit*.25;
+}
+
+// ── TRACK DESC ──
+const trackDescs={
+  exempt:{
+    he:'<strong>פטור דירה יחידה (סעיף 49ב)</strong><br>מוכר שגר בדירה כ-18 חודש לפחות ואין לו דירה נוספת. תקרת רווח פטור: ₪4,846,000. מעל התקרה — 25% על העודף בלבד.',
+    en:'<strong>Single Apartment Exemption (49b)</strong><br>Seller lived in the property 18+ months with no other apartment. Exempt profit ceiling: ₪4,846,000. Above the ceiling — 25% on excess only.'
+  },
+  linear_good:{
+    he:'<strong>ליניארי מוטב (תיקון 76)</strong><br>לנכסים שנרכשו לפני 1.1.2014. החלק היחסי שנצבר עד 2014 — פטור מלא. מ-2014 ואילך — 25% על החלק היחסי. מתאים לדירה שנייה שנרכשה לפני 2014.',
+    en:'<strong>Linear Beneficial (Amendment 76)</strong><br>For properties purchased before 1.1.2014. The portion accrued until 2014 — fully exempt. From 2014 onward — 25% on the proportional part. Suitable for 2nd apt bought before 2014.'
+  },
+  linear_std:{
+    he:'<strong>ליניארי רגיל</strong><br>לדירה שנייה שנרכשה אחרי 2014. 25% על הרווח הריאלי בניכוי עליית המדד (אינפלציה). הזן מדדי CPI לחישוב מדויק.',
+    en:'<strong>Linear Standard</strong><br>For 2nd apartment purchased after 2014. 25% on real profit after deducting CPI inflation. Enter CPI values for accurate calculation.'
+  },
+  none:{
+    he:'<strong>ללא פטורים</strong><br>25% ישיר על כל הרווח הנומינלי (מחיר מכירה פחות מחיר קנייה). ללא ניכויים, ללא פטורים. מתאים לחברה או מקרים ללא זכאות.',
+    en:'<strong>No Exemptions</strong><br>25% directly on all nominal profit (sale price minus purchase price). No deductions, no exemptions. Suitable for companies or non-eligible cases.'
+  }
+};
+function updateTrackDesc(){
+  const t=document.getElementById('shevachTrack').value;
+  document.getElementById('trackBox').innerHTML=isHe?trackDescs[t].he:trackDescs[t].en;
+  const showCPI=t==='linear_std';
+  document.getElementById('fCpiPurchase').style.display=showCPI?'':'none';
+  document.getElementById('fCpiSale').style.display=showCPI?'':'none';
+}
+
+// ── MAIN CALC ──
+// ── JOINT OWNERSHIP ──
+let ownershipMode = 'solo';
+
+function setOwnership(mode) {
+  ownershipMode = mode;
+  const solo = mode === 'solo';
+  document.getElementById('btnSolo').classList.toggle('on', solo);
+  document.getElementById('btnJoint').classList.toggle('on', !solo);
+  document.getElementById('jointSection').style.display = solo ? 'none' : '';
+  // In joint mode, hide main propType (each partner has their own)
+  const propTypeField = document.getElementById('propType').closest('.fld');
+  if (propTypeField) propTypeField.style.display = solo ? '' : 'none';
+  // In joint mode, hide the standalone equity check module (mod0)
+  const mod0 = document.getElementById('mod0');
+  if (mod0) mod0.style.display = solo ? '' : 'none';
+  calc();
+}
+
+function syncPartnerB() {
+  const aVal = parseFloat(document.getElementById('partnerAPct').value) || 50;
+  const bVal = Math.max(1, Math.min(99, 100 - aVal));
+  const bEl = document.getElementById('partnerBPct');
+  if (bEl) bEl.value = bVal;
+}
+
+function calcJointPurchaseTax(price, partnerAPct, partnerAType, partnerBType) {
+  const partnerBPct = 100 - partnerAPct;
+  const priceA = price * partnerAPct / 100;
+  const priceB = price * partnerBPct / 100;
+  const taxA = purchaseTax(priceA, partnerAType);
+  const taxB = purchaseTax(priceB, partnerBType);
+  return { taxA, taxB, priceA, priceB, partnerBPct };
+}
+
+function calc(){clearTimeout(debT);debT=setTimeout(doCalc,280);}
+
+function doCalc(){
+  const price=parseRaw('price');
+  const propType=document.getElementById('propType').value;
+  const buyYear=parseInt(document.getElementById('buyYear').value)||2024;
+  const holdYears=parseInt(document.getElementById('holdYears').value)||10;
+
+  // mortgage
+  const mortRatePct=parseFloat(document.getElementById('mortRate').value)||0;
+  const mortYrs=parseInt(document.getElementById('mortYears').value)||30;
+  const mortRateM=mortRatePct/100/12;
+  const mortN=mortYrs*12;
+  let mortgage=mortMode==='pct'
+    ?price*(parseFloat(document.getElementById('mortPct').value)||0)/100
+    :parseRaw('mortVal');
+  mortgage=Math.min(mortgage,price*0.95);
+
+  const monthlyMort=mortRateM===0?mortgage/mortN:mortgage*mortRateM*Math.pow(1+mortRateM,mortN)/(Math.pow(1+mortRateM,mortN)-1);
+
+  // purchase costs
+  // Purchase tax — solo or joint
+  let ptax, ptaxA=0, ptaxB=0;
+  if (ownershipMode === 'joint') {
+    const pAPct = parseFloat(document.getElementById('partnerAPct').value) || 50;
+    const pAType = document.getElementById('partnerAType').value;
+    const pBType = document.getElementById('partnerBType').value;
+    const joint = calcJointPurchaseTax(price, pAPct, pAType, pBType);
+    ptaxA = joint.taxA; ptaxB = joint.taxB;
+    ptax = ptaxA + ptaxB;
+    // Display per-partner
+    const elA = document.getElementById('ptaxA');
+    const elB = document.getElementById('ptaxB');
+    const elAL = document.getElementById('ptaxALabel');
+    const elBL = document.getElementById('ptaxBLabel');
+    if(elA) elA.textContent = fmt(ptaxA);
+    if(elB) elB.textContent = fmt(ptaxB);
+    if(elAL) elAL.textContent = isHe ? `${pAPct}% מהנכס — ₪${Math.round(joint.priceA).toLocaleString('he-IL')}` : `${pAPct}% of property — ₪${Math.round(joint.priceA).toLocaleString('he-IL')}`;
+    if(elBL) elBL.textContent = isHe ? `${joint.partnerBPct}% מהנכס — ₪${Math.round(joint.priceB).toLocaleString('he-IL')}` : `${joint.partnerBPct}% of property — ₪${Math.round(joint.priceB).toLocaleString('he-IL')}`;
+    // Joint summary
+    const soloTax = purchaseTax(price, pAType); // what it would cost one person
+    const saving = soloTax - ptax;
+    const elJT = document.getElementById('ptaxJointTotal');
+    const elSave = document.getElementById('ptaxSaving');
+    if(elJT) elJT.textContent = fmt(ptax);
+    if(elSave) { elSave.textContent = saving > 0 ? fmt(saving) : isHe ? 'אין חיסכון' : 'No saving'; elSave.style.color = saving > 0 ? 'var(--green)' : 'var(--text3)'; }
+    // Rent shares
+    const rentM2 = parseRaw('rent');
+    const vacM2 = parseFloat(document.getElementById('vacancy').value)||0;
+    const annRent2 = rentM2*(12-vacM2);
+    const pAPctN = pAPct/100;
+    const elRA = document.getElementById('rentShareA');
+    const elRB = document.getElementById('rentShareB');
+    if(elRA) elRA.textContent = fmt(annRent2*pAPctN/12)+'/חודש';
+    if(elRB) elRB.textContent = fmt(annRent2*(1-pAPctN)/12)+'/חודש';
+
+    // ── Partner financial breakdown ──
+    const pBPct = joint.partnerBPct / 100;
+    const pAPctR = pAPct / 100;
+
+    // Required equity per partner — compute costs inline from raw inputs
+    // (these vars may not be defined yet at this point in doCalc)
+    const _buyBrokerPct2=(parseFloat(document.getElementById('buyBroker').value)||0)/100;
+    const _buyBrokerVat2=(document.getElementById('buyBrokerVat')||{}).checked!==false;
+    const _buyBrokerAmt2=price*_buyBrokerPct2*(_buyBrokerVat2?1.18:1);
+    const _buyLawyer2=lawyerMode==='val'?parseRaw('buyLawyer'):price*(parseFloat(document.getElementById('buyLawyerPct').value)||0)/100;
+    const _reno2=parseRaw('reno');
+    const _mortAdv2=mortAdvMode==='val'?parseRaw('mortAdv'):mortgage*(parseFloat(document.getElementById('mortAdvPct').value)||0)/100;
+    const _appraiser2=parseRaw('appraiser');
+    const _reAdv2=reAdvMode==='val'?parseRaw('reAdv'):price*(parseFloat(document.getElementById('reAdvPct').value)||0)/100;
+    const otherCosts=_buyBrokerAmt2+_buyLawyer2+_reno2+_mortAdv2+_appraiser2+_reAdv2;
+    const reqA = (price - mortgage) * pAPctR + ptaxA + otherCosts * pAPctR;
+    const reqB = (price - mortgage) * pBPct  + ptaxB + otherCosts * pBPct;
+
+    // Available equity inputs
+    const availA = parseFloat((document.getElementById('pA-equity-avail')||{}).value?.replace(/,/g,'')||0) || 0;
+    const availB = parseFloat((document.getElementById('pB-equity-avail')||{}).value?.replace(/,/g,'')||0) || 0;
+
+    // Supp loan per partner
+    const suppA = Math.max(0, reqA - availA);
+    const suppB = Math.max(0, reqB - availB);
+
+    // Mortgage share per partner
+    const mortA = mortgage * pAPctR;
+    const mortB = mortgage * pBPct;
+    const monthlyMortA = monthlyMort * pAPctR;
+    const monthlyMortB = monthlyMort * pBPct;
+
+    // Per-partner loan settings
+    const sLRateA = (parseFloat((document.getElementById('pA-loan-rate')||{}).value)||7)/100/12;
+    const sLYrsA  = (parseInt((document.getElementById('pA-loan-years')||{}).value)||5)*12;
+    const sLRateB = (parseFloat((document.getElementById('pB-loan-rate')||{}).value)||7)/100/12;
+    const sLYrsB  = (parseInt((document.getElementById('pB-loan-years')||{}).value)||5)*12;
+    const loanMonthly = (amt,r,n) => amt<=0?0:(r===0?amt/n:amt*r*Math.pow(1+r,n)/(Math.pow(1+r,n)-1));
+    const suppMonthlyA = loanMonthly(suppA, sLRateA, sLYrsA);
+    const suppMonthlyB = loanMonthly(suppB, sLRateB, sLYrsB);
+
+    // Display equity/mortgage/monthly (profit displayed after exit calc)
+    const pSet = (id, val) => { const el=document.getElementById(id); if(el) el.textContent=val; };
+    pSet('pA-equity-req', fmt(reqA));
+    pSet('pB-equity-req', fmt(reqB));
+    pSet('pA-supp-loan', suppA>0 ? fmt(suppA) : (isHe?'אין צורך':'Not needed'));
+    pSet('pB-supp-loan', suppB>0 ? fmt(suppB) : (isHe?'אין צורך':'Not needed'));
+    const elPAS = document.getElementById('pA-supp-loan');
+    const elPBS = document.getElementById('pB-supp-loan');
+    if(elPAS) elPAS.style.color = suppA>0?'var(--amber)':'var(--green)';
+    if(elPBS) elPBS.style.color = suppB>0?'var(--amber)':'var(--green)';
+    pSet('pA-mortgage', fmt(mortA));
+    pSet('pB-mortgage', fmt(mortB));
+    pSet('pA-monthly-mort', fmt(monthlyMortA)+'/חודש');
+    pSet('pB-monthly-mort', fmt(monthlyMortB)+'/חודש');
+    pSet('pA-monthly-total', fmt(monthlyMortA+suppMonthlyA)+'/חודש');
+    pSet('pB-monthly-total', fmt(monthlyMortB+suppMonthlyB)+'/חודש');
+    // Supp loan monthly per partner
+    const elPALM = document.getElementById('pA-loan-monthly');
+    const elPBLM = document.getElementById('pB-loan-monthly');
+    if(elPALM) elPALM.textContent = suppA>0 ? fmt(suppMonthlyA)+'/חודש' : '—';
+    if(elPBLM) elPBLM.textContent = suppB>0 ? fmt(suppMonthlyB)+'/חודש' : '—';
+    // Store for later use after reNet + principalLeft are calculated
+    window._partnerData = { pAPctR, pBPct, reqA, reqB };
+
+  } else {
+    ptax = purchaseTax(price, propType);
+  }
+  const buyBrokerPct=(parseFloat(document.getElementById('buyBroker').value)||0)/100;
+  const buyBrokerVat=(document.getElementById('buyBrokerVat')||{}).checked!==false;
+  const buyBrokerAmt=price*buyBrokerPct*(buyBrokerVat?1.18:1);
+  const bpEl=document.getElementById('buyBrokerPreview');
+  if(bpEl) bpEl.textContent=buyBrokerAmt>0?'≈ ₪'+Math.round(buyBrokerAmt).toLocaleString('he-IL')+(buyBrokerVat?' (כולל מע"מ)':' (ללא מע"מ)'):'';
+  const buyLawyer=lawyerMode==='val'?parseRaw('buyLawyer'):price*(parseFloat(document.getElementById('buyLawyerPct').value)||0)/100;
+  const reno=parseRaw('reno');
+  const mortAdv=mortAdvMode==='val'?parseRaw('mortAdv'):mortgage*(parseFloat(document.getElementById('mortAdvPct').value)||0)/100;
+  const appraiser=parseRaw('appraiser');
+  const reAdv=reAdvMode==='val'?parseRaw('reAdv'):price*(parseFloat(document.getElementById('reAdvPct').value)||0)/100;
+  const totalBuyCosts=ptax+buyBrokerAmt+buyLawyer+reno+mortAdv+appraiser+reAdv;
+  const downPayment=price-mortgage;
+  const totalInvested=downPayment+totalBuyCosts;
+
+  // equity check
+  const avail=parseRaw('availEquity');
+  document.getElementById('reqEquityDisplay').value=totalInvested>0?totalInvested.toLocaleString('he-IL'):'';
+  const gap=totalInvested-avail;
+  const equityAlert=document.getElementById('equityAlert');
+  const loanSec=document.getElementById('loanSection');
+  if(avail<=0){
+    equityAlert.innerHTML='';loanSec.style.display='none';window._suppLoanMonthly=0;window._suppLoanTotal=0;
+  } else if(gap<=0){
+    equityAlert.innerHTML=`<div class="alert ok"><div class="alert-icon">✅</div><div class="alert-body"><strong>${isHe?'יש לך מספיק הון עצמי!':'Sufficient equity!'}</strong> ${isHe?'הון זמין: ':'Available: '}${fmt(avail)} | ${isHe?'נדרש: ':'Required: '}${fmt(totalInvested)} | ${isHe?'עודף: ':'Surplus: '}${fmt(-gap)}</div></div>`;
+    loanSec.style.display='none';
+    window._suppLoanMonthly=0;
+    window._suppLoanTotal=0;
+  } else {
+    equityAlert.innerHTML=`<div class="alert danger"><div class="alert-icon">⚠️</div><div class="alert-body"><strong>${isHe?'חסר הון עצמי!':'Equity Gap!'}</strong> ${isHe?'נדרש: ':'Required: '}${fmt(totalInvested)} | ${isHe?'יש לך: ':'You have: '}${fmt(avail)} | ${isHe?'גירעון: ':'Gap: '}${fmt(gap)}</div></div>`;
+    loanSec.style.display='';
+    // multi-loan calc
+    renderLoans();
+    let totalSuppMonthly=0, totalSuppInterest=0, totalSuppAmt=0;
+    let remainingGap=gap;
+    loans.forEach((loan,idx)=>{
+      const amt=loan.amt?parseFloat(loan.amt):remainingGap;
+      remainingGap=Math.max(0,remainingGap-amt);
+      const rm=loan.rate/100/12;
+      const n=loan.years*12;
+      const monthly=rm===0?amt/n:amt*rm*Math.pow(1+rm,n)/(Math.pow(1+rm,n)-1);
+      const interest=monthly*n-amt;
+      totalSuppMonthly+=monthly;
+      totalSuppInterest+=interest;
+      totalSuppAmt+=amt;
+      // update inline display per loan
+      const el=document.getElementById('loanMonthly'+loan.id);
+      if(el) el.textContent=fmt(monthly)+'/חודש';
+    });
+    setEl('suppLoanMonthly',fmt(totalSuppMonthly)+'/חודש');
+    setEl('suppLoanTotalInt',fmt(totalSuppInterest));
+    setEl('suppLoanTotal',fmt(totalSuppAmt+totalSuppInterest));
+    window._suppLoanMonthly=totalSuppMonthly;
+    window._suppLoanTotal=totalSuppAmt;
+  }
+
+  // equity bar
+  const total=Math.max(totalInvested,avail);
+  const suppUsed=gap>0?gap:0;
+  const availPct=Math.min(100,avail/total*100);
+  const loanPct=Math.min(100-availPct,suppUsed/total*100);
+  document.getElementById('equityBarFill').style.width=availPct+'%';
+  document.getElementById('loanBarFill').style.width=loanPct+'%';
+
+  // display mod1
+  // pct previews for service providers
+  const lawyerAmt2=lawyerMode==='pct'?price*(parseFloat((document.getElementById('buyLawyerPct')||{}).value)||0)/100:0;
+  const mortAdvAmt2=mortAdvMode==='pct'?mortgage*(parseFloat((document.getElementById('mortAdvPct')||{}).value)||0)/100:0;
+  const reAdvAmt2=reAdvMode==='pct'?price*(parseFloat((document.getElementById('reAdvPct')||{}).value)||0)/100:0;
+  const lpEl=document.getElementById('lawyerPctPreview');
+  const maEl=document.getElementById('mortAdvPctPreview');
+  const raEl=document.getElementById('reAdvPctPreview');
+  if(lpEl) lpEl.textContent=lawyerMode==='pct'?('≈ '+fmt(lawyerAmt2)):'';
+  if(maEl) maEl.textContent=mortAdvMode==='pct'?('≈ '+fmt(mortAdvAmt2)):'';
+  if(raEl) raEl.textContent=reAdvMode==='pct'?('≈ '+fmt(reAdvAmt2)):'';
+
+    setEl('dPurchaseTax',fmt(ptax));
+  setEl('dBuyCosts',fmt(totalBuyCosts));
+  setEl('dEquityReq',fmt(totalInvested));
+  setEl('dMonthly',fmt(monthlyMort));
+  // total monthly = mortgage + supp loan
+  const suppMonthly2=window._suppLoanMonthly||0;
+  const totalMonthly=monthlyMort+suppMonthly2;
+  const tmEl=document.getElementById('dTotalMonthly');
+  if(tmEl){
+    tmEl.textContent=fmt(totalMonthly)+(suppMonthly2>0?' (כולל הלוואה)':'');
+    tmEl.style.color=suppMonthly2>0?'var(--red)':'var(--text)';
+  }
+
+  // mortgage breakdown over holding period
+  const holdMonths=Math.min(holdYears*12,mortN);
+  let principalPaid=0,interestPaid=0,bal=mortgage;
+  for(let m=1;m<=holdMonths;m++){
+    const intM=bal*mortRateM;
+    const princM=monthlyMort-intM;
+    interestPaid+=intM;
+    principalPaid+=princM;
+    bal-=princM;
+  }
+  const principalLeft=Math.max(0,bal);
+  setEl('mbPrincipalPaid',fmt(principalPaid));
+  setEl('mbPrincipalPaidPct',isHe?`${pct(principalPaid/mortgage*100)} מהמשכנתא המקורית`:`${pct(principalPaid/mortgage*100)} of original mortgage`);
+  setEl('mbInterestPaid',fmt(interestPaid));
+  setEl('mbInterestPaidSub',isHe?`תשלום לבנק מעבר לקרן`:`Extra paid to bank beyond principal`);
+  setEl('mbPrincipalLeft',fmt(principalLeft));
+  setEl('mbPrincipalLeftSub',isHe?`יתרת חוב לבנק בסיום תקופה`:`Remaining debt to bank`);
+
+  // rent
+  const rentM=parseRaw('rent');
+  const rentGrowth=parseFloat(document.getElementById('rentGrowth').value)||0;
+  const vacMo=parseFloat(document.getElementById('vacancy').value)||0;
+  const rentTaxPct=parseFloat(document.getElementById('rentTax').value)||0;
+  const vaadAnn=parseRaw('vaad')*12;
+  const arnonaAnn=parseRaw('arnona')*12;
+  const insAnn=parseRaw('insurance');
+  const maintAnn=parseRaw('maintenance');
+  const annExp=vaadAnn+arnonaAnn+insAnn+maintAnn;
+
+  const grossY1=rentM*(12-vacMo);
+  const rentTaxY1=grossY1*rentTaxPct/100;
+  const netY1=grossY1-annExp-rentTaxY1;
+  const grossYieldPct=price>0?rentM*12/price*100:0;
+  const netYieldPct=price>0?netY1/price*100:0;
+  const cfY1=netY1-monthlyMort*12;
+
+  const cyEl=document.getElementById('dCFY1');
+  cyEl.textContent=fmt(cfY1/12);
+  cyEl.className='stat-val '+(cfY1>=0?'g':'r');
+  setEl('dGrossYield',pct(grossYieldPct));
+  setEl('dNetYield',pct(netYieldPct));
+
+  // exit
+  const appPct=parseFloat(document.getElementById('appreciation').value)||0;
+  const fvOver=parseRaw('futureValOverride');
+  const futureVal=fvOver>0?fvOver:price*Math.pow(1+appPct/100,holdYears);
+
+  // SQM calc (needs futureVal)
+  const sqmApt=parseFloat((document.getElementById('sqmApt')||{}).value)||0;
+  const sqmBal=parseFloat((document.getElementById('sqmBalcony')||{}).value)||0;
+  const sqmStrip=document.getElementById('sqmStrip');
+  if(sqmApt>0 && price>0){
+    if(sqmStrip) sqmStrip.style.display='';
+    const pricePerSqmApt=Math.round(price/sqmApt);
+    const pricePerSqmFull=sqmBal>0?Math.round(price/(sqmApt+sqmBal)):0;
+    const futureSqm=Math.round(futureVal/sqmApt);
+    setEl('sqmPriceApt','₪'+pricePerSqmApt.toLocaleString('he-IL')+'/מ"ר');
+    setEl('sqmPriceFull',sqmBal>0?'₪'+pricePerSqmFull.toLocaleString('he-IL')+'/מ"ר':'—');
+    setEl('sqmFuture','₪'+futureSqm.toLocaleString('he-IL')+'/מ"ר');
+  } else {
+    if(sqmStrip) sqmStrip.style.display='none';
+  }
+  const sellBrokerPct=(parseFloat(document.getElementById('sellBroker').value)||0)/100;
+  const sellBrokerVat=(document.getElementById('sellBrokerVat')||{}).checked!==false;
+  const sellBrokerAmt=futureVal*sellBrokerPct*(sellBrokerVat?1.18:1);
+  const spEl=document.getElementById('sellBrokerPreview');
+  if(spEl) spEl.textContent=sellBrokerAmt>0?'≈ ₪'+Math.round(sellBrokerAmt).toLocaleString('he-IL')+(sellBrokerVat?' (כולל מע"מ)':' (ללא מע"מ)'):'';
+  const sellLawyer=parseRaw('sellLawyer');
+  const grossProfit=futureVal-price;
+  const track=document.getElementById('shevachTrack').value;
+  const cpiP=parseFloat(document.getElementById('cpiPurchase').value)||100;
+  const cpiS=parseFloat(document.getElementById('cpiSale').value)||130;
+  const sTax=shevachTax(grossProfit,track,buyYear,holdYears,cpiP,cpiS);
+  const totalSellCosts=sellBrokerAmt+sellLawyer+sTax;
+  const netEquityFromSale=futureVal-principalLeft-totalSellCosts;
+
+  setEl('dFutureVal',fmt(futureVal));
+  setEl('dGrossProfit',fmt(grossProfit));
+  setEl('dShevach',fmt(sTax));
+  setEl('dNetEquity',fmt(netEquityFromSale));
+
+  // CASH FLOW TABLE
+  const cfData=[];
+  let cumCF=0,totalNetCF=0,breakEvenYr=null;
+  for(let y=1;y<=holdYears;y++){
+    const grossRent=rentM*Math.pow(1+rentGrowth/100,y-1)*(12-vacMo);
+    const rentTaxAmt=grossRent*rentTaxPct/100;
+    const opEx=annExp+rentTaxAmt;
+    const mortAnn=monthlyMort*12;
+    const netCF=grossRent-opEx-mortAnn;
+    cumCF+=netCF;totalNetCF+=netCF;
+    if(cumCF>=0&&!breakEvenYr)breakEvenYr=y;
+    // equity at year y
+    const propValY=price*Math.pow(1+appPct/100,y);
+    const holdMY=Math.min(y*12,mortN);
+    let bY=mortgage;
+    for(let m=1;m<=holdMY;m++){const im=bY*mortRateM;bY-=(monthlyMort-im);}
+    const eqY=propValY-Math.max(0,bY);
+    // annual interest
+    let annInt=0,bPrev=mortgage;
+    for(let m=1;m<=holdMY;m++){im=bPrev*mortRateM;annInt+=(y>1&&m<=(y-1)*12)?0:im;bPrev-=(monthlyMort-im);}
+    // simpler: recalc annual interest for just year y
+    let bStart=mortgage;
+    for(let m=1;m<=(y-1)*12&&m<=mortN;m++){const im=bStart*mortRateM;bStart-=(monthlyMort-im);}
+    let annIntY=0;
+    for(let m=1;m<=12&&(y-1)*12+m<=mortN;m++){annIntY+=bStart*mortRateM;const im=bStart*mortRateM;bStart-=(monthlyMort-im);}
+    cfData.push({y,grossRent,opEx,mortAnn,annIntY,netCF,cumCF,eqY,principalLeftY:Math.max(0,bStart)});
+  }
+
+  // build table
+  const tbody=document.getElementById('cfBody');tbody.innerHTML='';
+  cfData.forEach(row=>{
+    const tr=document.createElement('tr');
+    if(row.cumCF>=0&&(row.y===1||cfData[row.y-2].cumCF<0))tr.classList.add('be');
+    tr.innerHTML=`
+      <td><span class="yr-badge">${row.y}</span></td>
+      <td class="a">${fmt(row.grossRent)}</td>
+      <td class="r">(${fmt(row.opEx)})</td>
+      <td class="r">(${fmt(row.mortAnn)})</td>
+      <td class="am">${fmt(row.principalLeftY)}</td>
+      <td class="r">(${fmt(row.annIntY)})</td>
+      <td class="${row.netCF>=0?'g':'r'}">${row.netCF>=0?fmt(row.netCF):'('+fmt(Math.abs(row.netCF))+')'}</td>
+      <td class="${row.cumCF>=0?'g':'r'}">${row.cumCF>=0?fmt(row.cumCF):'('+fmt(Math.abs(row.cumCF))+')'}</td>
+      <td class="g">${fmt(row.eqY)}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  // METRICS
+  const totalReturn=netEquityFromSale+totalNetCF-totalInvested;
+  const roi=totalInvested>0?totalReturn/totalInvested*100:0;
+  const roePct=downPayment>0?(netEquityFromSale+totalNetCF-totalInvested)/downPayment*100:0;
+  const cagr=holdYears>0&&totalInvested>0?(Math.pow((netEquityFromSale+totalNetCF)/totalInvested,1/holdYears)-1)*100:0;
+  const mult=totalInvested>0?(netEquityFromSale+totalNetCF)/totalInvested:0;
+  const stockRet=parseFloat(document.getElementById('stockReturn').value)||7;
+  const stockFinal=totalInvested*Math.pow(1+stockRet/100,holdYears);
+  // Gross = matches chart line (no sell costs)
+  const reTotalGross=cfData[cfData.length-1].eqY+totalNetCF;
+  // Net = after sell costs and capital gains tax
+  const reNet=netEquityFromSale+totalNetCF;
+  const reTotal=reTotalGross;
+
+  // Partner profit display (needs reNet + totalInvested)
+  if(ownershipMode==='joint' && window._partnerData){
+    const {pAPctR,pBPct,reqA,reqB}=window._partnerData;
+    const pSet2=(id,val)=>{const el=document.getElementById(id);if(el)el.textContent=val;};
+    // Remaining mortgage per partner
+    const mortRemainingA=principalLeft*pAPctR;
+    const mortRemainingB=principalLeft*pBPct;
+    pSet2('pA-mort-remaining', fmt(mortRemainingA));
+    pSet2('pB-mort-remaining', fmt(mortRemainingB));
+    // Equity in hand after sale (net of sell costs, per partner share)
+    const sellCostsShare=sellBrokerAmt+sellLawyer;
+    const equityEndA=futureVal*pAPctR - mortRemainingA - sellCostsShare*pAPctR - sTax*pAPctR;
+    const equityEndB=futureVal*pBPct  - mortRemainingB - sellCostsShare*pBPct  - sTax*pBPct;
+    pSet2('pA-equity-end', fmt(equityEndA));
+    pSet2('pB-equity-end', fmt(equityEndB));
+    const elPAEE=document.getElementById('pA-equity-end');
+    const elPBEE=document.getElementById('pB-equity-end');
+    if(elPAEE)elPAEE.style.color=equityEndA>=0?'var(--green)':'var(--red)';
+    if(elPBEE)elPBEE.style.color=equityEndB>=0?'var(--green)':'var(--red)';
+    // Profit and ROI
+    const profitA=(reNet-totalInvested)*pAPctR;
+    const profitB=(reNet-totalInvested)*pBPct;
+    const roiA=reqA>0?profitA/reqA*100:0;
+    const roiB=reqB>0?profitB/reqB*100:0;
+    pSet2('pA-profit',(profitA>=0?'':'-')+fmt(Math.abs(profitA)));
+    pSet2('pB-profit',(profitB>=0?'':'-')+fmt(Math.abs(profitB)));
+    pSet2('pA-roi',pct(roiA));
+    pSet2('pB-roi',pct(roiB));
+    const elPAP=document.getElementById('pA-profit');
+    const elPBP=document.getElementById('pB-profit');
+    if(elPAP)elPAP.style.color=profitA>=0?'var(--green)':'var(--red)';
+    if(elPBP)elPBP.style.color=profitB>=0?'var(--green)':'var(--red)';
+  }
+  const reWins=reTotal>stockFinal;
+
+  setEl('mROI',pct(roi));
+  setEl('mROE',pct(roePct));
+  setEl('mCAGR',pct(cagr));
+  setEl('mMult',mult.toFixed(2)+'x');
+
+  // reTotal = netEquityFromSale + totalNetCF — same as what the chart shows
+  setEl('ccREval',fmt(reTotal));
+  setEl('ccRESub',isHe?`זהה לגרף | נטו אחרי מכירה: ${fmt(reNet)}`:`Same as chart | Net after sale: ${fmt(reNet)}`);
+  setEl('ccStockVal',fmt(stockFinal));
+  setEl('ccStockSub',isHe?`אותו הון עצמי ב-${stockRet}% ריבית דריבית לאורך ${holdYears} שנים`:`Same equity at ${stockRet}% compound over ${holdYears} yrs`);
+  document.getElementById('ccRE').classList.toggle('win',reWins);
+  document.getElementById('ccStock').classList.toggle('win',!reWins);
+
+  const maxComp=Math.max(reTotal,stockFinal);
+  document.getElementById('ccREbar').style.width=pct(reTotal/maxComp*100,0);
+  document.getElementById('ccStockBar').style.width=pct(stockFinal/maxComp*100,0);
+
+  // SUMMARY BAR
+  const sProfEl=document.getElementById('sProfit');
+  sProfEl.textContent=fmt(totalReturn);
+  if(sProfEl) sProfEl.className='sval '+(totalReturn>=0?'g':'r');
+  setEl('sROI',pct(roi));
+  setEl('sROE',pct(roePct));
+  setEl('sYield',pct(netYieldPct));
+  setEl('sBE',breakEvenYr?(isHe?`שנה ${breakEvenYr}`:`Year ${breakEvenYr}`):(isHe?'לא הושג':'N/A'));
+  setEl('sInterest',fmt(interestPaid));
+  const winDiff=Math.abs(reTotal-stockFinal);
+  setEl('sWinner',reWins?(isHe?`🏠 נדל"ן (+₪${Math.round(winDiff).toLocaleString('he-IL')})`:`🏠 RE (+₪${Math.round(winDiff).toLocaleString('he-IL')})`):(isHe?`📈 שוק הון (+₪${Math.round(winDiff).toLocaleString('he-IL')})`:`📈 Stocks (+₪${Math.round(winDiff).toLocaleString('he-IL')})`));
+
+  // Update floating widget
+  const avail2=parseRaw('availEquity');
+  const gap2=totalInvested-avail2;
+  updateFloat({
+    avail: avail2>0?fmt(avail2):'—',
+    req: fmt(totalInvested),
+    gap: gap2>0?('-'+fmt(gap2)):(avail2>0?'+'+fmt(-gap2):'—'),
+    gapCls: gap2>0?'r':'g',
+    mort: fmt(monthlyMort)+'/חודש',
+    loans: (window._suppLoanMonthly||0)>0?fmt(window._suppLoanMonthly||0)+'/חודש':'—',
+    totalMonthly: fmt(totalMonthly)+'/חודש',
+    tmColor: (window._suppLoanMonthly||0)>0?'var(--red)':'var(--green)',
+    price: fmt(price),
+    ptax: fmt(ptax),
+    costs: fmt(totalBuyCosts-ptax),
+    mortgage: fmt(mortgage),
+    yield: pct(netYieldPct),
+    roi: pct(roi),
+    be: breakEvenYr?(isHe?`שנה ${breakEvenYr}`:`Year ${breakEvenYr}`):(isHe?'לא הושג':'N/A'),
+    final: fmt(reNet)
+  });
+
+  // CHARTS
+  const labels=cfData.map(d=>isHe?`ש׳${d.y}`:`Y${d.y}`);
+  const cfVals=cfData.map(d=>Math.round(d.netCF));
+  const cumVals=cfData.map(d=>Math.round(d.cumCF));
+  // RE equity: property value - remaining mortgage + cumulative cash flow
+  // For final year only: also deduct sell costs for consistency with card
+  const eqVals=cfData.map((d,i)=>{
+    const base=Math.round(d.eqY + cfData.slice(0,i+1).reduce((s,r)=>s+r.netCF,0));
+    return base;
+  });
+  const stVals=cfData.map(d=>Math.round(totalInvested*Math.pow(1+stockRet/100,d.y)));
+  const capLine=cfData.map(()=>Math.round(totalInvested));
+
+  const gridColor='rgba(0,0,0,0.06)';
+  const tickColor='#718096';
+  const gridCfg={color:gridColor};
+  const tickCfg={color:tickColor,font:{size:10,family:"'DM Mono',monospace"}};
+
+  if(cfCI)cfCI.destroy();
+  cfCI=new Chart(document.getElementById('cfChart'),{
+    data:{labels,datasets:[
+      {type:'bar',label:isHe?'תזרים נטו':'Net CF',data:cfVals,backgroundColor:cfVals.map(v=>v>=0?'rgba(22,101,52,.75)':'rgba(153,27,27,.75)'),borderRadius:4,yAxisID:'y'},
+      {type:'line',label:isHe?'מצטבר':'Cumulative',data:cumVals,borderColor:'#1e3a5f',backgroundColor:'transparent',borderWidth:2,pointRadius:2,tension:.3,yAxisID:'y2'}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{labels:{color:'#718096',font:{size:11},padding:16}},
+        tooltip:{
+          backgroundColor:'rgba(255,255,255,0.98)',
+          borderColor:'rgba(30,58,95,.2)',
+          borderWidth:1,
+          padding:14,
+          titleColor:'#1a1a2e',
+          titleFont:{size:13,weight:'bold'},
+          bodyColor:'#4a5568',
+          bodyFont:{size:12},
+          callbacks:{
+            title:ctx=>isHe?`שנה ${ctx[0].dataIndex+1}`:`Year ${ctx[0].dataIndex+1}`,
+            label:ctx=>{
+              const val=ctx.parsed.y;
+              const formatted=(val<0?'(':'')+'₪'+Math.abs(Math.round(val)).toLocaleString('he-IL')+(val<0?')':'');
+              return ` ${ctx.dataset.label}: ${formatted}`;
+            }
+          }
+        }
+      },
+      scales:{
+        x:{ticks:{...tickCfg},grid:gridCfg},
+        y:{ticks:{...tickCfg,callback:v=>'₪'+k(v)},grid:gridCfg},
+        y2:{position:'left',ticks:{...tickCfg,color:'#1e3a5f',callback:v=>'₪'+k(v)},grid:{display:false}}
+      }
+    }
+  });
+
+  if(eqCI)eqCI.destroy();
+  eqCI=new Chart(document.getElementById('eqChart'),{
+    type:'line',
+    data:{labels,datasets:[
+      {label:isHe?'הון נזיל מצטבר — נדל"ן':'Net Liquid Capital — RE',data:eqVals,borderColor:'#1e3a5f',backgroundColor:'rgba(30,58,95,.07)',borderWidth:2.5,fill:true,tension:.3,pointRadius:3,pointHoverRadius:7,pointHoverBackgroundColor:'#1e3a5f',pointHoverBorderColor:'#fff',pointHoverBorderWidth:2},
+      {label:isHe?'הון נזיל מצטבר — שוק ההון':'Net Liquid Capital — Stocks',data:stVals,borderColor:'#d97706',backgroundColor:'rgba(217,119,6,.06)',borderWidth:2,tension:.3,pointRadius:3,pointHoverRadius:7,pointHoverBackgroundColor:'#d97706',pointHoverBorderColor:'#fff',pointHoverBorderWidth:2,fill:true},
+      {label:isHe?'הון מושקע':'Capital Invested',data:capLine,borderColor:'#94a3b8',backgroundColor:'transparent',borderWidth:1.5,borderDash:[6,4],pointRadius:0,pointHoverRadius:4}
+    ]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{labels:{color:'#718096',font:{size:11},padding:16}},
+        tooltip:{
+          backgroundColor:'rgba(255,255,255,0.98)',
+          borderColor:'rgba(30,58,95,.2)',
+          borderWidth:1,
+          padding:14,
+          titleColor:'#1a1a2e',
+          titleFont:{size:13,weight:'bold'},
+          bodyColor:'#4a5568',
+          bodyFont:{size:12},
+          callbacks:{
+            title:ctx=>isHe?`שנה ${ctx[0].dataIndex+1}`:`Year ${ctx[0].dataIndex+1}`,
+            label:ctx=>{
+              const ds=ctx.dataset.label;
+              const val='₪'+Math.round(ctx.parsed.y).toLocaleString('he-IL');
+              return ` ${ds}: ${val}`;
+            },
+            afterBody:ctx=>{
+              const re=ctx.find(c=>c.datasetIndex===0);
+              const st=ctx.find(c=>c.datasetIndex===1);
+              if(re&&st){
+                const diff=re.parsed.y-st.parsed.y;
+                const winner=diff>=0?(isHe?'🏠 נדל"ן מוביל':'🏠 RE leads'):(isHe?'📈 שוק ההון מוביל':'📈 Stocks lead');
+                return [``, `${winner}: ₪${Math.abs(Math.round(diff)).toLocaleString('he-IL')}`];
+              }
+              return [];
+            }
+          }
+        }
+      },
+      scales:{
+        x:{ticks:{...tickCfg},grid:gridCfg},
+        y:{ticks:{...tickCfg,callback:v=>'₪'+k(v)},grid:gridCfg}
+      }
+    }
+  });
+}
+
+// ── FLOAT WIDGET ──
+let floatOpen=false;
+function toggleFloat(){
+  floatOpen=!floatOpen;
+  const panel=document.getElementById("floatPanel");
+  const btn=document.getElementById("floatBtn");
+  if(panel) panel.classList.toggle("visible",floatOpen);
+  if(btn){btn.classList.toggle("open",floatOpen);btn.textContent=floatOpen?"×":"📋";}
+}
+function fpSet(id,v,cls){
+  const el=document.getElementById("fp-"+id);
+  if(!el) return;
+  el.textContent=v;
+  if(cls) el.className="fp-val "+cls;
+}
+function updateFloat(d){
+  fpSet("avail",d.avail);fpSet("req",d.req);fpSet("gap",d.gap,d.gapCls);
+  fpSet("mort",d.mort,"r");fpSet("loans",d.loans,d.loans==="—"?"":"r");
+  const tm=document.getElementById("fp-total-monthly");
+  if(tm){tm.textContent=d.totalMonthly;tm.style.color=d.tmColor||"var(--text)";}
+  fpSet("price",d.price);fpSet("ptax",d.ptax,"r");fpSet("costs",d.costs,"r");
+  fpSet("mortgage",d.mortgage,"a");fpSet("yield",d.yield,"g");
+  fpSet("roi",d.roi,"a");fpSet("be",d.be);fpSet("final",d.final,"g");
+}
+// INIT
+function init(){
+  updateTrackDesc();
+  renderLoans();
+  doCalc();
+}
+</script>
+<!-- FLOATING SUMMARY -->
+<button class="float-btn" id="floatBtn" onclick="toggleFloat()" title="סיכום מהיר">📋</button>
+<div class="float-panel" id="floatPanel">
+  <div class="fp-header">
+    <div class="fp-title">📋 סיכום מהיר</div>
+    <button class="fp-close" onclick="toggleFloat()">×</button>
+  </div>
+  <div class="fp-body">
+    <div class="fp-section">הון עצמי</div>
+    <div class="fp-row"><span class="fp-lbl">הון עצמי זמין</span><span class="fp-val a" id="fp-avail">—</span></div>
+    <div class="fp-row"><span class="fp-lbl">הון עצמי נדרש</span><span class="fp-val" id="fp-req">—</span></div>
+    <div class="fp-row"><span class="fp-lbl">פער / עודף</span><span class="fp-val" id="fp-gap">—</span></div>
+
+    <div class="fp-section">החזרים חודשיים</div>
+    <div class="fp-row"><span class="fp-lbl">משכנתא</span><span class="fp-val r" id="fp-mort">—</span></div>
+    <div class="fp-row"><span class="fp-lbl">הלוואות משלימות</span><span class="fp-val r" id="fp-loans">—</span></div>
+    <div class="fp-total">
+      <span class="fp-total-lbl">סה״כ חודשי</span>
+      <span class="fp-total-val" id="fp-total-monthly">—</span>
+    </div>
+
+    <div class="fp-section">עלויות רכישה</div>
+    <div class="fp-row"><span class="fp-lbl">מחיר הדירה</span><span class="fp-val" id="fp-price">—</span></div>
+    <div class="fp-row"><span class="fp-lbl">מס רכישה</span><span class="fp-val r" id="fp-ptax">—</span></div>
+    <div class="fp-row"><span class="fp-lbl">הוצאות נוספות</span><span class="fp-val r" id="fp-costs">—</span></div>
+    <div class="fp-row"><span class="fp-lbl">משכנתא</span><span class="fp-val a" id="fp-mortgage">—</span></div>
+
+    <div class="fp-section">תשואה וסיכום</div>
+    <div class="fp-row"><span class="fp-lbl">תשואת שכירות נטו</span><span class="fp-val g" id="fp-yield">—</span></div>
+    <div class="fp-row"><span class="fp-lbl">ROI כולל</span><span class="fp-val a" id="fp-roi">—</span></div>
+    <div class="fp-row"><span class="fp-lbl">שנת איזון</span><span class="fp-val" id="fp-be">—</span></div>
+    <div class="fp-row"><span class="fp-lbl">הון נזיל בסוף</span><span class="fp-val g" id="fp-final">—</span></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" onload="init()"></script>
+</body>
+</html>
