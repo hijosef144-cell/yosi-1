@@ -83,6 +83,11 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:1
 @media(max-width:860px){.main{grid-template-columns:1fr;padding:16px}}
 .full{grid-column:1/-1}
 
+/* ── EDITABLE PARTNER NAME ── */
+.pname{cursor:text;border-bottom:1.5px dashed currentColor;outline:none;padding:0 3px 1px;border-radius:2px;min-width:30px;display:inline-block;transition:background .15s}
+.pname:focus{background:rgba(255,255,255,0.18);border-bottom-style:solid}
+.pname:empty::before{content:attr(data-ph);opacity:.45}
+
 /* ── VAT TOGGLE ── */
 .vat-toggle{display:inline-flex;align-items:center;gap:7px;cursor:pointer;user-select:none;margin-top:6px}
 .vat-toggle input[type=checkbox]{display:none}
@@ -393,7 +398,7 @@ tbody tr.be td{background:rgba(30,58,95,.05)!important}
         <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:16px">
           <div style="font-size:12px;font-weight:700;color:var(--accent);margin-bottom:12px;display:flex;align-items:center;gap:8px">
             <span style="background:var(--accent);color:#fff;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px">א</span>
-            <span data-he="שותף א" data-en="Partner A">שותף א</span>
+            <span id="partnerAName" class="pname" contenteditable="true" data-ph="שותף א" oninput="updatePartnerLabels()" onkeydown="if(event.key==='Enter')this.blur()">שותף א</span>
           </div>
           <div class="fld" style="margin-bottom:10px">
             <label style="font-size:11px;color:var(--text3)"><span data-he="% בעלות" data-en="Ownership %">% בעלות</span></label>
@@ -411,7 +416,7 @@ tbody tr.be td{background:rgba(30,58,95,.05)!important}
             <div class="inp-wrap"><input type="number" id="partnerACreditPts" value="2.25" step="0.25" oninput="calc()"><span class="sym l">נק׳</span></div>
           </div>
           <div style="margin-top:12px;background:var(--bg4);border-radius:7px;padding:10px 12px">
-            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px" data-he="מס רכישה לשותף א" data-en="Purchase Tax — Partner A">מס רכישה לשותף א</div>
+            <div id="ptaxALbl" style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px">מס רכישה לשותף א</div>
             <div style="font-family:var(--mono);font-size:15px;color:var(--red);font-weight:500" id="ptaxA">—</div>
             <div style="font-size:10px;color:var(--text3);margin-top:2px" id="ptaxALabel">—</div>
           </div>
@@ -421,7 +426,7 @@ tbody tr.be td{background:rgba(30,58,95,.05)!important}
         <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:16px">
           <div style="font-size:12px;font-weight:700;color:var(--green);margin-bottom:12px;display:flex;align-items:center;gap:8px">
             <span style="background:var(--green);color:#fff;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px">ב</span>
-            <span data-he="שותף ב" data-en="Partner B">שותף ב</span>
+            <span id="partnerBName" class="pname" contenteditable="true" data-ph="שותף ב" oninput="updatePartnerLabels()" onkeydown="if(event.key==='Enter')this.blur()">שותף ב</span>
           </div>
           <div class="fld" style="margin-bottom:10px">
             <label style="font-size:11px;color:var(--text3)"><span data-he="% בעלות (אוטומטי)" data-en="Ownership % (auto)">% בעלות</span></label>
@@ -439,7 +444,7 @@ tbody tr.be td{background:rgba(30,58,95,.05)!important}
             <div class="inp-wrap"><input type="number" id="partnerBCreditPts" value="2.25" step="0.25" oninput="calc()"><span class="sym l">נק׳</span></div>
           </div>
           <div style="margin-top:12px;background:var(--bg4);border-radius:7px;padding:10px 12px">
-            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px" data-he="מס רכישה לשותף ב" data-en="Purchase Tax — Partner B">מס רכישה לשותף ב</div>
+            <div id="ptaxBLbl" style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px">מס רכישה לשותף ב</div>
             <div style="font-family:var(--mono);font-size:15px;color:var(--red);font-weight:500" id="ptaxB">—</div>
             <div style="font-size:10px;color:var(--text3);margin-top:2px" id="ptaxBLabel">—</div>
           </div>
@@ -450,8 +455,8 @@ tbody tr.be td{background:rgba(30,58,95,.05)!important}
       <!-- JOINT SUMMARY STRIP -->
       <div class="stat-strip" style="margin-top:12px">
         <div class="stat-item"><div class="stat-lbl" data-he="סה״כ מס רכישה (שניהם)" data-en="Total Purchase Tax">סה״כ מס רכישה</div><div class="stat-val r" id="ptaxJointTotal">—</div></div>
-        <div class="stat-item"><div class="stat-lbl" data-he="חלק א בשכירות" data-en="Partner A Rent Share">שכירות לשותף א</div><div class="stat-val g" id="rentShareA">—</div></div>
-        <div class="stat-item"><div class="stat-lbl" data-he="חלק ב בשכירות" data-en="Partner B Rent Share">שכירות לשותף ב</div><div class="stat-val g" id="rentShareB">—</div></div>
+        <div class="stat-item"><div id="rentShareALbl" class="stat-lbl">שכירות לשותף א</div><div class="stat-val g" id="rentShareA">—</div></div>
+        <div class="stat-item"><div id="rentShareBLbl" class="stat-lbl">שכירות לשותף ב</div><div class="stat-val g" id="rentShareB">—</div></div>
         <div class="stat-item"><div class="stat-lbl" data-he="חיסכון vs. רכישה יחידה" data-en="Tax Saving vs. Single">חיסכון מס לעומת רכישה יחידה</div><div class="stat-val g" id="ptaxSaving">—</div></div>
       </div>
 
@@ -462,7 +467,7 @@ tbody tr.be td{background:rgba(30,58,95,.05)!important}
         <div style="background:rgba(79,142,247,.06);border:1px solid rgba(79,142,247,.2);border-radius:var(--radius-sm);padding:16px">
           <div style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;display:flex;align-items:center;gap:6px">
             <span style="background:var(--accent);color:#fff;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px">א</span>
-            <span data-he="פירוט פיננסי — שותף א" data-en="Financials — Partner A">פירוט פיננסי — שותף א</span>
+            <span id="partnerAFinTitle">פירוט פיננסי — שותף א</span>
           </div>
           <div style="display:flex;flex-direction:column;gap:8px">
             <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(79,142,247,.15)">
@@ -530,7 +535,7 @@ tbody tr.be td{background:rgba(30,58,95,.05)!important}
         <div style="background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.2);border-radius:var(--radius-sm);padding:16px">
           <div style="font-size:11px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;display:flex;align-items:center;gap:6px">
             <span style="background:var(--green);color:#fff;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px">ב</span>
-            <span data-he="פירוט פיננסי — שותף ב" data-en="Financials — Partner B">פירוט פיננסי — שותף ב</span>
+            <span id="partnerBFinTitle">פירוט פיננסי — שותף ב</span>
           </div>
           <div style="display:flex;flex-direction:column;gap:8px">
             <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(34,197,94,.15)">
@@ -1176,6 +1181,20 @@ function updateTrackDesc(){
 // ── JOINT OWNERSHIP ──
 let ownershipMode = 'solo';
 
+function getPartnerName(which){
+  const el=document.getElementById('partner'+which+'Name');
+  return (el&&el.textContent.trim())||(which==='A'?'שותף א':'שותף ב');
+}
+function updatePartnerLabels(){
+  const a=getPartnerName('A'), b=getPartnerName('B');
+  const s=(id,txt)=>{const el=document.getElementById(id);if(el)el.textContent=txt;};
+  s('ptaxALbl','מס רכישה ל'+a);
+  s('ptaxBLbl','מס רכישה ל'+b);
+  s('rentShareALbl','שכירות ל'+a);
+  s('rentShareBLbl','שכירות ל'+b);
+  s('partnerAFinTitle','פירוט פיננסי — '+a);
+  s('partnerBFinTitle','פירוט פיננסי — '+b);
+}
 function setOwnership(mode) {
   ownershipMode = mode;
   const solo = mode === 'solo';
@@ -1188,6 +1207,26 @@ function setOwnership(mode) {
   // In joint mode, hide the standalone equity check module (mod0)
   const mod0 = document.getElementById('mod0');
   if (mod0) mod0.style.display = solo ? '' : 'none';
+  // Float button: disabled in joint mode
+  const floatBtn=document.getElementById('floatBtn');
+  if(floatBtn){
+    if(solo){
+      floatBtn.onclick=toggleFloat;
+      floatBtn.title='סיכום מהיר';
+      floatBtn.textContent='📋';
+      floatBtn.style.opacity='1';
+      floatBtn.style.cursor='pointer';
+    } else {
+      floatBtn.onclick=null;
+      floatBtn.title='לא זמין במצב שותף';
+      floatBtn.innerHTML='<span style="font-size:10px;font-weight:700;line-height:1.2;text-align:center">לא זמין<br>במצב שותף</span>';
+      floatBtn.style.opacity='0.45';
+      floatBtn.style.cursor='not-allowed';
+      // close panel if open
+      const fp=document.getElementById('floatPanel');
+      if(fp)fp.classList.remove('visible');
+    }
+  }
   calc();
 }
 
@@ -1776,6 +1815,7 @@ function updateFloat(d){
 }
 /* ══════════ הדפסה מקצועית ══════════ */
 function g(id){const el=document.getElementById(id);return el?el.textContent.trim():'—';}
+function pName(w){return getPartnerName(w);}
 function printRealEstateReport(){
   const price=document.getElementById('price')?.value||'—';
   const holdYearsVal=document.getElementById('holdYears')?.value||'—';
@@ -1807,7 +1847,8 @@ function printRealEstateReport(){
   .hero-val.r{color:#fca5a5!important}
   .hero-sub{font-size:10px;opacity:.55}
   /* SECTION */
-  .section{background:#fff!important;border:1px solid #e2e8f0;border-radius:12px;padding:18px 22px;margin-bottom:14px}
+  .section{background:#fff!important;border:1px solid #e2e8f0;border-radius:12px;padding:18px 22px;margin-bottom:14px;break-inside:avoid}
+  .section.page-break{break-after:page}
   .section-title{font-size:12px;font-weight:700;color:#1e3a5f!important;text-transform:uppercase;letter-spacing:.6px;border-bottom:1px solid #e2e8f0;padding-bottom:10px;margin-bottom:14px}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
@@ -1881,7 +1922,7 @@ function printRealEstateReport(){
   </div>
 
   <!-- מדדי ביצוע -->
-  <div class="section">
+  <div class="section page-break">
     <div class="section-title">📊 מדדי ביצוע</div>
     <div class="grid4">
       <div class="mcard hi">
@@ -1904,7 +1945,7 @@ function printRealEstateReport(){
   </div>
 
   <!-- השוואה: נדל"ן vs שוק ההון -->
-  <div class="section">
+  <div class="section page-break">
     <div class="section-title">⚖️ נדל"ן מול שוק ההון (הון נזיל בסוף תקופה)</div>
     <div class="comp">
       <div class="cc ${reWins?'win':''}">
