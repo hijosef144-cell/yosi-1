@@ -83,8 +83,18 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:1
 @media(max-width:860px){.main{grid-template-columns:1fr;padding:16px}}
 .full{grid-column:1/-1}
 
+/* ── VAT TOGGLE ── */
+.vat-toggle{display:inline-flex;align-items:center;gap:7px;cursor:pointer;user-select:none;margin-top:6px}
+.vat-toggle input[type=checkbox]{display:none}
+.vat-track{width:36px;height:20px;border-radius:10px;background:var(--border);border:1.5px solid var(--border2);position:relative;transition:background .2s,border-color .2s;flex-shrink:0}
+.vat-track::after{content:'';position:absolute;top:2px;right:2px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:transform .2s}
+.vat-toggle input:checked + .vat-track{background:var(--accent);border-color:var(--accent)}
+.vat-toggle input:checked + .vat-track::after{transform:translateX(-16px)}
+.vat-label{font-size:12px;color:var(--text2);font-weight:500}
+.vat-preview{font-size:11px;color:var(--accent);font-family:var(--mono);font-weight:600}
+
 /* ── MODULE ── */
-.mod{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;transition:box-shadow .2s}
+.mod{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);overflow:visible;transition:box-shadow .2s}
 .mod:hover{box-shadow:var(--shadow)}
 .mod-hdr{padding:15px 20px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;border-bottom:1px solid var(--border)}
 .mod-hdr:hover{background:var(--bg3)}
@@ -105,7 +115,7 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:1
 .fld.full{grid-column:1/-1}
 .fld label{font-size:12px;color:var(--text2);font-weight:600;display:flex;align-items:center;gap:6px;letter-spacing:.2px}
 .tip-icon{width:16px;height:16px;border-radius:50%;background:var(--bg4);border:1px solid var(--border);color:var(--text3);font-size:10px;display:flex;align-items:center;justify-content:center;cursor:help;flex-shrink:0;position:relative}
-.tip-icon:hover::after{content:attr(data-tip);position:absolute;top:22px;right:0;background:var(--bg4);border:1px solid var(--border2);color:var(--text2);padding:10px 14px;border-radius:10px;font-size:12px;width:240px;white-space:normal;z-index:300;line-height:1.55;font-family:var(--sans);font-weight:400;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.tip-icon:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 8px);right:50%;transform:translateX(50%);background:var(--text);color:#fff;padding:9px 13px;border-radius:10px;font-size:12px;width:240px;max-width:80vw;white-space:normal;z-index:9999;line-height:1.6;font-family:var(--sans);font-weight:400;box-shadow:0 6px 20px rgba(0,0,0,.2);pointer-events:none}
 .inp-wrap{position:relative}
 .inp-wrap .sym{position:absolute;top:50%;transform:translateY(-50%);color:var(--text3);font-size:13px;font-family:var(--mono);pointer-events:none}
 .inp-wrap .sym.r{right:12px}
@@ -293,7 +303,7 @@ tbody tr.be td{background:rgba(30,58,95,.05)!important}
     </div>
   </div>
   <div class="hdr-actions">
-    <button class="btn-ghost" onclick="window.print()">🖨️ <span data-he="הדפס דוח" data-en="Print Report">הדפס דוח</span></button>
+    <button class="btn-ghost" onclick="printRealEstateReport()">🖨️ <span data-he="הדפס דוח" data-en="Print Report">הדפס דוח</span></button>
     <button class="btn-ghost" onclick="toggleLang()" id="langBtn">🌐 EN</button>
   </div>
 </div>
@@ -624,12 +634,13 @@ tbody tr.be td{background:rgba(30,58,95,.05)!important}
     <div class="fld">
       <label><span data-he="תיווך קנייה" data-en="Buy Brokerage">תיווך קנייה</span></label>
       <div class="inp-wrap"><input type="number" id="buyBroker" value="2" step="0.1" oninput="calc()"><span class="sym l">%</span></div>
-      <div style="display:flex;align-items:center;gap:10px;margin-top:5px">
-        <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:var(--text2)">
-          <input type="checkbox" id="buyBrokerVat" checked onchange="calc()" style="width:14px;height:14px;accent-color:var(--accent)">
-          <span data-he="כולל מע״מ 18%" data-en="Incl. 18% VAT">כולל מע״מ 18%</span>
+      <div style="display:flex;align-items:center;gap:12px;margin-top:4px;flex-wrap:wrap">
+        <label class="vat-toggle">
+          <input type="checkbox" id="buyBrokerVat" checked onchange="calc()">
+          <span class="vat-track"></span>
+          <span class="vat-label">+ מע״מ 18%</span>
         </label>
-        <span style="font-size:11px;color:var(--accent);font-family:var(--mono)" id="buyBrokerPreview"></span>
+        <span class="vat-preview" id="buyBrokerPreview"></span>
       </div>
     </div>
     <div class="fld">
@@ -838,12 +849,13 @@ tbody tr.be td{background:rgba(30,58,95,.05)!important}
     <div class="fld">
       <label><span data-he="תיווך מכירה" data-en="Sale Brokerage">תיווך מכירה</span></label>
       <div class="inp-wrap"><input type="number" id="sellBroker" value="2" step="0.1" oninput="calc()"><span class="sym l">%</span></div>
-      <div style="display:flex;align-items:center;gap:10px;margin-top:5px">
-        <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:var(--text2)">
-          <input type="checkbox" id="sellBrokerVat" checked onchange="calc()" style="width:14px;height:14px;accent-color:var(--accent)">
-          <span data-he="כולל מע״מ 18%" data-en="Incl. 18% VAT">כולל מע״מ 18%</span>
+      <div style="display:flex;align-items:center;gap:12px;margin-top:4px;flex-wrap:wrap">
+        <label class="vat-toggle">
+          <input type="checkbox" id="sellBrokerVat" checked onchange="calc()">
+          <span class="vat-track"></span>
+          <span class="vat-label">+ מע״מ 18%</span>
         </label>
-        <span style="font-size:11px;color:var(--accent);font-family:var(--mono)" id="sellBrokerPreview"></span>
+        <span class="vat-preview" id="sellBrokerPreview"></span>
       </div>
     </div>
     <div class="fld">
@@ -1588,16 +1600,17 @@ function doCalc(){
   setEl('mCAGR',pct(cagr));
   setEl('mMult',mult.toFixed(2)+'x');
 
-  // reTotal = netEquityFromSale + totalNetCF — same as what the chart shows
-  setEl('ccREval',fmt(reTotal));
-  setEl('ccRESub',isHe?`זהה לגרף | נטו אחרי מכירה: ${fmt(reNet)}`:`Same as chart | Net after sale: ${fmt(reNet)}`);
+  // Show reNet (actual net after sell costs + tax) as headline — honest comparison
+  const reWins=reNet>stockFinal;
+  setEl('ccREval',fmt(reNet));
+  setEl('ccRESub',isHe?`לפני הפחתות: ${fmt(reTotalGross)} | חיסכון שנתי+מכירה נטו`:`Before deductions: ${fmt(reTotalGross)} | incl. CF + net sale`);
   setEl('ccStockVal',fmt(stockFinal));
-  setEl('ccStockSub',isHe?`אותו הון עצמי ב-${stockRet}% ריבית דריבית לאורך ${holdYears} שנים`:`Same equity at ${stockRet}% compound over ${holdYears} yrs`);
+  setEl('ccStockSub',isHe?`אותו הון עצמי ב-${stockRet}% ריבית דריבית — ${holdYears} שנים`:`Same equity at ${stockRet}% compound — ${holdYears} yrs`);
   document.getElementById('ccRE').classList.toggle('win',reWins);
   document.getElementById('ccStock').classList.toggle('win',!reWins);
 
-  const maxComp=Math.max(reTotal,stockFinal);
-  document.getElementById('ccREbar').style.width=pct(reTotal/maxComp*100,0);
+  const maxComp=Math.max(reNet,stockFinal);
+  document.getElementById('ccREbar').style.width=pct(reNet/maxComp*100,0);
   document.getElementById('ccStockBar').style.width=pct(stockFinal/maxComp*100,0);
 
   // SUMMARY BAR
@@ -1609,7 +1622,7 @@ function doCalc(){
   setEl('sYield',pct(netYieldPct));
   setEl('sBE',breakEvenYr?(isHe?`שנה ${breakEvenYr}`:`Year ${breakEvenYr}`):(isHe?'לא הושג':'N/A'));
   setEl('sInterest',fmt(interestPaid));
-  const winDiff=Math.abs(reTotal-stockFinal);
+  const winDiff=Math.abs(reNet-stockFinal);
   setEl('sWinner',reWins?(isHe?`🏠 נדל"ן (+₪${Math.round(winDiff).toLocaleString('he-IL')})`:`🏠 RE (+₪${Math.round(winDiff).toLocaleString('he-IL')})`):(isHe?`📈 שוק הון (+₪${Math.round(winDiff).toLocaleString('he-IL')})`:`📈 Stocks (+₪${Math.round(winDiff).toLocaleString('he-IL')})`));
 
   // Update floating widget
@@ -1763,6 +1776,181 @@ function updateFloat(d){
   fpSet("mortgage",d.mortgage,"a");fpSet("yield",d.yield,"g");
   fpSet("roi",d.roi,"a");fpSet("be",d.be);fpSet("final",d.final,"g");
 }
+/* ══════════ הדפסה מקצועית ══════════ */
+function g(id){const el=document.getElementById(id);return el?el.textContent.trim():'—';}
+function printRealEstateReport(){
+  const price=document.getElementById('price')?.value||'—';
+  const holdYearsVal=document.getElementById('holdYears')?.value||'—';
+  const winnerEl=document.getElementById('sWinner');
+  const reWins=winnerEl&&winnerEl.textContent.includes('🏠');
+  const reVal=g('ccREval'), stVal=g('ccStockVal');
+
+  const row=(label,value,color)=>`
+    <div class="row">
+      <span class="k">${label}</span>
+      <span class="v" style="color:${color||'#1e3a5f'}">${value}</span>
+    </div>`;
+
+  const html=`<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>דוח מחשבון נדל"ן מקצועי</title>
+<style>
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Heebo',system-ui,Arial,sans-serif;background:#f8f9fa;color:#1a1a2e;font-size:13px;direction:rtl}
+  .page{max-width:900px;margin:0 auto;padding:24px}
+  /* HERO */
+  .hero{background:linear-gradient(135deg,#1e3a5f 0%,#1e3a8a 60%,#2563eb 100%)!important;color:#fff!important;border-radius:16px;padding:24px 28px;margin-bottom:18px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+  .hero-item{display:flex;flex-direction:column;gap:3px}
+  .hero-lbl{font-size:10px;opacity:.7;text-transform:uppercase;letter-spacing:.6px}
+  .hero-val{font-size:22px;font-weight:800;color:#fff!important}
+  .hero-val.g{color:#86efac!important}
+  .hero-val.r{color:#fca5a5!important}
+  .hero-sub{font-size:10px;opacity:.55}
+  /* SECTION */
+  .section{background:#fff!important;border:1px solid #e2e8f0;border-radius:12px;padding:18px 22px;margin-bottom:14px}
+  .section-title{font-size:12px;font-weight:700;color:#1e3a5f!important;text-transform:uppercase;letter-spacing:.6px;border-bottom:1px solid #e2e8f0;padding-bottom:10px;margin-bottom:14px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  /* ROW */
+  .row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f1f5f9}
+  .row:last-child{border-bottom:none}
+  .k{font-size:12px;color:#4a5568;font-weight:500}
+  .v{font-size:13px;font-weight:700;font-family:'Courier New',monospace;color:#1e3a5f!important}
+  /* METRIC CARD */
+  .mcard{background:#f0f5ff!important;border:2px solid #1e3a5f!important;border-radius:10px;padding:14px;text-align:center}
+  .mcard.ok{background:#f0fdf4!important;border-color:#166534!important}
+  .m-lbl{font-size:10px;color:#718096;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+  .m-val{font-size:22px;font-weight:800;color:#1e3a5f!important;font-family:'Courier New',monospace}
+  .mcard.ok .m-val{color:#166534!important}
+  /* COMPARE */
+  .comp{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+  .cc{background:#f8f9fa!important;border:2px solid #e2e8f0!important;border-radius:12px;padding:18px 20px;position:relative}
+  .cc.win{border-color:#166534!important;background:#f0fdf4!important}
+  .cc-badge{position:absolute;top:10px;left:12px;font-size:10px;font-weight:700;color:#166534!important;background:#dcfce7!important;padding:2px 8px;border-radius:20px}
+  .cc-title{font-size:11px;color:#718096;font-weight:600;margin-bottom:6px}
+  .cc-val{font-size:28px;font-weight:800;color:#1a1a2e!important;font-family:'Courier New',monospace}
+  .cc-sub{font-size:11px;color:#718096;margin-top:4px}
+  .cc-bar{height:6px;background:#e2e8f0!important;border-radius:3px;margin-top:12px;overflow:hidden}
+  .cc-bar-fill{height:100%;border-radius:3px}
+  /* FOOTER */
+  .footer{text-align:center;font-size:10px;color:#718096;margin-top:18px;padding-top:12px;border-top:1px solid #e2e8f0}
+  @media print{body{background:#fff!important}}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- כותרת -->
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+    <div>
+      <div style="font-size:18px;font-weight:800;color:#1e3a5f">🏗️ מחשבון נדל"ן מקצועי</div>
+      <div style="font-size:12px;color:#718096;margin-top:2px">מצפן כלכלי — יוסי כץ | ${new Date().toLocaleDateString('he-IL')}</div>
+    </div>
+    <div style="font-size:11px;color:#718096;text-align:left">
+      מחיר נכס: ₪${price}<br>תקופת החזקה: ${holdYearsVal} שנים
+    </div>
+  </div>
+
+  <!-- HERO — מדדים עיקריים -->
+  <div class="hero">
+    <div class="hero-item">
+      <div class="hero-lbl">רווח נטו</div>
+      <div class="hero-val">${g('sProfit')}</div>
+    </div>
+    <div class="hero-item">
+      <div class="hero-lbl">הון זמין אחרי מכירה</div>
+      <div class="hero-val g">${g('dNetEquity')}</div>
+    </div>
+    <div class="hero-item">
+      <div class="hero-lbl">ריבית ששולמה לבנק</div>
+      <div class="hero-val r">${g('sInterest')}</div>
+    </div>
+    <div class="hero-item">
+      <div class="hero-lbl">ערך עתידי נכס</div>
+      <div class="hero-val">${g('dFutureVal')}</div>
+      <div class="hero-sub">רווח גולמי: ${g('dGrossProfit')}</div>
+    </div>
+    <div class="hero-item">
+      <div class="hero-lbl">מס שבח</div>
+      <div class="hero-val r">${g('dShevach')}</div>
+    </div>
+    <div class="hero-item">
+      <div class="hero-lbl">שנת איזון</div>
+      <div class="hero-val">${g('sBE')}</div>
+    </div>
+  </div>
+
+  <!-- מדדי ביצוע -->
+  <div class="section">
+    <div class="section-title">📊 מדדי ביצוע</div>
+    <div class="grid4">
+      <div class="mcard hi">
+        <div class="m-lbl">ROI כולל</div>
+        <div class="m-val">${g('mROI')}</div>
+      </div>
+      <div class="mcard hi">
+        <div class="m-lbl">ROE (הון עצמי)</div>
+        <div class="m-val">${g('mROE')}</div>
+      </div>
+      <div class="mcard">
+        <div class="m-lbl">CAGR שנתי</div>
+        <div class="m-val" style="color:#374151!important">${g('mCAGR')}</div>
+      </div>
+      <div class="mcard ok">
+        <div class="m-lbl">מכפיל הון</div>
+        <div class="m-val">${g('mMult')}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- השוואה: נדל"ן vs שוק ההון -->
+  <div class="section">
+    <div class="section-title">⚖️ נדל"ן מול שוק ההון (הון נזיל בסוף תקופה)</div>
+    <div class="comp">
+      <div class="cc ${reWins?'win':''}">
+        ${reWins?'<div class="cc-badge">🏆 עדיף</div>':''}
+        <div class="cc-title">🏠 נדל"ן — הון נזיל נטו</div>
+        <div class="cc-val">${reVal}</div>
+        <div class="cc-sub">${g('ccRESub')}</div>
+        <div class="cc-bar"><div class="cc-bar-fill" style="width:${reWins?'100%':Math.round(parseFloat(reVal.replace(/[^0-9.]/g,''))/parseFloat(stVal.replace(/[^0-9.]/g,''))*100||50)+'%'};background:#1e3a5f!important"></div></div>
+      </div>
+      <div class="cc ${!reWins?'win':''}">
+        ${!reWins?'<div class="cc-badge">🏆 עדיף</div>':''}
+        <div class="cc-title">📈 שוק ההון — הון נזיל</div>
+        <div class="cc-val">${stVal}</div>
+        <div class="cc-sub">${g('ccStockSub')}</div>
+        <div class="cc-bar"><div class="cc-bar-fill" style="width:${!reWins?'100%':Math.round(parseFloat(stVal.replace(/[^0-9.]/g,''))/parseFloat(reVal.replace(/[^0-9.]/g,''))*100||50)+'%'};background:#d97706!important"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- משכנתא -->
+  <div class="section">
+    <div class="section-title">🏦 פירוט משכנתא</div>
+    <div class="grid2">
+      ${row('קרן ששולמה', g('mbPrincipalPaid'), '#166534')}
+      ${row('ריבית ששולמה', g('mbInterestPaid'), '#991b1b')}
+      ${row('יתרת חוב לבנק', g('mbPrincipalLeft'), '#92400e')}
+      ${row('תשואת שכירות נטו', g('sYield'), '#1e3a5f')}
+    </div>
+  </div>
+
+  <div class="footer">
+    מסמך זה הופק ממחשבון נדל"ן מקצועי — matzpenkalkali.com | אינו מהווה ייעוץ פיננסי
+  </div>
+</div>
+<script>window.onload=()=>window.print();</script>
+</body>
+</html>`;
+
+  const w=window.open('','_blank','width=960,height=700');
+  if(!w){alert('אנא אפשר פתיחת חלונות קופצים בדפדפן');return;}
+  w.document.write(html);
+  w.document.close();
+}
+
 // INIT
 function init(){
   updateTrackDesc();
