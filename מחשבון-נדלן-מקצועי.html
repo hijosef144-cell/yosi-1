@@ -262,38 +262,74 @@ tbody tr.be td{background:rgba(30,58,95,.05)!important}
 @media print{ .float-btn,.float-panel{display:none!important} }
 
 @media print{
-  @page { size: A4 landscape; margin: 15mm; }
+  @page { size: A4 portrait; margin: 12mm 15mm; }
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
   body{background:#fff!important;color:#111!important;font-size:12px}
-  .hdr{position:static;background:#fff!important;border-bottom:2px solid #333!important;margin-bottom:12px}
-  .hdr,.sbar{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .btn-ghost,.btn-primary,.lang-btn{display:none!important}
-  .sbar{background:#f5f5f5!important;border:1px solid #ccc!important;margin-bottom:12px;flex-wrap:wrap}
-  .sval{color:#111!important}.sval.g{color:#166534!important}.sval.r{color:#991b1b!important}.sval.a{color:#1e3a8a!important}
-  .main{display:block!important;padding:0!important}
-  .mod{border:1px solid #ccc!important;background:#fff!important;margin-bottom:14px;page-break-inside:avoid;break-inside:avoid}
-  .mod.full{page-break-inside:avoid;break-inside:avoid}
-  .mod-hdr{background:#f5f5f5!important;border-bottom:1px solid #ccc!important}
-  .mod-body{background:#fff!important;display:block!important}
-  .mod-body > *{margin-bottom:8px}
-  .stat-strip,.mort-breakdown,.metrics,.comp-grid{page-break-inside:avoid;break-inside:avoid}
-  .tbl-wrap{page-break-inside:avoid;break-inside:avoid;overflow:visible!important}
-  table{font-size:10px}
-  thead th{background:#e5e7eb!important;color:#111!important}
-  tbody td{color:#111!important;border-bottom:1px solid #e5e7eb!important}
-  .g{color:#166534!important}.r{color:#991b1b!important}.a{color:#1e3a8a!important}.am{color:#92400e!important}
-  .mcard{background:#f9fafb!important;border:1px solid #d1d5db!important;page-break-inside:avoid;break-inside:avoid}
-  .mval{color:#111!important}.mval.a{color:#1e3a8a!important}.mval.g{color:#166534!important}
-  .ccard{background:#f9fafb!important;border:1px solid #d1d5db!important;page-break-inside:avoid;break-inside:avoid}
+  /* כותרת + סיכום — בדף הראשון */
+  .hdr{position:static!important;background:#1e3a5f!important;color:#fff!important;border-bottom:none!important;padding:10px 20px!important;margin-bottom:0!important}
+  .hdr *{color:#fff!important}
+  .hdr-title{color:#fff!important}
+  .btn-ghost,.btn-primary,.lang-btn,.float-btn,.float-panel{display:none!important}
+  .sbar{background:#1e3a5f!important;border:none!important;margin-bottom:0!important;flex-wrap:wrap!important;padding:8px 20px!important}
+  .slabel{color:rgba(255,255,255,.65)!important}
+  .sval{color:#fff!important}
+  .sval.g{color:#86efac!important}.sval.r{color:#fca5a5!important}.sval.a{color:#93c5fd!important}
+  .sitem{border-right-color:rgba(255,255,255,.2)!important}
+  /* רשת ראשית — בלוק */
+  .main{display:block!important;padding:8px 0 0!important}
+  /* כל .mod — דף חדש (חוץ מהראשון) */
+  .mod{border:1px solid #cbd5e0!important;background:#fff!important;margin-bottom:0!important;
+       break-before:page;page-break-before:always;
+       break-inside:auto!important;page-break-inside:auto!important}
+  .mod:first-child,.main>.mod:first-of-type{break-before:auto!important;page-break-before:auto!important}
+  /* פתח את כל החלונות גם אם מקובצים */
+  .collapsed .mod-body{display:block!important}
+  .mod-hdr{background:#f8f9fa!important;border-bottom:1px solid #e2e8f0!important}
+  .mod-icon{background:#e0e7ff!important}
+  .mod-title{color:#1e3a5f!important;font-size:13px!important}
+  .mod-chev{display:none!important}
+  .mod-body{background:#fff!important;display:block!important;padding:14px!important}
+  .mod-body > *{margin-bottom:8px!important}
+  /* טבלאות */
+  .tbl-wrap{overflow:visible!important;border:1px solid #e2e8f0!important}
+  table{font-size:10px!important}
+  thead th{background:#f1f5f9!important;color:#374151!important}
+  tbody td{color:#111!important;border-bottom:1px solid #e2e8f0!important}
+  tbody tr.be td{background:#eff6ff!important}
+  /* צבעי טקסט */
+  .g{color:#166534!important}.r{color:#991b1b!important}.a{color:#1e3a5f!important}.am{color:#92400e!important}
+  /* כרטיסים */
+  .stat-strip{background:#f8f9fa!important;border:1px solid #e2e8f0!important;break-inside:avoid}
+  .mcard{background:#f0f5ff!important;border:1.5px solid #1e3a5f!important;break-inside:avoid}
+  .mcard.hi2{background:#f0fdf4!important;border-color:#166534!important}
+  .mval{color:#1e3a5f!important;font-size:20px!important}
+  .mval.g{color:#166534!important}.mval.r{color:#991b1b!important}
+  .ccard{background:#f9fafb!important;border:1px solid #d1d5db!important;break-inside:avoid}
+  .ccard.win{border-color:#166534!important;background:#f0fdf4!important}
+  .cval{color:#111!important;font-size:24px!important}
+  .cbar{background:#e2e8f0!important}
+  /* שורות וסימני מעמד */
   .track-box{background:#eff6ff!important;border:1px solid #bfdbfe!important;color:#1e3a8a!important}
-  .alert{page-break-inside:avoid;break-inside:avoid}
-  .chart-wrap{height:200px!important;page-break-inside:avoid;break-inside:avoid}
-  .sect-label{color:#6b7280!important}
-  .mb-card{background:#f9fafb!important;border:1px solid #d1d5db!important}
+  .alert.warn{background:#fffbeb!important;border-color:#f59e0b!important;color:#92400e!important}
+  .alert.danger{background:#fef2f2!important;border-color:#fca5a5!important;color:#991b1b!important}
+  .alert.ok{background:#f0fdf4!important;border-color:#86efac!important;color:#166534!important}
+  .alert.info{background:#eff6ff!important;border-color:#bfdbfe!important;color:#1e3a5f!important}
+  /* גרפים */
+  .chart-wrap{height:220px!important;break-inside:avoid}
+  /* משכנתא */
+  .mb-card{background:#f8f9fa!important;border:1px solid #e2e8f0!important}
   .mb-val{color:#111!important}.mb-val.g{color:#166534!important}.mb-val.r{color:#991b1b!important}.mb-val.am{color:#92400e!important}
+  .mort-breakdown{break-inside:avoid}
+  /* שדות */
   input,select{background:#f9fafb!important;border:1px solid #d1d5db!important;color:#111!important}
+  .tgl{background:#f1f5f9!important}
   .tgl button{background:#e5e7eb!important;color:#374151!important}
-  .tgl button.on{background:#1e3a8a!important;color:#fff!important}
+  .tgl button.on{background:#1e3a5f!important;color:#fff!important}
   .gap-bar-track{background:#e5e7eb!important}
+  .sect-label{color:#6b7280!important}
+  .yr-badge{background:#e5e7eb!important;color:#111!important}
+  /* מספור דפים */
+  .hdr::after{content:"מחשבון נדל\"ן מקצועי — matzpenkalkali.com";font-size:10px;opacity:.7;margin-right:auto;padding-right:16px}
 }
 </style>
 </head>
@@ -308,7 +344,7 @@ tbody tr.be td{background:rgba(30,58,95,.05)!important}
     </div>
   </div>
   <div class="hdr-actions">
-    <button class="btn-ghost" onclick="printRealEstateReport()">🖨️ <span data-he="הדפס דוח" data-en="Print Report">הדפס דוח</span></button>
+    <button class="btn-ghost" onclick="window.print()">🖨️ <span data-he="הדפס דוח" data-en="Print Report">הדפס דוח</span></button>
     <button class="btn-ghost" onclick="toggleLang()" id="langBtn">🌐 EN</button>
   </div>
 </div>
