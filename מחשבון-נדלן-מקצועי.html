@@ -1593,8 +1593,6 @@ function doCalc(){
     if(elPAP)elPAP.style.color=profitA>=0?'var(--green)':'var(--red)';
     if(elPBP)elPBP.style.color=profitB>=0?'var(--green)':'var(--red)';
   }
-  const reWins=reTotal>stockFinal;
-
   setEl('mROI',pct(roi));
   setEl('mROE',pct(roePct));
   setEl('mCAGR',pct(cagr));
