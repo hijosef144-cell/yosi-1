@@ -1,0 +1,8 @@
+{
+  "name": "matzpenkalkali",
+  "version": "1.0.0",
+  "description": "מצפן כלכלי — יוסי כץ",
+  "dependencies": {
+    "nodemailer": "^6.9.13"
+  }
+}

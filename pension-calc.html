@@ -373,7 +373,10 @@
   <div id="resultsPanel" style="display:none" class="mt-10">
     <div class="flex items-center justify-between mb-6 no-print">
       <h2 class="text-2xl font-bold text-blue-900">📊 תוצאות החישוב</h2>
-      <button onclick="printPensionReport()" class="flex items-center gap-2 bg-gray-800 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-gray-700 transition">🖨️ הדפס דוח</button>
+      <div class="flex gap-2">
+        <button onclick="openEmailModal()" class="flex items-center gap-2 bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-blue-600 transition no-print">📧 שלח לי את התוצאות</button>
+        <button onclick="printPensionReport()" class="flex items-center gap-2 bg-gray-800 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-gray-700 transition">🖨️ הדפס דוח</button>
+      </div>
     </div>
 
     <!-- Hero -->
@@ -1260,6 +1263,108 @@
   if(el)el.textContent='👁 '+total.toLocaleString('he-IL')+' צפיות';
 })();
 </script>
+
+<!-- ===== EMAIL MODAL ===== -->
+<div id="emailModal" class="no-print"
+     style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);align-items:center;justify-content:center"
+     onclick="if(event.target===this)closeEmailModal()">
+  <div style="background:#fff;border-radius:12px;padding:28px 24px;width:min(420px,92vw);box-shadow:0 20px 60px rgba(0,0,0,0.25);position:relative;direction:rtl;font-family:'Heebo',sans-serif">
+    <button onclick="closeEmailModal()"
+            style="position:absolute;top:12px;left:14px;background:none;border:none;font-size:18px;cursor:pointer;color:#718096;line-height:1;padding:4px 6px;border-radius:4px"
+            title="סגור">✕</button>
+    <h3 style="font-size:18px;font-weight:600;color:#1e3a5f;margin:0 0 4px 0">📧 קבל את התוצאות במייל</h3>
+    <p style="font-size:13px;color:#718096;margin:0 0 20px 0">התוצאות יישלחו אליך במייל</p>
+    <label style="display:block;font-size:13px;color:#4a5568;font-weight:500;margin-bottom:6px">כתובת המייל שלך</label>
+    <input type="email" id="emailInput" placeholder="you@example.com" autocomplete="email"
+           style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;font-size:15px;color:#1a1a2e;outline:none;box-sizing:border-box;direction:ltr;text-align:left;transition:border-color .2s,box-shadow .2s"
+           oninput="document.getElementById('emailError').textContent=''"
+           onfocus="this.style.borderColor='#2563eb';this.style.boxShadow='0 0 0 3px rgba(37,99,235,0.1)'"
+           onblur="this.style.borderColor='#e2e8f0';this.style.boxShadow='none'">
+    <div id="emailError" style="font-size:12px;color:#991b1b;margin-top:4px;min-height:16px"></div>
+    <button id="emailSendBtn" onclick="sendEmailResults()"
+            style="width:100%;background:#1e3a5f;color:#fff;border:none;border-radius:8px;padding:12px;font-size:15px;font-weight:600;cursor:pointer;margin-top:12px;transition:background .2s"
+            onmouseover="if(!this.disabled)this.style.background='#152d4a'"
+            onmouseout="this.style.background='#1e3a5f'">שלח</button>
+    <div id="emailStatus" style="text-align:center;font-size:13px;margin-top:10px;min-height:18px"></div>
+  </div>
+</div>
+
+<script>
+// ===== EMAIL RESULTS — pension =====
+function openEmailModal(){
+  var panel=document.getElementById('resultsPanel');
+  if(panel&&panel.style.display==='none'){
+    alert('יש לחשב קודם את התוצאות לפני שליחה במייל');
+    return;
+  }
+  var m=document.getElementById('emailModal');
+  m.style.display='flex';
+  document.getElementById('emailInput').value='';
+  document.getElementById('emailError').textContent='';
+  document.getElementById('emailStatus').textContent='';
+  var btn=document.getElementById('emailSendBtn');
+  btn.disabled=false;btn.textContent='שלח';btn.style.background='#1e3a5f';
+  setTimeout(function(){document.getElementById('emailInput').focus();},80);
+}
+function closeEmailModal(){
+  document.getElementById('emailModal').style.display='none';
+}
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeEmailModal();});
+
+function collectPensionResults(){
+  var g=function(id){var el=document.getElementById(id);return el?el.textContent.trim():'—';};
+  var data={
+    'קצבה ברוטו חודשית':g('r-grossNominal'),
+    'קצבה נטו חודשית':g('r-netNominal'),
+    'קצבה ריאלית':g('r-netReal'),
+    'סך צבירה בפרישה':g('r-totalAccum'),
+    'מקדם המרה':g('r-convFactor'),
+    'פטור ממס חודשי':g('r-monthlyExemption'),
+    'מס חודשי':g('r-monthlyTax'),
+    'שנות חיסכון':g('r-years'),
+    'סך הפקדות':g('r-totalInvested'),
+    'רווח כולל':g('r-totalProfit')
+  };
+  var rows=Object.entries(data).map(function(p){
+    return '<tr>'
+      +'<td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;color:#4a5568;font-weight:500;text-align:right">'+p[0]+'</td>'
+      +'<td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;color:#1a1a2e;font-weight:600;text-align:left;direction:ltr">'+p[1]+'</td>'
+      +'</tr>';
+  }).join('');
+  var html='<table style="width:100%;border-collapse:collapse">'+rows+'</table>';
+  return {type:'pension',html:html,data:data};
+}
+
+function sendEmailResults(){
+  var email=document.getElementById('emailInput').value.trim();
+  if(!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+    document.getElementById('emailError').textContent='נא להזין כתובת מייל תקינה';
+    return;
+  }
+  var btn=document.getElementById('emailSendBtn');
+  btn.disabled=true;btn.textContent='שולח...';
+  document.getElementById('emailStatus').textContent='';
+  var res=collectPensionResults();
+  fetch('/.netlify/functions/send-results',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({userEmail:email,calculatorType:res.type,resultsHtml:res.html,resultsData:res.data})
+  })
+  .then(function(r){return r.json();})
+  .then(function(r){
+    if(r.ok){
+      document.getElementById('emailStatus').innerHTML='<span style="color:#166534">✅ נשלח! בדוק את תיבת הדואר שלך</span>';
+      btn.textContent='✓ נשלח';
+      setTimeout(closeEmailModal,2800);
+    } else { throw new Error(r.error||'שגיאה'); }
+  })
+  .catch(function(){
+    document.getElementById('emailStatus').innerHTML='<span style="color:#991b1b">❌ אירעה שגיאה. נסה שוב.</span>';
+    btn.disabled=false;btn.textContent='שלח';
+  });
+}
+</script>
+<!-- ===== /EMAIL MODAL ===== -->
 
 </body>
 </html>

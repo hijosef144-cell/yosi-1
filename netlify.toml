@@ -3,8 +3,12 @@
 
 # Build settings
 [build]
-  # The command to build your site (leave empty if no build step)
   publish = "."
+  command = "npm install"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
   
 # Redirect rules (optional)
 [[redirects]]
