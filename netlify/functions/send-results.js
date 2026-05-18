@@ -16,6 +16,12 @@ exports.handler = async (event) => {
     return { statusCode: 405, headers: CORS, body: JSON.stringify({ ok: false, error: 'Method not allowed' }) };
   }
 
+  // Validate env vars early — avoids cryptic auth errors
+  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+    console.error('Missing env vars: GMAIL_USER or GMAIL_APP_PASSWORD not set');
+    return { statusCode: 500, headers: CORS, body: JSON.stringify({ ok: false, error: 'Server configuration error' }) };
+  }
+
   let body;
   try {
     body = JSON.parse(event.body);
@@ -144,6 +150,9 @@ exports.handler = async (event) => {
 </html>`;
 
   try {
+    // Verify SMTP connection / credentials before sending
+    await transporter.verify();
+
     // Send to user
     await transporter.sendMail({
       from: `"יוסי כץ — מצפן כלכלי" <${process.env.GMAIL_USER}>`,
