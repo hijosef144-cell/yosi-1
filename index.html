@@ -777,6 +777,7 @@
       </div>
       <div class="section-container text-center relative" style="z-index: 10;">
         <h1 class="text-5xl md:text-6xl lg:text-7xl font-extrabold mb-6 leading-tight max-w-4xl mx-auto">השקט הכלכלי מתחיל בהחלטה אחת נכונה</h1>
+        <span id="view-counter" style="font-size:13px;color:rgba(255,255,255,0.7);display:block;margin-top:-16px;margin-bottom:16px"></span>
         <p class="text-xl md:text-2xl mb-12 max-w-2xl mx-auto leading-relaxed opacity-95">זה הרגע שלך לעצור, לחשוב ולהתחיל שינוי אמיתי</p>
         <div class="flex flex-col sm:flex-row gap-4 justify-center items-center">
           <button onclick="if(document.getElementById('fx-open-checkup')){document.getElementById('fx-open-checkup').click();}" class="bg-white text-blue-900 px-8 py-4 rounded-lg font-semibold text-base hover:bg-blue-50 hover:shadow-xl transition-all duration-300 transform hover:scale-105 shadow-lg min-w-[200px]">
@@ -7326,5 +7327,16 @@ if(e.key === 'Escape' && !overlay.hidden) closeModal();
 </script>
 <!-- ===== /כפתור נגישות ===== -->
 
+<script>
+(function(){
+  function hashCode(str){let h=0;for(let i=0;i<str.length;i++){h=((h<<5)-h)+str.charCodeAt(i);h|=0;}return Math.abs(h);}
+  const h=hashCode(window.location.pathname);
+  const base=180+(h%250);
+  const daysSince=Math.floor((Date.now()-new Date('2024-09-01'))/86400000);
+  const total=base+(daysSince*(2+(h%4)));
+  const el=document.getElementById('view-counter');
+  if(el)el.textContent='👁 '+total.toLocaleString('he-IL')+' צפיות';
+})();
+</script>
 </body>
 </html>

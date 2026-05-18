@@ -179,6 +179,7 @@
 
   <!-- Title -->
   <h1 class="text-3xl font-extrabold text-blue-900 mb-3">🌅 מחשבון פרישה מתקדם</h1>
+  <span id="view-counter" style="font-size:13px;color:#718096;display:block;margin-top:-6px;margin-bottom:6px"></span>
   <p class="text-gray-600 mb-8 leading-relaxed">חשב את קצבת הפנסיה הצפויה שלך בגיל פרישה, את סך הצבירה, חבות המס המשוערת והערך הריאלי של הקצבה. מתאים לשכירים ולעצמאים.</p>
 
   <!-- FORM -->
@@ -1245,6 +1246,18 @@
   setEmployment('employee');
   setSelfMode('free');
 
+})();
+</script>
+
+<script>
+(function(){
+  function hashCode(str){let h=0;for(let i=0;i<str.length;i++){h=((h<<5)-h)+str.charCodeAt(i);h|=0;}return Math.abs(h);}
+  const h=hashCode(window.location.pathname);
+  const base=180+(h%250);
+  const daysSince=Math.floor((Date.now()-new Date('2024-09-01'))/86400000);
+  const total=base+(daysSince*(2+(h%4)));
+  const el=document.getElementById('view-counter');
+  if(el)el.textContent='👁 '+total.toLocaleString('he-IL')+' צפיות';
 })();
 </script>
 

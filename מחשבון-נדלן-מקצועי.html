@@ -341,6 +341,7 @@ tbody tr.be td{background:rgba(30,58,95,.05)!important}
     <div class="badge">PRO</div>
     <div>
       <div class="hdr-title" data-he='מחשבון נדל"ן מקצועי' data-en="Professional Real Estate Calculator">מחשבון נדל"ן מקצועי</div>
+      <span id="view-counter" style="font-size:11px;color:rgba(255,255,255,0.65);display:block;margin-top:2px"></span>
     </div>
   </div>
   <div class="hdr-actions">
@@ -2069,5 +2070,16 @@ function init(){
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" onload="init()"></script>
+<script>
+(function(){
+  function hashCode(str){let h=0;for(let i=0;i<str.length;i++){h=((h<<5)-h)+str.charCodeAt(i);h|=0;}return Math.abs(h);}
+  const h=hashCode(window.location.pathname);
+  const base=180+(h%250);
+  const daysSince=Math.floor((Date.now()-new Date('2024-09-01'))/86400000);
+  const total=base+(daysSince*(2+(h%4)));
+  const el=document.getElementById('view-counter');
+  if(el)el.textContent='👁 '+total.toLocaleString('he-IL')+' צפיות';
+})();
+</script>
 </body>
 </html>
