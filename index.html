@@ -1405,8 +1405,8 @@
     <!-- ===== TAB 2: נדל"ן (מוסתר) ===== -->
     <div id="calc-tab-realestate" class="calc-tab-panel hidden">
 
-    <!-- ── כרטיס PRO — מחשבון מקצועי ── -->
-    <div class="relative overflow-hidden rounded-2xl mb-8 p-6 md:p-8" style="background: linear-gradient(135deg, #1e3a5f 0%, #1e3a8a 60%, #2563eb 100%);">
+    <!-- ── כרטיס PRO — מחשבון נדל"ן מקצועי ── -->
+    <div class="relative overflow-hidden rounded-2xl mb-6 p-6 md:p-8" style="background: linear-gradient(135deg, #1e3a5f 0%, #1e3a8a 60%, #2563eb 100%);">
       <!-- עיטורים -->
       <div class="absolute -top-10 -left-10 w-48 h-48 rounded-full opacity-10" style="background: radial-gradient(circle, #fff 0%, transparent 70%);"></div>
       <div class="absolute bottom-0 right-0 w-32 h-32 rounded-full opacity-10" style="background: radial-gradient(circle, #93c5fd 0%, transparent 70%);"></div>
@@ -1444,6 +1444,49 @@
             </svg>
           </a>
           <p class="text-blue-200/70 text-xs text-center mt-2">נפתח בחלון חדש</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── כרטיס PRO — מחשבון מחיר למשתכן ── -->
+    <div class="relative overflow-hidden rounded-2xl mb-8 p-6 md:p-8" style="background: linear-gradient(135deg, #064e3b 0%, #065f46 55%, #059669 100%);">
+      <!-- עיטורים -->
+      <div class="absolute -top-10 -left-10 w-48 h-48 rounded-full opacity-10" style="background: radial-gradient(circle, #fff 0%, transparent 70%);"></div>
+      <div class="absolute bottom-0 right-0 w-32 h-32 rounded-full opacity-10" style="background: radial-gradient(circle, #6ee7b7 0%, transparent 70%);"></div>
+
+      <div class="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+
+        <div>
+          <!-- תג -->
+          <div class="inline-flex items-center gap-1.5 bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full mb-3 tracking-wide">
+            <span>🏠</span><span>מחיר למשתכן</span>
+            <span class="opacity-50">•</span>
+            <span>רוכשי דירה ראשונה</span>
+          </div>
+
+          <h4 class="text-2xl md:text-3xl font-extrabold text-white mb-2">מחשבון מחיר למשתכן וקבלן</h4>
+          <p class="text-emerald-100 text-sm md:text-base max-w-lg leading-relaxed">
+            בדוק אם העסקה משתלמת: הנחה אמיתית, משכנתא, הון עצמי, עלויות כינוס ועלות אמיתית — 8 מודולים מלאים עם גרפים.
+          </p>
+
+          <!-- תגיות פיצ'רים -->
+          <div class="mt-4 flex flex-wrap gap-2">
+            <span class="bg-white/15 text-white text-xs font-medium px-3 py-1 rounded-lg">🏷️ הנחה אמיתית</span>
+            <span class="bg-white/15 text-white text-xs font-medium px-3 py-1 rounded-lg">💳 הון עצמי</span>
+            <span class="bg-white/15 text-white text-xs font-medium px-3 py-1 rounded-lg">📊 עלות אמיתית</span>
+            <span class="bg-white/15 text-white text-xs font-medium px-3 py-1 rounded-lg">🖨️ הדפסה</span>
+          </div>
+        </div>
+
+        <div class="shrink-0">
+          <a href="מחשבון-מחיר-למשתכן.html" target="_blank"
+             class="inline-flex items-center gap-2 bg-white text-emerald-900 font-bold px-7 py-3 rounded-xl shadow-lg hover:shadow-xl hover:bg-emerald-50 active:scale-95 transition text-sm md:text-base">
+            פתח מחשבון מחיר למשתכן
+            <svg class="h-4 w-4 -scale-x-100" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/>
+            </svg>
+          </a>
+          <p class="text-emerald-200/70 text-xs text-center mt-2">נפתח בחלון חדש</p>
         </div>
       </div>
     </div>
@@ -4870,12 +4913,9 @@ window.closeCertificateModal = function() {
   modal.classList.remove('flex');
 };
 
-// פתיחה/סגירה למחשבון מחיר למשתכן
+// פתיחה למחשבון מחיר למשתכן — מפנה לדף העצמאי המלא
 window.openMlDiscountCalculator = function() {
-  const modal = document.getElementById('mlDiscountModal');
-  if (!modal) return;
-  modal.classList.remove('hidden');
-  modal.classList.add('flex');
+  window.open('מחשבון-מחיר-למשתכן.html', '_blank');
 };
 window.closeMlDiscountCalculator = function() {
   const modal = document.getElementById('mlDiscountModal');

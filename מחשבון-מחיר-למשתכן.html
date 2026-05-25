@@ -1,0 +1,2342 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>מחשבון מחיר למשתכן וקבלן | מצפן כלכלי</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --primary: #1e3a5f;
+  --accent: #2563eb;
+  --text: #1a1a2e;
+  --text2: #4a5568;
+  --text3: #718096;
+  --bg: #f8f9fa;
+  --white: #ffffff;
+  --border: #e2e8f0;
+  --green: #166534;
+  --green-bg: #f0fdf4;
+  --red: #991b1b;
+  --red-bg: #fef2f2;
+  --amber: #92400e;
+  --amber-bg: #fffbeb;
+  --gold: #b7960c;
+  --radius: 14px;
+  --radius-sm: 9px;
+  --shadow: 0 1px 3px rgba(0,0,0,0.07);
+  --mono: 'Courier New', monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Heebo', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  direction: rtl;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+/* ── HEADER ── */
+.site-header {
+  background: var(--primary);
+  color: #fff;
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.header-title {
+  display: flex;
+  flex-direction: column;
+}
+
+.header-title h1 {
+  font-size: 1.22rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.3px;
+}
+
+.header-subtitle {
+  font-size: 0.78rem;
+  opacity: 0.75;
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.btn-ghost {
+  background: rgba(255,255,255,0.12);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: var(--radius-sm);
+  padding: 6px 13px;
+  font-family: 'Heebo', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: background 0.18s;
+}
+.btn-ghost:hover { background: rgba(255,255,255,0.22); }
+
+/* ── SUMMARY BAR ── */
+.summary-bar {
+  background: var(--primary);
+  border-top: 1px solid rgba(255,255,255,0.1);
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  flex-wrap: wrap;
+  gap: 0;
+  position: sticky;
+  top: 64px;
+  z-index: 99;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+}
+
+.sum-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4px 16px;
+  border-left: 1px solid rgba(255,255,255,0.15);
+  flex: 1;
+  min-width: 0;
+}
+.sum-item:last-child { border-left: none; }
+
+.sum-label {
+  font-size: 10px;
+  color: rgba(255,255,255,0.75);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.sum-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  font-family: var(--mono);
+  white-space: nowrap;
+}
+
+/* ── MAIN LAYOUT ── */
+.main-content {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 20px 16px 100px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* ── MODULE CARDS ── */
+.mod {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.mod-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  cursor: pointer;
+  user-select: none;
+  background: var(--white);
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s;
+}
+.mod-header:hover { background: #f8fafc; }
+
+.mod-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mod-toggle-icon {
+  font-size: 18px;
+  color: var(--text3);
+  transition: transform 0.25s;
+  flex-shrink: 0;
+}
+
+.mod.collapsed .mod-toggle-icon { transform: rotate(180deg); }
+
+.mod-body {
+  padding: 20px;
+  display: block;
+  animation: fadeIn 0.2s ease;
+}
+
+.mod.collapsed .mod-body { display: none; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── MODE TOGGLES ── */
+.mode-group {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.mode-btn {
+  flex: 1;
+  min-width: 160px;
+  padding: 13px 16px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: #f1f5f9;
+  color: var(--text3);
+  font-family: 'Heebo', sans-serif;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.18s;
+  white-space: nowrap;
+}
+
+.mode-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: #eff6ff;
+}
+
+.mode-btn.active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
+/* ── FORM FIELDS ── */
+.fields-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.field-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text2);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.field-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.currency-prefix {
+  position: absolute;
+  right: 11px;
+  font-size: 14px;
+  color: var(--text3);
+  pointer-events: none;
+  font-weight: 500;
+}
+
+.field-input {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 9px 30px 9px 12px;
+  font-family: 'Heebo', sans-serif;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--white);
+  transition: border 0.18s, box-shadow 0.18s;
+  outline: none;
+  direction: ltr;
+  text-align: right;
+}
+
+.field-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.12);
+}
+
+.field-input.no-prefix {
+  padding-right: 12px;
+  direction: rtl;
+  text-align: right;
+}
+
+.field-hint {
+  font-size: 11.5px;
+  color: var(--text3);
+  line-height: 1.4;
+}
+
+.field-hint.green { color: var(--green); }
+.field-hint.red { color: var(--red); }
+.field-hint.amber { color: var(--amber); }
+.field-hint.blue { color: var(--accent); }
+
+/* Tooltip */
+.tooltip-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  background: #cbd5e1;
+  color: #fff;
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  position: relative;
+}
+
+.tooltip-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.tooltip-box {
+  display: none;
+  position: absolute;
+  top: 24px;
+  right: 0;
+  background: #1e293b;
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 9px 12px;
+  border-radius: 8px;
+  z-index: 200;
+  width: 260px;
+  font-weight: 400;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+  direction: rtl;
+}
+
+.tooltip-wrap:hover .tooltip-box { display: block; }
+
+/* Date selects */
+.date-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.date-select, .date-year-input {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  font-family: 'Heebo', sans-serif;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--white);
+  outline: none;
+  cursor: pointer;
+  transition: border 0.18s;
+}
+
+.date-select:focus, .date-year-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.12);
+}
+
+.date-year-input {
+  width: 80px;
+  text-align: center;
+}
+
+/* ── STAT STRIPS ── */
+.stat-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.stat-card {
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.stat-card-label {
+  font-size: 11px;
+  color: var(--text3);
+  font-weight: 500;
+}
+
+.stat-card-value {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--primary);
+  font-family: var(--mono);
+}
+
+.stat-card-value.green { color: var(--green); }
+.stat-card-value.red { color: var(--red); }
+.stat-card-value.amber { color: var(--amber); }
+
+/* ── INFO BOXES ── */
+.info-box {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1e40af;
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  font-size: 13px;
+  line-height: 1.6;
+  margin-top: 14px;
+}
+
+.info-box a {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.info-box.amber {
+  background: var(--amber-bg);
+  border-color: #fcd34d;
+  color: var(--amber);
+}
+
+.info-box.green {
+  background: var(--green-bg);
+  border-color: #bbf7d0;
+  color: var(--green);
+}
+
+/* ── CTA ── */
+.cta-box {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  padding: 14px 18px;
+  font-size: 13px;
+  color: #1e40af;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.cta-box a {
+  color: var(--accent);
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+  padding: 6px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 7px;
+  transition: all 0.18s;
+  font-size: 13px;
+}
+.cta-box a:hover { background: var(--accent); color: #fff; }
+
+/* ── TOGGLE SWITCH ── */
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.toggle-switch {
+  position: relative;
+  width: 42px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+
+.toggle-slider {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: #cbd5e1;
+  border-radius: 24px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  left: 3px;
+  top: 3px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.toggle-switch input:checked + .toggle-slider { background: var(--accent); }
+.toggle-switch input:checked + .toggle-slider::before { transform: translateX(18px); }
+
+.toggle-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text2);
+}
+
+/* ── PAYMENT TABLE ── */
+.payment-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin-top: 12px;
+}
+
+.payment-table th {
+  background: #f1f5f9;
+  color: var(--text2);
+  font-weight: 600;
+  padding: 9px 12px;
+  text-align: right;
+  border-bottom: 2px solid var(--border);
+  font-size: 12px;
+}
+
+.payment-table td {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  vertical-align: middle;
+}
+
+.payment-table tr:last-child td { border-bottom: none; }
+.payment-table tr.total-row td {
+  background: #f8fafc;
+  font-weight: 700;
+  border-top: 2px solid var(--border);
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge.equity { background: #dbeafe; color: #1e40af; }
+.badge.mortgage { background: #fef9c3; color: #92400e; }
+.badge.both { background: #ccfbf1; color: #065f46; }
+
+/* ── COST BREAKDOWN ── */
+.cost-breakdown {
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 18px;
+  font-size: 14px;
+  margin-top: 12px;
+}
+
+.cost-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+.cost-row:last-child { border-bottom: none; }
+
+.cost-row.total {
+  border-top: 2px solid var(--primary);
+  padding-top: 12px;
+  margin-top: 6px;
+}
+
+.cost-label { color: var(--text2); }
+.cost-value {
+  font-family: var(--mono);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.cost-row.total .cost-label { font-weight: 700; color: var(--primary); font-size: 15px; }
+.cost-row.total .cost-value { font-size: 20px; color: var(--accent); font-weight: 800; }
+
+/* ── SIDE-BY-SIDE COMPARE ── */
+.compare-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.compare-card {
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+}
+
+.compare-card h4 {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.compare-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 5px 0;
+  font-size: 13px;
+  border-bottom: 1px dashed #e9ecef;
+}
+.compare-row:last-child { border-bottom: none; }
+.compare-row span:last-child { font-weight: 600; font-family: var(--mono); }
+
+/* ── ROI HIGHLIGHT ── */
+.roi-box {
+  background: var(--green-bg);
+  border: 1px solid #86efac;
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  margin-top: 12px;
+  text-align: center;
+}
+
+.roi-big {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: var(--green);
+  font-family: var(--mono);
+}
+
+.roi-label {
+  font-size: 13px;
+  color: var(--green);
+  margin-top: 4px;
+}
+
+/* ── CHARTS ── */
+.chart-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-top: 12px;
+}
+
+.chart-wrap {
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+}
+
+.chart-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text2);
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+canvas { max-width: 100%; }
+
+/* ── FLOATING PANEL ── */
+.float-btn {
+  position: fixed;
+  bottom: 24px;
+  left: 24px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  font-size: 22px;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(30,58,95,0.35);
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.18s, box-shadow 0.18s;
+}
+.float-btn:hover { transform: scale(1.08); box-shadow: 0 6px 20px rgba(30,58,95,0.45); }
+
+.float-panel {
+  position: fixed;
+  bottom: 86px;
+  left: 24px;
+  width: 280px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+  z-index: 300;
+  display: none;
+  overflow: hidden;
+}
+
+.float-panel.open { display: block; }
+
+.float-panel-header {
+  background: var(--primary);
+  color: #fff;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.float-panel-body {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fp-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12.5px;
+  padding: 4px 0;
+  border-bottom: 1px dashed var(--border);
+}
+.fp-row:last-child { border-bottom: none; }
+.fp-row span:first-child { color: var(--text2); }
+.fp-row span:last-child { font-weight: 700; font-family: var(--mono); color: var(--primary); }
+
+/* ── CUSTOM STAGES ── */
+.custom-stage-editor {
+  display: none;
+  margin-top: 14px;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+}
+
+.custom-stage-editor.open { display: block; }
+
+.stage-row {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr 1fr 1.5fr auto;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.stage-input {
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 7px 10px;
+  font-family: 'Heebo', sans-serif;
+  font-size: 13px;
+  outline: none;
+  width: 100%;
+}
+
+.stage-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(37,99,235,0.1);
+}
+
+.btn-remove {
+  background: var(--red-bg);
+  color: var(--red);
+  border: 1px solid #fca5a5;
+  border-radius: 7px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.btn-add {
+  background: var(--green-bg);
+  color: var(--green);
+  border: 1px solid #86efac;
+  border-radius: 7px;
+  padding: 7px 14px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 8px;
+}
+
+.btn-secondary {
+  background: #f1f5f9;
+  color: var(--text2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 16px;
+  cursor: pointer;
+  font-family: 'Heebo', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.18s;
+  margin-top: 12px;
+}
+.btn-secondary:hover { background: var(--border); }
+
+.warning-badge {
+  background: var(--red-bg);
+  color: var(--red);
+  border: 1px solid #fca5a5;
+  border-radius: 7px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-block;
+  margin-top: 8px;
+}
+
+/* ── SECTION HEADER ── */
+.section-h {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--primary);
+  margin: 16px 0 10px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid #e0e7ff;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ── DIVIDER ── */
+.divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 18px 0;
+}
+
+/* ── VALIDATION FEEDBACK ── */
+.valid-green {
+  background: var(--green-bg);
+  border: 1px solid #86efac;
+  color: var(--green);
+  border-radius: 7px;
+  padding: 7px 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.valid-red {
+  background: var(--red-bg);
+  border: 1px solid #fca5a5;
+  color: var(--red);
+  border-radius: 7px;
+  padding: 7px 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+/* ── HIDDEN SECTIONS ── */
+.msh-only, .contractor-hide { transition: opacity 0.2s; }
+
+/* ── PRINT ── */
+@media print {
+  .site-header { position: static; }
+  .summary-bar { position: static; }
+  .float-btn, .float-panel, .btn-ghost, .btn-secondary, .btn-add, .btn-remove, .cta-box, .no-print { display: none !important; }
+  .mod.collapsed .mod-body { display: block !important; }
+  body { font-size: 12px; }
+  .chart-grid { grid-template-columns: 1fr 1fr; }
+  @page { size: A4 landscape; margin: 15mm; }
+}
+
+/* ── MOBILE ── */
+@media (max-width: 768px) {
+  .summary-bar { top: 54px; flex-wrap: wrap; gap: 4px; padding: 8px 12px; }
+  .sum-item { min-width: 80px; flex: 0 0 calc(33.33% - 4px); border-left: none; border-bottom: 1px solid rgba(255,255,255,0.1); }
+  .fields-grid { grid-template-columns: 1fr; }
+  .compare-grid { grid-template-columns: 1fr; }
+  .chart-grid { grid-template-columns: 1fr; }
+  .stage-row { grid-template-columns: 1fr 1fr; }
+  .header-title h1 { font-size: 1rem; }
+  .main-content { padding: 14px 10px 80px; }
+  .mod-body { padding: 14px; }
+  .float-btn { bottom: 16px; left: 16px; }
+  .float-panel { left: 12px; right: 12px; width: auto; bottom: 78px; }
+  .cta-box { flex-direction: column; align-items: flex-start; }
+  .mode-group { flex-direction: column; }
+  .mode-btn { min-width: unset; }
+}
+
+@media (max-width: 480px) {
+  .sum-item { flex: 0 0 calc(50% - 4px); }
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="site-header">
+  <div class="header-title">
+    <h1>🏗️ מחשבון מחיר למשתכן וקבלן</h1>
+    <div class="header-subtitle">
+      מצפן כלכלי | יוסי כץ
+      <span id="view-counter" style="opacity:0.6; font-size:10px;"></span>
+    </div>
+  </div>
+  <div class="header-actions">
+    <a href="index.html" class="btn-ghost">🏠 חזרה למחשבונים</a>
+    <button class="btn-ghost" onclick="window.print()">🖨️ הדפסה</button>
+  </div>
+</header>
+
+<!-- SUMMARY BAR -->
+<div class="summary-bar">
+  <div class="sum-item">
+    <span class="sum-label">הון עצמי נדרש</span>
+    <span class="sum-value" id="sum-equity">₪—</span>
+  </div>
+  <div class="sum-item">
+    <span class="sum-label">משכנתא מקסימלית</span>
+    <span class="sum-value" id="sum-mortgage-max">₪—</span>
+  </div>
+  <div class="sum-item">
+    <span class="sum-label">החזר חודשי</span>
+    <span class="sum-value" id="sum-monthly">₪—</span>
+  </div>
+  <div class="sum-item">
+    <span class="sum-label">ההנחה שלך</span>
+    <span class="sum-value" id="sum-discount">—</span>
+  </div>
+  <div class="sum-item">
+    <span class="sum-label">שנת איזון</span>
+    <span class="sum-value" id="sum-breakeven">—</span>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main-content">
+
+<!-- MODULE 1 — סוג רכישה -->
+<div class="mod" id="mod1">
+  <div class="mod-header" style="cursor:default; border-bottom:1px solid var(--border);">
+    <span class="mod-title">📋 מודול 1 — סוג רכישה</span>
+  </div>
+  <div class="mod-body">
+    <div class="mode-group">
+      <button class="mode-btn active" id="mode-won" onclick="setMode('won')">👤 מחיר למשתכן — זכיתי</button>
+      <button class="mode-btn" id="mode-lottery" onclick="setMode('lottery')">🎲 מחיר למשתכן — עוד לא זכיתי</button>
+      <button class="mode-btn" id="mode-contractor" onclick="setMode('contractor')">🏗️ רכישה מקבלן (שוק חופשי)</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODULE 2 — נתוני הנכס -->
+<div class="mod" id="mod2">
+  <div class="mod-header" onclick="toggleMod('mod2')">
+    <span class="mod-title">🏠 מודול 2 — נתוני הנכס</span>
+    <span class="mod-toggle-icon">▲</span>
+  </div>
+  <div class="mod-body">
+
+    <div class="fields-grid">
+
+      <!-- Contract Price -->
+      <div class="field-group">
+        <label class="field-label">מחיר הדירה בחוזה (₪)</label>
+        <div class="field-input-wrap">
+          <span class="currency-prefix">₪</span>
+          <input type="text" id="contractPrice" class="field-input" value="1,200,000"
+            oninput="debouncedCalc()" onblur="fmtField(this)">
+        </div>
+      </div>
+
+      <!-- Market Value -->
+      <div class="field-group">
+        <label class="field-label">
+          שווי שוק (הערכת שמאי) (₪)
+          <span class="tooltip-wrap">
+            <span class="tooltip-icon">?</span>
+            <span class="tooltip-box">הבנק מממן לפי שווי שוק, לא מחיר חוזה. לדוגמה: דירה ב-₪1,000,000 שוויה ₪1,200,000 — המשכנתא המקסימלית היא 75% מ-₪1,200,000 = ₪900,000</span>
+          </span>
+        </label>
+        <div class="field-input-wrap">
+          <span class="currency-prefix">₪</span>
+          <input type="text" id="marketValue" class="field-input" placeholder="אוטומטי (×1.2)"
+            oninput="debouncedCalc()" onblur="fmtField(this)">
+        </div>
+        <span class="field-hint blue" id="marketValueHint"></span>
+      </div>
+
+      <!-- SQM -->
+      <div class="field-group">
+        <label class="field-label">גודל דירה (מ"ר)</label>
+        <div class="field-input-wrap">
+          <input type="number" id="sqm" class="field-input no-prefix" value="80" min="20" max="300"
+            oninput="debouncedCalc()">
+        </div>
+      </div>
+
+      <!-- Balcony -->
+      <div class="field-group">
+        <label class="field-label">מ"ר מרפסת</label>
+        <div class="field-input-wrap">
+          <input type="number" id="balconySqm" class="field-input no-prefix" value="12" min="0" max="100"
+            oninput="debouncedCalc()">
+        </div>
+        <span class="field-hint" id="sqmPriceHint"></span>
+      </div>
+
+      <!-- Sign Date -->
+      <div class="field-group">
+        <label class="field-label">תאריך חתימת חוזה</label>
+        <div class="date-row">
+          <select id="signMonth" class="date-select" onchange="debouncedCalc()">
+            <option value="1">ינואר</option><option value="2">פברואר</option><option value="3">מרץ</option>
+            <option value="4">אפריל</option><option value="5">מאי</option><option value="6">יוני</option>
+            <option value="7">יולי</option><option value="8">אוגוסט</option><option value="9">ספטמבר</option>
+            <option value="10">אוקטובר</option><option value="11">נובמבר</option><option value="12">דצמבר</option>
+          </select>
+          <input type="number" id="signYear" class="date-year-input" min="2020" max="2035" oninput="debouncedCalc()">
+        </div>
+      </div>
+
+      <!-- Delivery Date -->
+      <div class="field-group">
+        <label class="field-label">תאריך מסירה צפוי</label>
+        <div class="date-row">
+          <select id="deliveryMonth" class="date-select" onchange="debouncedCalc()">
+            <option value="1">ינואר</option><option value="2">פברואר</option><option value="3">מרץ</option>
+            <option value="4">אפריל</option><option value="5">מאי</option><option value="6">יוני</option>
+            <option value="7">יולי</option><option value="8">אוגוסט</option><option value="9">ספטמבר</option>
+            <option value="10">אוקטובר</option><option value="11">נובמבר</option><option value="12">דצמבר</option>
+          </select>
+          <input type="number" id="deliveryYear" class="date-year-input" min="2023" max="2040" oninput="debouncedCalc()">
+        </div>
+        <span class="field-hint blue" id="buildMonthsHint"></span>
+      </div>
+
+    </div><!-- /fields-grid -->
+
+    <!-- מחיר למשתכן fields -->
+    <div id="msh-fields">
+      <hr class="divider">
+      <div class="fields-grid">
+
+        <!-- Index Addition -->
+        <div class="field-group">
+          <label class="field-label">תוספת מדד בנייה (%)</label>
+          <div class="field-input-wrap">
+            <input type="number" id="indexAddition" class="field-input no-prefix" value="7.3" step="0.1" min="0" max="50"
+              oninput="debouncedCalc()">
+          </div>
+          <span class="field-hint blue" id="finalPriceHint"></span>
+        </div>
+
+        <!-- Grant -->
+        <div class="field-group">
+          <label class="field-label">
+            מענק מחיר למשתכן (₪)
+            <span class="tooltip-wrap">
+              <span class="tooltip-icon">?</span>
+              <span class="tooltip-box">המענק מועבר ישירות לקבלן, מקטין את ההון העצמי שאתה צריך להביא</span>
+            </span>
+          </label>
+          <div class="field-input-wrap">
+            <span class="currency-prefix">₪</span>
+            <input type="text" id="grant" class="field-input" value="40,000"
+              oninput="debouncedCalc()" onblur="fmtField(this)">
+          </div>
+        </div>
+
+      </div>
+    </div><!-- /msh-fields -->
+
+    <!-- lottery-only fields -->
+    <div id="lottery-fields" style="display:none;">
+      <hr class="divider">
+      <div class="fields-grid">
+
+        <div class="field-group">
+          <label class="field-label">מחיר שוק באזור (₪)</label>
+          <div class="field-input-wrap">
+            <span class="currency-prefix">₪</span>
+            <input type="text" id="marketAreaPrice" class="field-input" value="1,500,000"
+              oninput="debouncedCalc()" onblur="fmtField(this)">
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label">הנחה ממוצעת צפויה (%)</label>
+          <div class="field-input-wrap">
+            <input type="number" id="expectedDiscount" class="field-input no-prefix" value="20" min="0" max="60"
+              oninput="debouncedCalc()">
+          </div>
+          <span class="field-hint blue" id="lotteryHint"></span>
+        </div>
+
+      </div>
+    </div><!-- /lottery-fields -->
+
+  </div><!-- /mod-body -->
+</div><!-- /mod2 -->
+
+<!-- MODULE 3 — הון עצמי ומימון -->
+<div class="mod" id="mod3">
+  <div class="mod-header" onclick="toggleMod('mod3')">
+    <span class="mod-title">💰 מודול 3 — הון עצמי ומימון</span>
+    <span class="mod-toggle-icon">▲</span>
+  </div>
+  <div class="mod-body">
+
+    <div class="fields-grid">
+
+      <!-- Personal Equity -->
+      <div class="field-group">
+        <label class="field-label">הון עצמי זמין (₪)</label>
+        <div class="field-input-wrap">
+          <span class="currency-prefix">₪</span>
+          <input type="text" id="personalEquity" class="field-input" value="200,000"
+            oninput="debouncedCalc()" onblur="fmtField(this)">
+        </div>
+        <div id="equityValidation"></div>
+      </div>
+
+      <!-- Disposable Income -->
+      <div class="field-group">
+        <label class="field-label">
+          הכנסה פנויה חודשית נטו (₪)
+          <span class="tooltip-wrap">
+            <span class="tooltip-icon">?</span>
+            <span class="tooltip-box">הכנסה פנויה = הכנסת משק הבית נטו פחות החזרי הלוואות קיימים. הלוואות שפחות מ-18 חודשים לסיום — לא נכללות.</span>
+          </span>
+        </label>
+        <div class="field-input-wrap">
+          <span class="currency-prefix">₪</span>
+          <input type="text" id="disposableIncome" class="field-input" value="15,000"
+            oninput="debouncedCalc()" onblur="fmtField(this)">
+        </div>
+        <span class="field-hint blue" id="bankApprovalHint"></span>
+      </div>
+
+      <!-- Mortgage Amount -->
+      <div class="field-group">
+        <label class="field-label">משכנתא מבוקשת (₪)</label>
+        <div class="field-input-wrap">
+          <span class="currency-prefix">₪</span>
+          <input type="text" id="mortgageAmount" class="field-input"
+            oninput="debouncedCalc()" onblur="fmtField(this)">
+        </div>
+        <span class="field-hint" id="mortgageRatiosHint"></span>
+      </div>
+
+      <!-- Avg Rate -->
+      <div class="field-group">
+        <label class="field-label">ריבית משכנתא ממוצעת (%)</label>
+        <div class="field-input-wrap">
+          <input type="number" id="avgRate" class="field-input no-prefix" value="4.5" step="0.1" min="1" max="15"
+            oninput="debouncedCalc()">
+        </div>
+        <!-- Eligibility track toggle (msh only) -->
+        <div id="eligibility-toggle" class="toggle-row" style="margin-top:6px;">
+          <label class="toggle-switch">
+            <input type="checkbox" id="eligibilityTrack" onchange="debouncedCalc()">
+            <span class="toggle-slider"></span>
+          </label>
+          <span class="toggle-label">
+            כולל מסלול זכאות
+            <span class="tooltip-wrap" style="display:inline-block;">
+              <span class="tooltip-icon">?</span>
+              <span class="tooltip-box">מסלול זכאות = ריבית קבועה מועדפת (לרוב 1-2% פחות מהשוק). שיבוץ המסלול בתמהיל מוריד את ההחזר החודשי משמעותית.</span>
+            </span>
+          </span>
+        </div>
+      </div>
+
+      <!-- Loan Years -->
+      <div class="field-group">
+        <label class="field-label">תקופת משכנתא (שנים)</label>
+        <div class="field-input-wrap">
+          <input type="range" id="loanYears" class="field-input no-prefix" value="25" min="10" max="30" step="1"
+            oninput="document.getElementById('loanYearsVal').textContent=this.value; debouncedCalc()"
+            style="padding:6px 0; cursor:pointer;">
+        </div>
+        <span class="field-hint">תקופה: <strong id="loanYearsVal">25</strong> שנים</span>
+      </div>
+
+    </div><!-- /fields-grid -->
+
+    <!-- Stat Strip -->
+    <div class="stat-strip" id="mod3-stats">
+      <div class="stat-card">
+        <span class="stat-card-label">הון עצמי נדרש בפועל</span>
+        <span class="stat-card-value" id="s3-equity-needed">—</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-card-label">עודף / חסר הון</span>
+        <span class="stat-card-value" id="s3-equity-delta">—</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-card-label">החזר חודשי מלא</span>
+        <span class="stat-card-value" id="s3-monthly">—</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-card-label">% מהכנסה</span>
+        <span class="stat-card-value" id="s3-income-pct">—</span>
+      </div>
+    </div>
+
+    <div class="info-box" style="margin-top:14px;">
+      💡 יחס ההחזר הוא נקודת התחלה — לא סוף הדרך. תמיד יש פתרונות יצירתיים: שיתוף הורים, מסלול זכאות, הלוואה משלימה, ועוד.
+      <a href="https://matzpenkalkali.com/contact.html" target="_blank"> [צור קשר לייעוץ אישי ←]</a>
+    </div>
+
+    <div class="cta-box">
+      <span>💡 יש פתרונות יצירתיים לכל מצב — גם אם המספרים נראים מאתגרים.</span>
+      <a href="https://matzpenkalkali.com/contact.html" target="_blank">לייעוץ אישי עם יוסי כץ ←</a>
+    </div>
+
+  </div><!-- /mod-body -->
+</div><!-- /mod3 -->
+
+<!-- MODULE 4 — לוח תשלומים -->
+<div class="mod collapsed" id="mod4">
+  <div class="mod-header" onclick="toggleMod('mod4')">
+    <span class="mod-title">📅 מודול 4 — לוח תשלומים</span>
+    <span class="mod-toggle-icon">▲</span>
+  </div>
+  <div class="mod-body">
+
+    <div class="info-box amber" id="payment-schedule-note">
+      לוח התשלומים מחושב על פי שלבי הבנייה הסטנדרטיים במחיר למשתכן. ניתן להתאים באמצעות "התאם לעצמי".
+    </div>
+
+    <div id="payment-table-wrap" style="overflow-x:auto; margin-top:12px;">
+      <table class="payment-table" id="payment-table">
+        <thead>
+          <tr>
+            <th>שלב</th>
+            <th>תאריך</th>
+            <th>% מהחוזה</th>
+            <th>סכום</th>
+            <th>מקור</th>
+            <th>הון עצמי</th>
+            <th>משכנתא</th>
+          </tr>
+        </thead>
+        <tbody id="payment-tbody"></tbody>
+        <tfoot>
+          <tr class="total-row">
+            <td colspan="2"><strong>סך הכל</strong></td>
+            <td id="pt-total-pct"><strong>100%</strong></td>
+            <td id="pt-total-sum"><strong>—</strong></td>
+            <td></td>
+            <td id="pt-total-equity"><strong>—</strong></td>
+            <td id="pt-total-mortgage"><strong>—</strong></td>
+          </tr>
+        </tfoot>
+      </table>
+      <div id="payment-warning"></div>
+    </div>
+
+    <button class="btn-secondary" onclick="toggleCustomStages()">✏️ התאם לעצמי</button>
+
+    <div class="custom-stage-editor" id="custom-stage-editor">
+      <div class="section-h">עריכת שלבי תשלום</div>
+      <div style="font-size:12px; color:var(--text3); margin-bottom:10px;">שם שלב | % מהחוזה | חודש מחתימה | מקור</div>
+      <div id="custom-stages-rows"></div>
+      <button class="btn-add" onclick="addCustomStage()">+ הוסף שלב</button>
+      <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
+        <button class="btn-secondary" onclick="applyCustomStages()">✅ החל שינויים</button>
+        <button class="btn-secondary" onclick="resetStages()">↺ איפוס לברירת מחדל</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- MODULE 5 — עלות מימון בתקופת הבנייה -->
+<div class="mod collapsed" id="mod5">
+  <div class="mod-header" onclick="toggleMod('mod5')">
+    <span class="mod-title">🏗️ מודול 5 — עלות מימון בתקופת הבנייה</span>
+    <span class="mod-toggle-icon">▲</span>
+  </div>
+  <div class="mod-body">
+
+    <div class="info-box amber">
+      ⚠️ בתקופת הבנייה אתם משלמים ריבית על כסף שכבר הועבר לקבלן — אבל עדיין לא גרים בדירה. זו עלות נסתרת שרוב הרוכשים לא מחשבים.
+    </div>
+
+    <div class="stat-strip" style="margin-top:16px;">
+      <div class="stat-card">
+        <span class="stat-card-label">עלות מימון בנייה</span>
+        <span class="stat-card-value amber" id="s5-financing-cost">—</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-card-label">% מעל מחיר החוזה</span>
+        <span class="stat-card-value amber" id="s5-financing-pct">—</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-card-label">החזר ממוצע בבנייה</span>
+        <span class="stat-card-value" id="s5-avg-during">—</span>
+      </div>
+    </div>
+
+    <div class="section-h" style="margin-top:18px;">🏦 הלוואת גישור</div>
+
+    <div class="toggle-row">
+      <label class="toggle-switch">
+        <input type="checkbox" id="bridgeLoanToggle" onchange="toggleBridgeLoan(); debouncedCalc()">
+        <span class="toggle-slider"></span>
+      </label>
+      <span class="toggle-label">אני צריך/ה הלוואת גישור</span>
+    </div>
+
+    <div id="bridge-loan-fields" style="display:none; margin-top:14px;">
+      <div class="fields-grid">
+        <div class="field-group">
+          <label class="field-label">סכום הלוואת גישור (₪)</label>
+          <div class="field-input-wrap">
+            <span class="currency-prefix">₪</span>
+            <input type="text" id="bridgeAmount" class="field-input" value="300,000"
+              oninput="debouncedCalc()" onblur="fmtField(this)">
+          </div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">ריבית גישור (%)</label>
+          <div class="field-input-wrap">
+            <input type="number" id="bridgeRate" class="field-input no-prefix" value="6" step="0.1" min="1" max="20"
+              oninput="debouncedCalc()">
+          </div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">חודשי גישור</label>
+          <div class="field-input-wrap">
+            <input type="number" id="bridgeMonths" class="field-input no-prefix" value="30" min="1" max="60"
+              oninput="debouncedCalc()">
+          </div>
+        </div>
+      </div>
+      <div class="stat-strip" style="margin-top:12px;">
+        <div class="stat-card">
+          <span class="stat-card-label">החזר חודשי גישור</span>
+          <span class="stat-card-value amber" id="s5-bridge-monthly">—</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-card-label">סך ריבית גישור</span>
+          <span class="stat-card-value amber" id="s5-bridge-total">—</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- MODULE 6 — עלות אמיתית ביום מסירה -->
+<div class="mod collapsed" id="mod6">
+  <div class="mod-header" onclick="toggleMod('mod6')">
+    <span class="mod-title">💎 מודול 6 — עלות אמיתית ביום מסירה</span>
+    <span class="mod-toggle-icon">▲</span>
+  </div>
+  <div class="mod-body">
+
+    <div class="cost-breakdown" id="cost-breakdown">
+      <div class="cost-row">
+        <span class="cost-label">מחיר חוזה בסיסי</span>
+        <span class="cost-value" id="c-base">₪—</span>
+      </div>
+      <div class="cost-row" id="c-index-row">
+        <span class="cost-label" id="c-index-label">+ תוספת מדד בנייה</span>
+        <span class="cost-value" id="c-index">₪—</span>
+      </div>
+      <div class="cost-row">
+        <span class="cost-label">+ עלות מימון בנייה</span>
+        <span class="cost-value" id="c-financing">₪—</span>
+      </div>
+      <div class="cost-row">
+        <span class="cost-label">+ הוצאות נוספות</span>
+        <span class="cost-value" id="c-additional">₪—</span>
+      </div>
+      <div class="cost-row total">
+        <span class="cost-label">עלות אמיתית</span>
+        <span class="cost-value" id="c-total">₪—</span>
+      </div>
+    </div>
+
+    <div class="info-box" id="c-above-contract" style="margin-top:12px;"></div>
+
+    <hr class="divider">
+    <div class="section-h">✏️ הוצאות נוספות (ניתן לערוך)</div>
+
+    <div class="fields-grid">
+      <div class="field-group">
+        <label class="field-label">עו"ד (₪)</label>
+        <div class="field-input-wrap">
+          <span class="currency-prefix">₪</span>
+          <input type="text" id="attorney" class="field-input" value="8,000"
+            oninput="debouncedCalc()" onblur="fmtField(this)">
+        </div>
+      </div>
+      <div class="field-group">
+        <label class="field-label">שמאי (₪)</label>
+        <div class="field-input-wrap">
+          <span class="currency-prefix">₪</span>
+          <input type="text" id="appraiser" class="field-input" value="3,000"
+            oninput="debouncedCalc()" onblur="fmtField(this)">
+        </div>
+      </div>
+      <div class="field-group">
+        <label class="field-label">פתיחת תיק בבנק (₪)</label>
+        <div class="field-input-wrap">
+          <span class="currency-prefix">₪</span>
+          <input type="text" id="bankFee" class="field-input" value="360"
+            oninput="debouncedCalc()" onblur="fmtField(this)">
+        </div>
+      </div>
+      <div class="field-group">
+        <label class="field-label">נוטריון ורישום (₪)</label>
+        <div class="field-input-wrap">
+          <span class="currency-prefix">₪</span>
+          <input type="text" id="notary" class="field-input" value="500"
+            oninput="debouncedCalc()" onblur="fmtField(this)">
+        </div>
+      </div>
+      <div class="field-group">
+        <label class="field-label">שיפוץ / ריהוט / כניסה (₪)</label>
+        <div class="field-input-wrap">
+          <span class="currency-prefix">₪</span>
+          <input type="text" id="renovation" class="field-input" value="0"
+            oninput="debouncedCalc()" onblur="fmtField(this)">
+        </div>
+      </div>
+    </div>
+
+    <div class="cta-box">
+      <span>💡 יש פתרונות יצירתיים לכל מצב — גם אם המספרים נראים מאתגרים.</span>
+      <a href="https://matzpenkalkali.com/contact.html" target="_blank">לייעוץ אישי עם יוסי כץ ←</a>
+    </div>
+
+  </div>
+</div>
+
+<!-- MODULE 7 — ניתוח כדאיות -->
+<div class="mod collapsed" id="mod7">
+  <div class="mod-header" onclick="toggleMod('mod7')">
+    <span class="mod-title">📊 מודול 7 — ניתוח כדאיות</span>
+    <span class="mod-toggle-icon">▲</span>
+  </div>
+  <div class="mod-body" id="mod7-body">
+
+    <!-- Section A -->
+    <div class="section-h">💎 א. כמה שווה ההנחה שלך?</div>
+
+    <div class="fields-grid" style="margin-bottom:12px;">
+      <div class="stat-card">
+        <span class="stat-card-label">מחיר שוק</span>
+        <span class="stat-card-value" id="v7-market-val">—</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-card-label">מחיר חוזה</span>
+        <span class="stat-card-value" id="v7-contract-val">—</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-card-label">הנחה (₪)</span>
+        <span class="stat-card-value green" id="v7-discount-ils">—</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-card-label">הנחה (%)</span>
+        <span class="stat-card-value green" id="v7-discount-pct">—</span>
+      </div>
+    </div>
+
+    <div class="roi-box">
+      <div class="roi-big" id="v7-roi">—</div>
+      <div class="roi-label" id="v7-roi-label">תשואה מיידית על ההון העצמי שהשקעתם</div>
+      <div style="font-size:12px; color:var(--green); margin-top:6px;" id="v7-roi-text"></div>
+    </div>
+
+    <div style="margin-top:10px;">
+      <div class="stat-strip">
+        <div class="stat-card">
+          <span class="stat-card-label">הון עצמי שהושקע</span>
+          <span class="stat-card-value" id="v7-equity-invested">—</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-card-label">רווח מיידי</span>
+          <span class="stat-card-value green" id="v7-immediate-profit">—</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section B -->
+    <hr class="divider">
+    <div class="section-h">⚖️ ב. השוואה — מחיר למשתכן vs שוק חופשי</div>
+
+    <div class="compare-grid">
+      <div class="compare-card">
+        <h4>✅ מחיר למשתכן</h4>
+        <div class="compare-row"><span>מחיר</span><span id="cmp-msh-price">—</span></div>
+        <div class="compare-row"><span>הון עצמי</span><span id="cmp-msh-equity">—</span></div>
+        <div class="compare-row"><span>משכנתא</span><span id="cmp-msh-mortgage">—</span></div>
+        <div class="compare-row"><span>החזר חודשי</span><span id="cmp-msh-monthly">—</span></div>
+      </div>
+      <div class="compare-card">
+        <h4>🏪 שוק חופשי</h4>
+        <div class="compare-row"><span>מחיר</span><span id="cmp-free-price">—</span></div>
+        <div class="compare-row"><span>הון עצמי</span><span id="cmp-free-equity">—</span></div>
+        <div class="compare-row"><span>משכנתא</span><span id="cmp-free-mortgage">—</span></div>
+        <div class="compare-row"><span>החזר חודשי</span><span id="cmp-free-monthly">—</span></div>
+        <div class="compare-row"><span>חיסכון</span><span id="cmp-saving" style="color:var(--green); font-weight:800;">—</span></div>
+      </div>
+    </div>
+
+    <!-- Section C - lottery only -->
+    <div id="lottery-viability" style="display:none;">
+      <hr class="divider">
+      <div class="section-h">🎲 ג. כדאיות הגרלה</div>
+      <div class="stat-strip">
+        <div class="stat-card">
+          <span class="stat-card-label">רווח צפוי אם תזכו</span>
+          <span class="stat-card-value green" id="lottery-expected-profit">—</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-card-label">סיכוי מינימלי להגשה</span>
+          <span class="stat-card-value amber" id="lottery-min-chance">—</span>
+        </div>
+      </div>
+      <div class="info-box" style="margin-top:12px;" id="lottery-advice"></div>
+    </div>
+
+    <div class="cta-box">
+      <span>💡 יש פתרונות יצירתיים לכל מצב — גם אם המספרים נראים מאתגרים.</span>
+      <a href="https://matzpenkalkali.com/contact.html" target="_blank">לייעוץ אישי עם יוסי כץ ←</a>
+    </div>
+
+  </div>
+</div>
+
+<!-- MODULE 8 — גרפים -->
+<div class="mod collapsed" id="mod8">
+  <div class="mod-header" onclick="toggleMod('mod8')">
+    <span class="mod-title">📈 מודול 8 — גרפים</span>
+    <span class="mod-toggle-icon">▲</span>
+  </div>
+  <div class="mod-body">
+    <div class="chart-grid">
+      <div class="chart-wrap">
+        <div class="chart-title">לוח תשלומים לפי חודשים</div>
+        <canvas id="paymentChart" height="220"></canvas>
+      </div>
+      <div class="chart-wrap">
+        <div class="chart-title">הרכב עלות אמיתית</div>
+        <canvas id="costChart" height="220"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /main-content -->
+
+<!-- FLOATING PANEL -->
+<button class="float-btn" id="float-btn" onclick="toggleFloat()" title="סיכום מהיר">📋</button>
+<div class="float-panel" id="float-panel">
+  <div class="float-panel-header">📋 סיכום מהיר</div>
+  <div class="float-panel-body">
+    <div class="fp-row"><span>הון עצמי נדרש</span><span id="fp-equity">—</span></div>
+    <div class="fp-row"><span>תשלום 1 (חתימה)</span><span id="fp-pay1">—</span></div>
+    <div class="fp-row"><span>תשלום 2 (45 יום)</span><span id="fp-pay2">—</span></div>
+    <div class="fp-row"><span>החזר בבנייה</span><span id="fp-during">—</span></div>
+    <div class="fp-row"><span>החזר מלא</span><span id="fp-full">—</span></div>
+    <div class="fp-row"><span>% מהכנסה</span><span id="fp-pct">—</span></div>
+    <div class="fp-row"><span>עלות אמיתית</span><span id="fp-true-cost">—</span></div>
+    <div class="fp-row"><span>ההנחה שלך</span><span id="fp-discount">—</span></div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────
+let currentMode = 'won';
+let calcTimeout = null;
+let paymentChartInst = null;
+let costChartInst = null;
+let useCustomStages = false;
+let customStages = [];
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
+(function init() {
+  const now = new Date();
+  document.getElementById('signMonth').value = now.getMonth() + 1;
+  document.getElementById('signYear').value = now.getFullYear();
+  const del = new Date(now.getFullYear(), now.getMonth() + 30, 1);
+  document.getElementById('deliveryMonth').value = del.getMonth() + 1;
+  document.getElementById('deliveryYear').value = del.getFullYear();
+  document.getElementById('bridgeMonths').value = 30;
+  calculateAll();
+})();
+
+// ─────────────────────────────────────────────
+// UTILS
+// ─────────────────────────────────────────────
+function fmt(n, decimals=0) {
+  if (isNaN(n) || n === null || n === undefined) return '—';
+  return '₪' + Math.round(n).toLocaleString('he-IL');
+}
+
+function fmtNum(n, decimals=1) {
+  if (isNaN(n) || n === null) return '—';
+  return n.toLocaleString('he-IL', {minimumFractionDigits: decimals, maximumFractionDigits: decimals});
+}
+
+function parse(id) {
+  const el = document.getElementById(id);
+  if (!el) return 0;
+  const raw = el.value.replace(/,/g, '').replace(/₪/g, '').trim();
+  return parseFloat(raw) || 0;
+}
+
+function parseId(id) { return parse(id); }
+
+function fmtField(el) {
+  const raw = el.value.replace(/,/g, '').replace(/₪/g, '').trim();
+  const n = parseFloat(raw);
+  if (!isNaN(n) && n > 0) {
+    el.value = Math.round(n).toLocaleString('he-IL');
+  }
+}
+
+function setText(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
+
+function setHTML(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.innerHTML = val;
+}
+
+function setClass(id, cls) {
+  const el = document.getElementById(id);
+  if (el) { el.className = el.className.replace(/\b(green|red|amber|blue)\b/g, '').trim(); if (cls) el.classList.add(cls); }
+}
+
+function monthDiff(m1, y1, m2, y2) {
+  return (y2 - y1) * 12 + (m2 - m1);
+}
+
+function addMonths(m, y, delta) {
+  const d = new Date(y, m - 1 + delta, 1);
+  return { m: d.getMonth() + 1, y: d.getFullYear() };
+}
+
+function monthName(m) {
+  const names = ['','ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+  return names[m] || m;
+}
+
+function pmt(rate, n, pv) {
+  if (rate === 0) return pv / n;
+  return pv * (rate * Math.pow(1 + rate, n)) / (Math.pow(1 + rate, n) - 1);
+}
+
+// ─────────────────────────────────────────────
+// MODE SWITCHING
+// ─────────────────────────────────────────────
+function setMode(mode) {
+  currentMode = mode;
+  ['won','lottery','contractor'].forEach(m => {
+    document.getElementById('mode-' + m).classList.toggle('active', m === mode);
+  });
+
+  const isMsh = mode === 'won' || mode === 'lottery';
+  const isLottery = mode === 'lottery';
+  const isContractor = mode === 'contractor';
+
+  document.getElementById('msh-fields').style.display = isMsh ? '' : 'none';
+  document.getElementById('lottery-fields').style.display = isLottery ? '' : 'none';
+  document.getElementById('eligibility-toggle').style.display = isMsh ? '' : 'none';
+
+  const mod7 = document.getElementById('mod7');
+  if (mod7) mod7.style.display = isMsh ? '' : 'none';
+
+  document.getElementById('lottery-viability').style.display = isLottery ? '' : 'none';
+
+  calculateAll();
+}
+
+// ─────────────────────────────────────────────
+// COLLAPSIBLE
+// ─────────────────────────────────────────────
+function toggleMod(id) {
+  const el = document.getElementById(id);
+  if (el) {
+    el.classList.toggle('collapsed');
+    if (!el.classList.contains('collapsed') && (id === 'mod8')) {
+      setTimeout(() => { renderCharts(); }, 50);
+    }
+  }
+}
+
+// ─────────────────────────────────────────────
+// FLOAT PANEL
+// ─────────────────────────────────────────────
+function toggleFloat() {
+  document.getElementById('float-panel').classList.toggle('open');
+}
+
+// ─────────────────────────────────────────────
+// BRIDGE LOAN
+// ─────────────────────────────────────────────
+function toggleBridgeLoan() {
+  const show = document.getElementById('bridgeLoanToggle').checked;
+  document.getElementById('bridge-loan-fields').style.display = show ? '' : 'none';
+}
+
+// ─────────────────────────────────────────────
+// CUSTOM STAGES
+// ─────────────────────────────────────────────
+function toggleCustomStages() {
+  const ed = document.getElementById('custom-stage-editor');
+  ed.classList.toggle('open');
+  if (ed.classList.contains('open') && customStages.length === 0) {
+    initCustomStages();
+  }
+  renderCustomStagesUI();
+}
+
+function initCustomStages() {
+  const stages = getDefaultStages();
+  customStages = stages.map(s => ({
+    name: s.name,
+    pct: s.pct,
+    month: s.month,
+    source: s.source
+  }));
+}
+
+function renderCustomStagesUI() {
+  const container = document.getElementById('custom-stages-rows');
+  container.innerHTML = '';
+  customStages.forEach((s, i) => {
+    const row = document.createElement('div');
+    row.className = 'stage-row';
+    row.innerHTML = `
+      <input class="stage-input" value="${s.name}" placeholder="שם שלב" onchange="customStages[${i}].name=this.value">
+      <input class="stage-input" type="number" value="${s.pct}" placeholder="%" step="0.1" onchange="customStages[${i}].pct=parseFloat(this.value)||0">
+      <input class="stage-input" type="number" value="${s.month}" placeholder="חודש" onchange="customStages[${i}].month=parseInt(this.value)||0">
+      <input class="stage-input" value="${s.source}" placeholder="מקור">
+      <button class="btn-remove" onclick="removeCustomStage(${i})">✕</button>
+    `;
+    container.appendChild(row);
+  });
+}
+
+function addCustomStage() {
+  customStages.push({ name: 'שלב חדש', pct: 0, month: 0, source: 'הון עצמי' });
+  renderCustomStagesUI();
+}
+
+function removeCustomStage(i) {
+  customStages.splice(i, 1);
+  renderCustomStagesUI();
+}
+
+function applyCustomStages() {
+  useCustomStages = true;
+  calculateAll();
+}
+
+function resetStages() {
+  useCustomStages = false;
+  customStages = [];
+  calculateAll();
+}
+
+// ─────────────────────────────────────────────
+// DEFAULT PAYMENT STAGES
+// ─────────────────────────────────────────────
+function getDefaultStages() {
+  const buildMonths = getBuildMonths();
+  return [
+    { name: 'חתימת חוזה', pct: 7, month: 0, source: 'הון עצמי' },
+    { name: 'עד 45 יום', pct: 13, month: 1, source: 'הון עצמי + מענק + פעימה 1 משכנתא' },
+    { name: 'פריסה שוטפת', pct: 70, month: Math.floor(buildMonths / 2), source: 'פעימות משכנתא' },
+    { name: 'מסירה', pct: 10, month: buildMonths, source: 'הון עצמי + גמר חשבון' }
+  ];
+}
+
+function getBuildMonths() {
+  const sm = parseInt(document.getElementById('signMonth').value) || 1;
+  const sy = parseInt(document.getElementById('signYear').value) || 2024;
+  const dm = parseInt(document.getElementById('deliveryMonth').value) || 1;
+  const dy = parseInt(document.getElementById('deliveryYear').value) || 2027;
+  return Math.max(1, monthDiff(sm, sy, dm, dy));
+}
+
+// ─────────────────────────────────────────────
+// DEBOUNCE
+// ─────────────────────────────────────────────
+function debouncedCalc() {
+  clearTimeout(calcTimeout);
+  calcTimeout = setTimeout(calculateAll, 300);
+}
+
+// ─────────────────────────────────────────────
+// MAIN CALCULATION
+// ─────────────────────────────────────────────
+function calculateAll() {
+
+  // ── INPUTS ──
+  const contractPrice = parse('contractPrice') || 1200000;
+  let marketValue = parse('marketValue');
+  if (!marketValue || marketValue < contractPrice) {
+    marketValue = contractPrice * 1.2;
+    document.getElementById('marketValueHint').textContent = `הצעה אוטומטית: ${fmt(marketValue)} (מחיר חוזה × 1.2)`;
+  } else {
+    document.getElementById('marketValueHint').textContent = '';
+  }
+
+  const sqm = parseFloat(document.getElementById('sqm').value) || 80;
+  const balconySqm = parseFloat(document.getElementById('balconySqm').value) || 0;
+  const signM = parseInt(document.getElementById('signMonth').value) || 1;
+  const signY = parseInt(document.getElementById('signYear').value) || new Date().getFullYear();
+  const delM  = parseInt(document.getElementById('deliveryMonth').value) || 1;
+  const delY  = parseInt(document.getElementById('deliveryYear').value) || (new Date().getFullYear() + 2);
+  const buildMonths = Math.max(1, monthDiff(signM, signY, delM, delY));
+
+  const indexAddition = parseFloat(document.getElementById('indexAddition').value) || 7.3;
+  const grant = parse('grant') || 40000;
+  const personalEquity = parse('personalEquity') || 200000;
+  const disposableIncome = parse('disposableIncome') || 15000;
+  const avgRate = parseFloat(document.getElementById('avgRate').value) || 4.5;
+  const eligibilityTrack = document.getElementById('eligibilityTrack') ? document.getElementById('eligibilityTrack').checked : false;
+  const loanYears = parseInt(document.getElementById('loanYears').value) || 25;
+
+  const attorney = parse('attorney') || 8000;
+  const appraiser = parse('appraiser') || 3000;
+  const bankFee = parse('bankFee') || 360;
+  const notary = parse('notary') || 500;
+  const renovation = parse('renovation') || 0;
+
+  const isMsh = currentMode === 'won' || currentMode === 'lottery';
+  const isLottery = currentMode === 'lottery';
+
+  // Effective rate (eligibility track lowers by ~1.2%)
+  const effectiveRate = eligibilityTrack ? Math.max(1, avgRate - 1.2) : avgRate;
+
+  // ── PRICES ──
+  const indexAmt = isMsh ? contractPrice * (indexAddition / 100) : 0;
+  const finalContractPrice = contractPrice + indexAmt;
+
+  // ── MORTGAGE ──
+  const mortgageMax = marketValue <= 2100000 ? marketValue * 0.75 : contractPrice * 0.75;
+  const minEquity = Math.max(100000, contractPrice * 0.10);
+  const effectiveEquity = personalEquity + (isMsh ? grant : 0);
+
+  // PMT factor for max mortgage from income
+  const r = effectiveRate / 100 / 12;
+  const n = loanYears * 12;
+  const pmtFactor = r > 0 ? (Math.pow(1+r,n)) / (r * Math.pow(1+r,n) - r) : n;
+  const maxByIncome = disposableIncome * 0.35 * pmtFactor;
+
+  let mortgageDefault = Math.min(mortgageMax, maxByIncome);
+  mortgageDefault = Math.max(0, mortgageDefault);
+
+  // Use user's value if set, else default
+  const mortgageEl = document.getElementById('mortgageAmount');
+  let mortgageAmount;
+  const userMortgage = parse('mortgageAmount');
+  if (userMortgage > 0) {
+    mortgageAmount = userMortgage;
+  } else {
+    mortgageAmount = Math.round(mortgageDefault / 1000) * 1000;
+    mortgageEl.value = mortgageAmount.toLocaleString('he-IL');
+  }
+
+  const monthlyPayment = pmt(r, n, mortgageAmount);
+  const incomePct = disposableIncome > 0 ? (monthlyPayment / disposableIncome * 100) : 0;
+
+  // ── EQUITY NEEDED ──
+  const equityNeeded = Math.max(minEquity, finalContractPrice - mortgageAmount);
+  const equityDelta = effectiveEquity - equityNeeded;
+
+  // ── SQM PRICES ──
+  const sqmPriceNow = sqm > 0 ? contractPrice / sqm : 0;
+  const sqmPriceDelivery = sqm > 0 ? finalContractPrice / sqm : 0;
+
+  // ── PAYMENT STAGES ──
+  const stages = useCustomStages && customStages.length > 0
+    ? customStages
+    : getDefaultStages();
+
+  // ── CONSTRUCTION FINANCING ──
+  let constructionFinancingCost = 0;
+  let mortgageDisbursed = 0;
+  const stagesWithAmounts = stages.map(s => {
+    const stageAmt = finalContractPrice * (s.pct / 100);
+    const monthsToDelivery = Math.max(0, buildMonths - s.month);
+    const isMortgageStage = s.source && (s.source.includes('משכנתא') || s.source.includes('פעימה'));
+    let mortgageStageAmt = 0;
+    let equityStageAmt = 0;
+
+    if (s.source && s.source.includes('הון עצמי') && !isMortgageStage) {
+      equityStageAmt = stageAmt;
+    } else if (isMortgageStage) {
+      mortgageStageAmt = stageAmt;
+      mortgageDisbursed += mortgageStageAmt;
+      constructionFinancingCost += mortgageStageAmt * (effectiveRate / 100 / 12) * monthsToDelivery;
+    } else {
+      // mixed
+      const eAmt = stageAmt * 0.5;
+      const mAmt = stageAmt * 0.5;
+      equityStageAmt = eAmt;
+      mortgageStageAmt = mAmt;
+      mortgageDisbursed += mAmt;
+      constructionFinancingCost += mAmt * (effectiveRate / 100 / 12) * monthsToDelivery;
+    }
+
+    return { ...s, amount: stageAmt, equityAmt: equityStageAmt, mortgageAmt: mortgageStageAmt, monthsToDelivery };
+  });
+
+  // ── ADDITIONAL COSTS ──
+  const totalAdditionalCosts = attorney + appraiser + bankFee + notary + renovation;
+
+  // ── TRUE COST ──
+  const trueCost = finalContractPrice + constructionFinancingCost + totalAdditionalCosts;
+  const aboveContract = trueCost - contractPrice;
+  const abovePct = contractPrice > 0 ? (aboveContract / contractPrice * 100) : 0;
+
+  // ── BRIDGE LOAN ──
+  const bridgeActive = document.getElementById('bridgeLoanToggle') && document.getElementById('bridgeLoanToggle').checked;
+  const bridgeAmount = parse('bridgeAmount') || 300000;
+  const bridgeRate = parseFloat(document.getElementById('bridgeRate').value) || 6;
+  const bridgeMonths = parseInt(document.getElementById('bridgeMonths').value) || buildMonths;
+  const bridgeMonthlyPay = bridgeAmount * (bridgeRate / 100 / 12);
+  const bridgeTotalInterest = bridgeMonthlyPay * bridgeMonths;
+
+  // ── ROI ──
+  const discountILS = marketValue - contractPrice;
+  const discountPct = marketValue > 0 ? (discountILS / marketValue * 100) : 0;
+  const roi = personalEquity > 0 ? (discountILS / personalEquity * 100) : 0;
+
+  // ── BREAKEVEN ──
+  // How many years to break even if market grows 3%/yr
+  const marketGrowthRate = 0.03;
+  const freeMarketPrice = isLottery ? parse('marketAreaPrice') || 1500000 : marketValue;
+  let breakevenYears = 0;
+  if (discountILS > 0 && marketGrowthRate > 0) {
+    // Time to recover true cost premium
+    const extraCost = trueCost - contractPrice;
+    breakevenYears = extraCost > 0 ? Math.ceil(extraCost / (contractPrice * marketGrowthRate)) : 1;
+  }
+  const breakevenYear = signY + Math.max(0, breakevenYears);
+
+  // ── LOTTERY ──
+  const marketAreaPrice = parse('marketAreaPrice') || 1500000;
+  const expectedDiscount = parseFloat(document.getElementById('expectedDiscount').value) || 20;
+  const lotteryPrice = marketAreaPrice * (1 - expectedDiscount / 100);
+  const lotteryProfit = marketAreaPrice - lotteryPrice;
+
+  // ── COMPARISON ──
+  const freeMortgageMax = freeMarketPrice <= 2100000 ? freeMarketPrice * 0.75 : freeMarketPrice * 0.75;
+  const freeEquity = freeMarketPrice * 0.25;
+  const freeMortgage = freeMortgageMax;
+  const freeMonthly = pmt(r, n, freeMortgage);
+
+  // ─────────────────────────────────────────────
+  // UPDATE DOM
+  // ─────────────────────────────────────────────
+
+  // Sqm hints
+  document.getElementById('sqmPriceHint').textContent =
+    `${fmt(sqmPriceNow)}/מ"ר כיום | ${fmt(sqmPriceDelivery)}/מ"ר בעת מסירה`;
+
+  // Build months
+  document.getElementById('buildMonthsHint').textContent =
+    `תקופת בנייה: ${buildMonths} חודשים`;
+
+  // Final price hint
+  if (isMsh) {
+    document.getElementById('finalPriceHint').textContent =
+      `מחיר סופי בחוזה = ${fmt(finalContractPrice)} (בסיס ${fmt(contractPrice)} + מדד ${fmt(indexAmt)})`;
+  }
+
+  // Lottery hint
+  if (isLottery) {
+    document.getElementById('lotteryHint').textContent =
+      `אם תזכו: מחיר צפוי ≈ ${fmt(lotteryPrice)} | חיסכון מיידי ≈ ${fmt(marketAreaPrice - lotteryPrice)}`;
+  }
+
+  // Bank approval hint
+  const bankMaxPayment = disposableIncome * 0.35;
+  document.getElementById('bankApprovalHint').textContent =
+    `לפי יחס ההחזר, הבנק יאשר החזר של עד ${fmt(bankMaxPayment)} לחודש`;
+
+  // Mortgage ratios hint
+  const contractPct = contractPrice > 0 ? (mortgageAmount / contractPrice * 100) : 0;
+  const marketPct = marketValue > 0 ? (mortgageAmount / marketValue * 100) : 0;
+  document.getElementById('mortgageRatiosHint').textContent =
+    `${fmtNum(contractPct, 1)}% ממחיר החוזה | ${fmtNum(marketPct, 1)}% משווי השוק`;
+
+  // Equity validation
+  const evEl = document.getElementById('equityValidation');
+  if (effectiveEquity >= minEquity) {
+    evEl.innerHTML = `<div class="valid-green">✅ מספיק — עומד בדרישת המינימום ${fmt(minEquity)}</div>`;
+  } else {
+    evEl.innerHTML = `<div class="valid-red">❌ חסר ${fmt(minEquity - effectiveEquity)} לדרישת המינימום (${fmt(minEquity)})</div>`;
+  }
+
+  // Mod3 stats
+  setText('s3-equity-needed', fmt(equityNeeded));
+  const deltaEl = document.getElementById('s3-equity-delta');
+  if (deltaEl) {
+    deltaEl.textContent = (equityDelta >= 0 ? '+' : '') + fmt(equityDelta);
+    deltaEl.className = 'stat-card-value ' + (equityDelta >= 0 ? 'green' : 'red');
+  }
+  setText('s3-monthly', fmt(monthlyPayment));
+  const pctEl = document.getElementById('s3-income-pct');
+  if (pctEl) {
+    pctEl.textContent = fmtNum(incomePct, 1) + '%';
+    pctEl.className = 'stat-card-value ' + (incomePct <= 30 ? 'green' : incomePct <= 40 ? 'amber' : 'red');
+  }
+
+  // Summary bar
+  setText('sum-equity', fmt(equityNeeded));
+  setText('sum-mortgage-max', fmt(mortgageMax));
+  setText('sum-monthly', fmt(monthlyPayment));
+  setText('sum-discount', isMsh ? fmt(discountILS) : '—');
+  setText('sum-breakeven', isMsh ? String(breakevenYear) : '—');
+
+  // ── PAYMENT TABLE ──
+  const tbody = document.getElementById('payment-tbody');
+  tbody.innerHTML = '';
+  let totalPct = 0, totalSum = 0, totalEquity = 0, totalMortgage = 0;
+
+  stagesWithAmounts.forEach((s, i) => {
+    const stageDate = addMonths(signM, signY, s.month);
+    const dateStr = `${monthName(stageDate.m)} ${stageDate.y}`;
+    totalPct += s.pct;
+    totalSum += s.amount;
+    totalEquity += s.equityAmt;
+    totalMortgage += s.mortgageAmt;
+
+    let sourceBadge = '';
+    if (s.source && s.source.includes('משכנתא') && s.source.includes('הון')) {
+      sourceBadge = `<span class="badge both">${s.source}</span>`;
+    } else if (s.source && s.source.includes('משכנתא')) {
+      sourceBadge = `<span class="badge mortgage">${s.source}</span>`;
+    } else {
+      sourceBadge = `<span class="badge equity">${s.source || '—'}</span>`;
+    }
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${s.name}</td>
+      <td>${dateStr}</td>
+      <td>${fmtNum(s.pct, 1)}%</td>
+      <td>${fmt(s.amount)}</td>
+      <td>${sourceBadge}</td>
+      <td>${s.equityAmt > 0 ? fmt(s.equityAmt) : '—'}</td>
+      <td>${s.mortgageAmt > 0 ? fmt(s.mortgageAmt) : '—'}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  setText('pt-total-pct', fmtNum(totalPct, 1) + '%');
+  setText('pt-total-sum', fmt(totalSum));
+  setText('pt-total-equity', fmt(totalEquity));
+  setText('pt-total-mortgage', fmt(totalMortgage));
+
+  const pwEl = document.getElementById('payment-warning');
+  if (Math.abs(totalPct - 100) > 0.5) {
+    pwEl.innerHTML = `<div class="warning-badge">⚠️ סך האחוזים = ${fmtNum(totalPct, 1)}% (צריך להיות 100%)</div>`;
+  } else {
+    pwEl.innerHTML = '';
+  }
+
+  // ── MODULE 5 ──
+  const avgDuringBuilding = buildMonths > 0 ? constructionFinancingCost / buildMonths : 0;
+  setText('s5-financing-cost', fmt(constructionFinancingCost));
+  const finPct = contractPrice > 0 ? (constructionFinancingCost / contractPrice * 100) : 0;
+  setText('s5-financing-pct', fmtNum(finPct, 2) + '%');
+  setText('s5-avg-during', fmt(avgDuringBuilding));
+
+  if (bridgeActive) {
+    setText('s5-bridge-monthly', fmt(bridgeMonthlyPay));
+    setText('s5-bridge-total', fmt(bridgeTotalInterest));
+  }
+
+  // ── MODULE 6 ──
+  setText('c-base', fmt(contractPrice));
+  if (isMsh) {
+    document.getElementById('c-index-label').textContent = `+ תוספת מדד בנייה ${fmtNum(indexAddition, 1)}%`;
+    setText('c-index', fmt(indexAmt));
+    document.getElementById('c-index-row').style.display = '';
+  } else {
+    document.getElementById('c-index-row').style.display = 'none';
+  }
+  setText('c-financing', fmt(constructionFinancingCost));
+  setText('c-additional', fmt(totalAdditionalCosts));
+  setText('c-total', fmt(trueCost));
+  setHTML('c-above-contract', `מעל מחיר החוזה: <strong>+${fmtNum(abovePct, 1)}%</strong> (${fmt(aboveContract)} נוסף)`);
+
+  // ── MODULE 7 ──
+  if (isMsh) {
+    setText('v7-market-val', fmt(marketValue));
+    setText('v7-contract-val', fmt(contractPrice));
+    setText('v7-discount-ils', fmt(discountILS));
+    setText('v7-discount-pct', fmtNum(discountPct, 1) + '%');
+    setText('v7-roi', fmtNum(roi, 0) + '%');
+    setText('v7-equity-invested', fmt(personalEquity));
+    setText('v7-immediate-profit', fmt(discountILS));
+    setHTML('v7-roi-text', `קיבלתם דירה ב-${fmtNum(discountPct, 1)}% פחות מהשוק — בשקל ההשקעה שלכם, זה תשואה מיידית של ${fmtNum(roi, 0)}%`);
+
+    // Compare
+    setText('cmp-msh-price', fmt(contractPrice));
+    setText('cmp-msh-equity', fmt(Math.max(minEquity, contractPrice - mortgageAmount)));
+    setText('cmp-msh-mortgage', fmt(mortgageAmount));
+    setText('cmp-msh-monthly', fmt(monthlyPayment));
+
+    setText('cmp-free-price', fmt(freeMarketPrice));
+    setText('cmp-free-equity', fmt(freeMarketPrice * 0.25));
+    setText('cmp-free-mortgage', fmt(freeMortgage));
+    setText('cmp-free-monthly', fmt(freeMonthly));
+
+    const saving = freeMonthly - monthlyPayment;
+    const savingEl = document.getElementById('cmp-saving');
+    if (savingEl) {
+      savingEl.textContent = saving > 0 ? fmt(saving) + '/חודש' : '—';
+    }
+
+    // Lottery
+    if (isLottery) {
+      setText('lottery-expected-profit', fmt(lotteryProfit));
+      const minChance = lotteryProfit > 0 ? (totalAdditionalCosts / lotteryProfit * 100) : 0;
+      setText('lottery-min-chance', fmtNum(minChance, 1) + '%');
+      setHTML('lottery-advice', `אם הסיכוי לזכות גבוה מ-${fmtNum(minChance, 1)}% — כדאי להגיש! הרווח הצפוי: ${fmt(lotteryProfit)}`);
+    }
+  }
+
+  // ── FLOAT PANEL ──
+  const stage1 = stagesWithAmounts[0];
+  const stage2 = stagesWithAmounts[1];
+  setText('fp-equity', fmt(equityNeeded));
+  setText('fp-pay1', stage1 ? fmt(stage1.amount) : '—');
+  setText('fp-pay2', stage2 ? fmt(stage2.amount) : '—');
+  setText('fp-during', fmt(avgDuringBuilding));
+  setText('fp-full', fmt(monthlyPayment));
+  setText('fp-pct', fmtNum(incomePct, 1) + '%');
+  setText('fp-true-cost', fmt(trueCost));
+  setText('fp-discount', isMsh ? fmt(discountILS) : '—');
+
+  // ── CHARTS (update if visible) ──
+  const mod8 = document.getElementById('mod8');
+  if (mod8 && !mod8.classList.contains('collapsed')) {
+    renderCharts(stagesWithAmounts, signM, signY, buildMonths, contractPrice, indexAmt, constructionFinancingCost, totalAdditionalCosts);
+  }
+
+  // store for chart use
+  window._lastCalcData = { stagesWithAmounts, signM, signY, buildMonths, contractPrice, indexAmt, constructionFinancingCost, totalAdditionalCosts, mortgageAmount, effectiveRate, loanYears };
+}
+
+// ─────────────────────────────────────────────
+// CHARTS
+// ─────────────────────────────────────────────
+function renderCharts(s, sM, sY, bM, cp, ia, cfc, ac) {
+  if (!s && window._lastCalcData) {
+    s   = window._lastCalcData.stagesWithAmounts;
+    sM  = window._lastCalcData.signM;
+    sY  = window._lastCalcData.signY;
+    bM  = window._lastCalcData.buildMonths;
+    cp  = window._lastCalcData.contractPrice;
+    ia  = window._lastCalcData.indexAmt;
+    cfc = window._lastCalcData.constructionFinancingCost;
+    ac  = window._lastCalcData.totalAdditionalCosts;
+  }
+  if (!s) return;
+
+  renderPaymentChart(s, sM, sY, bM);
+  renderCostChart(cp, ia, cfc, ac);
+}
+
+function renderPaymentChart(stages, signM, signY, buildMonths) {
+  const ctx = document.getElementById('paymentChart');
+  if (!ctx) return;
+
+  const labels = [];
+  const equityData = [];
+  const mortgageData = [];
+
+  // Build month labels from 0 to buildMonths+1
+  const monthCount = buildMonths + 2;
+  for (let i = 0; i <= monthCount; i++) {
+    const d = addMonths(signM, signY, i);
+    labels.push(`${monthName(d.m).substring(0,3)} ${String(d.y).substring(2)}`);
+    equityData.push(0);
+    mortgageData.push(0);
+  }
+
+  stages.forEach(s => {
+    const idx = Math.min(Math.max(0, s.month), monthCount);
+    equityData[idx] += s.equityAmt;
+    mortgageData[idx] += s.mortgageAmt;
+  });
+
+  // Mortgage balance line
+  const totalMortgage = window._lastCalcData ? window._lastCalcData.mortgageAmount : 0;
+  const rate = window._lastCalcData ? (window._lastCalcData.effectiveRate / 100 / 12) : 0;
+  const nyrs = window._lastCalcData ? window._lastCalcData.loanYears : 25;
+  const totalN = nyrs * 12;
+  const balanceData = labels.map((_, i) => {
+    if (i === 0) return null;
+    const mo = i;
+    if (rate === 0) return totalMortgage - (totalMortgage / totalN) * mo;
+    const bal = totalMortgage * (Math.pow(1+rate, totalN) - Math.pow(1+rate, mo)) / (Math.pow(1+rate, totalN) - 1);
+    return Math.max(0, Math.round(bal));
+  });
+
+  if (paymentChartInst) paymentChartInst.destroy();
+  paymentChartInst = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'הון עצמי',
+          data: equityData,
+          backgroundColor: '#2563eb',
+          order: 2
+        },
+        {
+          label: 'משכנתא',
+          data: mortgageData,
+          backgroundColor: '#b7960c',
+          order: 2
+        },
+        {
+          label: 'יתרת משכנתא',
+          data: balanceData,
+          type: 'line',
+          borderColor: '#ef4444',
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.4,
+          yAxisID: 'y2',
+          order: 1
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { family: 'Heebo', size: 11 } } },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const v = ctx.parsed.y;
+              return v ? `${ctx.dataset.label}: ₪${Math.round(v).toLocaleString('he-IL')}` : null;
+            }
+          }
+        }
+      },
+      scales: {
+        x: { stacked: true, ticks: { font: { size: 10 }, maxRotation: 45 } },
+        y: { stacked: true, ticks: { callback: v => '₪' + (v/1000).toFixed(0) + 'K' } },
+        y2: { position: 'left', display: false, ticks: { callback: v => '₪' + (v/1000).toFixed(0) + 'K' } }
+      }
+    }
+  });
+}
+
+function renderCostChart(contractPrice, indexAmt, constructionFinancingCost, totalAdditionalCosts) {
+  const ctx = document.getElementById('costChart');
+  if (!ctx) return;
+
+  if (costChartInst) costChartInst.destroy();
+  costChartInst = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['מחיר בסיס', 'תוספת מדד', 'עלות מימון', 'הוצאות נוספות'],
+      datasets: [{
+        data: [contractPrice, indexAmt, constructionFinancingCost, totalAdditionalCosts],
+        backgroundColor: ['#1e3a5f', '#2563eb', '#d97706', '#64748b'],
+        borderWidth: 2,
+        borderColor: '#fff'
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { family: 'Heebo', size: 11 } } },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const total = ctx.dataset.data.reduce((a,b)=>a+b,0);
+              const pct = total > 0 ? (ctx.raw / total * 100).toFixed(1) : 0;
+              return `${ctx.label}: ₪${Math.round(ctx.raw).toLocaleString('he-IL')} (${pct}%)`;
+            }
+          }
+        }
+      }
+    }
+  });
+}
+</script>
+</body>
+</html>
