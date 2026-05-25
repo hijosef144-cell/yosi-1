@@ -271,7 +271,7 @@ tbody tr.be td{background:#eff6ff!important}
   .hdr{position:static!important;background:#1e3a5f!important;color:#fff!important;border-bottom:none!important;padding:10px 20px!important;margin-bottom:0!important}
   .hdr *{color:#fff!important}
   .hdr-title{color:#fff!important}
-  .btn-ghost,.btn-primary,.lang-btn,.float-btn,.float-panel,#emailModal{display:none!important}
+  .btn-ghost,.btn-primary,.lang-btn,.float-btn,.float-panel,#emailModal,.hdr a{display:none!important}
   .sbar{background:#1e3a5f!important;border:none!important;margin-bottom:0!important;flex-wrap:wrap!important;padding:8px 20px!important}
   .slabel{color:rgba(255,255,255,.65)!important}
   .sval{color:#fff!important}
@@ -347,6 +347,7 @@ tbody tr.be td{background:#eff6ff!important}
     </div>
   </div>
   <div class="hdr-actions">
+    <a href="index.html" class="btn-ghost" style="text-decoration:none">🏠 <span data-he="חזרה למחשבונים" data-en="Back to Site">חזרה למחשבונים</span></a>
     <button class="btn-ghost" onclick="openEmailModal()">📧 <span data-he="שלח לי את התוצאות" data-en="Email Results">שלח לי את התוצאות</span></button>
     <button class="btn-ghost" onclick="window.print()">🖨️ <span data-he="הדפס דוח" data-en="Print Report">הדפס דוח</span></button>
     <button class="btn-ghost" onclick="toggleLang()" id="langBtn">🌐 EN</button>
@@ -1032,6 +1033,15 @@ tbody tr.be td{background:#eff6ff!important}
   </div>
 </div>
 
+  <!-- BACK TO SITE -->
+  <div class="full" style="text-align:center;padding:28px 0 12px">
+    <a href="index.html"
+       style="display:inline-flex;align-items:center;gap:8px;text-decoration:none;background:#f8f9fa;border:1.5px solid #e2e8f0;color:#4a5568;padding:11px 28px;border-radius:10px;font-size:14px;font-family:'Heebo',sans-serif;font-weight:600;transition:all .2s"
+       onmouseover="this.style.borderColor='#1e3a5f';this.style.color='#1e3a5f';this.style.background='#f1f5f9'"
+       onmouseout="this.style.borderColor='#e2e8f0';this.style.color='#4a5568';this.style.background='#f8f9fa'">
+      🏠 <span data-he="חזרה למחשבונים" data-en="Back to Site">חזרה למחשבונים</span>
+    </a>
+  </div>
 </div><!-- /main -->
 
 <script>
