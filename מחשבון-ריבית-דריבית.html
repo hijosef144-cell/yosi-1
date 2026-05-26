@@ -357,22 +357,22 @@ body {
   font-weight: 700;
 }
 .tooltip-box {
-  position: absolute;
-  bottom: calc(100% + 6px);
-  right: 0;
+  position: fixed;
   background: #1a1a2e;
   color: white;
   font-size: 12px;
   padding: 8px 12px;
   border-radius: 8px;
-  width: 220px;
-  z-index: 50;
-  line-height: 1.5;
+  width: 230px;
+  z-index: 9999;
+  line-height: 1.55;
   display: none;
   white-space: normal;
   pointer-events: none;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
 }
 .tooltip-wrap:hover .tooltip-box { display: block; }
+.tooltip-icon { cursor: help; }
 .future-deposit-row {
   display: flex;
   gap: 10px;
@@ -767,6 +767,16 @@ body {
       </div>
     </div>
     <div id="comp-fees" style="display:none;">
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:16px; padding:12px 14px; background:#f8f9fa; border-radius:10px; border:1px solid #e2e8f0;">
+        <span style="font-size:12px; font-weight:700; color:#4a5568; white-space:nowrap;">רמות דמי ניהול להשוואה (%):</span>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <input type="number" id="feeL0" class="field-input no-prefix" value="0"   step="0.1" min="0" max="5" style="width:64px; text-align:center;" oninput="debouncedCalc()">
+          <input type="number" id="feeL1" class="field-input no-prefix" value="0.5" step="0.1" min="0" max="5" style="width:64px; text-align:center;" oninput="debouncedCalc()">
+          <input type="number" id="feeL2" class="field-input no-prefix" value="1.0" step="0.1" min="0" max="5" style="width:64px; text-align:center;" oninput="debouncedCalc()">
+          <input type="number" id="feeL3" class="field-input no-prefix" value="1.5" step="0.1" min="0" max="5" style="width:64px; text-align:center;" oninput="debouncedCalc()">
+          <input type="number" id="feeL4" class="field-input no-prefix" value="2.0" step="0.1" min="0" max="5" style="width:64px; text-align:center;" oninput="debouncedCalc()">
+        </div>
+      </div>
       <div style="overflow-x:auto;">
         <table class="comparison-table" id="fees-table">
           <thead>
@@ -1116,20 +1126,27 @@ function renderFutureDepositsUI() {
     document.getElementById('future-total').textContent = '';
     return;
   }
-  let html = '';
+  // Column headers (shown once above first row)
+  html += `<div style="display:flex; gap:10px; align-items:flex-end; padding-bottom:4px; border-bottom:1px solid #e2e8f0; margin-bottom:6px;">
+    <span style="flex:1.5; min-width:120px; font-size:11px; font-weight:600; color:#718096; padding-right:4px;">סכום (₪)</span>
+    <span style="flex:1; min-width:80px; font-size:11px; font-weight:600; color:#718096;">בעוד כמה חודשים</span>
+    <span style="flex:2; min-width:100px; font-size:11px; font-weight:600; color:#718096;">תיאור</span>
+    <span style="width:32px;"></span>
+  </div>`;
   futureDeposits.forEach((d, i) => {
     let amtVal = d.amount ? Math.round(d.amount).toLocaleString('he-IL') : '';
+    let monthsVal = Math.round((d.years || 1) * 12);
     html += `<div class="future-deposit-row">
       <div class="field-input-wrap" style="flex:1.5; min-width:120px;">
         <span class="currency-prefix">₪</span>
-        <input type="text" class="field-input" placeholder="סכום" value="${amtVal}"
+        <input type="text" class="field-input" placeholder="0" value="${amtVal}"
           oninput="liveFormat(this); futureDeposits[${i}].amount=parseFloat(this.value.replace(/,/g,''))||0; debouncedCalc()">
       </div>
       <div style="flex:1; min-width:80px;">
-        <input type="number" class="field-input no-prefix" placeholder="בעוד כמה שנים" value="${d.years}" min="0.5" step="0.5"
-          oninput="futureDeposits[${i}].years=parseFloat(this.value)||1; debouncedCalc()">
+        <input type="number" class="field-input no-prefix" placeholder="12" value="${monthsVal}" min="1" step="1"
+          oninput="futureDeposits[${i}].years=(parseFloat(this.value)||1)/12; debouncedCalc()">
       </div>
-      <input type="text" class="field-input no-prefix" placeholder="תיאור (אופציונלי)" value="${d.desc || ''}" style="flex:2; min-width:100px;"
+      <input type="text" class="field-input no-prefix" placeholder="בונוס, ירושה..." value="${d.desc || ''}" style="flex:2; min-width:100px;"
         oninput="futureDeposits[${i}].desc=this.value">
       <button class="btn-remove" onclick="removeFutureDeposit(${i})">✕</button>
     </div>`;
@@ -1395,22 +1412,29 @@ function updateComparisonTables(init, periodic, years, mgmtFee, depMgmtFee, depG
     tbody.innerHTML = html;
   }
 
-  // Fees comparison
-  let feeLevels = [0, 0.5, 1.0, 1.5, 2.0];
-  let baseResult = simulate(init, periodic, currentFreq, years, parseFloat(document.getElementById('annualReturn').value) || 6, 0, depMgmtFee, depGrowth, futureDeposits, withTax, inflation);
+  // Fees comparison — read editable levels
+  let feeL0 = parseFloat(document.getElementById('feeL0')?.value) || 0;
+  let feeL1 = parseFloat(document.getElementById('feeL1')?.value) ?? 0.5;
+  let feeL2 = parseFloat(document.getElementById('feeL2')?.value) ?? 1.0;
+  let feeL3 = parseFloat(document.getElementById('feeL3')?.value) ?? 1.5;
+  let feeL4 = parseFloat(document.getElementById('feeL4')?.value) ?? 2.0;
+  let feeLevels = [feeL0, feeL1, feeL2, feeL3, feeL4];
+  let baseAnnualReturn = parseFloat(document.getElementById('annualReturn').value) || 6;
+  let baseResult = simulate(init, periodic, currentFreq, years, baseAnnualReturn, 0, depMgmtFee, depGrowth, futureDeposits, withTax, inflation);
   let feeTbody = document.getElementById('fees-table-body');
   if (feeTbody) {
     let html = '';
     feeLevels.forEach(function(fee) {
-      let r = simulate(init, periodic, currentFreq, years, parseFloat(document.getElementById('annualReturn').value) || 6, fee, depMgmtFee, depGrowth, futureDeposits, withTax, inflation);
+      let r = simulate(init, periodic, currentFreq, years, baseAnnualReturn, fee, depMgmtFee, depGrowth, futureDeposits, withTax, inflation);
       let loss = baseResult.nominal - r.nominal;
       let pct = baseResult.nominal > 0 ? (loss / baseResult.nominal * 100) : 0;
       let isBase = Math.abs(fee - mgmtFee) < 0.01;
+      let isZero = fee === 0 || Math.abs(fee) < 0.001;
       html += `<tr${isBase ? ' class="highlight"' : ''}>
         <td>${fee}%</td>
         <td>${fmt(r.nominal)}</td>
-        <td>${fee === 0 ? '—' : fmt(loss)}</td>
-        <td>${fee === 0 ? '—' : pct.toFixed(1) + '%'}</td>
+        <td>${isZero ? '—' : fmt(loss)}</td>
+        <td>${isZero ? '—' : pct.toFixed(1) + '%'}</td>
       </tr>`;
     });
     feeTbody.innerHTML = html;
@@ -1418,9 +1442,12 @@ function updateComparisonTables(init, periodic, years, mgmtFee, depMgmtFee, depG
 
   let feesAlert = document.getElementById('fees-alert');
   if (feesAlert) {
-    let r15 = simulate(init, periodic, currentFreq, years, parseFloat(document.getElementById('annualReturn').value) || 6, 1.5, depMgmtFee, depGrowth, futureDeposits, withTax, inflation);
-    let loss15 = baseResult.nominal - r15.nominal;
-    feesAlert.textContent = `⚠️ דמי ניהול של 1.5% לשנה עולים לך ${fmt(loss15)} לאורך ${years} שנה — כ-${(loss15/baseResult.nominal*100).toFixed(0)}% מהיתרה הפוטנציאלית`;
+    // Use the highest non-zero level for the alert
+    let highFee = feeLevels.filter(f => f > 0).sort((a,b) => b-a)[0] || 1.5;
+    let rHigh = simulate(init, periodic, currentFreq, years, baseAnnualReturn, highFee, depMgmtFee, depGrowth, futureDeposits, withTax, inflation);
+    let lossHigh = baseResult.nominal - rHigh.nominal;
+    let pctHigh = baseResult.nominal > 0 ? (lossHigh / baseResult.nominal * 100).toFixed(0) : 0;
+    feesAlert.textContent = `⚠️ דמי ניהול של ${highFee}% לשנה עולים לך ${fmt(lossHigh)} לאורך ${years} שנה — כ-${pctHigh}% מהיתרה הפוטנציאלית`;
   }
 }
 
@@ -1816,6 +1843,30 @@ function renderCompChart() {
     }
   });
 }
+
+// ===================== TOOLTIP POSITIONING =====================
+document.addEventListener('mouseover', function(e) {
+  let icon = e.target.closest('.tooltip-icon');
+  if (!icon) return;
+  let box = icon.parentElement.querySelector('.tooltip-box');
+  if (!box) return;
+  let rect = icon.getBoundingClientRect();
+  let boxW = 230;
+  let top = rect.top - 8; // will be adjusted after display
+  box.style.display = 'block';
+  let boxH = box.offsetHeight || 80;
+  box.style.display = 'none';
+  // position above icon, centered horizontally
+  let left = rect.left + rect.width / 2 - boxW / 2;
+  let topPos = rect.top - boxH - 8;
+  // clamp to viewport
+  left = Math.max(8, Math.min(left, window.innerWidth - boxW - 8));
+  if (topPos < 8) topPos = rect.bottom + 8; // flip to below if no room above
+  box.style.top = topPos + 'px';
+  box.style.left = left + 'px';
+  box.style.bottom = 'auto';
+  box.style.right = 'auto';
+});
 
 // ===================== VIEW COUNTER =====================
 (function(){
