@@ -1126,6 +1126,7 @@ function renderFutureDepositsUI() {
     document.getElementById('future-total').textContent = '';
     return;
   }
+  let html = '';
   // Column headers (shown once above first row)
   html += `<div style="display:flex; gap:10px; align-items:flex-end; padding-bottom:4px; border-bottom:1px solid #e2e8f0; margin-bottom:6px;">
     <span style="flex:1.5; min-width:120px; font-size:11px; font-weight:600; color:#718096; padding-right:4px;">סכום (₪)</span>
@@ -1852,16 +1853,13 @@ document.addEventListener('mouseover', function(e) {
   if (!box) return;
   let rect = icon.getBoundingClientRect();
   let boxW = 230;
-  let top = rect.top - 8; // will be adjusted after display
-  box.style.display = 'block';
-  let boxH = box.offsetHeight || 80;
-  box.style.display = 'none';
-  // position above icon, centered horizontally
+  let boxH = 90; // estimate — don't toggle display or it kills the CSS hover
+  // center horizontally above icon
   let left = rect.left + rect.width / 2 - boxW / 2;
   let topPos = rect.top - boxH - 8;
   // clamp to viewport
   left = Math.max(8, Math.min(left, window.innerWidth - boxW - 8));
-  if (topPos < 8) topPos = rect.bottom + 8; // flip to below if no room above
+  if (topPos < 8) topPos = rect.bottom + 8; // flip below if no room above
   box.style.top = topPos + 'px';
   box.style.left = left + 'px';
   box.style.bottom = 'auto';
