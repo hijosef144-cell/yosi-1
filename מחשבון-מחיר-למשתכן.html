@@ -717,6 +717,41 @@ canvas { max-width: 100%; }
 }
 .float-btn:hover { transform: scale(1.08); box-shadow: 0 6px 20px rgba(30,58,95,0.45); }
 
+/* Floating badge hint */
+.float-hint-badge {
+  position: fixed;
+  bottom: 34px;
+  left: 86px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 600;
+  font-family: 'Heebo', sans-serif;
+  padding: 7px 14px;
+  border-radius: 20px;
+  white-space: nowrap;
+  z-index: 301;
+  box-shadow: 0 3px 12px rgba(30,58,95,0.3);
+  pointer-events: none;
+  animation: badgePop 5s ease forwards;
+}
+.float-hint-badge::before {
+  content: '';
+  position: absolute;
+  right: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 7px solid transparent;
+  border-right-color: var(--primary);
+}
+@keyframes badgePop {
+  0%   { opacity: 0; transform: translateX(6px); }
+  12%  { opacity: 1; transform: translateX(0); }
+  75%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+.float-btn:hover ~ .float-hint-badge { animation: none; opacity: 1; pointer-events: none; }
+
 .float-panel {
   position: fixed;
   bottom: 86px;
@@ -1391,6 +1426,15 @@ canvas { max-width: 100%; }
 
     <div class="section-h" style="margin-top:18px;">🏦 הלוואת גישור</div>
 
+    <div class="info-box" style="margin-bottom:14px;">
+      <strong>מה זו הלוואת גישור ולמה היא נצרכת?</strong><br>
+      לוואת גישור היא הלוואה קצרת מועד שנלקחת כשהכסף עדיין "תקוע" ואי אפשר להשתמש בו לרכישה — למשל:<br>
+      • <strong>דירה קיימת שטרם נמכרה</strong> — יש לך הון עצמי בדירה הנוכחית, אבל הכסף ישוחרר רק כשתמכור. עד אז לוקחים גישור.<br>
+      • <strong>כסף בחיסכון/פנסיה</strong> — פיקדון שנעול לתאריך עתידי.<br>
+      • <strong>ממוצעים של ירושה / מתנה</strong> — כסף שמגיע אך עדיין לא התקבל.<br>
+      <span style="color:var(--amber);">⚠️ הגישור הוא ריבית בלבד (ללא קרן) — לכן ה"החזר החודשי" הוא נמוך, אך הוא מצטרף להחזר המשכנתא.</span>
+    </div>
+
     <div class="toggle-row">
       <label class="toggle-switch">
         <input type="checkbox" id="bridgeLoanToggle" onchange="toggleBridgeLoan(); debouncedCalc()">
@@ -1513,6 +1557,35 @@ canvas { max-width: 100%; }
         <div class="field-input-wrap">
           <span class="currency-prefix">₪</span>
           <input type="text" id="renovation" class="field-input" value="0"
+            oninput="liveFormat(this); debouncedCalc()" onblur="fmtField(this)">
+        </div>
+      </div>
+      <div class="field-group">
+        <label class="field-label">
+          יועץ משכנתאות (₪)
+          <span class="tooltip-wrap">
+            <span class="tooltip-icon">?</span>
+            <span class="tooltip-box">בדרך כלל 0.5% ממחיר הדירה. יועץ משכנתאות עצמאי חוסך לרוב הרבה יותר מעלות שכרו — ממולא אוטומטית לפי מחיר החוזה.</span>
+          </span>
+        </label>
+        <div class="field-input-wrap">
+          <span class="currency-prefix">₪</span>
+          <input type="text" id="mortgageAdvisor" class="field-input"
+            oninput="liveFormat(this); this.dataset.userEdited='1'; debouncedCalc()" onblur="fmtField(this)">
+        </div>
+        <span class="field-hint blue" id="mortgageAdvisorHint"></span>
+      </div>
+      <div class="field-group">
+        <label class="field-label">
+          יועץ נדל"ן / כלכלי (₪)
+          <span class="tooltip-wrap">
+            <span class="tooltip-icon">?</span>
+            <span class="tooltip-box">ייעוץ כלכלי לבדיקת כדאיות העסקה, ניהול תקציב רכישה וליווי לאורך התהליך.</span>
+          </span>
+        </label>
+        <div class="field-input-wrap">
+          <span class="currency-prefix">₪</span>
+          <input type="text" id="reAdvisor" class="field-input" value="1,000"
             oninput="liveFormat(this); debouncedCalc()" onblur="fmtField(this)">
         </div>
       </div>
@@ -1646,6 +1719,7 @@ canvas { max-width: 100%; }
 
 <!-- FLOATING PANEL -->
 <button class="float-btn" id="float-btn" onclick="toggleFloat()" title="סיכום מהיר">📋</button>
+<div class="float-hint-badge no-print">📋 פה יש סיכום מהיר</div>
 <div class="float-panel" id="float-panel">
   <div class="float-panel-header">📋 סיכום מהיר</div>
   <div class="float-panel-body">
@@ -1944,6 +2018,19 @@ function calculateAll() {
   const bankFee = parse('bankFee') || 360;
   const notary = parse('notary') || 500;
   const renovation = parse('renovation') || 0;
+  const reAdvisor = parse('reAdvisor') || 1000;
+  // יועץ משכנתאות: ברירת מחדל 0.5% ממחיר החוזה, ממולאת אוטומטית אם השדה ריק
+  const mortgageAdvisorEl = document.getElementById('mortgageAdvisor');
+  const mortgageAdvisorDefault = Math.round(contractPrice * 0.005);
+  if (mortgageAdvisorEl && !mortgageAdvisorEl.dataset.userEdited && !parse('mortgageAdvisor')) {
+    mortgageAdvisorEl.value = mortgageAdvisorDefault.toLocaleString('he-IL');
+  }
+  const mortgageAdvisor = parse('mortgageAdvisor') || mortgageAdvisorDefault;
+  const mortgageAdvisorHintEl = document.getElementById('mortgageAdvisorHint');
+  if (mortgageAdvisorHintEl) {
+    const pctOfPrice = contractPrice > 0 ? (mortgageAdvisor / contractPrice * 100).toFixed(2) : 0;
+    mortgageAdvisorHintEl.textContent = `${pctOfPrice}% ממחיר הדירה`;
+  }
 
   const isMsh = currentMode === 'won' || currentMode === 'lottery';
   const isLottery = currentMode === 'lottery';
@@ -1985,7 +2072,7 @@ function calculateAll() {
   const incomePct = disposableIncome > 0 ? (monthlyPayment / disposableIncome * 100) : 0;
 
   // ── ADDITIONAL COSTS (needed before equity calc) ──
-  const totalAdditionalCosts = attorney + appraiser + bankFee + notary + renovation;
+  const totalAdditionalCosts = attorney + appraiser + bankFee + notary + renovation + mortgageAdvisor + reAdvisor;
 
   // ── EQUITY NEEDED (down payment + all additional costs) ──
   const downPayment = Math.max(minEquity, finalContractPrice - mortgageAmount);
