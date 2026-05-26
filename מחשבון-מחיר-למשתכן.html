@@ -998,7 +998,7 @@ canvas { max-width: 100%; }
         <div class="field-input-wrap">
           <span class="currency-prefix">₪</span>
           <input type="text" id="contractPrice" class="field-input" value="1,200,000"
-            oninput="debouncedCalc()" onblur="fmtField(this)">
+            oninput="liveFormat(this); debouncedCalc()" onblur="fmtField(this)">
         </div>
       </div>
 
@@ -1014,7 +1014,7 @@ canvas { max-width: 100%; }
         <div class="field-input-wrap">
           <span class="currency-prefix">₪</span>
           <input type="text" id="marketValue" class="field-input" placeholder="אוטומטי (×1.2)"
-            oninput="debouncedCalc()" onblur="fmtField(this)">
+            oninput="liveFormat(this); debouncedCalc()" onblur="fmtField(this)">
         </div>
         <span class="field-hint blue" id="marketValueHint"></span>
       </div>
@@ -1096,7 +1096,7 @@ canvas { max-width: 100%; }
           <div class="field-input-wrap">
             <span class="currency-prefix">₪</span>
             <input type="text" id="grant" class="field-input" value="40,000"
-              oninput="debouncedCalc()" onblur="fmtField(this)">
+              oninput="liveFormat(this); debouncedCalc()" onblur="fmtField(this)">
           </div>
         </div>
 
@@ -1113,7 +1113,7 @@ canvas { max-width: 100%; }
           <div class="field-input-wrap">
             <span class="currency-prefix">₪</span>
             <input type="text" id="marketAreaPrice" class="field-input" value="1,500,000"
-              oninput="debouncedCalc()" onblur="fmtField(this)">
+              oninput="liveFormat(this); debouncedCalc()" onblur="fmtField(this)">
           </div>
         </div>
 
@@ -1148,7 +1148,7 @@ canvas { max-width: 100%; }
         <div class="field-input-wrap">
           <span class="currency-prefix">₪</span>
           <input type="text" id="personalEquity" class="field-input" value="200,000"
-            oninput="debouncedCalc()" onblur="fmtField(this)">
+            oninput="liveFormat(this); debouncedCalc()" onblur="fmtField(this)">
         </div>
         <div id="equityValidation"></div>
       </div>
@@ -1165,7 +1165,7 @@ canvas { max-width: 100%; }
         <div class="field-input-wrap">
           <span class="currency-prefix">₪</span>
           <input type="text" id="disposableIncome" class="field-input" value="15,000"
-            oninput="debouncedCalc()" onblur="fmtField(this)">
+            oninput="liveFormat(this); debouncedCalc()" onblur="fmtField(this)">
         </div>
         <span class="field-hint blue" id="bankApprovalHint"></span>
       </div>
@@ -1176,7 +1176,7 @@ canvas { max-width: 100%; }
         <div class="field-input-wrap">
           <span class="currency-prefix">₪</span>
           <input type="text" id="mortgageAmount" class="field-input"
-            oninput="debouncedCalc()" onblur="fmtField(this)">
+            oninput="liveFormat(this); debouncedCalc()" onblur="fmtField(this)">
         </div>
         <span class="field-hint" id="mortgageRatiosHint"></span>
       </div>
@@ -1220,7 +1220,7 @@ canvas { max-width: 100%; }
     <!-- Stat Strip -->
     <div class="stat-strip" id="mod3-stats">
       <div class="stat-card">
-        <span class="stat-card-label">הון עצמי נדרש בפועל</span>
+        <span class="stat-card-label">הון עצמי נדרש (כולל עלויות)</span>
         <span class="stat-card-value" id="s3-equity-needed">—</span>
       </div>
       <div class="stat-card">
@@ -1234,6 +1234,54 @@ canvas { max-width: 100%; }
       <div class="stat-card">
         <span class="stat-card-label">% מהכנסה</span>
         <span class="stat-card-value" id="s3-income-pct">—</span>
+      </div>
+    </div>
+
+    <!-- Supplementary loan panel — shown automatically when equity is short -->
+    <div id="supplementary-loan-section" style="display:none; margin-top:16px; padding:16px; background:#fffbeb; border:2px solid #f59e0b; border-radius:12px;">
+      <div style="font-weight:700; color:#92400e; font-size:15px; margin-bottom:12px;">⚠️ חסר הון עצמי — סמול הלוואה משלימה</div>
+      <div style="font-size:13px; color:#78350f; margin-bottom:12px;">הסכום החסר מולא אוטומטית. הזן ריבית ותקופה לחישוב ההחזר המשולב.</div>
+      <div class="fields-grid">
+        <div class="field-group">
+          <label class="field-label">סכום הלוואה משלימה (₪)</label>
+          <div class="field-input-wrap">
+            <span class="currency-prefix">₪</span>
+            <input type="text" id="suppLoanAmount" class="field-input"
+              oninput="liveFormat(this); debouncedCalc()" onblur="fmtField(this)">
+          </div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">ריבית הלוואה (%)</label>
+          <div class="field-input-wrap">
+            <input type="number" id="suppLoanRate" class="field-input no-prefix" value="6" step="0.1" min="1" max="20"
+              oninput="debouncedCalc()">
+          </div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">תקופה (שנים)</label>
+          <div class="field-input-wrap">
+            <input type="number" id="suppLoanYears" class="field-input no-prefix" value="5" step="1" min="1" max="15"
+              oninput="debouncedCalc()">
+          </div>
+        </div>
+      </div>
+      <div class="stat-strip" style="margin-top:12px;">
+        <div class="stat-card">
+          <span class="stat-card-label">החזר הלוואה משלימה</span>
+          <span class="stat-card-value amber" id="supp-monthly">—</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-card-label">החזר משכנתא</span>
+          <span class="stat-card-value" id="supp-mortgage-ref">—</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-card-label">סה"כ החזר חודשי</span>
+          <span class="stat-card-value red" id="supp-total-monthly">—</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-card-label">% מהכנסה</span>
+          <span class="stat-card-value" id="supp-income-pct">—</span>
+        </div>
       </div>
     </div>
 
@@ -1259,7 +1307,12 @@ canvas { max-width: 100%; }
   <div class="mod-body">
 
     <div class="info-box amber" id="payment-schedule-note">
-      לוח התשלומים מחושב על פי שלבי הבנייה הסטנדרטיים במחיר למשתכן. ניתן להתאים באמצעות "התאם לעצמי".
+      📋 <strong>לוח התשלומים מבוסס על תקנות חוק המכר (דירות):</strong><br>
+      • <strong>7%</strong> בחתימת חוזה (הון עצמי)<br>
+      • <strong>13%</strong> תוך 45 יום — כולל מענק ופעימה 1 של משכנתא (סה"כ 20% בתוך חודש וחצי)<br>
+      • <strong>70%</strong> בפעימות משכנתא לאורך הבנייה — הבנק מעביר בהתקדמות הבנייה<br>
+      • <strong>10%</strong> במסירת המפתח (הון עצמי + גמר חשבון)<br>
+      ניתן לשנות את השלבים לפי החוזה שלך באמצעות "התאם לעצמי".
     </div>
 
     <div id="payment-table-wrap" style="overflow-x:auto; margin-top:12px;">
@@ -1315,7 +1368,10 @@ canvas { max-width: 100%; }
   <div class="mod-body">
 
     <div class="info-box amber">
-      ⚠️ בתקופת הבנייה אתם משלמים ריבית על כסף שכבר הועבר לקבלן — אבל עדיין לא גרים בדירה. זו עלות נסתרת שרוב הרוכשים לא מחשבים.
+      ⚠️ <strong>מה זו עלות מימון בתקופת בנייה?</strong><br>
+      הבנק מעביר את המשכנתא לקבלן בפעימות לאורך הבנייה. על כל שקל שהועבר — מתחילים לשלם ריבית מיד, עוד <em>לפני</em> שמקבלים את הדירה.<br>
+      למשל: פעימה של ₪500,000 שהועברה 20 חודשים לפני המסירה תעלה ₪500,000 × 4.5% / 12 × 20 ≈ ₪37,500 ריבית נוספת — כסף שיוצא מהכיס אך לא מוריד את קרן המשכנתא.<br>
+      <strong>ניתן לצמצם</strong> על ידי לקיחת פעימות מאוחרות ככל האפשר, או שימוש בהון עצמי לתשלומים מוקדמים.
     </div>
 
     <div class="stat-strip" style="margin-top:16px;">
@@ -1350,7 +1406,7 @@ canvas { max-width: 100%; }
           <div class="field-input-wrap">
             <span class="currency-prefix">₪</span>
             <input type="text" id="bridgeAmount" class="field-input" value="300,000"
-              oninput="debouncedCalc()" onblur="fmtField(this)">
+              oninput="liveFormat(this); debouncedCalc()" onblur="fmtField(this)">
           </div>
         </div>
         <div class="field-group">
@@ -1425,7 +1481,7 @@ canvas { max-width: 100%; }
         <div class="field-input-wrap">
           <span class="currency-prefix">₪</span>
           <input type="text" id="attorney" class="field-input" value="8,000"
-            oninput="debouncedCalc()" onblur="fmtField(this)">
+            oninput="liveFormat(this); debouncedCalc()" onblur="fmtField(this)">
         </div>
       </div>
       <div class="field-group">
@@ -1433,7 +1489,7 @@ canvas { max-width: 100%; }
         <div class="field-input-wrap">
           <span class="currency-prefix">₪</span>
           <input type="text" id="appraiser" class="field-input" value="3,000"
-            oninput="debouncedCalc()" onblur="fmtField(this)">
+            oninput="liveFormat(this); debouncedCalc()" onblur="fmtField(this)">
         </div>
       </div>
       <div class="field-group">
@@ -1441,7 +1497,7 @@ canvas { max-width: 100%; }
         <div class="field-input-wrap">
           <span class="currency-prefix">₪</span>
           <input type="text" id="bankFee" class="field-input" value="360"
-            oninput="debouncedCalc()" onblur="fmtField(this)">
+            oninput="liveFormat(this); debouncedCalc()" onblur="fmtField(this)">
         </div>
       </div>
       <div class="field-group">
@@ -1449,7 +1505,7 @@ canvas { max-width: 100%; }
         <div class="field-input-wrap">
           <span class="currency-prefix">₪</span>
           <input type="text" id="notary" class="field-input" value="500"
-            oninput="debouncedCalc()" onblur="fmtField(this)">
+            oninput="liveFormat(this); debouncedCalc()" onblur="fmtField(this)">
         </div>
       </div>
       <div class="field-group">
@@ -1457,7 +1513,7 @@ canvas { max-width: 100%; }
         <div class="field-input-wrap">
           <span class="currency-prefix">₪</span>
           <input type="text" id="renovation" class="field-input" value="0"
-            oninput="debouncedCalc()" onblur="fmtField(this)">
+            oninput="liveFormat(this); debouncedCalc()" onblur="fmtField(this)">
         </div>
       </div>
     </div>
@@ -1575,11 +1631,11 @@ canvas { max-width: 100%; }
   <div class="mod-body">
     <div class="chart-grid">
       <div class="chart-wrap">
-        <div class="chart-title">לוח תשלומים לפי חודשים</div>
+        <div class="chart-title">תשלומים לפי שלב — הון עצמי ומשכנתא</div>
         <canvas id="paymentChart" height="220"></canvas>
       </div>
       <div class="chart-wrap">
-        <div class="chart-title">הרכב עלות אמיתית</div>
+        <div class="chart-title">פירוט עלות אמיתית</div>
         <canvas id="costChart" height="220"></canvas>
       </div>
     </div>
@@ -1657,6 +1713,23 @@ function fmtField(el) {
   if (!isNaN(n) && n > 0) {
     el.value = Math.round(n).toLocaleString('he-IL');
   }
+}
+
+function liveFormat(el) {
+  const raw = el.value.replace(/[^0-9]/g, '');
+  if (!raw) return;
+  const beforeCursor = el.value.substring(0, el.selectionStart).replace(/[^0-9]/g, '').length;
+  const n = parseInt(raw, 10);
+  if (isNaN(n)) return;
+  const formatted = n.toLocaleString('he-IL');
+  el.value = formatted;
+  let digits = 0, newPos = formatted.length;
+  for (let i = 0; i < formatted.length; i++) {
+    if (/[0-9]/.test(formatted[i])) digits++;
+    if (digits === beforeCursor) { newPos = i + 1; break; }
+  }
+  if (beforeCursor === 0) newPos = 0;
+  el.setSelectionRange(newPos, newPos);
 }
 
 function setText(id, val) {
@@ -1893,7 +1966,8 @@ function calculateAll() {
   const pmtFactor = r > 0 ? (Math.pow(1+r,n)) / (r * Math.pow(1+r,n) - r) : n;
   const maxByIncome = disposableIncome * 0.35 * pmtFactor;
 
-  let mortgageDefault = Math.min(mortgageMax, maxByIncome);
+  // Default to max LTV (mortgageMax); income ratio is shown as a warning
+  let mortgageDefault = mortgageMax;
   mortgageDefault = Math.max(0, mortgageDefault);
 
   // Use user's value if set, else default
@@ -1910,8 +1984,12 @@ function calculateAll() {
   const monthlyPayment = pmt(r, n, mortgageAmount);
   const incomePct = disposableIncome > 0 ? (monthlyPayment / disposableIncome * 100) : 0;
 
-  // ── EQUITY NEEDED ──
-  const equityNeeded = Math.max(minEquity, finalContractPrice - mortgageAmount);
+  // ── ADDITIONAL COSTS (needed before equity calc) ──
+  const totalAdditionalCosts = attorney + appraiser + bankFee + notary + renovation;
+
+  // ── EQUITY NEEDED (down payment + all additional costs) ──
+  const downPayment = Math.max(minEquity, finalContractPrice - mortgageAmount);
+  const equityNeeded = downPayment + totalAdditionalCosts;
   const equityDelta = effectiveEquity - equityNeeded;
 
   // ── SQM PRICES ──
@@ -1951,9 +2029,6 @@ function calculateAll() {
 
     return { ...s, amount: stageAmt, equityAmt: equityStageAmt, mortgageAmt: mortgageStageAmt, monthsToDelivery };
   });
-
-  // ── ADDITIONAL COSTS ──
-  const totalAdditionalCosts = attorney + appraiser + bankFee + notary + renovation;
 
   // ── TRUE COST ──
   const trueCost = finalContractPrice + constructionFinancingCost + totalAdditionalCosts;
@@ -2034,10 +2109,44 @@ function calculateAll() {
 
   // Equity validation
   const evEl = document.getElementById('equityValidation');
-  if (effectiveEquity >= minEquity) {
-    evEl.innerHTML = `<div class="valid-green">✅ מספיק — עומד בדרישת המינימום ${fmt(minEquity)}</div>`;
+  if (equityDelta >= 0) {
+    evEl.innerHTML = `<div class="valid-green">✅ מספיק — הון עצמי מכסה מקדמה + הוצאות (נדרש ${fmt(equityNeeded)})</div>`;
   } else {
-    evEl.innerHTML = `<div class="valid-red">❌ חסר ${fmt(minEquity - effectiveEquity)} לדרישת המינימום (${fmt(minEquity)})</div>`;
+    evEl.innerHTML = `<div class="valid-red">❌ חסר ${fmt(-equityDelta)} — נדרש ${fmt(equityNeeded)} (מקדמה ${fmt(downPayment)} + הוצאות ${fmt(totalAdditionalCosts)})</div>`;
+  }
+
+  // ── SUPPLEMENTARY LOAN ──
+  const suppSection = document.getElementById('supplementary-loan-section');
+  if (suppSection) {
+    if (equityDelta < 0) {
+      suppSection.style.display = '';
+      const shortfall = Math.abs(equityDelta);
+      const suppAmountEl = document.getElementById('suppLoanAmount');
+      // Auto-fill shortfall only if field is empty or still at previous auto-value
+      if (suppAmountEl && (!suppAmountEl.dataset.userSet || suppAmountEl.dataset.userSet === 'auto')) {
+        suppAmountEl.value = Math.round(shortfall).toLocaleString('he-IL');
+        suppAmountEl.dataset.userSet = 'auto';
+      }
+      suppAmountEl.addEventListener('input', () => { suppAmountEl.dataset.userSet = 'manual'; }, { once: true });
+      const suppAmount = parse('suppLoanAmount') || shortfall;
+      const suppRate = parseFloat(document.getElementById('suppLoanRate').value) || 6;
+      const suppYears = parseInt(document.getElementById('suppLoanYears').value) || 5;
+      const suppR = suppRate / 100 / 12;
+      const suppN = suppYears * 12;
+      const suppMonthly = pmt(suppR, suppN, suppAmount);
+      const totalMonthly = monthlyPayment + suppMonthly;
+      const totalPct = disposableIncome > 0 ? (totalMonthly / disposableIncome * 100) : 0;
+      setText('supp-monthly', fmt(suppMonthly));
+      setText('supp-mortgage-ref', fmt(monthlyPayment));
+      setText('supp-total-monthly', fmt(totalMonthly));
+      const spctEl = document.getElementById('supp-income-pct');
+      if (spctEl) {
+        spctEl.textContent = fmtNum(totalPct, 1) + '%';
+        spctEl.className = 'stat-card-value ' + (totalPct <= 35 ? 'amber' : 'red');
+      }
+    } else {
+      suppSection.style.display = 'none';
+    }
   }
 
   // Mod3 stats
@@ -2209,45 +2318,18 @@ function renderCharts(s, sM, sY, bM, cp, ia, cfc, ac) {
   }
   if (!s) return;
 
-  renderPaymentChart(s, sM, sY, bM);
+  renderPaymentChart(s);
   renderCostChart(cp, ia, cfc, ac);
 }
 
-function renderPaymentChart(stages, signM, signY, buildMonths) {
+function renderPaymentChart(stages) {
   const ctx = document.getElementById('paymentChart');
   if (!ctx) return;
 
-  const labels = [];
-  const equityData = [];
-  const mortgageData = [];
-
-  // Build month labels from 0 to buildMonths+1
-  const monthCount = buildMonths + 2;
-  for (let i = 0; i <= monthCount; i++) {
-    const d = addMonths(signM, signY, i);
-    labels.push(`${monthName(d.m).substring(0,3)} ${String(d.y).substring(2)}`);
-    equityData.push(0);
-    mortgageData.push(0);
-  }
-
-  stages.forEach(s => {
-    const idx = Math.min(Math.max(0, s.month), monthCount);
-    equityData[idx] += s.equityAmt;
-    mortgageData[idx] += s.mortgageAmt;
-  });
-
-  // Mortgage balance line
-  const totalMortgage = window._lastCalcData ? window._lastCalcData.mortgageAmount : 0;
-  const rate = window._lastCalcData ? (window._lastCalcData.effectiveRate / 100 / 12) : 0;
-  const nyrs = window._lastCalcData ? window._lastCalcData.loanYears : 25;
-  const totalN = nyrs * 12;
-  const balanceData = labels.map((_, i) => {
-    if (i === 0) return null;
-    const mo = i;
-    if (rate === 0) return totalMortgage - (totalMortgage / totalN) * mo;
-    const bal = totalMortgage * (Math.pow(1+rate, totalN) - Math.pow(1+rate, mo)) / (Math.pow(1+rate, totalN) - 1);
-    return Math.max(0, Math.round(bal));
-  });
+  // Stage-based stacked bar: X = stage name, Y = amount, stacked equity + mortgage
+  const labels = stages.map(s => s.name);
+  const equityData = stages.map(s => Math.round(s.equityAmt));
+  const mortgageData = stages.map(s => Math.round(s.mortgageAmt));
 
   if (paymentChartInst) paymentChartInst.destroy();
   paymentChartInst = new Chart(ctx, {
@@ -2259,25 +2341,13 @@ function renderPaymentChart(stages, signM, signY, buildMonths) {
           label: 'הון עצמי',
           data: equityData,
           backgroundColor: '#2563eb',
-          order: 2
+          borderRadius: 4
         },
         {
           label: 'משכנתא',
           data: mortgageData,
-          backgroundColor: '#b7960c',
-          order: 2
-        },
-        {
-          label: 'יתרת משכנתא',
-          data: balanceData,
-          type: 'line',
-          borderColor: '#ef4444',
-          backgroundColor: 'transparent',
-          borderWidth: 2,
-          pointRadius: 0,
-          tension: 0.4,
-          yAxisID: 'y2',
-          order: 1
+          backgroundColor: '#f59e0b',
+          borderRadius: 4
         }
       ]
     },
@@ -2285,20 +2355,30 @@ function renderPaymentChart(stages, signM, signY, buildMonths) {
       responsive: true,
       interaction: { mode: 'index', intersect: false },
       plugins: {
-        legend: { position: 'bottom', labels: { font: { family: 'Heebo', size: 11 } } },
+        legend: { position: 'bottom', labels: { font: { family: 'Heebo', size: 12 }, padding: 14 } },
         tooltip: {
+          rtl: true,
           callbacks: {
             label: ctx => {
               const v = ctx.parsed.y;
               return v ? `${ctx.dataset.label}: ₪${Math.round(v).toLocaleString('he-IL')}` : null;
+            },
+            footer: items => {
+              const total = items.reduce((s, i) => s + i.parsed.y, 0);
+              return total > 0 ? `סה"כ: ₪${Math.round(total).toLocaleString('he-IL')}` : null;
             }
           }
         }
       },
       scales: {
-        x: { stacked: true, ticks: { font: { size: 10 }, maxRotation: 45 } },
-        y: { stacked: true, ticks: { callback: v => '₪' + (v/1000).toFixed(0) + 'K' } },
-        y2: { position: 'left', display: false, ticks: { callback: v => '₪' + (v/1000).toFixed(0) + 'K' } }
+        x: { stacked: true, ticks: { font: { family: 'Heebo', size: 11 } } },
+        y: {
+          stacked: true,
+          ticks: {
+            font: { size: 10 },
+            callback: v => '₪' + (v >= 1000000 ? (v/1000000).toFixed(1) + 'M' : (v/1000).toFixed(0) + 'K')
+          }
+        }
       }
     }
   });
@@ -2308,31 +2388,46 @@ function renderCostChart(contractPrice, indexAmt, constructionFinancingCost, tot
   const ctx = document.getElementById('costChart');
   if (!ctx) return;
 
+  const total = contractPrice + indexAmt + constructionFinancingCost + totalAdditionalCosts;
+  const pct = v => total > 0 ? (v / total * 100).toFixed(1) + '%' : '0%';
+
+  const labels = ['מחיר בסיס', 'תוספת מדד', 'עלות מימון בנייה', 'הוצאות נוספות'];
+  const values = [contractPrice, indexAmt, constructionFinancingCost, totalAdditionalCosts];
+  const colors = ['#1e3a5f', '#3b82f6', '#d97706', '#64748b'];
+
   if (costChartInst) costChartInst.destroy();
   costChartInst = new Chart(ctx, {
-    type: 'doughnut',
+    type: 'bar',
     data: {
-      labels: ['מחיר בסיס', 'תוספת מדד', 'עלות מימון', 'הוצאות נוספות'],
+      labels,
       datasets: [{
-        data: [contractPrice, indexAmt, constructionFinancingCost, totalAdditionalCosts],
-        backgroundColor: ['#1e3a5f', '#2563eb', '#d97706', '#64748b'],
-        borderWidth: 2,
-        borderColor: '#fff'
+        label: 'עלות (₪)',
+        data: values,
+        backgroundColor: colors,
+        borderRadius: 6,
+        borderSkipped: false
       }]
     },
     options: {
+      indexAxis: 'y',          // horizontal bar chart
       responsive: true,
       plugins: {
-        legend: { position: 'bottom', labels: { font: { family: 'Heebo', size: 11 } } },
+        legend: { display: false },
         tooltip: {
+          rtl: true,
           callbacks: {
-            label: ctx => {
-              const total = ctx.dataset.data.reduce((a,b)=>a+b,0);
-              const pct = total > 0 ? (ctx.raw / total * 100).toFixed(1) : 0;
-              return `${ctx.label}: ₪${Math.round(ctx.raw).toLocaleString('he-IL')} (${pct}%)`;
-            }
+            label: ctx => `₪${Math.round(ctx.raw).toLocaleString('he-IL')} (${pct(ctx.raw)})`
           }
         }
+      },
+      scales: {
+        x: {
+          ticks: {
+            font: { size: 10 },
+            callback: v => '₪' + (v >= 1000000 ? (v/1000000).toFixed(1) + 'M' : (v/1000).toFixed(0) + 'K')
+          }
+        },
+        y: { ticks: { font: { family: 'Heebo', size: 12 } } }
       }
     }
   });
