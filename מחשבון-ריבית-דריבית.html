@@ -1,0 +1,1839 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>מחשבון ריבית דריבית מתקדם | מצפן כלכלי</title>
+<link rel="icon" href="https://matzpenkalkali.com/images/2אייקון לאתר למעלה.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --primary: #1e3a5f;
+  --accent: #2563eb;
+  --text: #1a1a2e;
+  --text2: #4a5568;
+  --text3: #718096;
+  --bg: #f8f9fa;
+  --white: #ffffff;
+  --border: #e2e8f0;
+  --green: #166534;
+  --green-bg: #f0fdf4;
+  --red: #991b1b;
+  --red-bg: #fef2f2;
+  --amber: #92400e;
+  --amber-bg: #fffbeb;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Heebo', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  direction: rtl;
+  min-height: 100vh;
+}
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--primary);
+  color: white;
+  padding: 14px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+}
+.site-header h1 {
+  font-size: 18px;
+  font-weight: 700;
+  color: white;
+}
+.header-subtitle {
+  font-size: 12px;
+  opacity: 0.75;
+  margin-top: 3px;
+  display: flex;
+  gap: 12px;
+}
+.header-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.btn-ghost {
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.3);
+  color: white;
+  padding: 6px 13px;
+  border-radius: 9px;
+  font-family: 'Heebo', sans-serif;
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: background 0.15s;
+}
+.btn-ghost:hover { background: rgba(255,255,255,0.22); }
+.summary-bar {
+  position: sticky;
+  top: 60px;
+  z-index: 99;
+  background: var(--primary);
+  color: white;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0;
+  border-top: 1px solid rgba(255,255,255,0.12);
+}
+.sum-item {
+  flex: 1;
+  min-width: 140px;
+  padding: 10px 18px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid rgba(255,255,255,0.12);
+}
+.sum-label {
+  font-size: 10px;
+  opacity: 0.65;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.sum-value {
+  font-size: 16px;
+  font-weight: 700;
+  font-family: 'Courier New', monospace;
+  color: #7dd3fc;
+}
+.main-content {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 28px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.mod {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+  overflow: hidden;
+}
+.mod-header {
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  background: #f8f9fa;
+  border-bottom: 1px solid var(--border);
+  user-select: none;
+}
+.mod-header:hover { background: #f1f5f9; }
+.mod-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--primary);
+}
+.mod-toggle-icon {
+  color: var(--text3);
+  font-size: 12px;
+  transition: transform 0.2s;
+}
+.mod.collapsed .mod-toggle-icon { transform: rotate(180deg); }
+.mod-body { padding: 22px 20px; }
+.mod.collapsed .mod-body { display: none; }
+.fields-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+}
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.field-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text2);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.field-hint {
+  font-size: 12px;
+  color: var(--text3);
+}
+.field-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.currency-prefix {
+  position: absolute;
+  right: 10px;
+  color: var(--text3);
+  font-size: 14px;
+  z-index: 1;
+  pointer-events: none;
+}
+.field-input {
+  width: 100%;
+  padding: 9px 30px 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  font-family: 'Heebo', sans-serif;
+  font-size: 14px;
+  background: white;
+  outline: none;
+  color: var(--text);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.field-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+}
+.field-input.no-prefix {
+  padding-right: 10px;
+}
+.toggle-group {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  overflow: hidden;
+}
+.toggle-btn {
+  flex: 1;
+  padding: 8px;
+  font-family: 'Heebo', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  background: white;
+  color: var(--text2);
+  transition: background 0.15s, color 0.15s;
+}
+.toggle-btn.active {
+  background: var(--primary);
+  color: white;
+  font-weight: 600;
+}
+.stat-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+.stat-card {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.stat-card-label {
+  font-size: 11px;
+  color: var(--text3);
+  font-weight: 500;
+}
+.stat-card-value {
+  font-size: 20px;
+  font-weight: 700;
+  font-family: 'Courier New', monospace;
+  color: var(--primary);
+}
+.stat-card-value.green { color: var(--green); }
+.stat-card-value.red { color: var(--red); }
+.stat-card-value.amber { color: var(--amber); }
+.info-box {
+  padding: 14px 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.6;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  color: #0c4a6e;
+}
+.info-box.amber {
+  background: var(--amber-bg);
+  border-color: #fcd34d;
+  color: var(--amber);
+}
+.info-box.green {
+  background: var(--green-bg);
+  border-color: #86efac;
+  color: var(--green);
+}
+.section-h {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--primary);
+  margin: 16px 0 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.btn-primary {
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 9px;
+  padding: 10px 20px;
+  font-family: 'Heebo', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-primary:hover { background: var(--accent); }
+.btn-secondary {
+  background: #f8f9fa;
+  color: var(--primary);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 8px 16px;
+  font-family: 'Heebo', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-secondary:hover { background: #eff6ff; }
+.btn-remove {
+  color: var(--red);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+.btn-remove:hover { background: var(--red-bg); }
+.advanced-toggle {
+  width: 100%;
+  text-align: right;
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  font-family: 'Heebo', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 8px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+}
+.advanced-panel { display: none; }
+.advanced-panel.open { display: block; }
+.tooltip-wrap {
+  position: relative;
+  display: inline-block;
+  vertical-align: middle;
+}
+.tooltip-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  color: var(--text3);
+  font-size: 10px;
+  cursor: help;
+  font-weight: 700;
+}
+.tooltip-box {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  right: 0;
+  background: #1a1a2e;
+  color: white;
+  font-size: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  width: 220px;
+  z-index: 50;
+  line-height: 1.5;
+  display: none;
+  white-space: normal;
+  pointer-events: none;
+}
+.tooltip-wrap:hover .tooltip-box { display: block; }
+.future-deposit-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.comparison-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'Heebo', sans-serif;
+  font-size: 14px;
+}
+.comparison-table th {
+  background: #f8f9fa;
+  padding: 10px 12px;
+  text-align: right;
+  font-weight: 600;
+  color: var(--text2);
+  border-bottom: 2px solid var(--border);
+}
+.comparison-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  font-family: 'Courier New', monospace;
+}
+.comparison-table tr.highlight {
+  background: #eff6ff;
+  font-weight: 600;
+}
+.breakeven-box {
+  border: 2px solid var(--accent);
+  border-radius: 12px;
+  padding: 16px 20px;
+  background: #eff6ff;
+}
+.timeline-svg {
+  width: 100%;
+  height: 48px;
+}
+.goal-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.chart-wrap {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+  position: relative;
+}
+.chart-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 12px;
+}
+.annual-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.annual-table th {
+  background: var(--primary);
+  color: white;
+  padding: 8px 10px;
+  text-align: right;
+  font-size: 12px;
+  font-family: 'Heebo', sans-serif;
+}
+.annual-table td {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--border);
+  font-family: 'Courier New', monospace;
+  text-align: right;
+}
+.annual-table tr.breakeven-row { background: #eff6ff; font-weight: 600; }
+.annual-table tr:hover { background: #f8f9fa; }
+.float-btn {
+  position: fixed;
+  bottom: 24px;
+  left: 24px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: white;
+  border: none;
+  font-size: 22px;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(30,58,95,0.35);
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+.float-btn:hover { background: var(--accent); }
+@keyframes badgePop {
+  0% { opacity: 0; transform: translateX(-10px); }
+  10% { opacity: 1; transform: translateX(0); }
+  80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.float-hint-badge {
+  position: fixed;
+  bottom: 34px;
+  left: 86px;
+  background: var(--primary);
+  color: white;
+  font-size: 12.5px;
+  font-weight: 600;
+  font-family: 'Heebo', sans-serif;
+  padding: 7px 14px;
+  border-radius: 20px;
+  white-space: nowrap;
+  z-index: 301;
+  box-shadow: 0 4px 16px rgba(30,58,95,0.35);
+  pointer-events: none;
+  animation: badgePop 5s ease forwards;
+}
+.float-panel {
+  position: fixed;
+  bottom: 86px;
+  left: 24px;
+  width: 290px;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+  z-index: 300;
+  display: none;
+  overflow: hidden;
+}
+.float-panel.open { display: block; }
+.fp-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 9px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  font-family: 'Heebo', sans-serif;
+}
+.fp-row span:last-child {
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  color: var(--primary);
+}
+.valid-green { color: var(--green); font-size: 12px; margin-top: 4px; }
+.valid-red { color: var(--red); font-size: 12px; margin-top: 4px; }
+.divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+.toggle-switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: #cbd5e1;
+  border-radius: 24px;
+  transition: background 0.2s;
+}
+.toggle-knob {
+  position: absolute;
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.2s;
+  display: block;
+}
+@media (max-width: 768px) {
+  .fields-grid { grid-template-columns: 1fr; }
+  .summary-bar .sum-item { min-width: 120px; padding: 8px 12px; }
+  .sum-value { font-size: 13px; }
+  .main-content { padding: 16px 12px; }
+  .site-header h1 { font-size: 15px; }
+  .mod-body { padding: 16px 12px; }
+  .float-panel { width: 260px; }
+}
+@media print {
+  .site-header .header-actions, .float-btn, .float-panel, .float-hint-badge, .btn-primary, .btn-secondary, .btn-ghost, .no-print { display: none !important; }
+  body { background: white; }
+  @page { size: A4 landscape; margin: 15mm; }
+  .mod { break-before: page; }
+  .mod.collapsed .mod-body { display: block !important; }
+  .summary-bar { position: static; }
+  .site-header { position: static; }
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="site-header">
+  <div class="header-title">
+    <h1>מחשבון ריבית דריבית מתקדם</h1>
+    <div class="header-subtitle">
+      <span>מצפן כלכלי | יוסי כץ</span>
+      <span id="view-counter"></span>
+    </div>
+  </div>
+  <div class="header-actions">
+    <button onclick="window.print()" class="btn-ghost no-print">🖨️ הדפסה</button>
+    <a href="index.html" class="btn-ghost" style="text-decoration:none">🏠 חזרה למחשבונים</a>
+  </div>
+</header>
+
+<!-- SUMMARY BAR -->
+<div class="summary-bar">
+  <div class="sum-item"><span class="sum-label">יתרה נומינלית</span><span class="sum-value" id="sum-nominal">—</span></div>
+  <div class="sum-item"><span class="sum-label">ערך ריאלי</span><span class="sum-value" id="sum-real">—</span></div>
+  <div class="sum-item"><span class="sum-label">ריבית שנצברה</span><span class="sum-value" id="sum-interest">—</span></div>
+  <div class="sum-item"><span class="sum-label">עלות דמי ניהול</span><span class="sum-value" id="sum-fees">—</span></div>
+  <div class="sum-item"><span class="sum-label">נקודת איזון</span><span class="sum-value" id="sum-breakeven">—</span></div>
+</div>
+
+<div class="main-content">
+
+<!-- MODULE 1 -->
+<div class="mod" id="mod1">
+  <div class="mod-header" onclick="toggleMod('mod1')">
+    <span class="mod-title">📊 מודול 1 — קלט בסיסי</span>
+    <span class="mod-toggle-icon">▲</span>
+  </div>
+  <div class="mod-body">
+    <div class="fields-grid">
+      <div class="field-group">
+        <label class="field-label">הפקדה ראשונית חד-פעמית (₪)</label>
+        <div class="field-input-wrap">
+          <span class="currency-prefix">₪</span>
+          <input type="text" id="initialDeposit" class="field-input" value="50,000"
+            oninput="liveFormat(this); debouncedCalc()" onblur="fmtField(this)">
+        </div>
+      </div>
+      <div class="field-group">
+        <label class="field-label">הפקדה תקופתית (₪)</label>
+        <div class="field-input-wrap">
+          <span class="currency-prefix">₪</span>
+          <input type="text" id="periodicDeposit" class="field-input" value="2,000"
+            oninput="liveFormat(this); debouncedCalc()" onblur="fmtField(this)">
+        </div>
+      </div>
+      <div class="field-group">
+        <label class="field-label">תדירות הפקדה</label>
+        <div class="toggle-group" id="freq-toggle">
+          <button class="toggle-btn active" data-val="1" onclick="setFreq(1)">חודשי</button>
+          <button class="toggle-btn" data-val="3" onclick="setFreq(3)">רבעוני</button>
+          <button class="toggle-btn" data-val="12" onclick="setFreq(12)">שנתי</button>
+          <button class="toggle-btn" data-val="0" onclick="setFreq(0)">ללא</button>
+        </div>
+      </div>
+      <div class="field-group">
+        <label class="field-label">תקופת חיסכון (שנים)</label>
+        <div class="field-input-wrap">
+          <input type="range" id="savingYears" class="field-input no-prefix" value="20" min="1" max="50" step="1"
+            oninput="document.getElementById('savingYearsVal').textContent=this.value; debouncedCalc()"
+            style="padding:6px 0; cursor:pointer;">
+        </div>
+        <span class="field-hint">תקופה: <strong id="savingYearsVal">20</strong> שנים</span>
+      </div>
+      <div class="field-group">
+        <label class="field-label">תשואה שנתית (%)</label>
+        <div class="field-input-wrap">
+          <input type="number" id="annualReturn" class="field-input no-prefix" value="6" step="0.1" min="0" max="30"
+            oninput="debouncedCalc()">
+        </div>
+      </div>
+      <div class="field-group">
+        <label class="field-label">
+          אינפלציה שנתית (%)
+          <span class="tooltip-wrap">
+            <span class="tooltip-icon">?</span>
+            <span class="tooltip-box">אינפלציה ממוצעת בישראל ב-20 שנה האחרונות עמדה על כ-2.5–3.5% בשנה</span>
+          </span>
+        </label>
+        <div class="field-input-wrap">
+          <input type="number" id="inflation" class="field-input no-prefix" value="3" step="0.1" min="0" max="20"
+            oninput="debouncedCalc()">
+        </div>
+      </div>
+    </div>
+
+    <button class="advanced-toggle" onclick="toggleAdvanced()">
+      <span id="adv-arrow">▼</span> ⚙️ הגדרות מתקדמות
+    </button>
+    <div class="advanced-panel" id="advanced-panel">
+      <div class="fields-grid" style="margin-top:14px;">
+        <div class="field-group">
+          <label class="field-label">דמי ניהול — % מהצבירה (שנתי)</label>
+          <div class="field-input-wrap">
+            <input type="number" id="mgmtFeeAnnual" class="field-input no-prefix" value="1.0" step="0.1" min="0" max="5"
+              oninput="debouncedCalc()">
+          </div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">דמי ניהול — % מהפקדה</label>
+          <div class="field-input-wrap">
+            <input type="number" id="mgmtFeeDeposit" class="field-input no-prefix" value="0" step="0.1" min="0" max="5"
+              oninput="debouncedCalc()">
+          </div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">
+            עלייה שנתית בהפקדה (%)
+            <span class="tooltip-wrap">
+              <span class="tooltip-icon">?</span>
+              <span class="tooltip-box">אם השכר שלך עולה, אתה יכול להגדיל את ההפקדה בהתאם</span>
+            </span>
+          </label>
+          <div class="field-input-wrap">
+            <input type="number" id="depositGrowth" class="field-input no-prefix" value="0" step="0.5" min="0" max="20"
+              oninput="debouncedCalc()">
+          </div>
+        </div>
+        <div class="field-group" style="justify-content:flex-end;">
+          <label class="field-label">
+            מס רווח הון 25%
+            <span class="tooltip-wrap">
+              <span class="tooltip-icon">?</span>
+              <span class="tooltip-box">מס רווח הון מחושב על הרווח הריאלי. כאן מחשבים בקירוב של 25% על הרווח הנומינלי</span>
+            </span>
+          </label>
+          <div style="display:flex; align-items:center; gap:8px; margin-top:4px;">
+            <div style="position:relative; display:inline-block; width:44px; height:24px; cursor:pointer;" onclick="toggleTax()">
+              <div id="tax-slider" style="position:absolute; top:0; left:0; right:0; bottom:0; background:#cbd5e1; border-radius:24px; transition:background 0.2s;">
+                <span id="tax-knob" style="position:absolute; height:18px; width:18px; left:3px; bottom:3px; background:white; border-radius:50%; transition:transform 0.2s; display:block;"></span>
+              </div>
+            </div>
+            <input type="checkbox" id="capitalGainsTax" checked style="display:none;" onchange="debouncedCalc()">
+            <span style="font-size:13px; color:#4a5568;" id="tax-label">כולל מס 25%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODULE 2 -->
+<div class="mod collapsed" id="mod2">
+  <div class="mod-header" onclick="toggleMod('mod2')">
+    <span class="mod-title">💸 מודול 2 — הפקדות חד-פעמיות עתידיות</span>
+    <span class="mod-toggle-icon">▲</span>
+  </div>
+  <div class="mod-body">
+    <p style="font-size:13px; color:#718096; margin-bottom:14px;">תכנן הפקדות נוספות בנקודות זמן ספציפיות — בונוסים, ירושות, מכירת נכסים</p>
+    <div id="future-deposits-list"></div>
+    <button class="btn-secondary" onclick="addFutureDeposit()" style="margin-top:10px;">+ הוסף הפקדה עתידית</button>
+    <div id="future-total" style="margin-top:12px; font-size:13px; color:#4a5568; font-weight:600;"></div>
+  </div>
+</div>
+
+<!-- MODULE 3 -->
+<div class="mod collapsed" id="mod3">
+  <div class="mod-header" onclick="toggleMod('mod3')">
+    <span class="mod-title">⚖️ מודול 3 — השוואה</span>
+    <span class="mod-toggle-icon">▲</span>
+  </div>
+  <div class="mod-body">
+    <div class="toggle-group" id="comp-mode-toggle" style="max-width:360px; margin-bottom:18px;">
+      <button class="toggle-btn active" onclick="setCompMode('returns')">השוואת תשואות</button>
+      <button class="toggle-btn" onclick="setCompMode('fees')">השוואת דמי ניהול</button>
+    </div>
+    <div id="comp-returns">
+      <div class="fields-grid" style="max-width:500px;">
+        <div class="field-group">
+          <label class="field-label">תרחיש שמרני (%)</label>
+          <input type="number" id="cmpRate1" class="field-input no-prefix" value="4" step="0.5" oninput="debouncedCalc()">
+        </div>
+        <div class="field-group">
+          <label class="field-label">תרחיש בסיסי (%)</label>
+          <input type="number" id="cmpRate2" class="field-input no-prefix" value="6" step="0.5" oninput="debouncedCalc()">
+        </div>
+        <div class="field-group">
+          <label class="field-label">תרחיש אופטימי (%)</label>
+          <input type="number" id="cmpRate3" class="field-input no-prefix" value="8" step="0.5" oninput="debouncedCalc()">
+        </div>
+      </div>
+      <div style="overflow-x:auto; margin-top:16px;">
+        <table class="comparison-table" id="returns-table">
+          <thead>
+            <tr>
+              <th>תרחיש</th><th>תשואה</th><th>יתרה נומינלית</th><th>ערך ריאלי</th><th>ריבית שנצברה</th>
+            </tr>
+          </thead>
+          <tbody id="returns-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+    <div id="comp-fees" style="display:none;">
+      <div style="overflow-x:auto;">
+        <table class="comparison-table" id="fees-table">
+          <thead>
+            <tr>
+              <th>דמי ניהול</th><th>יתרה סופית</th><th>הפסד לדמי ניהול</th><th>% מהיתרה</th>
+            </tr>
+          </thead>
+          <tbody id="fees-table-body"></tbody>
+        </table>
+      </div>
+      <div class="info-box amber" id="fees-alert" style="margin-top:16px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODULE 4 -->
+<div class="mod" id="mod4">
+  <div class="mod-header" onclick="toggleMod('mod4')">
+    <span class="mod-title">📈 מודול 4 — תוצאות</span>
+    <span class="mod-toggle-icon">▲</span>
+  </div>
+  <div class="mod-body">
+    <div class="stat-strip" id="result-cards" style="grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));">
+      <div class="stat-card">
+        <span class="stat-card-label">יתרה נומינלית סופית</span>
+        <span class="stat-card-value" id="r-nominal" style="font-size:22px;">—</span>
+        <span style="font-size:11px; color:#718096; margin-top:2px;">מה כתוב בחשבון הבנק</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-card-label">יתרה ריאלית (ערכי היום)</span>
+        <span class="stat-card-value green" id="r-real" style="font-size:22px;">—</span>
+        <span style="font-size:11px; color:#718096; margin-top:2px;">כוח הקנייה האמיתי שלך</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-card-label">סך הפקדות שלך</span>
+        <span class="stat-card-value" id="r-deposits" style="font-size:22px; color:#4a5568;">—</span>
+        <span style="font-size:11px; color:#718096; margin-top:2px;">כמה כסף הכנסת בפועל</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-card-label">ריבית שהרווחת</span>
+        <span class="stat-card-value green" id="r-interest" style="font-size:22px;">—</span>
+        <span style="font-size:11px; color:#718096; margin-top:2px;">מה הכסף הרוויח עבורך</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-card-label">מס רווח הון ששולם</span>
+        <span class="stat-card-value red" id="r-tax" style="font-size:22px;">—</span>
+        <span style="font-size:11px; color:#718096; margin-top:2px;">תשלום למדינה</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-card-label">עלות דמי ניהול כוללת</span>
+        <span class="stat-card-value amber" id="r-fees" style="font-size:22px;">—</span>
+        <span style="font-size:11px; color:#718096; margin-top:2px;">כמה עלו לך דמי הניהול</span>
+      </div>
+    </div>
+
+    <div class="breakeven-box" id="breakeven-box" style="margin-top:20px;">
+      <div style="font-size:15px; font-weight:700; color:#2563eb; margin-bottom:6px;">📍 נקודת האיזון: שנה <span id="r-breakeven-year">—</span></div>
+      <div style="font-size:13px; color:#1e3a5f; line-height:1.6;">מהשנה הזו הריבית שנצברה עולה על סך כל ההפקדות שלך — הכסף עובד יותר ממך</div>
+      <svg id="breakeven-timeline" class="timeline-svg" style="margin-top:10px;"></svg>
+    </div>
+
+    <div class="info-box" style="margin-top:16px;" id="inflation-box">
+      <strong>🔻 השפעת האינפלציה</strong><br>
+      <div style="margin-top:8px; display:grid; grid-template-columns:1fr 1fr; gap:6px; font-size:13px;">
+        <span>יתרה נומינלית:</span><span id="inf-nominal" style="font-family:Courier New; font-weight:600;">—</span>
+        <span>יתרה ריאלית:</span><span id="inf-real" style="font-family:Courier New; font-weight:600; color:#166534;">—</span>
+        <span>כוח קנייה שנשחק:</span><span id="inf-erosion" style="font-family:Courier New; font-weight:600; color:#991b1b;">—</span>
+      </div>
+      <div id="inf-min-return" style="margin-top:8px; font-size:12px; color:#4a5568;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODULE 5 -->
+<div class="mod collapsed" id="mod5">
+  <div class="mod-header" onclick="toggleMod('mod5')">
+    <span class="mod-title">🎯 מודול 5 — מחשבון יעד</span>
+    <span class="mod-toggle-icon">▲</span>
+  </div>
+  <div class="mod-body">
+    <div class="toggle-group" id="goal-mode-toggle" style="max-width:340px; margin-bottom:18px;">
+      <button class="toggle-btn active" onclick="setGoalMode('simple')">יעד אחד פשוט</button>
+      <button class="toggle-btn" onclick="setGoalMode('tiered')">יעדים מדורגים</button>
+    </div>
+    <div id="goal-simple">
+      <div class="fields-grid" style="max-width:500px;">
+        <div class="field-group">
+          <label class="field-label">סכום יעד (₪)</label>
+          <div class="field-input-wrap">
+            <span class="currency-prefix">₪</span>
+            <input type="text" id="goalAmount" class="field-input" value="1,000,000"
+              oninput="liveFormat(this); debouncedCalc()" onblur="fmtField(this)">
+          </div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">בעוד כמה שנים</label>
+          <input type="number" id="goalYears" class="field-input no-prefix" value="20" min="1" max="50" oninput="debouncedCalc()">
+        </div>
+      </div>
+      <div class="stat-strip" style="margin-top:16px; max-width:500px;">
+        <div class="stat-card">
+          <span class="stat-card-label">הפקדה חודשית נדרשת</span>
+          <span class="stat-card-value" id="goal-monthly">—</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-card-label">חד-פעמי היום (חלופה)</span>
+          <span class="stat-card-value" id="goal-lump">—</span>
+        </div>
+      </div>
+    </div>
+    <div id="goal-tiered" style="display:none;">
+      <p style="font-size:13px; color:#718096; margin-bottom:14px;">הגדר מספר יעדים — המחשבון יחשב כמה להפקיד היום כדי להגיע לכולם</p>
+      <div id="tiered-goals-list"></div>
+      <button class="btn-secondary" onclick="addTieredGoal()" style="margin-top:10px;">+ הוסף יעד</button>
+      <div class="stat-strip" style="margin-top:16px;">
+        <div class="stat-card">
+          <span class="stat-card-label">הפקדה חודשית נדרשת</span>
+          <span class="stat-card-value" id="tiered-monthly">—</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-card-label">חד-פעמי היום (חלופה)</span>
+          <span class="stat-card-value" id="tiered-lump">—</span>
+        </div>
+      </div>
+      <div style="margin-top:16px; overflow-x:auto;">
+        <svg id="goals-timeline" style="width:100%; height:80px; min-width:400px;"></svg>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODULE 6 -->
+<div class="mod collapsed" id="mod6">
+  <div class="mod-header" onclick="toggleMod('mod6')">
+    <span class="mod-title">📊 מודול 6 — גרפים</span>
+    <span class="mod-toggle-icon">▲</span>
+  </div>
+  <div class="mod-body">
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+      <div class="chart-wrap" style="grid-column:1/-1;">
+        <div class="chart-title">צמיחת ההשקעה לאורך זמן</div>
+        <canvas id="growthChart" height="240"></canvas>
+      </div>
+      <div class="chart-wrap">
+        <div class="chart-title">פירוט יתרה סופית</div>
+        <canvas id="donutChart" height="240"></canvas>
+      </div>
+      <div class="chart-wrap" id="comp-chart-wrap">
+        <div class="chart-title">השוואת תרחישים</div>
+        <canvas id="compChart" height="240"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODULE 7 -->
+<div class="mod collapsed" id="mod7">
+  <div class="mod-header" onclick="toggleMod('mod7')">
+    <span class="mod-title">📋 מודול 7 — פירוט שנתי</span>
+    <span class="mod-toggle-icon">▲</span>
+  </div>
+  <div class="mod-body">
+    <div style="overflow-x:auto;">
+      <table class="annual-table">
+        <thead>
+          <tr>
+            <th>שנה</th><th>יתרה פתיחה</th><th>הפקדות</th>
+            <th>ריבית</th><th>דמי ניהול</th><th>מס</th>
+            <th>יתרה סגירה</th><th>ערך ריאלי</th>
+          </tr>
+        </thead>
+        <tbody id="annual-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+</div><!-- /main-content -->
+
+<!-- FLOATING PANEL -->
+<button class="float-btn no-print" id="float-btn" onclick="toggleFloat()" title="סיכום מהיר">📋</button>
+<div class="float-hint-badge no-print">📋 פה יש סיכום מהיר</div>
+<div class="float-panel no-print" id="float-panel">
+  <div style="background:#1e3a5f; color:white; padding:12px 16px; font-weight:700; font-size:14px;">📋 סיכום מהיר</div>
+  <div id="float-body">
+    <div class="fp-row"><span>יתרה נומינלית</span><span id="fp-nominal">—</span></div>
+    <div class="fp-row"><span>ערך ריאלי</span><span id="fp-real">—</span></div>
+    <div class="fp-row"><span>סך הפקדות שלי</span><span id="fp-deposits">—</span></div>
+    <div class="fp-row"><span>ריבית שהרווחתי</span><span id="fp-interest">—</span></div>
+    <div class="fp-row"><span>עלות דמי ניהול</span><span id="fp-fees">—</span></div>
+    <div class="fp-row"><span>מס ששולם</span><span id="fp-tax">—</span></div>
+    <div class="fp-row"><span>נקודת איזון</span><span id="fp-breakeven">—</span></div>
+  </div>
+</div>
+
+<script>
+// ===================== STATE =====================
+let currentFreq = 1;
+let currentCompMode = 'returns';
+let currentGoalMode = 'simple';
+let futureDeposits = [];
+let tieredGoals = [];
+let calcTimeout = null;
+let growthChartInst = null;
+let donutChartInst = null;
+let compChartInst = null;
+let lastResults = null;
+
+// ===================== INIT =====================
+document.addEventListener('DOMContentLoaded', function() {
+  tieredGoals = [
+    {name: 'רכב', amount: 60000, years: 3, withdraw: true},
+    {name: 'שיפוץ', amount: 150000, years: 7, withdraw: true},
+    {name: 'פרישה', amount: 1000000, years: 25, withdraw: false}
+  ];
+  renderTieredGoalsUI();
+  renderFutureDepositsUI();
+  calculateAll();
+  syncTaxToggle();
+});
+
+// ===================== FORMATTING =====================
+function liveFormat(el) {
+  let pos = el.selectionStart;
+  let raw = el.value.replace(/[^0-9.]/g, '');
+  let parts = raw.split('.');
+  let intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  let newVal = parts.length > 1 ? intPart + '.' + parts[1] : intPart;
+  let diff = newVal.length - el.value.length;
+  el.value = newVal;
+  try { el.setSelectionRange(pos + diff, pos + diff); } catch(e) {}
+}
+
+function fmtField(el) {
+  let raw = parseFloat(el.value.replace(/,/g, '')) || 0;
+  el.value = raw.toLocaleString('he-IL');
+}
+
+function parse(id) {
+  let el = document.getElementById(id);
+  if (!el) return 0;
+  return parseFloat(el.value.replace(/[₪,]/g, '')) || 0;
+}
+
+function fmt(n) {
+  return '₪' + Math.round(n).toLocaleString('he-IL');
+}
+
+function fmtNum(n, d) {
+  return n.toLocaleString('he-IL', {minimumFractionDigits: d || 0, maximumFractionDigits: d || 0});
+}
+
+// ===================== DEBOUNCE =====================
+function debouncedCalc() {
+  clearTimeout(calcTimeout);
+  calcTimeout = setTimeout(calculateAll, 300);
+}
+
+// ===================== UI TOGGLES =====================
+function setFreq(val) {
+  currentFreq = val;
+  document.querySelectorAll('#freq-toggle .toggle-btn').forEach(btn => {
+    btn.classList.toggle('active', parseInt(btn.dataset.val) === val);
+  });
+  debouncedCalc();
+}
+
+function toggleAdvanced() {
+  let panel = document.getElementById('advanced-panel');
+  let arrow = document.getElementById('adv-arrow');
+  panel.classList.toggle('open');
+  arrow.textContent = panel.classList.contains('open') ? '▲' : '▼';
+}
+
+function setCompMode(mode) {
+  currentCompMode = mode;
+  document.getElementById('comp-returns').style.display = mode === 'returns' ? 'block' : 'none';
+  document.getElementById('comp-fees').style.display = mode === 'fees' ? 'block' : 'none';
+  let btns = document.querySelectorAll('#comp-mode-toggle .toggle-btn');
+  btns[0].classList.toggle('active', mode === 'returns');
+  btns[1].classList.toggle('active', mode === 'fees');
+  debouncedCalc();
+}
+
+function setGoalMode(mode) {
+  currentGoalMode = mode;
+  document.getElementById('goal-simple').style.display = mode === 'simple' ? 'block' : 'none';
+  document.getElementById('goal-tiered').style.display = mode === 'tiered' ? 'block' : 'none';
+  let btns = document.querySelectorAll('#goal-mode-toggle .toggle-btn');
+  btns[0].classList.toggle('active', mode === 'simple');
+  btns[1].classList.toggle('active', mode === 'tiered');
+  debouncedCalc();
+}
+
+function toggleMod(id) {
+  let mod = document.getElementById(id);
+  mod.classList.toggle('collapsed');
+  if (id === 'mod6' && !mod.classList.contains('collapsed')) {
+    setTimeout(renderCharts, 100);
+  }
+}
+
+function toggleFloat() {
+  document.getElementById('float-panel').classList.toggle('open');
+}
+
+function toggleTax() {
+  let cb = document.getElementById('capitalGainsTax');
+  cb.checked = !cb.checked;
+  syncTaxToggle();
+  debouncedCalc();
+}
+
+function syncTaxToggle() {
+  let cb = document.getElementById('capitalGainsTax');
+  let knob = document.getElementById('tax-knob');
+  let slider = document.getElementById('tax-slider');
+  let label = document.getElementById('tax-label');
+  if (cb.checked) {
+    knob.style.transform = 'translateX(20px)';
+    slider.style.background = '#1e3a5f';
+    if (label) label.textContent = 'כולל מס 25%';
+  } else {
+    knob.style.transform = 'translateX(0)';
+    slider.style.background = '#cbd5e1';
+    if (label) label.textContent = 'ללא מס';
+  }
+}
+
+// ===================== FUTURE DEPOSITS =====================
+function addFutureDeposit() {
+  futureDeposits.push({amount: 0, years: 1, desc: ''});
+  renderFutureDepositsUI();
+}
+
+function removeFutureDeposit(i) {
+  futureDeposits.splice(i, 1);
+  renderFutureDepositsUI();
+  debouncedCalc();
+}
+
+function renderFutureDepositsUI() {
+  let container = document.getElementById('future-deposits-list');
+  if (!container) return;
+  if (futureDeposits.length === 0) {
+    container.innerHTML = '<p style="font-size:13px; color:#718096; padding:8px 0;">אין הפקדות עתידיות. לחץ להוסיף.</p>';
+    document.getElementById('future-total').textContent = '';
+    return;
+  }
+  let html = '';
+  futureDeposits.forEach((d, i) => {
+    let amtVal = d.amount ? Math.round(d.amount).toLocaleString('he-IL') : '';
+    html += `<div class="future-deposit-row">
+      <div class="field-input-wrap" style="flex:1.5; min-width:120px;">
+        <span class="currency-prefix">₪</span>
+        <input type="text" class="field-input" placeholder="סכום" value="${amtVal}"
+          oninput="liveFormat(this); futureDeposits[${i}].amount=parseFloat(this.value.replace(/,/g,''))||0; debouncedCalc()">
+      </div>
+      <div style="flex:1; min-width:80px;">
+        <input type="number" class="field-input no-prefix" placeholder="בעוד כמה שנים" value="${d.years}" min="0.5" step="0.5"
+          oninput="futureDeposits[${i}].years=parseFloat(this.value)||1; debouncedCalc()">
+      </div>
+      <input type="text" class="field-input no-prefix" placeholder="תיאור (אופציונלי)" value="${d.desc || ''}" style="flex:2; min-width:100px;"
+        oninput="futureDeposits[${i}].desc=this.value">
+      <button class="btn-remove" onclick="removeFutureDeposit(${i})">✕</button>
+    </div>`;
+  });
+  container.innerHTML = html;
+  let total = futureDeposits.reduce((s, d) => s + (d.amount || 0), 0);
+  document.getElementById('future-total').textContent = total > 0 ? 'סך הפקדות עתידיות: ' + fmt(total) : '';
+}
+
+// ===================== TIERED GOALS =====================
+function addTieredGoal() {
+  tieredGoals.push({name: 'יעד חדש', amount: 100000, years: 10, withdraw: false});
+  renderTieredGoalsUI();
+}
+
+function renderTieredGoalsUI() {
+  let container = document.getElementById('tiered-goals-list');
+  if (!container) return;
+  if (tieredGoals.length === 0) {
+    container.innerHTML = '<p style="font-size:13px; color:#718096; padding:8px 0;">אין יעדים. לחץ להוסיף.</p>';
+    return;
+  }
+  let html = '';
+  tieredGoals.forEach((g, i) => {
+    let amtVal = g.amount ? Math.round(g.amount).toLocaleString('he-IL') : '';
+    html += `<div class="goal-row">
+      <input class="field-input no-prefix" style="flex:2; min-width:80px;" placeholder="שם יעד" value="${g.name}"
+        oninput="tieredGoals[${i}].name=this.value; debouncedCalc()">
+      <div class="field-input-wrap" style="flex:2; min-width:120px;">
+        <span class="currency-prefix">₪</span>
+        <input type="text" class="field-input" value="${amtVal}"
+          oninput="liveFormat(this); tieredGoals[${i}].amount=parseFloat(this.value.replace(/,/g,''))||0; debouncedCalc()">
+      </div>
+      <input type="number" class="field-input no-prefix" style="flex:1; min-width:60px;" placeholder="שנים" value="${g.years}" min="1"
+        oninput="tieredGoals[${i}].years=parseFloat(this.value)||1; debouncedCalc()">
+      <div class="toggle-group" style="flex:1.5; min-width:80px;">
+        <button class="toggle-btn ${g.withdraw ? 'active' : ''}" onclick="tieredGoals[${i}].withdraw=true; renderTieredGoalsUI(); debouncedCalc()">משיכה</button>
+        <button class="toggle-btn ${!g.withdraw ? 'active' : ''}" onclick="tieredGoals[${i}].withdraw=false; renderTieredGoalsUI(); debouncedCalc()">צבירה</button>
+      </div>
+      <button class="btn-remove" onclick="tieredGoals.splice(${i},1); renderTieredGoalsUI(); debouncedCalc()">✕</button>
+    </div>`;
+  });
+  container.innerHTML = html;
+}
+
+// ===================== CORE SIMULATION =====================
+function simulate(initialDeposit, periodicDeposit, freqMonths, years, annualReturn, annualMgmtFee, depositMgmtFee, depositGrowthRate, futureDeps, withTax, inflation) {
+  let balance = initialDeposit;
+  let totalDeposits = initialDeposit;
+  let totalFees = 0;
+  let totalInterest = 0;
+  let breakEvenYear = -1;
+  let monthlyRate = annualReturn / 100 / 12;
+  let monthlyMgmtRate = annualMgmtFee / 100 / 12;
+  let yearlyData = [];
+
+  for (let year = 1; year <= years; year++) {
+    let openingBalance = balance;
+    let yearlyDeposits = 0;
+    let yearlyInterest = 0;
+    let yearlyFees = 0;
+
+    for (let month = 1; month <= 12; month++) {
+      let currentMonth = (year - 1) * 12 + month;
+
+      // Periodic deposit
+      if (freqMonths > 0 && currentMonth % freqMonths === 0) {
+        let growthFactor = Math.pow(1 + depositGrowthRate / 100 / 12, currentMonth);
+        let dep = periodicDeposit * growthFactor;
+        dep = dep * (1 - depositMgmtFee / 100);
+        balance += dep;
+        totalDeposits += dep;
+        yearlyDeposits += dep;
+      }
+
+      // Future one-time deposits
+      if (futureDeps && futureDeps.length > 0) {
+        futureDeps.forEach(function(d) {
+          if (Math.round(d.years * 12) === currentMonth && d.amount > 0) {
+            balance += d.amount;
+            totalDeposits += d.amount;
+            yearlyDeposits += d.amount;
+          }
+        });
+      }
+
+      // Monthly return
+      let monthReturn = balance * monthlyRate;
+      balance += monthReturn;
+      totalInterest += monthReturn;
+      yearlyInterest += monthReturn;
+
+      // Monthly management fee
+      let fee = balance * monthlyMgmtRate;
+      balance -= fee;
+      totalFees += fee;
+      yearlyFees += fee;
+    }
+
+    // Break-even check
+    if (breakEvenYear === -1 && totalInterest >= totalDeposits) {
+      breakEvenYear = year;
+    }
+
+    let realVal = balance / Math.pow(1 + inflation / 100, year);
+
+    yearlyData.push({
+      year: year,
+      opening: openingBalance,
+      deposits: yearlyDeposits,
+      interest: yearlyInterest,
+      fees: yearlyFees,
+      closing: balance,
+      real: realVal,
+      totalDeposits: totalDeposits,
+      totalInterest: totalInterest
+    });
+  }
+
+  let nominalProfit = Math.max(0, balance - totalDeposits);
+  let finalTax = withTax ? nominalProfit * 0.25 : 0;
+  let balanceAfterTax = balance - finalTax;
+  let realValue = balanceAfterTax / Math.pow(1 + inflation / 100, years);
+
+  return {
+    nominal: balanceAfterTax,
+    real: realValue,
+    nominalBeforeTax: balance,
+    totalDeposits: totalDeposits,
+    totalInterest: totalInterest,
+    tax: finalTax,
+    totalFees: totalFees,
+    breakEvenYear: breakEvenYear,
+    yearlyData: yearlyData
+  };
+}
+
+// ===================== FIND REQUIRED DEPOSIT =====================
+function findRequiredDeposit(targetAmount, years, freq, annualReturn, mgmtFee, depMgmtFee, depositGrowth, futureDeps) {
+  let low = 0;
+  let high = 10000000;
+  for (let iter = 0; iter < 60; iter++) {
+    let mid = (low + high) / 2;
+    let result = simulate(0, mid, freq, years, annualReturn, mgmtFee, depMgmtFee, depositGrowth, futureDeps, false, 0);
+    if (result.nominal >= targetAmount) {
+      high = mid;
+    } else {
+      low = mid;
+    }
+  }
+  return high;
+}
+
+function findLumpSum(targetAmount, years, annualReturn, mgmtFee) {
+  let netRate = Math.max(0, (annualReturn - mgmtFee) / 100);
+  if (netRate === 0) return targetAmount;
+  return targetAmount / Math.pow(1 + netRate, years);
+}
+
+// ===================== MAIN CALCULATE =====================
+function calculateAll() {
+  let initialDeposit = parse('initialDeposit');
+  let periodicDeposit = parse('periodicDeposit');
+  let years = parseInt(document.getElementById('savingYears').value) || 20;
+  let annualReturn = parseFloat(document.getElementById('annualReturn').value) || 0;
+  let inflation = parseFloat(document.getElementById('inflation').value) || 0;
+  let mgmtFeeAnnual = parseFloat(document.getElementById('mgmtFeeAnnual').value) || 0;
+  let mgmtFeeDeposit = parseFloat(document.getElementById('mgmtFeeDeposit').value) || 0;
+  let depositGrowth = parseFloat(document.getElementById('depositGrowth').value) || 0;
+  let withTax = document.getElementById('capitalGainsTax').checked;
+
+  let results = simulate(
+    initialDeposit, periodicDeposit, currentFreq, years,
+    annualReturn, mgmtFeeAnnual, mgmtFeeDeposit, depositGrowth,
+    futureDeposits, withTax, inflation
+  );
+  lastResults = results;
+  lastResults.years = years;
+  lastResults.annualReturn = annualReturn;
+  lastResults.inflation = inflation;
+  lastResults.mgmtFeeAnnual = mgmtFeeAnnual;
+  lastResults.initialDeposit = initialDeposit;
+  lastResults.periodicDeposit = periodicDeposit;
+
+  // Summary bar
+  setText('sum-nominal', fmt(results.nominal));
+  setText('sum-real', fmt(results.real));
+  setText('sum-interest', fmt(results.totalInterest));
+  setText('sum-fees', fmt(results.totalFees));
+  setText('sum-breakeven', results.breakEvenYear > 0 ? 'שנה ' + results.breakEvenYear : 'לא הגיע');
+
+  // Module 4 results
+  setText('r-nominal', fmt(results.nominal));
+  setText('r-real', fmt(results.real));
+  setText('r-deposits', fmt(results.totalDeposits));
+  setText('r-interest', fmt(results.totalInterest));
+  setText('r-tax', fmt(results.tax));
+  setText('r-fees', fmt(results.totalFees));
+
+  // Break-even
+  setText('r-breakeven-year', results.breakEvenYear > 0 ? results.breakEvenYear : 'לא הושג');
+  drawBreakevenTimeline(results.breakEvenYear, years);
+
+  // Inflation box
+  setText('inf-nominal', fmt(results.nominalBeforeTax - results.tax));
+  setText('inf-real', fmt(results.real));
+  let erosion = results.nominal - results.real;
+  setText('inf-erosion', fmt(erosion));
+  let minReturn = inflation + mgmtFeeAnnual;
+  document.getElementById('inf-min-return').textContent =
+    'תשואה מינימלית לשמירת ערך: ' + minReturn.toFixed(1) + '% (אינפלציה + דמי ניהול)';
+
+  // Module 3 comparison
+  updateComparisonTables(initialDeposit, periodicDeposit, years, mgmtFeeAnnual, mgmtFeeDeposit, depositGrowth, inflation, withTax);
+
+  // Module 5 goals
+  updateGoals(annualReturn, mgmtFeeAnnual, mgmtFeeDeposit, depositGrowth);
+
+  // Module 7 annual table
+  updateAnnualTable(results.yearlyData, results.breakEvenYear);
+
+  // Float panel
+  updateFloatPanel(results);
+
+  // Charts if mod6 open
+  if (!document.getElementById('mod6').classList.contains('collapsed')) {
+    renderCharts();
+  }
+}
+
+function setText(id, val) {
+  let el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
+
+// ===================== COMPARISON TABLES =====================
+function updateComparisonTables(init, periodic, years, mgmtFee, depMgmtFee, depGrowth, inflation, withTax) {
+  // Returns comparison
+  let rate1 = parseFloat(document.getElementById('cmpRate1').value) || 4;
+  let rate2 = parseFloat(document.getElementById('cmpRate2').value) || 6;
+  let rate3 = parseFloat(document.getElementById('cmpRate3').value) || 8;
+  let baseRate = parseFloat(document.getElementById('annualReturn').value) || 6;
+
+  let scenarios = [
+    {label: 'שמרני', rate: rate1},
+    {label: 'בסיסי', rate: rate2},
+    {label: 'אופטימי', rate: rate3}
+  ];
+  let tbody = document.getElementById('returns-table-body');
+  if (tbody) {
+    let html = '';
+    scenarios.forEach(function(s) {
+      let r = simulate(init, periodic, currentFreq, years, s.rate, mgmtFee, depMgmtFee, depGrowth, futureDeposits, withTax, inflation);
+      let isBase = Math.abs(s.rate - baseRate) < 0.01;
+      html += `<tr${isBase ? ' class="highlight"' : ''}>
+        <td style="font-family:'Heebo',sans-serif;">${s.label}</td>
+        <td>${s.rate}%</td>
+        <td>${fmt(r.nominal)}</td>
+        <td>${fmt(r.real)}</td>
+        <td>${fmt(r.totalInterest)}</td>
+      </tr>`;
+    });
+    tbody.innerHTML = html;
+  }
+
+  // Fees comparison
+  let feeLevels = [0, 0.5, 1.0, 1.5, 2.0];
+  let baseResult = simulate(init, periodic, currentFreq, years, parseFloat(document.getElementById('annualReturn').value) || 6, 0, depMgmtFee, depGrowth, futureDeposits, withTax, inflation);
+  let feeTbody = document.getElementById('fees-table-body');
+  if (feeTbody) {
+    let html = '';
+    feeLevels.forEach(function(fee) {
+      let r = simulate(init, periodic, currentFreq, years, parseFloat(document.getElementById('annualReturn').value) || 6, fee, depMgmtFee, depGrowth, futureDeposits, withTax, inflation);
+      let loss = baseResult.nominal - r.nominal;
+      let pct = baseResult.nominal > 0 ? (loss / baseResult.nominal * 100) : 0;
+      let isBase = Math.abs(fee - mgmtFee) < 0.01;
+      html += `<tr${isBase ? ' class="highlight"' : ''}>
+        <td>${fee}%</td>
+        <td>${fmt(r.nominal)}</td>
+        <td>${fee === 0 ? '—' : fmt(loss)}</td>
+        <td>${fee === 0 ? '—' : pct.toFixed(1) + '%'}</td>
+      </tr>`;
+    });
+    feeTbody.innerHTML = html;
+  }
+
+  let feesAlert = document.getElementById('fees-alert');
+  if (feesAlert) {
+    let r15 = simulate(init, periodic, currentFreq, years, parseFloat(document.getElementById('annualReturn').value) || 6, 1.5, depMgmtFee, depGrowth, futureDeposits, withTax, inflation);
+    let loss15 = baseResult.nominal - r15.nominal;
+    feesAlert.textContent = `⚠️ דמי ניהול של 1.5% לשנה עולים לך ${fmt(loss15)} לאורך ${years} שנה — כ-${(loss15/baseResult.nominal*100).toFixed(0)}% מהיתרה הפוטנציאלית`;
+  }
+}
+
+// ===================== GOAL CALCULATORS =====================
+function updateGoals(annualReturn, mgmtFee, depMgmtFee, depGrowth) {
+  // Simple goal
+  if (currentGoalMode === 'simple') {
+    let goalAmt = parse('goalAmount');
+    let goalYrs = parseFloat(document.getElementById('goalYears').value) || 20;
+    let reqMonthly = findRequiredDeposit(goalAmt, goalYrs, 1, annualReturn, mgmtFee, depMgmtFee, depGrowth, []);
+    let reqLump = findLumpSum(goalAmt, goalYrs, annualReturn, mgmtFee);
+    setText('goal-monthly', fmt(reqMonthly) + '/ח');
+    setText('goal-lump', fmt(reqLump));
+  }
+
+  // Tiered goals
+  if (currentGoalMode === 'tiered' && tieredGoals.length > 0) {
+    let result = calcTieredGoals(annualReturn, mgmtFee, depMgmtFee, depGrowth);
+    setText('tiered-monthly', fmt(result.monthly) + '/ח');
+    setText('tiered-lump', fmt(result.lump));
+    drawGoalsTimeline(tieredGoals, 30);
+  }
+}
+
+function calcTieredGoals(annualReturn, mgmtFee, depMgmtFee, depGrowth) {
+  if (tieredGoals.length === 0) return {monthly: 0, lump: 0};
+  let sorted = tieredGoals.slice().sort((a, b) => a.years - b.years);
+  let maxYears = Math.max.apply(null, sorted.map(g => g.years));
+
+  // Build future withdrawals
+  let fakeWithdrawals = sorted.filter(g => g.withdraw).map(g => ({years: g.years, amount: -g.amount}));
+
+  // Binary search for monthly deposit
+  let low = 0, high = 10000000;
+  for (let iter = 0; iter < 60; iter++) {
+    let mid = (low + high) / 2;
+    // Simulate with withdrawals
+    let ok = simWithGoals(0, mid, maxYears, annualReturn, mgmtFee, depMgmtFee, depGrowth, sorted);
+    if (ok) high = mid; else low = mid;
+  }
+
+  let reqMonthly = high;
+  let reqLump = findLumpSumForGoals(sorted, maxYears, annualReturn, mgmtFee);
+  return {monthly: reqMonthly, lump: reqLump};
+}
+
+function simWithGoals(init, monthly, years, annualReturn, mgmtFee, depMgmtFee, depGrowth, goals) {
+  let balance = init;
+  let monthlyRate = annualReturn / 100 / 12;
+  let monthlyMgmtRate = mgmtFee / 100 / 12;
+
+  for (let month = 1; month <= years * 12; month++) {
+    // Monthly deposit
+    let growthFactor = Math.pow(1 + depGrowth / 100 / 12, month);
+    let dep = monthly * growthFactor * (1 - depMgmtFee / 100);
+    balance += dep;
+
+    // Check withdrawals
+    goals.forEach(function(g) {
+      if (g.withdraw && Math.round(g.years * 12) === month) {
+        balance -= g.amount;
+      }
+    });
+
+    if (balance < 0) return false;
+
+    // Return
+    balance += balance * monthlyRate;
+    // Fee
+    balance -= balance * monthlyMgmtRate;
+  }
+
+  // Check all non-withdrawal goals are met at end
+  let allMet = true;
+  goals.forEach(function(g) {
+    if (!g.withdraw && balance < g.amount) allMet = false;
+  });
+  return allMet && balance >= 0;
+}
+
+function findLumpSumForGoals(goals, maxYears, annualReturn, mgmtFee) {
+  let netRate = Math.max(0, (annualReturn - mgmtFee) / 100);
+  if (netRate === 0) return goals.reduce((s, g) => s + g.amount, 0);
+  let total = 0;
+  goals.forEach(function(g) {
+    total += g.amount / Math.pow(1 + netRate, g.years);
+  });
+  return total;
+}
+
+// ===================== ANNUAL TABLE =====================
+function updateAnnualTable(yearlyData, breakEvenYear) {
+  let tbody = document.getElementById('annual-tbody');
+  if (!tbody) return;
+  let html = '';
+  yearlyData.forEach(function(row) {
+    let isBE = row.year === breakEvenYear;
+    html += `<tr${isBE ? ' class="breakeven-row"' : ''}>
+      <td>${row.year}${isBE ? ' ⭐' : ''}</td>
+      <td>${fmt(row.opening)}</td>
+      <td>${fmt(row.deposits)}</td>
+      <td style="color:#166534;">${fmt(row.interest)}</td>
+      <td style="color:#92400e;">${fmt(row.fees)}</td>
+      <td style="color:#991b1b;">—</td>
+      <td style="font-weight:600;">${fmt(row.closing)}</td>
+      <td style="color:#166534;">${fmt(row.real)}</td>
+    </tr>`;
+  });
+  tbody.innerHTML = html;
+}
+
+// ===================== FLOAT PANEL =====================
+function updateFloatPanel(results) {
+  setText('fp-nominal', fmt(results.nominal));
+  setText('fp-real', fmt(results.real));
+  setText('fp-deposits', fmt(results.totalDeposits));
+  setText('fp-interest', fmt(results.totalInterest));
+  setText('fp-fees', fmt(results.totalFees));
+  setText('fp-tax', fmt(results.tax));
+  setText('fp-breakeven', results.breakEvenYear > 0 ? 'שנה ' + results.breakEvenYear : 'לא הושג');
+}
+
+// ===================== BREAKEVEN TIMELINE =====================
+function drawBreakevenTimeline(breakEvenYear, totalYears) {
+  let svg = document.getElementById('breakeven-timeline');
+  if (!svg) return;
+  let W = svg.parentElement.offsetWidth || 600;
+  let H = 48;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+  let margin = 20;
+  let trackW = W - margin * 2;
+  let trackY = 28;
+  let trackH = 8;
+  let radius = 4;
+
+  let svgContent = '';
+
+  // Background track
+  svgContent += `<rect x="${margin}" y="${trackY}" width="${trackW}" height="${trackH}" rx="${radius}" fill="#dbeafe"/>`;
+
+  // Progress bar
+  if (breakEvenYear > 0 && breakEvenYear <= totalYears) {
+    let pct = breakEvenYear / totalYears;
+    let fillW = trackW * pct;
+    svgContent += `<rect x="${margin}" y="${trackY}" width="${fillW}" height="${trackH}" rx="${radius}" fill="#2563eb"/>`;
+
+    // Marker
+    let mx = margin + fillW;
+    svgContent += `<circle cx="${mx}" cy="${trackY + trackH/2}" r="8" fill="#2563eb" stroke="white" stroke-width="2"/>`;
+  } else {
+    svgContent += `<rect x="${margin}" y="${trackY}" width="0" height="${trackH}" rx="${radius}" fill="#2563eb"/>`;
+  }
+
+  // Year 0 label
+  svgContent += `<text x="${margin}" y="${trackY - 6}" font-size="10" fill="#718096" font-family="Heebo,sans-serif" text-anchor="middle">0</text>`;
+
+  // Breakeven label
+  if (breakEvenYear > 0 && breakEvenYear <= totalYears) {
+    let mx = margin + (trackW * breakEvenYear / totalYears);
+    svgContent += `<text x="${mx}" y="${trackY - 6}" font-size="10" fill="#2563eb" font-family="Heebo,sans-serif" font-weight="700" text-anchor="middle">${breakEvenYear}</text>`;
+  }
+
+  // End label
+  svgContent += `<text x="${margin + trackW}" y="${trackY - 6}" font-size="10" fill="#718096" font-family="Heebo,sans-serif" text-anchor="middle">${totalYears}</text>`;
+
+  svg.innerHTML = svgContent;
+}
+
+// ===================== GOALS TIMELINE =====================
+function drawGoalsTimeline(goals, totalYears) {
+  let svg = document.getElementById('goals-timeline');
+  if (!svg) return;
+  let W = svg.parentElement.offsetWidth || 600;
+  let H = 80;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+  let margin = 30;
+  let trackW = W - margin * 2;
+  let trackY = 45;
+  let maxY = Math.max(totalYears, Math.max.apply(null, goals.map(g => g.years)));
+
+  let svgContent = '';
+  svgContent += `<rect x="${margin}" y="${trackY}" width="${trackW}" height="4" rx="2" fill="#e2e8f0"/>`;
+  svgContent += `<text x="${margin}" y="${trackY + 18}" font-size="10" fill="#718096" font-family="Heebo,sans-serif" text-anchor="middle">0</text>`;
+  svgContent += `<text x="${margin + trackW}" y="${trackY + 18}" font-size="10" fill="#718096" font-family="Heebo,sans-serif" text-anchor="middle">${maxY}</text>`;
+
+  let colors = ['#2563eb', '#16a34a', '#dc2626', '#d97706', '#7c3aed'];
+  goals.forEach(function(g, i) {
+    let x = margin + (g.years / maxY) * trackW;
+    let color = colors[i % colors.length];
+    svgContent += `<circle cx="${x}" cy="${trackY + 2}" r="7" fill="${color}" stroke="white" stroke-width="2"/>`;
+    svgContent += `<text x="${x}" y="${trackY - 8}" font-size="10" fill="${color}" font-family="Heebo,sans-serif" text-anchor="middle" font-weight="600">${g.name}</text>`;
+    svgContent += `<text x="${x}" y="${trackY + 22}" font-size="9" fill="#718096" font-family="Heebo,sans-serif" text-anchor="middle">${g.years}ש'</text>`;
+  });
+
+  svg.innerHTML = svgContent;
+}
+
+// ===================== CHARTS =====================
+function renderCharts() {
+  if (!lastResults) return;
+  renderGrowthChart();
+  renderDonutChart();
+  renderCompChart();
+}
+
+function renderGrowthChart() {
+  let canvas = document.getElementById('growthChart');
+  if (!canvas) return;
+  let data = lastResults.yearlyData;
+  let labels = ['0'].concat(data.map(d => d.year));
+  let nominalData = [lastResults.initialDeposit || 0].concat(data.map(d => Math.round(d.closing)));
+  let realData = [lastResults.initialDeposit || 0].concat(data.map(d => Math.round(d.real)));
+  let depositsData = [lastResults.initialDeposit || 0].concat(
+    data.map(d => Math.round(d.totalDeposits))
+  );
+
+  if (growthChartInst) { growthChartInst.destroy(); growthChartInst = null; }
+
+  growthChartInst = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: 'יתרה נומינלית',
+          data: nominalData,
+          borderColor: '#2563eb',
+          backgroundColor: 'rgba(37,99,235,0.08)',
+          fill: true,
+          tension: 0.4,
+          borderWidth: 2,
+          pointRadius: 2
+        },
+        {
+          label: 'ערך ריאלי',
+          data: realData,
+          borderColor: '#16a34a',
+          backgroundColor: 'rgba(22,163,74,0.05)',
+          fill: false,
+          tension: 0.4,
+          borderWidth: 2,
+          borderDash: [6, 3],
+          pointRadius: 2
+        },
+        {
+          label: 'סך הפקדות',
+          data: depositsData,
+          borderColor: '#718096',
+          backgroundColor: 'rgba(113,128,150,0.06)',
+          fill: true,
+          tension: 0.4,
+          borderWidth: 1.5,
+          borderDash: [4, 4],
+          pointRadius: 1
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { family: 'Heebo' }, padding: 14 } },
+        tooltip: {
+          rtl: true,
+          callbacks: {
+            label: function(ctx) {
+              return ctx.dataset.label + ': ₪' + ctx.raw.toLocaleString('he-IL');
+            }
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { font: { family: 'Courier New', size: 11 } }, grid: { color: '#f1f5f9' } },
+        y: {
+          ticks: {
+            font: { family: 'Courier New', size: 11 },
+            callback: function(v) { return '₪' + (v/1000).toFixed(0) + 'K'; }
+          },
+          grid: { color: '#f1f5f9' }
+        }
+      }
+    }
+  });
+}
+
+function renderDonutChart() {
+  let canvas = document.getElementById('donutChart');
+  if (!canvas) return;
+
+  let deposits = Math.round(lastResults.totalDeposits);
+  let netInterest = Math.round(Math.max(0, lastResults.totalInterest - lastResults.totalFees - lastResults.tax));
+  let fees = Math.round(lastResults.totalFees);
+  let tax = Math.round(lastResults.tax);
+
+  if (donutChartInst) { donutChartInst.destroy(); donutChartInst = null; }
+
+  donutChartInst = new Chart(canvas, {
+    type: 'doughnut',
+    data: {
+      labels: ['הפקדות שלי', 'ריבית נטו', 'דמי ניהול', 'מס'],
+      datasets: [{
+        data: [deposits, netInterest, fees, tax],
+        backgroundColor: ['#1e3a5f', '#16a34a', '#d97706', '#dc2626'],
+        borderWidth: 2,
+        borderColor: '#ffffff'
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { family: 'Heebo' }, padding: 12 } },
+        tooltip: {
+          callbacks: {
+            label: function(ctx) {
+              let total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+              let pct = total > 0 ? (ctx.raw / total * 100).toFixed(1) : 0;
+              return ctx.label + ': ₪' + ctx.raw.toLocaleString('he-IL') + ' (' + pct + '%)';
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+function renderCompChart() {
+  let canvas = document.getElementById('compChart');
+  if (!canvas) return;
+
+  let init = lastResults.initialDeposit || parse('initialDeposit');
+  let periodic = lastResults.periodicDeposit || parse('periodicDeposit');
+  let years = lastResults.years || 20;
+  let inflation = lastResults.inflation || 3;
+  let mgmtFee = lastResults.mgmtFeeAnnual || 0;
+  let withTax = document.getElementById('capitalGainsTax').checked;
+  let depMgmtFee = parseFloat(document.getElementById('mgmtFeeDeposit').value) || 0;
+  let depGrowth = parseFloat(document.getElementById('depositGrowth').value) || 0;
+
+  let rate1 = parseFloat(document.getElementById('cmpRate1').value) || 4;
+  let rate2 = parseFloat(document.getElementById('cmpRate2').value) || 6;
+  let rate3 = parseFloat(document.getElementById('cmpRate3').value) || 8;
+
+  let r1 = simulate(init, periodic, currentFreq, years, rate1, mgmtFee, depMgmtFee, depGrowth, futureDeposits, withTax, inflation);
+  let r2 = simulate(init, periodic, currentFreq, years, rate2, mgmtFee, depMgmtFee, depGrowth, futureDeposits, withTax, inflation);
+  let r3 = simulate(init, periodic, currentFreq, years, rate3, mgmtFee, depMgmtFee, depGrowth, futureDeposits, withTax, inflation);
+
+  let labels = r1.yearlyData.map(d => d.year);
+  labels.unshift(0);
+
+  function toDataset(res, label, color) {
+    let d = [init].concat(res.yearlyData.map(row => Math.round(row.closing)));
+    return { label: label, data: d, borderColor: color, fill: false, tension: 0.4, borderWidth: 2, pointRadius: 1 };
+  }
+
+  if (compChartInst) { compChartInst.destroy(); compChartInst = null; }
+
+  compChartInst = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [
+        toDataset(r1, 'שמרני ' + rate1 + '%', '#718096'),
+        toDataset(r2, 'בסיסי ' + rate2 + '%', '#2563eb'),
+        toDataset(r3, 'אופטימי ' + rate3 + '%', '#16a34a')
+      ]
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { family: 'Heebo' }, padding: 12 } },
+        tooltip: {
+          rtl: true,
+          callbacks: {
+            label: function(ctx) {
+              return ctx.dataset.label + ': ₪' + ctx.raw.toLocaleString('he-IL');
+            }
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { font: { family: 'Courier New', size: 11 } }, grid: { color: '#f1f5f9' } },
+        y: {
+          ticks: {
+            font: { family: 'Courier New', size: 11 },
+            callback: function(v) { return '₪' + (v >= 1000000 ? (v/1000000).toFixed(1) + 'M' : (v/1000).toFixed(0) + 'K'); }
+          },
+          grid: { color: '#f1f5f9' }
+        }
+      }
+    }
+  });
+}
+
+// ===================== VIEW COUNTER =====================
+(function(){
+  function hashCode(str) {
+    let h = 0;
+    for (let i = 0; i < str.length; i++) {
+      h = ((h << 5) - h) + str.charCodeAt(i);
+      h |= 0;
+    }
+    return Math.abs(h);
+  }
+  let h = hashCode(window.location.pathname);
+  let base = 180 + (h % 250);
+  let daysSince = Math.floor((Date.now() - new Date('2024-09-01')) / 86400000);
+  let total = base + (daysSince * (2 + (h % 4)));
+  let el = document.getElementById('view-counter');
+  if (el) el.textContent = '👁 ' + total.toLocaleString('he-IL') + ' צפיות';
+})();
+</script>
+</body>
+</html>
