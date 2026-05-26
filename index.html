@@ -1232,6 +1232,63 @@
     transform: translateY(-3px);
     box-shadow: 0 8px 24px rgba(0,0,0,0.10);
   }
+
+  /* ── Hero cards (first 3) ── */
+  .calc-dir-card--hero {
+    padding: 0;
+    overflow: hidden;
+  }
+  .calc-dir-card-top {
+    padding: 26px 24px 22px;
+    position: relative;
+    overflow: hidden;
+    min-height: 150px;
+  }
+  /* decorative circles inside the top band */
+  .calc-dir-card-top::before,
+  .calc-dir-card-top::after {
+    content: '';
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.09);
+    pointer-events: none;
+  }
+  .calc-dir-card-top::before { width: 120px; height: 120px; top: -30px; left: -30px; }
+  .calc-dir-card-top::after  { width: 80px;  height: 80px;  bottom: -20px; right: 20px; }
+  .calc-dir-hero-icon {
+    font-size: 34px;
+    display: block;
+    margin-bottom: 10px;
+    position: relative;
+    z-index: 1;
+  }
+  .calc-dir-hero-title {
+    font-size: 17px;
+    font-weight: 700;
+    color: #ffffff;
+    margin: 0 0 12px 0;
+    font-family: 'Heebo', sans-serif;
+    line-height: 1.3;
+    position: relative;
+    z-index: 1;
+  }
+  .calc-dir-hero-tags {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    position: relative; z-index: 1;
+  }
+  .calc-dir-hero-tag {
+    font-size: 11px; font-weight: 600;
+    color: rgba(255,255,255,0.92);
+    background: rgba(255,255,255,0.18);
+    padding: 3px 10px; border-radius: 20px;
+    font-family: 'Heebo', sans-serif;
+  }
+  .calc-dir-card-body {
+    padding: 18px 24px 22px;
+    display: flex; flex-direction: column; flex: 1;
+  }
+  .calc-dir-card-body .calc-dir-desc { margin-bottom: 16px; }
+
   .calc-dir-icon {
     width: 52px; height: 52px;
     border-radius: 50%;
@@ -1348,44 +1405,56 @@
   <!-- ── רשת כרטיסי מחשבונים ──────────────────────────── -->
   <div class="calc-dir-grid">
 
-    <!-- כרטיס 1: פרישה -->
-    <div class="calc-dir-card">
-      <div class="calc-dir-icon" style="background:#eff6ff;">🏦</div>
-      <h4 class="calc-dir-title">מחשבון פרישה מתקדם</h4>
-      <p class="calc-dir-desc">חשב את קצבת הפנסיה הצפויה שלך, סך הצבירה, מס אמיתי ועוד — לשכירים ועצמאיים, כולל מס 2026</p>
-      <div class="calc-dir-tags">
-        <span class="calc-dir-tag">פנסיה</span>
-        <span class="calc-dir-tag">מס אמיתי</span>
-        <span class="calc-dir-tag">שכיר + עצמאי</span>
+    <!-- כרטיס 1: פרישה — hero כחול -->
+    <div class="calc-dir-card calc-dir-card--hero">
+      <div class="calc-dir-card-top" style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);">
+        <span class="calc-dir-hero-icon">🏦</span>
+        <h4 class="calc-dir-hero-title">מחשבון פרישה מתקדם</h4>
+        <div class="calc-dir-hero-tags">
+          <span class="calc-dir-hero-tag">פנסיה</span>
+          <span class="calc-dir-hero-tag">מס אמיתי</span>
+          <span class="calc-dir-hero-tag">שכיר + עצמאי</span>
+        </div>
       </div>
-      <a href="pension-calc.html" target="_blank" class="calc-dir-btn">פתח מחשבון ←</a>
+      <div class="calc-dir-card-body">
+        <p class="calc-dir-desc">חשב את קצבת הפנסיה הצפויה שלך, סך הצבירה, מס אמיתי ועוד — לשכירים ועצמאיים, כולל מס 2026</p>
+        <a href="pension-calc.html" target="_blank" class="calc-dir-btn" style="background:#1e3a8a;">פתח מחשבון ←</a>
+      </div>
     </div>
 
-    <!-- כרטיס 2: נדל"ן מקצועי -->
-    <div class="calc-dir-card">
-      <div class="calc-dir-icon" style="background:#f0fdf4;">🏠</div>
-      <h4 class="calc-dir-title">מחשבון נדל״ן מקצועי</h4>
-      <p class="calc-dir-desc">ניתוח עסקה מלא: ROI, ROE, תזרים שנתי, השוואת נדל״ן לשוק ההון — עם גרפים ודוח להדפסה</p>
-      <div class="calc-dir-tags">
-        <span class="calc-dir-tag">ROI / ROE</span>
-        <span class="calc-dir-tag">תזרים שנתי</span>
-        <span class="calc-dir-tag">טאבו משותף</span>
+    <!-- כרטיס 2: נדל"ן מקצועי — hero ירוק -->
+    <div class="calc-dir-card calc-dir-card--hero">
+      <div class="calc-dir-card-top" style="background: linear-gradient(135deg, #065f46 0%, #059669 100%);">
+        <span class="calc-dir-hero-icon">🏠</span>
+        <h4 class="calc-dir-hero-title">מחשבון נדל״ן מקצועי</h4>
+        <div class="calc-dir-hero-tags">
+          <span class="calc-dir-hero-tag">ROI / ROE</span>
+          <span class="calc-dir-hero-tag">תזרים שנתי</span>
+          <span class="calc-dir-hero-tag">טאבו משותף</span>
+        </div>
       </div>
-      <a href="מחשבון-נדלן-מקצועי.html" target="_blank" class="calc-dir-btn">פתח מחשבון ←</a>
+      <div class="calc-dir-card-body">
+        <p class="calc-dir-desc">ניתוח עסקה מלא: ROI, ROE, תזרים שנתי, השוואת נדל״ן לשוק ההון — עם גרפים ודוח להדפסה</p>
+        <a href="מחשבון-נדלן-מקצועי.html" target="_blank" class="calc-dir-btn" style="background:#065f46;">פתח מחשבון ←</a>
+      </div>
     </div>
 
-    <!-- כרטיס 3: מחיר למשתכן — חדש -->
-    <div class="calc-dir-card">
-      <div class="calc-dir-new-badge">חדש 🆕</div>
-      <div class="calc-dir-icon" style="background:#fffbeb;">🏗️</div>
-      <h4 class="calc-dir-title">מחשבון מחיר למשתכן וקבלן</h4>
-      <p class="calc-dir-desc">בדוק אם העסקה משתלמת: הנחה אמיתית, הון עצמי, משכנתא, עלויות כניסה ועלות אמיתית עם 8 מודולים</p>
-      <div class="calc-dir-tags">
-        <span class="calc-dir-tag">הנחה אמיתית</span>
-        <span class="calc-dir-tag">הון עצמי</span>
-        <span class="calc-dir-tag">לוח תשלומים</span>
+    <!-- כרטיס 3: מחיר למשתכן — hero כתום + badge -->
+    <div class="calc-dir-card calc-dir-card--hero">
+      <div class="calc-dir-new-badge" style="top:14px; left:14px; z-index:2;">חדש 🆕</div>
+      <div class="calc-dir-card-top" style="background: linear-gradient(135deg, #92400e 0%, #d97706 100%);">
+        <span class="calc-dir-hero-icon">🏗️</span>
+        <h4 class="calc-dir-hero-title">מחשבון מחיר למשתכן וקבלן</h4>
+        <div class="calc-dir-hero-tags">
+          <span class="calc-dir-hero-tag">הנחה אמיתית</span>
+          <span class="calc-dir-hero-tag">הון עצמי</span>
+          <span class="calc-dir-hero-tag">לוח תשלומים</span>
+        </div>
       </div>
-      <a href="מחשבון-מחיר-למשתכן.html" target="_blank" class="calc-dir-btn">פתח מחשבון ←</a>
+      <div class="calc-dir-card-body">
+        <p class="calc-dir-desc">בדוק אם העסקה משתלמת: הנחה אמיתית, הון עצמי, משכנתא, עלויות כניסה ועלות אמיתית עם 8 מודולים</p>
+        <a href="מחשבון-מחיר-למשתכן.html" target="_blank" class="calc-dir-btn" style="background:#92400e;">פתח מחשבון ←</a>
+      </div>
     </div>
 
     <!-- כרטיס 4: הלוואה ופרישה -->
