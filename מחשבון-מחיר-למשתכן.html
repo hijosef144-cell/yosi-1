@@ -1265,14 +1265,14 @@ canvas { max-width: 100%; }
         <!-- Eligibility track toggle (msh only) -->
         <div id="eligibility-toggle" class="toggle-row" style="margin-top:6px;">
           <label class="toggle-switch">
-            <input type="checkbox" id="eligibilityTrack" onchange="debouncedCalc()">
+            <input type="checkbox" id="eligibilityTrack" onchange="toggleEligibilityPanel(); debouncedCalc()">
             <span class="toggle-slider"></span>
           </label>
           <span class="toggle-label">
             כולל מסלול זכאות
             <span class="tooltip-wrap" style="display:inline-block;">
               <span class="tooltip-icon">?</span>
-              <span class="tooltip-box">מסלול זכאות = ריבית קבועה מועדפת (לרוב 1-2% פחות מהשוק). שיבוץ המסלול בתמהיל מוריד את ההחזר החודשי משמעותית.</span>
+              <span class="tooltip-box">מסלול זכאות = הלוואה צמודת מדד בריבית מוטבת עד 3.0%. חלק מהמשכנתא לוקח ריבית מופחתת, מה שמוריד את ההחזר החודשי.</span>
             </span>
           </span>
         </div>
@@ -1290,6 +1290,63 @@ canvas { max-width: 100%; }
       </div>
 
     </div><!-- /fields-grid -->
+
+    <!-- Eligibility panel (shown when toggle ON) -->
+    <div id="eligibility-fields-panel" style="display:none; margin-top:14px; padding:16px 18px; background:#f0f9ff; border:1px solid #bae6fd; border-radius:12px;">
+      <div style="font-size:13px; font-weight:700; color:#0c4a6e; margin-bottom:12px;">🏦 פרטי מסלול הזכאות</div>
+      <div class="fields-grid" style="grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px;">
+        <div class="field-group">
+          <label class="field-label">
+            ריבית זכאות (%)
+            <span class="tooltip-wrap" style="display:inline-block;">
+              <span class="tooltip-icon">?</span>
+              <span class="tooltip-box">מסלול הזכאות מציע ריבית קבועה צמודת מדד של עד 3.0% (0.5% פחות מהריבית הממוצעת של בנק ישראל). לחישוב הסכום המדויק: calcurate.co.il</span>
+            </span>
+          </label>
+          <div class="field-input-wrap">
+            <input type="number" id="eligibilityRate" class="field-input no-prefix" value="3.0" step="0.1" min="0.5" max="5"
+              oninput="debouncedCalc()">
+          </div>
+          <span class="field-hint">ריבית מרבית: 3.0% | ברירת מחדל מקובלת</span>
+        </div>
+        <div class="field-group">
+          <label class="field-label">
+            סכום הלוואת זכאות (₪)
+            <span class="tooltip-wrap" style="display:inline-block;">
+              <span class="tooltip-icon">?</span>
+              <span class="tooltip-box">סכום הלוואת הזכאות נקבע לפי ניקוד אישי של משרד הבינוי והשיכון — בדרך כלל בין ₪50,000 ל-₪200,000. הלוואה זו היא חלק מהמשכנתא הכוללת.</span>
+            </span>
+          </label>
+          <div class="field-input-wrap">
+            <span class="currency-prefix">₪</span>
+            <input type="text" id="eligibilityAmount" class="field-input" value="100,000"
+              oninput="liveFormat(this); debouncedCalc()" onblur="fmtField(this)">
+          </div>
+          <span class="field-hint">בדרך כלל ₪50,000–₪200,000</span>
+        </div>
+        <div class="field-group">
+          <label class="field-label">תקופת זכאות (שנים)</label>
+          <div class="field-input-wrap">
+            <input type="number" id="eligibilityYears" class="field-input no-prefix" value="25" min="10" max="30" step="1"
+              oninput="debouncedCalc()">
+          </div>
+          <span class="field-hint">10–30 שנים</span>
+        </div>
+      </div>
+
+      <!-- Breakdown display -->
+      <div id="eligibility-breakdown" style="margin-top:14px; font-size:13px; line-height:2; background:white; border-radius:8px; padding:10px 14px; border:1px solid #e0f2fe;"></div>
+
+      <!-- CPI warning -->
+      <div style="margin-top:10px; padding:10px 12px; background:#fffbeb; border:1px solid #fde68a; border-radius:8px; font-size:12px; color:#92400e;">
+        ⚠️ מסלול הזכאות <strong>צמוד למדד</strong> — ההחזר החודשי יעלה עם עליית האינפלציה. החישוב מוצג בריבית נומינלית בלבד.
+      </div>
+
+      <!-- Link -->
+      <div style="margin-top:10px; font-size:13px; font-weight:600;">
+        <a href="https://www.calcurate.co.il/" target="_blank" rel="noopener" style="color:var(--accent);">לחישוב סכום הזכאות המדויק שלך (מחשבון רשמי) ←</a>
+      </div>
+    </div>
 
     <!-- Stat Strip -->
     <div class="stat-strip" id="mod3-stats">
@@ -2035,6 +2092,15 @@ function getBuildMonths() {
 }
 
 // ─────────────────────────────────────────────
+// ELIGIBILITY PANEL TOGGLE
+// ─────────────────────────────────────────────
+function toggleEligibilityPanel() {
+  const checked = document.getElementById('eligibilityTrack')?.checked;
+  const panel = document.getElementById('eligibility-fields-panel');
+  if (panel) panel.style.display = checked ? '' : 'none';
+}
+
+// ─────────────────────────────────────────────
 // DEBOUNCE
 // ─────────────────────────────────────────────
 function debouncedCalc() {
@@ -2098,6 +2164,9 @@ function calculateAll() {
   const disposableIncome = parse('disposableIncome') || 15000;
   const avgRate = parseFloat(document.getElementById('avgRate').value) || 4.5;
   const eligibilityTrack = document.getElementById('eligibilityTrack') ? document.getElementById('eligibilityTrack').checked : false;
+  const eligibilityRateVal  = parseFloat(document.getElementById('eligibilityRate')?.value)  || 3.0;
+  const eligibilityAmountVal = parse('eligibilityAmount') || 100000;
+  const eligibilityYearsVal  = parseInt(document.getElementById('eligibilityYears')?.value)  || 25;
   const loanYears = parseInt(document.getElementById('loanYears').value) || 25;
 
   const attorney = parse('attorney') || 8000;
@@ -2122,8 +2191,9 @@ function calculateAll() {
   const isMsh = currentMode === 'won' || currentMode === 'lottery';
   const isLottery = currentMode === 'lottery';
 
-  // Effective rate (eligibility track lowers by ~1.2%)
-  const effectiveRate = eligibilityTrack ? Math.max(1, avgRate - 1.2) : avgRate;
+  // effectiveRate is the regular (non-eligibility) rate used throughout
+  // (eligibility now handled as a separate PMT split, not a blended rate reduction)
+  const effectiveRate = avgRate;
 
   // ── PRICES ──
   const indexAmt = isMsh ? contractPrice * 0.40 * (indexAddition / 100) : 0;
@@ -2155,7 +2225,21 @@ function calculateAll() {
     mortgageEl.value = mortgageAmount.toLocaleString('he-IL');
   }
 
-  const monthlyPayment = pmt(r, n, mortgageAmount);
+  // ── MONTHLY PAYMENT (split for eligibility track) ──
+  let monthlyPayment, eligMonthly = 0, regularMonthly = 0, eligAmt = 0, regularAmt = 0;
+  if (eligibilityTrack && eligibilityAmountVal > 0) {
+    eligAmt   = Math.min(eligibilityAmountVal, mortgageAmount);
+    regularAmt = Math.max(0, mortgageAmount - eligAmt);
+    const rE = eligibilityRateVal / 100 / 12;
+    const nE = eligibilityYearsVal * 12;
+    eligMonthly   = pmt(rE, nE, eligAmt);
+    regularMonthly = pmt(r, n, regularAmt);
+    monthlyPayment = eligMonthly + regularMonthly;
+  } else {
+    monthlyPayment = pmt(r, n, mortgageAmount);
+    regularMonthly = monthlyPayment;
+    regularAmt = mortgageAmount;
+  }
   const incomePct = disposableIncome > 0 ? (monthlyPayment / disposableIncome * 100) : 0;
 
   // ── ADDITIONAL COSTS (needed before equity calc) ──
@@ -2290,6 +2374,26 @@ function calculateAll() {
   const marketPct = marketValue > 0 ? (mortgageAmount / marketValue * 100) : 0;
   document.getElementById('mortgageRatiosHint').textContent =
     `${fmtNum(contractPct, 1)}% ממחיר החוזה | ${fmtNum(marketPct, 1)}% משווי השוק`;
+
+  // ── ELIGIBILITY BREAKDOWN ──
+  const eligBreakdownEl = document.getElementById('eligibility-breakdown');
+  if (eligBreakdownEl) {
+    if (eligibilityTrack && eligAmt > 0) {
+      eligBreakdownEl.innerHTML =
+        `<div style="color:#0c4a6e; font-weight:600; margin-bottom:4px;">📊 פירוט החזר חודשי:</div>` +
+        `<div>מסלול זכאות <span style="color:#718096;">(${fmt(eligAmt)} @ ${fmtNum(eligibilityRateVal,1)}% צמוד מדד)</span>:` +
+        `  <strong>${fmt(eligMonthly)}/חודש</strong></div>` +
+        (regularAmt > 0
+          ? `<div>יתרת משכנתא <span style="color:#718096;">(${fmt(regularAmt)} @ ${fmtNum(avgRate,1)}%)</span>:` +
+            `  <strong>${fmt(regularMonthly)}/חודש</strong></div>`
+          : '') +
+        `<div style="border-top:1px solid #e0f2fe; margin-top:6px; padding-top:6px;">` +
+        `סה"כ: <strong style="font-size:16px; color:var(--primary);">${fmt(monthlyPayment)}/חודש</strong>` +
+        `  <span style="font-size:12px; color:#718096;">(${fmtNum(incomePct,1)}% מהכנסה)</span></div>`;
+    } else {
+      eligBreakdownEl.innerHTML = '';
+    }
+  }
 
   // Equity validation
   const evEl = document.getElementById('equityValidation');
