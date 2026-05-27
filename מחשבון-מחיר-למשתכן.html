@@ -2210,8 +2210,10 @@ function calculateAll() {
   const pmtFactor = r > 0 ? (Math.pow(1+r,n)) / (r * Math.pow(1+r,n) - r) : n;
   const maxByIncome = disposableIncome * 0.35 * pmtFactor;
 
-  // Default to max LTV (mortgageMax); income ratio is shown as a warning
-  let mortgageDefault = mortgageMax;
+  // Default: fill exactly the gap (finalContractPrice minus what the buyer has),
+  // but never exceed the legal maximum (mortgageMax).
+  const requiredMortgage = Math.max(0, finalContractPrice - effectiveEquity);
+  let mortgageDefault = Math.min(requiredMortgage, mortgageMax);
   mortgageDefault = Math.max(0, mortgageDefault);
 
   // Use user's value if set, else default
@@ -2246,9 +2248,13 @@ function calculateAll() {
   const registrationDeposit = 2000;
   const totalAdditionalCosts = attorney + appraiser + bankFee + notary + renovation + mortgageAdvisor + reAdvisor + registrationDeposit;
 
-  // ── EQUITY NEEDED (down payment + all additional costs) ──
+  // ── EQUITY NEEDED ──
+  // downPayment: based on the user's actual mortgage (for payment table / supplementary loan display)
   const downPayment = Math.max(minEquity, finalContractPrice - mortgageAmount);
-  const equityNeeded = downPayment + totalAdditionalCosts;
+  // minDownPayment: based on the MAXIMUM possible mortgage — this is the true equity floor
+  // (answer: "if you take the most mortgage the bank allows, do you still have enough equity?")
+  const minDownPayment = Math.max(minEquity, finalContractPrice - mortgageMax);
+  const equityNeeded = minDownPayment + totalAdditionalCosts;
   const equityDelta = effectiveEquity - equityNeeded;
 
   // ── SQM PRICES ──
@@ -2401,9 +2407,23 @@ function calculateAll() {
     ? `מכיסך ${fmt(personalEquity)} + מענק ${fmt(grant)} = ${fmt(effectiveEquity)} סה"כ`
     : `${fmt(personalEquity)} הון עצמי`;
   if (equityDelta >= 0) {
-    evEl.innerHTML = `<div class="valid-green">✅ מספיק — נדרש ${fmt(equityNeeded)} | יש לך: ${equityBreakdown}</div>`;
+    evEl.innerHTML =
+      `<div class="valid-green">✅ יש לך מספיק הון עצמי</div>` +
+      `<div style="font-size:12px; margin-top:4px; color:var(--text2);">` +
+        `הון עצמי נדרש: <strong>${fmt(equityNeeded)}</strong>` +
+        ` (מקדמה ${fmt(minDownPayment)} + עלויות ${fmt(totalAdditionalCosts)})` +
+        `<br>יש לך: ${equityBreakdown}` +
+        ` | <strong style="color:var(--green);">עודף: ${fmt(equityDelta)}</strong>` +
+      `</div>`;
   } else {
-    evEl.innerHTML = `<div class="valid-red">❌ חסר ${fmt(-equityDelta)} — נדרש ${fmt(equityNeeded)} (מקדמה ${fmt(downPayment)} + הוצאות ${fmt(totalAdditionalCosts)}) | יש לך: ${equityBreakdown}</div>`;
+    evEl.innerHTML =
+      `<div class="valid-red">❌ חסר ${fmt(-equityDelta)} הון עצמי</div>` +
+      `<div style="font-size:12px; margin-top:4px; color:var(--text2);">` +
+        `הון עצמי נדרש: <strong>${fmt(equityNeeded)}</strong>` +
+        ` (מקדמה ${fmt(minDownPayment)} + עלויות ${fmt(totalAdditionalCosts)})` +
+        `<br>יש לך: ${equityBreakdown}` +
+        ` | <strong style="color:var(--red);">חסר: ${fmt(-equityDelta)}</strong>` +
+      `</div>`;
   }
 
   // ── SUPPLEMENTARY LOAN ──
