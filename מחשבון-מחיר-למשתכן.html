@@ -1619,11 +1619,17 @@ canvas { max-width: 100%; }
 
     <div class="fields-grid">
       <div class="field-group">
-        <label class="field-label">עו"ד (₪)</label>
+        <label class="field-label">
+          עו"ד (₪)
+          <span class="tooltip-wrap" id="attorney-tooltip-wrap">
+            <span class="tooltip-icon">?</span>
+            <span class="tooltip-box">במחיר למשתכן לרוב אין צורך בעו״ד מטעם הקונה — הקבלן מספק ייצוג משפטי. מומלץ לבדוק מול הקבלן הספציפי.</span>
+          </span>
+        </label>
         <div class="field-input-wrap">
           <span class="currency-prefix">₪</span>
-          <input type="text" id="attorney" class="field-input" value="8,000"
-            oninput="liveFormat(this); debouncedCalc()" onblur="fmtField(this)">
+          <input type="text" id="attorney" class="field-input" value="0"
+            oninput="liveFormat(this); this.dataset.manualAttorney='1'; debouncedCalc()" onblur="fmtField(this)">
         </div>
       </div>
       <div class="field-group">
@@ -1979,6 +1985,15 @@ function setMode(mode) {
 
   document.getElementById('lottery-viability').style.display = isLottery ? '' : 'none';
 
+  // Update attorney default based on mode (only if user hasn't manually edited)
+  const attorneyEl = document.getElementById('attorney');
+  if (attorneyEl && !attorneyEl.dataset.manualAttorney) {
+    attorneyEl.value = isMsh ? '0' : '8,000';
+  }
+  // Show attorney tooltip only in MSH mode
+  const attyTooltip = document.getElementById('attorney-tooltip-wrap');
+  if (attyTooltip) attyTooltip.style.display = isMsh ? '' : 'none';
+
   calculateAll();
 }
 
@@ -2169,7 +2184,7 @@ function calculateAll() {
   const eligibilityYearsVal  = parseInt(document.getElementById('eligibilityYears')?.value)  || 25;
   const loanYears = parseInt(document.getElementById('loanYears').value) || 25;
 
-  const attorney = parse('attorney') || 8000;
+  const attorney = parse('attorney');
   const appraiser = parse('appraiser') || 3000;
   const bankFee = parse('bankFee') || 360;
   const notary = parse('notary') || 500;
@@ -2187,6 +2202,10 @@ function calculateAll() {
     const pctOfPrice = contractPrice > 0 ? (mortgageAdvisor / contractPrice * 100).toFixed(2) : 0;
     mortgageAdvisorHintEl.textContent = `${pctOfPrice}% ממחיר הדירה`;
   }
+
+  // ── ADDITIONAL COSTS (computed early — needed for mortgage default calculation) ──
+  const registrationDeposit = 2000;
+  const totalAdditionalCosts = attorney + appraiser + bankFee + notary + renovation + mortgageAdvisor + reAdvisor + registrationDeposit;
 
   const isMsh = currentMode === 'won' || currentMode === 'lottery';
   const isLottery = currentMode === 'lottery';
@@ -2210,9 +2229,11 @@ function calculateAll() {
   const pmtFactor = r > 0 ? (Math.pow(1+r,n)) / (r * Math.pow(1+r,n) - r) : n;
   const maxByIncome = disposableIncome * 0.35 * pmtFactor;
 
-  // Default: fill exactly the gap (finalContractPrice minus what the buyer has),
-  // but never exceed the legal maximum (mortgageMax).
-  const requiredMortgage = Math.max(0, finalContractPrice - effectiveEquity);
+  // Default: fill exactly the gap between what the property costs and what the buyer
+  // can put toward it (equity minus costs reserved for fees/expenses).
+  // Never exceed the legal maximum (mortgageMax).
+  const availableForProperty = effectiveEquity - totalAdditionalCosts;
+  const requiredMortgage = Math.max(0, finalContractPrice - availableForProperty);
   let mortgageDefault = Math.min(requiredMortgage, mortgageMax);
   mortgageDefault = Math.max(0, mortgageDefault);
 
@@ -2244,17 +2265,12 @@ function calculateAll() {
   }
   const incomePct = disposableIncome > 0 ? (monthlyPayment / disposableIncome * 100) : 0;
 
-  // ── ADDITIONAL COSTS (needed before equity calc) ──
-  const registrationDeposit = 2000;
-  const totalAdditionalCosts = attorney + appraiser + bankFee + notary + renovation + mortgageAdvisor + reAdvisor + registrationDeposit;
-
-  // ── EQUITY NEEDED ──
-  // downPayment: based on the user's actual mortgage (for payment table / supplementary loan display)
-  const downPayment = Math.max(minEquity, finalContractPrice - mortgageAmount);
-  // minDownPayment: based on the MAXIMUM possible mortgage — this is the true equity floor
-  // (answer: "if you take the most mortgage the bank allows, do you still have enough equity?")
-  const minDownPayment = Math.max(minEquity, finalContractPrice - mortgageMax);
-  const equityNeeded = minDownPayment + totalAdditionalCosts;
+  // ── EQUITY GAP (proportional index split) ──
+  // equityPct = proportion of finalContractPrice that the buyer covers (not the mortgage)
+  // The מדד splits proportionally: equity pays equityPct × indexAmt, mortgage pays the rest
+  const equityPct = finalContractPrice > 0 ? Math.max(0, contractPrice - mortgageAmount) / finalContractPrice : 0;
+  // requiredFromPocket = equity share of base price + equity share of index + all additional costs
+  const equityNeeded = contractPrice * equityPct + indexAmt * equityPct + totalAdditionalCosts;
   const equityDelta = effectiveEquity - equityNeeded;
 
   // ── SQM PRICES ──
@@ -2404,25 +2420,21 @@ function calculateAll() {
   // Equity validation
   const evEl = document.getElementById('equityValidation');
   const equityBreakdown = isMsh && grant > 0
-    ? `מכיסך ${fmt(personalEquity)} + מענק ${fmt(grant)} = ${fmt(effectiveEquity)} סה"כ`
+    ? `${fmt(personalEquity)} מכיסך + ${fmt(grant)} מענק = ${fmt(effectiveEquity)} סה"כ`
     : `${fmt(personalEquity)} הון עצמי`;
   if (equityDelta >= 0) {
     evEl.innerHTML =
-      `<div class="valid-green">✅ יש לך מספיק הון עצמי</div>` +
+      `<div class="valid-green">✅ יש לך מספיק הון עצמי | עודף: ${fmt(equityDelta)}</div>` +
       `<div style="font-size:12px; margin-top:4px; color:var(--text2);">` +
-        `הון עצמי נדרש: <strong>${fmt(equityNeeded)}</strong>` +
-        ` (מקדמה ${fmt(minDownPayment)} + עלויות ${fmt(totalAdditionalCosts)})` +
+        `נדרש מהכיס: <strong>${fmt(equityNeeded)}</strong>` +
         `<br>יש לך: ${equityBreakdown}` +
-        ` | <strong style="color:var(--green);">עודף: ${fmt(equityDelta)}</strong>` +
       `</div>`;
   } else {
     evEl.innerHTML =
       `<div class="valid-red">❌ חסר ${fmt(-equityDelta)} הון עצמי</div>` +
       `<div style="font-size:12px; margin-top:4px; color:var(--text2);">` +
-        `הון עצמי נדרש: <strong>${fmt(equityNeeded)}</strong>` +
-        ` (מקדמה ${fmt(minDownPayment)} + עלויות ${fmt(totalAdditionalCosts)})` +
+        `נדרש מהכיס: <strong>${fmt(equityNeeded)}</strong>` +
         `<br>יש לך: ${equityBreakdown}` +
-        ` | <strong style="color:var(--red);">חסר: ${fmt(-equityDelta)}</strong>` +
       `</div>`;
   }
 
