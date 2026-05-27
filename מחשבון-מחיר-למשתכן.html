@@ -1383,9 +1383,9 @@ canvas { max-width: 100%; }
     <div class="info-box amber" id="payment-schedule-note">
       📋 <strong>לוח התשלומים מבוסס על תקנות חוק המכר (דירות):</strong><br>
       • <strong>7%</strong> בחתימת חוזה (הון עצמי)<br>
-      • <strong>13%</strong> תוך 45 יום — כולל מענק ופעימה 1 של משכנתא (סה"כ 20% בתוך חודש וחצי)<br>
+      • <strong>13%</strong> תוך 45 יום — 3% הון עצמי + מענק פריפריה + פעימה 1 משכנתא (סה"כ 20% בתוך חודש וחצי)<br>
       • <strong>70%</strong> בפעימות משכנתא לאורך הבנייה — הבנק מעביר בהתקדמות הבנייה<br>
-      • <strong>10%</strong> במסירת המפתח (הון עצמי + גמר חשבון)<br>
+      • <strong>10%</strong> במסירת המפתח — משכנתא (הבנק מעביר לקבלן)<br>
       ניתן לשנות את השלבים לפי החוזה שלך באמצעות "התאם לעצמי".
     </div>
 
@@ -1399,6 +1399,7 @@ canvas { max-width: 100%; }
             <th>סכום</th>
             <th>מקור</th>
             <th>הון עצמי</th>
+            <th>מענק</th>
             <th>משכנתא</th>
           </tr>
         </thead>
@@ -1410,6 +1411,7 @@ canvas { max-width: 100%; }
             <td id="pt-total-sum"><strong>—</strong></td>
             <td></td>
             <td id="pt-total-equity"><strong>—</strong></td>
+            <td id="pt-total-grant"><strong>—</strong></td>
             <td id="pt-total-mortgage"><strong>—</strong></td>
           </tr>
         </tfoot>
@@ -2181,17 +2183,26 @@ function calculateAll() {
     const stageAmt = finalContractPrice * (s.pct / 100);
     const monthsToDelivery = Math.max(0, buildMonths - s.month);
     const isMortgageStage = s.source && (s.source.includes('משכנתא') || s.source.includes('פעימה'));
+    // Stage 2: contains "מענק" → 3-way split: equity (3%) + grant + mortgage (remainder)
+    const isGrantStage = isMsh && s.source && s.source.includes('מענק');
     let mortgageStageAmt = 0;
     let equityStageAmt = 0;
+    let grantStageAmt = 0;
 
-    if (s.source && s.source.includes('הון עצמי') && !isMortgageStage) {
+    if (isGrantStage) {
+      equityStageAmt = Math.min(contractPrice * 0.03, stageAmt);
+      grantStageAmt = Math.min(grant, Math.max(0, stageAmt - equityStageAmt));
+      mortgageStageAmt = Math.max(0, stageAmt - equityStageAmt - grantStageAmt);
+      mortgageDisbursed += mortgageStageAmt;
+      constructionFinancingCost += mortgageStageAmt * (effectiveRate / 100 / 12) * monthsToDelivery;
+    } else if (s.source && s.source.includes('הון עצמי') && !isMortgageStage) {
       equityStageAmt = stageAmt;
     } else if (isMortgageStage) {
       mortgageStageAmt = stageAmt;
       mortgageDisbursed += mortgageStageAmt;
       constructionFinancingCost += mortgageStageAmt * (effectiveRate / 100 / 12) * monthsToDelivery;
     } else {
-      // mixed
+      // mixed fallback
       const eAmt = stageAmt * 0.5;
       const mAmt = stageAmt * 0.5;
       equityStageAmt = eAmt;
@@ -2200,7 +2211,7 @@ function calculateAll() {
       constructionFinancingCost += mAmt * (effectiveRate / 100 / 12) * monthsToDelivery;
     }
 
-    return { ...s, amount: stageAmt, equityAmt: equityStageAmt, mortgageAmt: mortgageStageAmt, monthsToDelivery };
+    return { ...s, amount: stageAmt, equityAmt: equityStageAmt, grantAmt: grantStageAmt, mortgageAmt: mortgageStageAmt, monthsToDelivery, isGrantStage };
   });
 
   // ── TRUE COST ──
@@ -2349,7 +2360,7 @@ function calculateAll() {
   // ── PAYMENT TABLE ──
   const tbody = document.getElementById('payment-tbody');
   tbody.innerHTML = '';
-  let totalPct = 0, totalSum = 0, totalEquity = 0, totalMortgage = 0;
+  let totalPct = 0, totalSum = 0, totalEquity = 0, totalGrant = 0, totalMortgage = 0;
 
   stagesWithAmounts.forEach((s, i) => {
     const stageDate = addMonths(signM, signY, s.month);
@@ -2357,6 +2368,7 @@ function calculateAll() {
     totalPct += s.pct;
     totalSum += s.amount;
     totalEquity += s.equityAmt;
+    totalGrant += (s.grantAmt || 0);
     totalMortgage += s.mortgageAmt;
 
     let sourceBadge = '';
@@ -2368,14 +2380,22 @@ function calculateAll() {
       sourceBadge = `<span class="badge equity">${s.source || '—'}</span>`;
     }
 
+    // Tooltip for grant stage (stage 2)
+    const grantTooltip = s.isGrantStage
+      ? ` title="התשלום השני מורכב מ-3 מקורות: יתרת ההון העצמי שלך (3%), המענק מהמדינה, ופעימה ראשונה של המשכנתא — הבנק מתחיל להעביר כסף רק אחרי שסיימת לשלם את ההון העצמי." style="cursor:help;"`
+      : '';
+
+    const grantAmt = s.grantAmt || 0;
+
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>${s.name}</td>
+      <td${grantTooltip}>${s.name}${s.isGrantStage ? ' <span style="font-size:11px;color:var(--accent);">ℹ️</span>' : ''}</td>
       <td>${dateStr}</td>
       <td>${fmtNum(s.pct, 1)}%</td>
       <td>${fmt(s.amount)}</td>
       <td>${sourceBadge}</td>
       <td>${s.equityAmt > 0 ? fmt(s.equityAmt) : '—'}</td>
+      <td style="color:var(--green); font-weight:600;">${grantAmt > 0 ? fmt(grantAmt) : '—'}</td>
       <td>${s.mortgageAmt > 0 ? fmt(s.mortgageAmt) : '—'}</td>
     `;
     tbody.appendChild(tr);
@@ -2384,6 +2404,7 @@ function calculateAll() {
   setText('pt-total-pct', fmtNum(totalPct, 1) + '%');
   setText('pt-total-sum', fmt(totalSum));
   setText('pt-total-equity', fmt(totalEquity));
+  setText('pt-total-grant', totalGrant > 0 ? fmt(totalGrant) : '—');
   setText('pt-total-mortgage', fmt(totalMortgage));
 
   const pwEl = document.getElementById('payment-warning');
