@@ -926,7 +926,7 @@ canvas { max-width: 100%; }
 }
 
 /* ── HIDDEN SECTIONS ── */
-.msh-only, .contractor-hide { transition: opacity 0.2s; }
+.msh-only { transition: opacity 0.2s; }
 
 /* ── PRINT ── */
 @media print {
@@ -1015,7 +1015,6 @@ canvas { max-width: 100%; }
     <div class="mode-group">
       <button class="mode-btn active" id="mode-won" onclick="setMode('won')">👤 מחיר למשתכן — זכיתי</button>
       <button class="mode-btn" id="mode-lottery" onclick="setMode('lottery')">🎲 מחיר למשתכן — עוד לא זכיתי</button>
-      <button class="mode-btn" id="mode-contractor" onclick="setMode('contractor')">🏗️ רכישה מקבלן (שוק חופשי)</button>
     </div>
   </div>
 </div>
@@ -1976,13 +1975,12 @@ function pmt(rate, n, pv) {
 // ─────────────────────────────────────────────
 function setMode(mode) {
   currentMode = mode;
-  ['won','lottery','contractor'].forEach(m => {
+  ['won','lottery'].forEach(m => {
     document.getElementById('mode-' + m).classList.toggle('active', m === mode);
   });
 
   const isMsh = mode === 'won' || mode === 'lottery';
   const isLottery = mode === 'lottery';
-  const isContractor = mode === 'contractor';
 
   document.getElementById('msh-fields').style.display = isMsh ? '' : 'none';
   document.getElementById('lottery-fields').style.display = isLottery ? '' : 'none';
