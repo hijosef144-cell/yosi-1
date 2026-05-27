@@ -1777,8 +1777,13 @@ canvas { max-width: 100%; }
         <div class="compare-row"><span>הון עצמי</span><span id="cmp-free-equity">—</span></div>
         <div class="compare-row"><span>משכנתא</span><span id="cmp-free-mortgage">—</span></div>
         <div class="compare-row"><span>החזר חודשי</span><span id="cmp-free-monthly">—</span></div>
-        <div class="compare-row"><span>חיסכון</span><span id="cmp-saving" style="color:var(--green); font-weight:800;">—</span></div>
       </div>
+    </div>
+
+    <!-- Savings banner — centered comparison result below the two cards -->
+    <div id="savings-banner" style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:10px; color:#166534; text-align:center; padding:12px; font-weight:600; margin-top:12px; display:none;">
+      <div>💰 חיסכון בהחזר חודשי: <span id="cmp-monthly-saving">—</span></div>
+      <div style="font-size:13px; margin-top:4px;">סה"כ חיסכון ל-<span id="cmp-saving-years">30</span> שנה: <span id="cmp-total-saving">—</span></div>
     </div>
 
     <!-- Section C - lottery only -->
@@ -2617,10 +2622,18 @@ function calculateAll() {
     setText('cmp-free-mortgage', fmt(freeMortgage));
     setText('cmp-free-monthly', fmt(freeMonthly));
 
-    const saving = freeMonthly - monthlyPayment;
-    const savingEl = document.getElementById('cmp-saving');
-    if (savingEl) {
-      savingEl.textContent = saving > 0 ? fmt(saving) + '/חודש' : '—';
+    const monthlySaving = freeMonthly - monthlyPayment;
+    const totalSaving = monthlySaving * n;
+    const savingsBanner = document.getElementById('savings-banner');
+    if (savingsBanner) {
+      if (monthlySaving > 0) {
+        savingsBanner.style.display = '';
+        setText('cmp-monthly-saving', fmt(monthlySaving));
+        setText('cmp-saving-years', String(loanYears));
+        setText('cmp-total-saving', fmt(totalSaving));
+      } else {
+        savingsBanner.style.display = 'none';
+      }
     }
 
     // Lottery
