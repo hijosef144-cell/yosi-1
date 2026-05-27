@@ -1125,16 +1125,52 @@ canvas { max-width: 100%; }
         <!-- Grant -->
         <div class="field-group">
           <label class="field-label">
-            מענק מחיר למשתכן (₪)
+            יישוב הפרויקט (למענק)
             <span class="tooltip-wrap">
               <span class="tooltip-icon">?</span>
-              <span class="tooltip-box">המענק מועבר ישירות לקבלן, מקטין את ההון העצמי שאתה צריך להביא</span>
+              <span class="tooltip-box">המענק מועבר ישירות לקבלן ומקטין את ההון העצמי הנדרש. הסכום נקבע לפי יישוב הפרויקט.</span>
             </span>
           </label>
+          <select id="grantCity" class="field-input no-prefix" onchange="onCityChange()" style="padding-right:10px; cursor:pointer;">
+            <option value="other">— בחר יישוב —</option>
+            <optgroup label="מענק ₪60,000 (פריפריה מועדפת)">
+              <option value="60000_אופקים">אופקים</option>
+              <option value="60000_דימונה">דימונה</option>
+              <option value="60000_חצור הגלילית">חצור הגלילית</option>
+              <option value="60000_טבריה">טבריה</option>
+              <option value="60000_ירוחם">ירוחם</option>
+              <option value="60000_מגדל העמק">מגדל העמק</option>
+              <option value="60000_מעלות-תרשיחא">מעלות-תרשיחא</option>
+              <option value="60000_מצפה רמון">מצפה רמון</option>
+              <option value="60000_נצרת">נצרת</option>
+              <option value="60000_נצרת עילית">נצרת עילית</option>
+              <option value="60000_נתיבות">נתיבות</option>
+              <option value="60000_סח'נין">סח'נין</option>
+              <option value="60000_ערד">ערד</option>
+              <option value="60000_קריית שמונה">קריית שמונה</option>
+              <option value="60000_שדרות">שדרות</option>
+            </optgroup>
+            <optgroup label="מענק ₪40,000 (פריפריה)">
+              <option value="40000_אילת">אילת</option>
+              <option value="40000_אשקלון">אשקלון</option>
+              <option value="40000_חריש">חריש</option>
+              <option value="40000_נהריה" selected>נהריה</option>
+              <option value="40000_עפולה">עפולה</option>
+              <option value="40000_רכסים">רכסים</option>
+              <option value="40000_שלומי">שלומי</option>
+            </optgroup>
+            <optgroup label="ללא מענק">
+              <option value="0_אחר">יישוב אחר (ללא מענק)</option>
+            </optgroup>
+          </select>
+          <span class="field-hint blue" id="grantCityHint">מענק פריפריה: ₪40,000 (לפי יישוב נהריה)</span>
+        </div>
+        <div class="field-group">
+          <label class="field-label">מענק בפועל (₪) — ניתן לעדכן ידנית</label>
           <div class="field-input-wrap">
             <span class="currency-prefix">₪</span>
             <input type="text" id="grant" class="field-input" value="40,000"
-              oninput="liveFormat(this); debouncedCalc()" onblur="fmtField(this)">
+              oninput="liveFormat(this); this.dataset.manualGrant='1'; debouncedCalc()" onblur="fmtField(this)">
           </div>
         </div>
 
@@ -1594,6 +1630,10 @@ canvas { max-width: 100%; }
       </div>
     </div>
 
+    <div class="info-box" style="margin-top:12px; font-size:13px;">
+      📌 <strong>מקדמה בבחירת דירה: ₪2,000</strong> (קבועה, לא מוחזרת) — כלולה בסיכום ההוצאות
+    </div>
+
     <div class="cta-box">
       <span>💡 יש פתרונות יצירתיים לכל מצב — גם אם המספרים נראים מאתגרים.</span>
       <a href="https://matzpenkalkali.com/contact.html" target="_blank">לייעוץ אישי עם יוסי כץ ←</a>
@@ -1688,6 +1728,21 @@ canvas { max-width: 100%; }
         </div>
       </div>
       <div class="info-box" style="margin-top:12px;" id="lottery-advice"></div>
+    </div>
+
+    <!-- Sale restriction notice -->
+    <hr class="divider">
+    <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:12px; padding:16px 18px; color:#92400e; font-size:14px; line-height:1.7;">
+      <div style="font-weight:700; font-size:15px; margin-bottom:8px;">⚠️ הגבלת מכירה — חשוב לדעת!</div>
+      <div>לא ניתן למכור את הדירה במשך:</div>
+      <ul style="margin: 6px 0 8px 0; padding-right:18px;">
+        <li><strong>5 שנים</strong> מקבלת טופס 4 (אישור אכלוס), או</li>
+        <li><strong>7 שנים</strong> ממועד ההגרלה שבה זכית</li>
+      </ul>
+      <div style="margin-bottom:4px;">(לפי המוקדם מביניהם)</div>
+      <div style="margin-top:8px; padding-top:8px; border-top:1px solid #fde68a;">
+        💰 <strong>המענק הוא הלוואה ללא ריבית</strong> — אם תמכור לפני תום התקופה, יהיה עליך להחזיר אותו.
+      </div>
     </div>
 
     <div class="cta-box">
@@ -1965,7 +2020,7 @@ function getDefaultStages() {
     { name: 'חתימת חוזה', pct: 7, month: 0, source: 'הון עצמי' },
     { name: 'עד 45 יום', pct: 13, month: 1, source: 'הון עצמי + מענק + פעימה 1 משכנתא' },
     { name: 'פריסה שוטפת', pct: 70, month: Math.floor(buildMonths / 2), source: 'פעימות משכנתא' },
-    { name: 'מסירה', pct: 10, month: buildMonths, source: 'הון עצמי + גמר חשבון' }
+    { name: 'מסירה', pct: 10, month: buildMonths, source: 'משכנתא' }
   ];
 }
 
@@ -1986,6 +2041,29 @@ function debouncedCalc() {
 }
 
 // ─────────────────────────────────────────────
+// GRANT CITY DROPDOWN
+// ─────────────────────────────────────────────
+function onCityChange() {
+  const sel = document.getElementById('grantCity');
+  const val = sel ? sel.value : 'other';
+  const hintEl = document.getElementById('grantCityHint');
+  const grantEl = document.getElementById('grant');
+  if (val === 'other') {
+    if (hintEl) hintEl.textContent = 'יישוב זה אינו זכאי למענק פריפריה (₪0)';
+    if (grantEl) { grantEl.value = '0'; }
+  } else {
+    const parts = val.split('_');
+    const amount = parseInt(parts[0]) || 0;
+    const cityName = parts.slice(1).join('_');
+    if (hintEl) hintEl.textContent = `מענק פריפריה: ${amount > 0 ? '₪' + amount.toLocaleString('he-IL') : '₪0'} (לפי יישוב ${cityName})`;
+    if (grantEl && !grantEl.dataset.manualGrant) {
+      grantEl.value = amount > 0 ? amount.toLocaleString('he-IL') : '0';
+    }
+  }
+  debouncedCalc();
+}
+
+// ─────────────────────────────────────────────
 // MAIN CALCULATION
 // ─────────────────────────────────────────────
 function calculateAll() {
@@ -1997,7 +2075,11 @@ function calculateAll() {
     marketValue = contractPrice * 1.2;
     document.getElementById('marketValueHint').textContent = `הצעה אוטומטית: ${fmt(marketValue)} (מחיר חוזה × 1.2)`;
   } else {
-    document.getElementById('marketValueHint').textContent = '';
+    if (marketValue > 1800000) {
+      document.getElementById('marketValueHint').textContent = `⚠️ שווי השוק עולה על ₪1,800,000 — לא חלה הטבת המימון המיוחדת. המשכנתא מחושבת לפי מחיר החוזה בלבד.`;
+    } else {
+      document.getElementById('marketValueHint').textContent = '';
+    }
   }
 
   const sqm = parseFloat(document.getElementById('sqm').value) || 80;
@@ -2042,11 +2124,11 @@ function calculateAll() {
   const effectiveRate = eligibilityTrack ? Math.max(1, avgRate - 1.2) : avgRate;
 
   // ── PRICES ──
-  const indexAmt = isMsh ? contractPrice * (indexAddition / 100) : 0;
+  const indexAmt = isMsh ? contractPrice * 0.40 * (indexAddition / 100) : 0;
   const finalContractPrice = contractPrice + indexAmt;
 
   // ── MORTGAGE ──
-  const mortgageMax = marketValue <= 2100000 ? marketValue * 0.75 : contractPrice * 0.75;
+  const mortgageMax = marketValue <= 1800000 ? marketValue * 0.75 : contractPrice * 0.75;
   const minEquity = Math.max(100000, contractPrice * 0.10);
   const effectiveEquity = personalEquity + (isMsh ? grant : 0);
 
@@ -2075,7 +2157,8 @@ function calculateAll() {
   const incomePct = disposableIncome > 0 ? (monthlyPayment / disposableIncome * 100) : 0;
 
   // ── ADDITIONAL COSTS (needed before equity calc) ──
-  const totalAdditionalCosts = attorney + appraiser + bankFee + notary + renovation + mortgageAdvisor + reAdvisor;
+  const registrationDeposit = 2000;
+  const totalAdditionalCosts = attorney + appraiser + bankFee + notary + renovation + mortgageAdvisor + reAdvisor + registrationDeposit;
 
   // ── EQUITY NEEDED (down payment + all additional costs) ──
   const downPayment = Math.max(minEquity, finalContractPrice - mortgageAmount);
@@ -2199,10 +2282,13 @@ function calculateAll() {
 
   // Equity validation
   const evEl = document.getElementById('equityValidation');
+  const equityBreakdown = isMsh && grant > 0
+    ? `מכיסך ${fmt(personalEquity)} + מענק ${fmt(grant)} = ${fmt(effectiveEquity)} סה"כ`
+    : `${fmt(personalEquity)} הון עצמי`;
   if (equityDelta >= 0) {
-    evEl.innerHTML = `<div class="valid-green">✅ מספיק — הון עצמי מכסה מקדמה + הוצאות (נדרש ${fmt(equityNeeded)})</div>`;
+    evEl.innerHTML = `<div class="valid-green">✅ מספיק — נדרש ${fmt(equityNeeded)} | יש לך: ${equityBreakdown}</div>`;
   } else {
-    evEl.innerHTML = `<div class="valid-red">❌ חסר ${fmt(-equityDelta)} — נדרש ${fmt(equityNeeded)} (מקדמה ${fmt(downPayment)} + הוצאות ${fmt(totalAdditionalCosts)})</div>`;
+    evEl.innerHTML = `<div class="valid-red">❌ חסר ${fmt(-equityDelta)} — נדרש ${fmt(equityNeeded)} (מקדמה ${fmt(downPayment)} + הוצאות ${fmt(totalAdditionalCosts)}) | יש לך: ${equityBreakdown}</div>`;
   }
 
   // ── SUPPLEMENTARY LOAN ──
@@ -2322,7 +2408,7 @@ function calculateAll() {
   // ── MODULE 6 ──
   setText('c-base', fmt(contractPrice));
   if (isMsh) {
-    document.getElementById('c-index-label').textContent = `+ תוספת מדד בנייה ${fmtNum(indexAddition, 1)}%`;
+    document.getElementById('c-index-label').textContent = `+ תוספת מדד בנייה (${fmtNum(indexAddition, 1)}% על 40% מהמחיר)`;
     setText('c-index', fmt(indexAmt));
     document.getElementById('c-index-row').style.display = '';
   } else {
