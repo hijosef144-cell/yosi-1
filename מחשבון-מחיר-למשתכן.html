@@ -1250,9 +1250,12 @@ canvas { max-width: 100%; }
         <div class="field-input-wrap">
           <span class="currency-prefix">₪</span>
           <input type="text" id="mortgageAmount" class="field-input"
-            oninput="liveFormat(this); debouncedCalc()" onblur="fmtField(this)">
+            oninput="liveFormat(this); if(this.value.trim()){this.dataset.userEditedMortgage='1';}else{delete this.dataset.userEditedMortgage;} debouncedCalc()" onblur="fmtField(this)">
         </div>
         <span class="field-hint" id="mortgageRatiosHint"></span>
+        <span id="mortgage-auto-link" style="display:none; margin-top:3px;">
+          <a href="#" onclick="resetMortgageToAuto(); return false;" style="font-size:11.5px; color:var(--accent); text-decoration:none;">↺ חשב אוטומטי</a>
+        </span>
       </div>
 
       <!-- Avg Rate -->
@@ -2107,6 +2110,18 @@ function getBuildMonths() {
 }
 
 // ─────────────────────────────────────────────
+// MORTGAGE AUTO-RESET
+// ─────────────────────────────────────────────
+function resetMortgageToAuto() {
+  const el = document.getElementById('mortgageAmount');
+  if (el) {
+    delete el.dataset.userEditedMortgage;
+    el.value = '';
+  }
+  debouncedCalc();
+}
+
+// ─────────────────────────────────────────────
 // ELIGIBILITY PANEL TOGGLE
 // ─────────────────────────────────────────────
 function toggleEligibilityPanel() {
@@ -2237,16 +2252,20 @@ function calculateAll() {
   let mortgageDefault = Math.min(requiredMortgage, mortgageMax);
   mortgageDefault = Math.max(0, mortgageDefault);
 
-  // Use user's value if set, else default
+  // Use user's manually-entered value if flagged; otherwise recalculate every time inputs change
   const mortgageEl = document.getElementById('mortgageAmount');
   let mortgageAmount;
-  const userMortgage = parse('mortgageAmount');
-  if (userMortgage > 0) {
-    mortgageAmount = userMortgage;
+  if (mortgageEl && mortgageEl.dataset.userEditedMortgage) {
+    // User has manually edited the field — keep their value
+    mortgageAmount = parse('mortgageAmount') || mortgageDefault;
   } else {
+    // Auto-mode: recalculate and update the field on every relevant input change
     mortgageAmount = Math.round(mortgageDefault / 1000) * 1000;
-    mortgageEl.value = mortgageAmount.toLocaleString('he-IL');
+    if (mortgageEl) mortgageEl.value = mortgageAmount.toLocaleString('he-IL');
   }
+  // Show "↺ חשב אוטומטי" only when the user has overridden the auto value
+  const mortgAutoLink = document.getElementById('mortgage-auto-link');
+  if (mortgAutoLink) mortgAutoLink.style.display = (mortgageEl && mortgageEl.dataset.userEditedMortgage) ? '' : 'none';
 
   // ── MONTHLY PAYMENT (split for eligibility track) ──
   let monthlyPayment, eligMonthly = 0, regularMonthly = 0, eligAmt = 0, regularAmt = 0;
