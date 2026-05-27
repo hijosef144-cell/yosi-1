@@ -201,6 +201,8 @@ tbody td{padding:10px 14px;border-bottom:1px solid #f1f5f9;font-family:var(--mon
 tbody tr:last-child td{border-bottom:none}
 tbody tr:hover td{background:#f8f9fa}
 tbody tr.be td{background:#eff6ff!important}
+tbody tr.pre-delivery td{background:rgba(245,158,11,.07)!important}
+.pre-delivery .yr-badge{background:rgba(245,158,11,.25)!important;color:#92400e!important}
 .g{color:#166534}.r{color:#991b1b}.a{color:#2563eb}.am{color:#d97706}
 .yr-badge{background:#f1f5f9;border-radius:5px;padding:2px 8px;font-weight:600;color:var(--text);display:inline-block}
 
@@ -393,6 +395,34 @@ tbody tr.be td{background:#eff6ff!important}
           <span style="font-size:13px;font-weight:700">👥</span>
           <span style="font-size:10px;opacity:.8;font-family:var(--sans)" data-he="טאבו משותף" data-en="Joint Ownership">טאבו משותף</span>
         </button>
+      </div>
+    </div>
+
+    <!-- PURCHASE TYPE TOGGLE -->
+    <div class="fld full" style="margin-bottom:4px">
+      <label><span data-he="סוג רכישה" data-en="Purchase Type">סוג רכישה</span></label>
+      <div class="tgl" style="max-width:380px">
+        <button class="on" id="btnResale" onclick="setPurchaseMode('resale')" style="padding:8px 16px;display:flex;flex-direction:column;align-items:center;gap:1px">
+          <span style="font-size:13px;font-weight:700">🏠</span>
+          <span style="font-size:10px;opacity:.8;font-family:var(--sans)" data-he="יד שנייה" data-en="Resale">יד שנייה</span>
+        </button>
+        <button id="btnContractor" onclick="setPurchaseMode('contractor')" style="padding:8px 16px;display:flex;flex-direction:column;align-items:center;gap:1px">
+          <span style="font-size:13px;font-weight:700">🏗️</span>
+          <span style="font-size:10px;opacity:.8;font-family:var(--sans)" data-he="רכישה מקבלן" data-en="From Contractor">רכישה מקבלן</span>
+        </button>
+      </div>
+    </div>
+    <!-- Contractor date fields (visible only in contractor mode) -->
+    <div id="contractorDates" class="full" style="display:none">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div class="fld">
+          <label><span data-he="תאריך חתימה על חוזה" data-en="Contract Signing Date">תאריך חתימה</span></label>
+          <input type="month" id="contractDate" value="2024-01" oninput="calc()">
+        </div>
+        <div class="fld">
+          <label><span data-he="תאריך מסירה צפוי" data-en="Expected Delivery Date">תאריך מסירה</span></label>
+          <input type="month" id="deliveryDate" value="2026-06" oninput="calc()">
+        </div>
       </div>
     </div>
 
@@ -770,6 +800,36 @@ tbody tr.be td{background:#eff6ff!important}
   </div>
 </div>
 
+<!-- ═══════════ MODULE: CONTRACTOR PAYMENT SCHEDULE ═══════════ -->
+<div class="mod full" id="modContractor" style="display:none">
+  <div class="mod-hdr" onclick="toggleMod('modContractor')">
+    <div class="mod-icon-wrap">
+      <div class="mod-icon" style="background:rgba(245,158,11,.15)">🏗️</div>
+      <div>
+        <div class="mod-title" data-he="לוח תשלומים לקבלן" data-en="Contractor Payment Schedule">לוח תשלומים לקבלן</div>
+        <div class="mod-sub" data-he="שלבי תשלום ועלות מימון לתקופת הבנייה" data-en="Payment stages and construction financing cost">שלבי תשלום ועלות מימון לתקופת הבנייה</div>
+      </div>
+    </div>
+    <div class="mod-chev open" id="modContractor-chev">▾</div>
+  </div>
+  <div class="mod-body one">
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:16px;margin-bottom:16px">
+      <div class="sect-label" style="margin-bottom:12px" data-he="שלבי תשלום" data-en="Payment Stages">שלבי תשלום</div>
+      <div id="payStagesContainer"></div>
+      <div style="font-size:12px;font-weight:600;margin-top:10px" id="stagesTotal">סה"כ: 100%</div>
+    </div>
+    <div class="fld" style="max-width:320px">
+      <label><span data-he="ריבית מימון לתקופת הבנייה" data-en="Construction Financing Rate">ריבית מימון</span> <span class="tip-icon" data-tip="ריבית שנתית על הלוואות גישור ומימון לתקופת הבנייה עד לקבלת המשכנתא">?</span></label>
+      <div class="inp-wrap"><input type="number" id="constructionFinRate" value="6" step="0.1" oninput="calc()"><span class="sym l">%</span></div>
+    </div>
+    <div class="stat-strip" style="margin-top:12px">
+      <div class="stat-item"><div class="stat-lbl" data-he="תקופת בנייה" data-en="Construction Period">תקופת בנייה</div><div class="stat-val a" id="dConstructionPeriod">—</div></div>
+      <div class="stat-item"><div class="stat-lbl" data-he="עלות מימון משוערת" data-en="Est. Financing Cost">עלות מימון</div><div class="stat-val r" id="dFinancingCost">—</div></div>
+      <div class="stat-item"><div class="stat-lbl" data-he="עלות כוללת (כולל מימון)" data-en="Total Cost (incl. financing)">עלות כוללת</div><div class="stat-val w" id="dTotalWithFinancing">—</div></div>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════ MODULE 1: EQUITY CHECK ═══════════ -->
 <div class="mod" id="mod0">
   <div class="mod-hdr" onclick="toggleMod('mod0')">
@@ -1048,6 +1108,13 @@ tbody tr.be td{background:#eff6ff!important}
 let isHe=true, mortMode='pct';
 let loans=[{id:1,amt:'',rate:7,years:5}];
 let loanCounter=1;
+let purchaseMode='resale';
+let payStages=[
+  {name:'חתימה על חוזה',pct:10},
+  {name:'שלד',pct:20},
+  {name:'גמר',pct:60},
+  {name:'מסירה',pct:10}
+];
 
 function addLoan(){
   loanCounter++;
@@ -1296,6 +1363,67 @@ function calcJointPurchaseTax(price, partnerAPct, partnerAType, partnerBType) {
   return { taxA, taxB, priceA, priceB, partnerBPct };
 }
 
+// ── PURCHASE MODE (RESALE / CONTRACTOR) ──
+function setPurchaseMode(mode){
+  purchaseMode=mode;
+  const isCon=mode==='contractor';
+  document.getElementById('btnResale').classList.toggle('on',!isCon);
+  document.getElementById('btnContractor').classList.toggle('on',isCon);
+  document.getElementById('contractorDates').style.display=isCon?'':'none';
+  const modCon=document.getElementById('modContractor');
+  if(modCon) modCon.style.display=isCon?'':'none';
+  if(isCon) renderPayStages();
+  calc();
+}
+
+function renderPayStages(){
+  const c=document.getElementById('payStagesContainer');
+  if(!c)return;
+  c.innerHTML='';
+  payStages.forEach((stage,idx)=>{
+    const div=document.createElement('div');
+    div.style.cssText='display:grid;grid-template-columns:2fr 1fr auto;gap:8px;align-items:center;margin-bottom:8px';
+    div.innerHTML=`
+      <div class="fld" style="margin:0">
+        <input type="text" value="${stage.name.replace(/"/g,'&quot;')}" placeholder="${isHe?'שם שלב':'Stage name'}" oninput="payStages[${idx}].name=this.value" style="background:var(--bg4);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;padding:7px 10px;width:100%;box-sizing:border-box;font-family:var(--sans)">
+      </div>
+      <div class="fld" style="margin:0">
+        <div class="inp-wrap"><input type="number" value="${stage.pct}" min="0" max="100" step="1" oninput="payStages[${idx}].pct=parseFloat(this.value)||0;updateStagesTotalDisplay();calc()" style="background:var(--bg4);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;padding:7px 10px;width:100%;box-sizing:border-box;padding-left:24px"><span class="sym l">%</span></div>
+      </div>
+      ${payStages.length>1?`<button onclick="removePayStage(${idx})" style="background:var(--red-dim);border:1px solid rgba(239,68,68,.3);color:var(--red);width:30px;height:30px;border-radius:6px;cursor:pointer;font-size:16px;line-height:1;flex-shrink:0">×</button>`:'<div style="width:30px"></div>'}
+    `;
+    c.appendChild(div);
+  });
+  const addBtn=document.createElement('button');
+  addBtn.textContent=isHe?'+ הוסף שלב':'+ Add Stage';
+  addBtn.style.cssText='background:var(--accent);border:none;color:#fff;padding:6px 14px;border-radius:7px;cursor:pointer;font-family:var(--sans);font-size:12px;font-weight:600;margin-top:4px';
+  addBtn.onclick=addPayStage;
+  c.appendChild(addBtn);
+  updateStagesTotalDisplay();
+}
+
+function addPayStage(){
+  payStages.push({name:isHe?'שלב נוסף':'New Stage',pct:0});
+  renderPayStages();
+  calc();
+}
+
+function removePayStage(idx){
+  if(payStages.length<=1)return;
+  payStages.splice(idx,1);
+  renderPayStages();
+  calc();
+}
+
+function updateStagesTotalDisplay(){
+  const total=payStages.reduce((s,st)=>s+(parseFloat(st.pct)||0),0);
+  const el=document.getElementById('stagesTotal');
+  if(el){
+    el.textContent=(isHe?'סה"כ: ':'Total: ')+total.toFixed(1)+'%';
+    el.style.color=Math.abs(total-100)<0.01?'var(--green)':'var(--red)';
+  }
+}
+
 function calc(){clearTimeout(debT);debT=setTimeout(doCalc,280);}
 
 function doCalc(){
@@ -1303,6 +1431,29 @@ function doCalc(){
   const propType=document.getElementById('propType').value;
   const buyYear=parseInt(document.getElementById('buyYear').value)||2024;
   const holdYears=parseInt(document.getElementById('holdYears').value)||10;
+
+  // ── CONTRACTOR MODE SETUP ──
+  const isContractor=purchaseMode==='contractor';
+  let financingCost=0, constructionMonths=0, deliveryYear=buyYear;
+  if(isContractor){
+    const cD=(document.getElementById('contractDate')||{}).value||'2024-01';
+    const dD=(document.getElementById('deliveryDate')||{}).value||'2026-06';
+    const [cY,cM]=cD.split('-').map(Number);
+    const [dY,dM]=dD.split('-').map(Number);
+    constructionMonths=Math.max(1,(dY-cY)*12+(dM-cM));
+    deliveryYear=dY;
+    const finRate=parseFloat((document.getElementById('constructionFinRate')||{}).value)||6;
+    const mRate=finRate/100/12;
+    payStages.forEach((stage,idx)=>{
+      const sAmt=price*(parseFloat(stage.pct)||0)/100;
+      const sMo=payStages.length>1?Math.round(idx/(payStages.length-1)*constructionMonths):0;
+      const mLeft=constructionMonths-sMo;
+      if(mRate>0&&mLeft>0) financingCost+=sAmt*(Math.pow(1+mRate,mLeft)-1);
+    });
+    setEl('dConstructionPeriod',constructionMonths+(isHe?' חודשים':' months'));
+    setEl('dFinancingCost',fmt(financingCost));
+    setEl('dTotalWithFinancing',fmt(price+financingCost));
+  }
 
   // mortgage
   const mortRatePct=parseFloat(document.getElementById('mortRate').value)||0;
@@ -1432,7 +1583,7 @@ function doCalc(){
   const reAdv=reAdvMode==='val'?parseRaw('reAdv'):price*(parseFloat(document.getElementById('reAdvPct').value)||0)/100;
   const totalBuyCosts=ptax+buyBrokerAmt+buyLawyer+reno+mortAdv+appraiser+reAdv;
   const downPayment=price-mortgage;
-  const totalInvested=downPayment+totalBuyCosts;
+  const totalInvested=downPayment+totalBuyCosts+(isContractor?financingCost:0);
 
   // equity check
   const avail=parseRaw('availEquity');
@@ -1592,10 +1743,12 @@ function doCalc(){
   // CASH FLOW TABLE
   const cfData=[];
   let cumCF=0,totalNetCF=0,breakEvenYr=null;
+  const constructionYearsFloor=Math.floor(constructionMonths/12);
   for(let y=1;y<=holdYears;y++){
-    const grossRent=rentM*Math.pow(1+rentGrowth/100,y-1)*(12-vacMo);
-    const rentTaxAmt=grossRent*rentTaxPct/100;
-    const opEx=annExp+rentTaxAmt;
+    const isPreDelivery=isContractor&&y<=constructionYearsFloor;
+    const grossRent=isPreDelivery?0:rentM*Math.pow(1+rentGrowth/100,y-1)*(12-vacMo);
+    const rentTaxAmt=isPreDelivery?0:grossRent*rentTaxPct/100;
+    const opEx=isPreDelivery?0:annExp+rentTaxAmt;
     const mortAnn=monthlyMort*12;
     const netCF=grossRent-opEx-mortAnn;
     cumCF+=netCF;totalNetCF+=netCF;
@@ -1614,7 +1767,7 @@ function doCalc(){
     for(let m=1;m<=(y-1)*12&&m<=mortN;m++){const im=bStart*mortRateM;bStart-=(monthlyMort-im);}
     let annIntY=0;
     for(let m=1;m<=12&&(y-1)*12+m<=mortN;m++){annIntY+=bStart*mortRateM;const im=bStart*mortRateM;bStart-=(monthlyMort-im);}
-    cfData.push({y,grossRent,opEx,mortAnn,annIntY,netCF,cumCF,eqY,principalLeftY:Math.max(0,bStart)});
+    cfData.push({y,grossRent,opEx,mortAnn,annIntY,netCF,cumCF,eqY,principalLeftY:Math.max(0,bStart),isPreDelivery});
   }
 
   // build table
@@ -1622,8 +1775,9 @@ function doCalc(){
   cfData.forEach(row=>{
     const tr=document.createElement('tr');
     if(row.cumCF>=0&&(row.y===1||cfData[row.y-2].cumCF<0))tr.classList.add('be');
+    if(row.isPreDelivery) tr.classList.add('pre-delivery');
     tr.innerHTML=`
-      <td><span class="yr-badge">${row.y}</span></td>
+      <td><span class="yr-badge">${row.y}</span>${row.isPreDelivery?'<div style="font-size:9px;color:#92400e;text-align:center;margin-top:1px">🏗️</div>':''}</td>
       <td class="a">${fmt(row.grossRent)}</td>
       <td class="r">(${fmt(row.opEx)})</td>
       <td class="r">(${fmt(row.mortAnn)})</td>
@@ -1752,8 +1906,35 @@ function doCalc(){
   const gridCfg={color:gridColor};
   const tickCfg={color:tickColor,font:{size:10,family:"'DM Mono',monospace"}};
 
+  // ── CONSTRUCTION ZONE CHART PLUGIN ──
+  const constructionPlugin=(isContractor&&constructionYearsFloor>0&&constructionYearsFloor<holdYears)?{
+    id:'constructionZone',
+    afterDraw(chart){
+      const {ctx,scales:{x,y}}=chart;
+      if(!x||!y) return;
+      // shade from left edge to delivery year boundary
+      const x0=x.left;
+      const x1=x.getPixelForValue(constructionYearsFloor-0.5);
+      ctx.save();
+      ctx.fillStyle='rgba(245,158,11,.08)';
+      ctx.fillRect(x0,y.top,Math.min(x1,x.right)-x0,y.bottom-y.top);
+      // vertical delivery line
+      ctx.strokeStyle='rgba(245,158,11,.55)';
+      ctx.lineWidth=1.5;ctx.setLineDash([4,4]);
+      ctx.beginPath();ctx.moveTo(x1,y.top);ctx.lineTo(x1,y.bottom);ctx.stroke();
+      ctx.setLineDash([]);
+      // label
+      ctx.fillStyle='#d97706';
+      ctx.font='bold 10px monospace';
+      ctx.textAlign='center';
+      ctx.fillText(isHe?'מסירה':'Delivery',x1,y.top-3);
+      ctx.restore();
+    }
+  }:null;
+
   if(cfCI)cfCI.destroy();
   cfCI=new Chart(document.getElementById('cfChart'),{
+    ...(constructionPlugin?{plugins:[constructionPlugin]}:{}),
     data:{labels,datasets:[
       {type:'bar',label:isHe?'תזרים נטו':'Net CF',data:cfVals,backgroundColor:cfVals.map(v=>v>=0?'rgba(22,101,52,.75)':'rgba(153,27,27,.75)'),borderRadius:4,yAxisID:'y'},
       {type:'line',label:isHe?'מצטבר':'Cumulative',data:cumVals,borderColor:'#1e3a5f',backgroundColor:'transparent',borderWidth:2,pointRadius:2,tension:.3,yAxisID:'y2'}
@@ -1791,6 +1972,7 @@ function doCalc(){
 
   if(eqCI)eqCI.destroy();
   eqCI=new Chart(document.getElementById('eqChart'),{
+    ...(constructionPlugin?{plugins:[constructionPlugin]}:{}),
     type:'line',
     data:{labels,datasets:[
       {label:isHe?'הון נזיל מצטבר — נדל"ן':'Net Liquid Capital — RE',data:eqVals,borderColor:'#1e3a5f',backgroundColor:'rgba(30,58,95,0.06)',borderWidth:2.5,fill:true,tension:.3,pointRadius:3,pointHoverRadius:7,pointHoverBackgroundColor:'#1e3a5f',pointHoverBorderColor:'#fff',pointHoverBorderWidth:2},
