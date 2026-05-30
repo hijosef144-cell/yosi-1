@@ -2908,48 +2908,100 @@ window.addEventListener('DOMContentLoaded', () => {
 
   <!-- Popups / Banners / Modal -->
   <div id="newsletterPopup"
-     class="fixed inset-0 bg-black/60 hidden items-center justify-center z-50 popup-overlay-anim">
-  <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center relative popup-card-anim">
-    <button onclick="if(typeof window.closeNewsletterPopup==='function'){window.closeNewsletterPopup();}else if(typeof closeNewsletterPopup==='function'){closeNewsletterPopup();}else{alert('שגיאה: פונקציית הסגירה לא זמינה');}" class="absolute top-3 right-3 text-gray-500 hover:text-gray-700">✖</button>
+       class="fixed inset-0 hidden items-center justify-center z-50"
+       style="background:rgba(0,0,0,0.6);">
+    <div id="newsletterPopupCard"
+         style="max-width:500px;width:calc(100% - 32px);border-radius:16px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,0.35);position:relative;font-family:'Heebo',sans-serif;animation:popupIn 0.3s ease-out;">
 
-    <div class="mb-4">
-      <img src="https://cdn-icons-png.flaticon.com/512/2983/2983796.png"
-           alt="מדריך כלכלי" class="w-16 h-16 mx-auto mb-2 opacity-90">
+      <!-- TOP: כחול כהה -->
+      <div id="npHeader" style="background:#1e3a5f;padding:28px 32px;position:relative;text-align:center;">
+        <button type="button"
+                onclick="if(typeof window.closeNewsletterPopup==='function'){window.closeNewsletterPopup();}"
+                style="position:absolute;top:14px;left:16px;background:none;border:none;cursor:pointer;color:rgba(255,255,255,0.6);font-size:22px;line-height:1;padding:4px 8px;transition:color 0.15s;"
+                onmouseover="this.style.color='#fff'"
+                onmouseout="this.style.color='rgba(255,255,255,0.6)'">×</button>
+        <div style="font-size:24px;margin-bottom:8px;">📋</div>
+        <h3 style="color:#fff;font-size:21px;font-weight:700;margin:0 0 8px;line-height:1.3;">רגע לפני שאתם עוזבים...</h3>
+        <p style="color:rgba(255,255,255,0.82);font-size:14px;margin:0;line-height:1.5;">
+          קבלו חינם את המדריך שעוזר למשפחות ישראליות<br>להגיע ליציבות כלכלית אמיתית
+        </p>
+      </div>
+
+      <!-- MIDDLE: bullets -->
+      <div id="npBullets" style="background:#fff;padding:22px 32px 0;">
+        <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:10px;">
+          <span style="color:#166534;font-weight:700;flex-shrink:0;margin-top:2px;">✓</span>
+          <span style="font-size:13px;color:#4a5568;line-height:1.5;">5 הטעויות שמונעות את מנוחת הנפש הכלכלית</span>
+        </div>
+        <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:10px;">
+          <span style="color:#166534;font-weight:700;flex-shrink:0;margin-top:2px;">✓</span>
+          <span style="font-size:13px;color:#4a5568;line-height:1.5;">הכלים הפשוטים שמפרידים בין משפחה מתוכננת למשפחה שחיה בלחץ</span>
+        </div>
+        <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:0;">
+          <span style="color:#166534;font-weight:700;flex-shrink:0;margin-top:2px;">✓</span>
+          <span style="font-size:13px;color:#4a5568;line-height:1.5;">מה הצעד הפשוט שצריך לעשות כדי להימנע מהן</span>
+        </div>
+        <div style="height:1px;background:#e2e8f0;margin:16px 0 0;"></div>
+      </div>
+
+      <!-- FORM SECTION -->
+      <div id="npForm" style="background:#fff;padding:16px 32px 24px;">
+        <form id="newsletterFormPopup">
+          <input type="hidden" name="consent" value="Newsletter popup">
+          <input type="text" name="name" placeholder="השם הפרטי שלך" required dir="rtl"
+                 style="width:100%;border:1px solid #e2e8f0;border-radius:9px;padding:11px 14px;font-size:14px;margin-bottom:10px;font-family:'Heebo',sans-serif;outline:none;box-sizing:border-box;transition:border-color 0.15s;display:block;"
+                 onfocus="this.style.borderColor='#2563eb'"
+                 onblur="this.style.borderColor='#e2e8f0'">
+          <input type="email" name="email" placeholder="כתובת המייל שלך" required dir="rtl"
+                 style="width:100%;border:1px solid #e2e8f0;border-radius:9px;padding:11px 14px;font-size:14px;margin-bottom:6px;font-family:'Heebo',sans-serif;outline:none;box-sizing:border-box;transition:border-color 0.15s;display:block;"
+                 onfocus="this.style.borderColor='#2563eb'"
+                 onblur="this.style.borderColor='#e2e8f0'"
+                 oninvalid="this.style.borderColor='#991b1b';document.getElementById('popupEmailError').style.display='block'"
+                 oninput="this.style.borderColor='#e2e8f0';document.getElementById('popupEmailError').style.display='none';this.setCustomValidity('')">
+          <div id="popupEmailError" style="font-size:12px;color:#991b1b;display:none;margin-bottom:6px;">נא להזין כתובת מייל תקינה</div>
+          <div style="height:10px;"></div>
+          <button type="submit"
+                  style="background:#1e3a5f;color:#fff;width:100%;padding:13px;border-radius:10px;font-size:16px;font-weight:700;border:none;cursor:pointer;font-family:'Heebo',sans-serif;transition:background 0.2s;display:block;"
+                  onmouseover="this.style.background='#152d4a'"
+                  onmouseout="this.style.background='#1e3a5f'">
+            🎁 שלחו לי את המדריך החינמי
+          </button>
+          <div id="popupSubmitError" style="font-size:12px;color:#991b1b;margin-top:8px;text-align:center;display:none;">אירעה שגיאה. נסו שוב או פנו אלינו ישירות.</div>
+          <p style="margin-top:10px;font-size:11px;color:#94a3b8;text-align:center;margin-bottom:0;">לא נשלח ספאם. ניתן להסיר בכל עת.</p>
+        </form>
+        <a id="newsletterDeclineLink" href="#"
+           onclick="if(typeof window.closeNewsletterPopup==='function'){window.closeNewsletterPopup();}return false;"
+           style="display:block;text-align:center;margin-top:10px;font-size:12px;color:#94a3b8;text-decoration:underline;cursor:pointer;">
+          לא תודה, אמשיך בלי המדריך
+        </a>
+      </div>
+
+      <!-- SUCCESS STATE -->
+      <div id="newsletterPopupSuccess" style="display:none;background:#fff;padding:36px 32px;text-align:center;">
+        <div style="font-size:48px;margin-bottom:12px;">✅</div>
+        <h3 style="font-size:18px;color:#1e3a5f;font-weight:700;margin:0 0 10px;font-family:'Heebo',sans-serif;">המדריך בדרך אליך! 🎉</h3>
+        <p style="font-size:13px;color:#4a5568;line-height:1.6;margin:0 0 16px;font-family:'Heebo',sans-serif;">
+          שלחנו את המדריך לכתובת שהזנת.<br>
+          בדקו את תיבת הדואר — כולל תיקיית ספאם 😊
+        </p>
+        <a href="#contact"
+           onclick="if(typeof window.closeNewsletterPopup==='function'){window.closeNewsletterPopup();}return false;"
+           style="color:#2563eb;font-size:13px;text-decoration:none;font-family:'Heebo',sans-serif;">
+          רוצים לדבר עם יוסי? ← קבעו שיחה חינם
+        </a>
+      </div>
+
+      <!-- BOTTOM STRIP -->
+      <div id="npStrip" style="background:#f8f9fa;border-top:1px solid #e2e8f0;padding:10px 32px;">
+        <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;">
+          <div style="display:flex;gap:4px;align-items:center;font-size:11px;color:#718096;">⭐ 4.9/5 מהמשתמשים</div>
+          <div style="display:flex;gap:4px;align-items:center;font-size:11px;color:#718096;">👨‍👩‍👧 500+ משפחות קיבלו את המדריך</div>
+          <div style="display:flex;gap:4px;align-items:center;font-size:11px;color:#718096;">🔒 פרטי ומאובטח</div>
+        </div>
+      </div>
+
     </div>
-
-    <h3 class="text-2xl font-bold text-blue-900 mb-3">📘 מדריך חינם: טעויות שמונעות יציבות כלכלית</h3>
-    <p class="text-gray-700 text-sm leading-relaxed mb-5">
-      גלה את 5 הטעויות הכי נפוצות במשפחות ישראליות — ומה הצעד הפשוט שיכול לחסוך לך אלפי שקלים כל חודש.
-      המדריך נשלח ישירות למייל שלך, בחינם וללא התחייבות.
-    </p>
-
-    <form id="newsletterFormPopup" class="space-y-4 text-right">
-  <input type="text" name="name" placeholder="שם מלא"
-         class="w-full border rounded-lg p-2 text-sm focus:ring focus:ring-blue-200" required>
-  <input type="email" name="email" placeholder="אימייל"
-         class="w-full border rounded-lg p-2 text-sm focus:ring focus:ring-blue-200" required>
-
-  <!-- תיבת הסימון לחובת הסכמה -->
-  <div class="flex items-center space-x-2 space-x-reverse text-sm">
-    <input id="consentCheckbox" type="checkbox" name="consent" value="Newsletter popup"
-           class="w-4 h-4 text-blue-900 border-gray-300 rounded focus:ring-blue-500" required>
-    <label for="consentCheckbox" class="text-gray-700 select-none">
-      אני מאשר/ת קבלת מדריך חינם ועדכונים במייל
-    </label>
   </div>
-
-  <button type="submit"
-          class="w-full bg-blue-900 text-white font-semibold py-2 rounded-lg hover:bg-blue-800 transition">
-    שלחו לי את המדריך 🎁
-  </button>
-
-  <p class="text-xs text-gray-500 mt-2 text-center">
-    אנחנו שונאים ספאם בדיוק כמוך. כתובתך תשמש רק לשליחת המדריך והעדכונים.
-  </p>
-</form>
-
-  </div>
-</div>
 
 
   <div id="exitPopup" class="fixed inset-0 bg-black/40 hidden items-center justify-center z-50">
@@ -3042,6 +3094,16 @@ window.addEventListener('DOMContentLoaded', () => {
       background: rgba(59, 130, 246, 1);
       transform: translateY(-50%) scale(1.05);
       box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+    }
+    /* ── Newsletter popup animations ── */
+    @keyframes popupIn{from{opacity:0;transform:translateY(24px) scale(0.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+    @keyframes popupOut{from{opacity:1;transform:scale(1)}to{opacity:0;transform:scale(0.97)}}
+    @media(max-width:480px){
+      #newsletterPopupCard{width:92vw !important;}
+      #npHeader,#npBullets,#npForm,#npStrip{padding-left:20px !important;padding-right:20px !important;}
+      #npHeader h3{font-size:18px !important;}
+      #newsletterPopupSuccess{padding-left:20px !important;padding-right:20px !important;}
+      #npStrip > div{justify-content:center !important;}
     }
   </style>
 
@@ -4638,16 +4700,38 @@ function bindNewsletterById(formId){
     withButtonLock(btn,'שולח...',done=>{
       emailjs.send(EMAILJS_SERVICE_ID,NEWSLETTER_USER_TEMPLATE_ID,params)
         .then(()=> emailjs.send(EMAILJS_SERVICE_ID,NEWSLETTER_ADMIN_TEMPLATE_ID,params))
-        .then(()=>{ 
-          alert('המדריך נשלח אליך בהצלחה!'); 
-          form.reset(); 
-          if(formId==='newsletterFormPopup') window.closeNewsletterPopup(); 
+        .then(()=>{
+          form.reset();
+          if(formId==='newsletterFormPopup'){
+            var _f=document.getElementById('newsletterFormPopup');
+            var _s=document.getElementById('newsletterPopupSuccess');
+            var _d=document.getElementById('newsletterDeclineLink');
+            if(_f) _f.style.display='none';
+            if(_d) _d.style.display='none';
+            if(_s) _s.style.display='block';
+            setTimeout(function(){
+              if(typeof window.closeNewsletterPopup==='function') window.closeNewsletterPopup();
+              if(_f) _f.style.display='';
+              if(_d) _d.style.display='';
+              if(_s) _s.style.display='none';
+            },5000);
+          } else {
+            alert('המדריך נשלח אליך בהצלחה!');
+          }
           // Track newsletter signup in Google Analytics
           if (typeof window.trackEvent === 'function') {
             window.trackEvent('newsletter_signup', 'lead_generation', formId);
           }
         })
-        .catch(err=>{ console.error('EmailJS (newsletter)',err); alert('אירעה שגיאה בשליחה.'); })
+        .catch(err=>{
+          console.error('EmailJS (newsletter)',err);
+          if(formId==='newsletterFormPopup'){
+            var _e=document.getElementById('popupSubmitError');
+            if(_e) _e.style.display='block';
+          } else {
+            alert('אירעה שגיאה בשליחה.');
+          }
+        })
         .finally(done);
     });
   });
