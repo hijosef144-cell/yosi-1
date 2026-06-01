@@ -386,14 +386,18 @@ tbody tr.pre-delivery td{background:rgba(245,158,11,.07)!important}
     <!-- JOINT OWNERSHIP TOGGLE -->
     <div class="fld full" style="margin-bottom:4px">
       <label><span data-he="מבנה בעלות" data-en="Ownership Structure">מבנה בעלות</span></label>
-      <div class="tgl" style="max-width:380px">
-        <button class="on" id="btnSolo" onclick="setOwnership('solo')" style="padding:8px 16px;display:flex;flex-direction:column;align-items:center;gap:1px">
+      <div class="tgl" style="max-width:520px">
+        <button class="on" id="btnSolo" onclick="setOwnership('solo')" style="padding:8px 12px;display:flex;flex-direction:column;align-items:center;gap:1px">
           <span style="font-size:13px;font-weight:700">👤</span>
           <span style="font-size:10px;opacity:.8;font-family:var(--sans)" data-he="רכישה יחידה" data-en="Single Owner">רכישה יחידה</span>
         </button>
-        <button id="btnJoint" onclick="setOwnership('joint')" style="padding:8px 16px;display:flex;flex-direction:column;align-items:center;gap:1px">
+        <button id="btnJoint" onclick="setOwnership('joint')" style="padding:8px 12px;display:flex;flex-direction:column;align-items:center;gap:1px">
           <span style="font-size:13px;font-weight:700">👥</span>
-          <span style="font-size:10px;opacity:.8;font-family:var(--sans)" data-he="טאבו משותף" data-en="Joint Ownership">טאבו משותף</span>
+          <span style="font-size:10px;opacity:.8;font-family:var(--sans)" data-he="2 שותפים" data-en="2 Partners">2 שותפים</span>
+        </button>
+        <button id="btnJoint3" onclick="setOwnership('joint3')" style="padding:8px 12px;display:flex;flex-direction:column;align-items:center;gap:1px">
+          <span style="font-size:13px;font-weight:700">👥👥</span>
+          <span style="font-size:10px;opacity:.8;font-family:var(--sans)" data-he="3 שותפים" data-en="3 Partners">3 שותפים</span>
         </button>
       </div>
     </div>
@@ -463,7 +467,7 @@ tbody tr.pre-delivery td{background:rgba(245,158,11,.07)!important}
     <!-- JOINT OWNERSHIP SECTION -->
     <div id="jointSection" class="full" style="display:none">
       <div class="sect-label full" data-he="פרטי שותפות" data-en="Partnership Details">פרטי שותפות</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+      <div id="partnerCardsGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
 
         <!-- PARTNER A -->
         <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:16px">
@@ -473,7 +477,7 @@ tbody tr.pre-delivery td{background:rgba(245,158,11,.07)!important}
           </div>
           <div class="fld" style="margin-bottom:10px">
             <label style="font-size:11px;color:var(--text3)"><span data-he="% בעלות" data-en="Ownership %">% בעלות</span></label>
-            <div class="inp-wrap"><input type="number" id="partnerAPct" value="50" min="1" max="99" step="1" oninput="syncPartnerB();calc()"><span class="sym l">%</span></div>
+            <div class="inp-wrap"><input type="number" id="partnerAPct" value="50" min="1" max="99" step="1" oninput="syncPartners();calc()"><span class="sym l">%</span></div>
           </div>
           <div class="fld" style="margin-bottom:10px">
             <label style="font-size:11px;color:var(--text3)"><span data-he="מצב דירות" data-en="Property Status">מצב דירות</span></label>
@@ -521,18 +525,48 @@ tbody tr.pre-delivery td{background:rgba(245,158,11,.07)!important}
           </div>
         </div>
 
+        <!-- PARTNER C — shown only in 3-partner mode -->
+        <div id="partnerCCard" style="display:none;background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.2);border-radius:var(--radius-sm);padding:16px">
+          <div style="font-size:12px;font-weight:700;color:#6366f1;margin-bottom:12px;display:flex;align-items:center;gap:8px">
+            <span style="background:#6366f1;color:#fff;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px">ג</span>
+            <span id="partnerCName" class="pname" contenteditable="true" data-ph="שותף ג" oninput="updatePartnerLabels()" onkeydown="if(event.key==='Enter')this.blur()">שותף ג</span>
+          </div>
+          <div class="fld" style="margin-bottom:10px">
+            <label style="font-size:11px;color:var(--text3)"><span id="partnerCPctLbl">% בעלות (אוטומטי)</span></label>
+            <div class="inp-wrap"><input type="number" id="partnerCPct" value="33.34" min="0" max="99" step="0.01" readonly style="opacity:.6;cursor:default"><span class="sym l">%</span></div>
+            <div id="pctWarning" style="font-size:11px;color:var(--red);margin-top:4px;display:none">הסכום חייב להיות 100% — כרגע: <span id="pctTotal">—</span>%</div>
+          </div>
+          <div class="fld" style="margin-bottom:10px">
+            <label style="font-size:11px;color:var(--text3)"><span data-he="מצב דירות" data-en="Property Status">מצב דירות</span></label>
+            <select id="partnerCType" onchange="calc()" style="background:var(--bg4);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--mono);font-size:13px;padding:9px 12px;width:100%;padding-left:28px">
+              <option value="first">דירה ראשונה/יחידה</option>
+              <option value="second">דירה שנייה ומעלה</option>
+            </select>
+          </div>
+          <div class="fld">
+            <label style="font-size:11px;color:var(--text3)"><span data-he="נקודות זיכוי" data-en="Tax Credit Points">נקודות זיכוי</span></label>
+            <div class="inp-wrap"><input type="number" id="partnerCCreditPts" value="2.25" step="0.25" oninput="calc()"><span class="sym l">נק׳</span></div>
+          </div>
+          <div style="margin-top:12px;background:var(--bg4);border-radius:7px;padding:10px 12px">
+            <div id="ptaxCLbl" style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px">מס רכישה לשותף ג</div>
+            <div style="font-family:var(--mono);font-size:15px;color:var(--red);font-weight:500" id="ptaxC">—</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:2px" id="ptaxCLabel">—</div>
+          </div>
+        </div>
+
       </div>
 
       <!-- JOINT SUMMARY STRIP -->
       <div class="stat-strip" style="margin-top:12px">
-        <div class="stat-item"><div class="stat-lbl" data-he="סה״כ מס רכישה (שניהם)" data-en="Total Purchase Tax">סה״כ מס רכישה</div><div class="stat-val r" id="ptaxJointTotal">—</div></div>
+        <div class="stat-item"><div id="ptaxJointLbl" class="stat-lbl" data-he="סה״כ מס רכישה (שניהם)" data-en="Total Purchase Tax">סה״כ מס רכישה</div><div class="stat-val r" id="ptaxJointTotal">—</div></div>
         <div class="stat-item"><div id="rentShareALbl" class="stat-lbl">שכירות לשותף א</div><div class="stat-val g" id="rentShareA">—</div></div>
         <div class="stat-item"><div id="rentShareBLbl" class="stat-lbl">שכירות לשותף ב</div><div class="stat-val g" id="rentShareB">—</div></div>
+        <div class="stat-item" id="rentShareCItem" style="display:none"><div id="rentShareCLbl" class="stat-lbl">שכירות לשותף ג</div><div class="stat-val g" id="rentShareC">—</div></div>
         <div class="stat-item"><div class="stat-lbl" data-he="חיסכון vs. רכישה יחידה" data-en="Tax Saving vs. Single">חיסכון מס לעומת רכישה יחידה</div><div class="stat-val g" id="ptaxSaving">—</div></div>
       </div>
 
       <!-- PARTNER FINANCIAL BREAKDOWN -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+      <div id="partnerFinGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
 
         <!-- PARTNER A FINANCES -->
         <div style="background:rgba(79,142,247,.06);border:1px solid rgba(79,142,247,.2);border-radius:var(--radius-sm);padding:16px">
@@ -666,6 +700,72 @@ tbody tr.pre-delivery td{background:rgba(245,158,11,.07)!important}
             <div style="display:flex;justify-content:space-between;padding:7px 0">
               <span style="font-size:12px;color:var(--text2)">ROI</span>
               <span style="font-family:var(--mono);font-size:13px;color:var(--accent)" id="pB-roi">—</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- PARTNER C FINANCES — shown only in 3-partner mode -->
+        <div id="partnerCFinCard" style="display:none;background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.2);border-radius:var(--radius-sm);padding:16px">
+          <div style="font-size:11px;font-weight:700;color:#6366f1;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;display:flex;align-items:center;gap:6px">
+            <span style="background:#6366f1;color:#fff;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px">ג</span>
+            <span id="partnerCFinTitle">פירוט פיננסי — שותף ג</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(99,102,241,.15)">
+              <span style="font-size:12px;color:var(--text2)">הון עצמי נדרש</span>
+              <span style="font-family:var(--mono);font-size:13px;color:var(--text)" id="pC-equity-req">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(99,102,241,.15)">
+              <span style="font-size:12px;color:var(--text2)">הון עצמי זמין</span>
+              <div class="inp-wrap" style="width:140px"><span class="sym r" style="font-size:12px">₪</span><input type="text" id="pC-equity-avail" class="pr" placeholder="הזן..." oninput="fmtLive(this);calc()" onblur="fmtBlur(this)" style="background:var(--bg4);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:var(--mono);font-size:12px;padding:6px 10px 6px 28px;width:100%"></div>
+            </div>
+            <div style="background:rgba(99,102,241,.06);border-radius:7px;padding:8px 10px;margin:4px 0">
+              <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+                <span style="font-size:11px;font-weight:700;color:#6366f1">הלוואה משלימה</span>
+                <span style="font-family:var(--mono);font-size:13px" id="pC-supp-loan">—</span>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 8px">
+                <div class="fld" style="margin:0">
+                  <label style="font-size:10px;color:var(--text3)">ריבית</label>
+                  <div class="inp-wrap"><input type="number" id="pC-loan-rate" value="7" step="0.1" oninput="calc()" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--mono);font-size:12px;padding:5px 8px 5px 22px;width:100%"><span class="sym l" style="font-size:11px">%</span></div>
+                </div>
+                <div class="fld" style="margin:0">
+                  <label style="font-size:10px;color:var(--text3)">שנים</label>
+                  <input type="number" id="pC-loan-years" value="5" min="1" max="30" onchange="calc()" oninput="this._v=this.value" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--mono);font-size:12px;padding:5px 8px;width:100%">
+                </div>
+              </div>
+              <div style="display:flex;justify-content:space-between;margin-top:6px;padding-top:5px;border-top:1px solid rgba(99,102,241,.15)">
+                <span style="font-size:11px;color:var(--text3)">החזר חודשי — הלוואה</span>
+                <span style="font-family:var(--mono);font-size:12px;color:var(--amber)" id="pC-loan-monthly">—</span>
+              </div>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(99,102,241,.15)">
+              <span style="font-size:12px;color:var(--text2)">חלק במשכנתא</span>
+              <span style="font-family:var(--mono);font-size:13px;color:#6366f1" id="pC-mortgage">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(99,102,241,.15)">
+              <span style="font-size:12px;color:var(--text2)">החזר חודשי — משכנתא</span>
+              <span style="font-family:var(--mono);font-size:13px;color:var(--red)" id="pC-monthly-mort">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:8px;background:rgba(239,68,68,.05);border-radius:5px">
+              <span style="font-size:12px;color:var(--text2);font-weight:600">סה״כ חודשי (משכנתא+הלוואה)</span>
+              <span style="font-family:var(--mono);font-size:14px;font-weight:700;color:var(--red)" id="pC-monthly-total">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(99,102,241,.15)">
+              <span style="font-size:12px;color:var(--text2)">יתרת משכנתא לבנק (סוף תקופה)</span>
+              <span style="font-family:var(--mono);font-size:13px;color:var(--amber)" id="pC-mort-remaining">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(99,102,241,.15)">
+              <span style="font-size:12px;color:var(--text2)">הון זמין ביד (אחרי פירעון)</span>
+              <span style="font-family:var(--mono);font-size:13px;color:var(--green)" id="pC-equity-end">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(99,102,241,.15)">
+              <span style="font-size:12px;color:var(--text2)">רווח נטו בסוף תקופה</span>
+              <span style="font-family:var(--mono);font-size:13px;color:var(--green)" id="pC-profit">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:7px 0">
+              <span style="font-size:12px;color:var(--text2)">ROI</span>
+              <span style="font-family:var(--mono);font-size:13px;color:#6366f1" id="pC-roi">—</span>
             </div>
           </div>
         </div>
@@ -1300,23 +1400,31 @@ let ownershipMode = 'solo';
 
 function getPartnerName(which){
   const el=document.getElementById('partner'+which+'Name');
-  return (el&&el.textContent.trim())||(which==='A'?'שותף א':'שותף ב');
+  const defaults={A:'שותף א',B:'שותף ב',C:'שותף ג'};
+  return (el&&el.textContent.trim())||defaults[which]||'שותף';
 }
 function updatePartnerLabels(){
-  const a=getPartnerName('A'), b=getPartnerName('B');
+  const a=getPartnerName('A'), b=getPartnerName('B'), c=getPartnerName('C');
   const s=(id,txt)=>{const el=document.getElementById(id);if(el)el.textContent=txt;};
   s('ptaxALbl','מס רכישה ל'+a);
   s('ptaxBLbl','מס רכישה ל'+b);
+  s('ptaxCLbl','מס רכישה ל'+c);
   s('rentShareALbl','שכירות ל'+a);
   s('rentShareBLbl','שכירות ל'+b);
+  s('rentShareCLbl','שכירות ל'+c);
   s('partnerAFinTitle','פירוט פיננסי — '+a);
   s('partnerBFinTitle','פירוט פיננסי — '+b);
+  s('partnerCFinTitle','פירוט פיננסי — '+c);
 }
 function setOwnership(mode) {
   ownershipMode = mode;
   const solo = mode === 'solo';
+  const is3 = mode === 'joint3';
+  const isJoint = mode === 'joint' || is3;
   document.getElementById('btnSolo').classList.toggle('on', solo);
-  document.getElementById('btnJoint').classList.toggle('on', !solo);
+  document.getElementById('btnJoint').classList.toggle('on', mode === 'joint');
+  const btn3=document.getElementById('btnJoint3');
+  if(btn3) btn3.classList.toggle('on', is3);
   document.getElementById('jointSection').style.display = solo ? 'none' : '';
   // In joint mode, hide main propType (each partner has their own)
   const propTypeField = document.getElementById('propType').closest('.fld');
@@ -1339,9 +1447,44 @@ function setOwnership(mode) {
       floatBtn.innerHTML='<span style="font-size:10px;font-weight:700;line-height:1.2;text-align:center">לא זמין<br>במצב שותף</span>';
       floatBtn.style.opacity='0.45';
       floatBtn.style.cursor='not-allowed';
-      // close panel if open
       const fp=document.getElementById('floatPanel');
       if(fp)fp.classList.remove('visible');
+    }
+  }
+  // 3-partner specific: show/hide C cards and change grid columns
+  const cCard=document.getElementById('partnerCCard');
+  const cFin=document.getElementById('partnerCFinCard');
+  const cRent=document.getElementById('rentShareCItem');
+  const cardsGrid=document.getElementById('partnerCardsGrid');
+  const finGrid=document.getElementById('partnerFinGrid');
+  const pTaxLbl=document.getElementById('ptaxJointLbl');
+  const bPctEl=document.getElementById('partnerBPct');
+  if(cCard) cCard.style.display=is3?'':'none';
+  if(cFin) cFin.style.display=is3?'':'none';
+  if(cRent) cRent.style.display=is3?'':'none';
+  if(cardsGrid) cardsGrid.style.gridTemplateColumns=is3?'1fr 1fr 1fr':'1fr 1fr';
+  if(finGrid) finGrid.style.gridTemplateColumns=is3?'1fr 1fr 1fr':'1fr 1fr';
+  if(pTaxLbl) pTaxLbl.textContent=is3?'סה״כ מס רכישה (שלושתם)':'סה״כ מס רכישה (שניהם)';
+  // Partner B %: editable in 3-partner, readonly in 2-partner
+  if(bPctEl){
+    if(is3){
+      bPctEl.removeAttribute('readonly');
+      bPctEl.style.opacity='1';
+      bPctEl.style.cursor='';
+      bPctEl.setAttribute('oninput','syncPartnerC();calc()');
+      // set defaults for 3 partners
+      document.getElementById('partnerAPct').value='33.33';
+      bPctEl.value='33.33';
+      const cPctEl=document.getElementById('partnerCPct');
+      if(cPctEl) cPctEl.value='33.34';
+    } else {
+      bPctEl.setAttribute('readonly','');
+      bPctEl.style.opacity='.6';
+      bPctEl.style.cursor='default';
+      bPctEl.removeAttribute('oninput');
+      // restore 2-partner defaults
+      document.getElementById('partnerAPct').value='50';
+      bPctEl.value='50';
     }
   }
   calc();
@@ -1352,6 +1495,23 @@ function syncPartnerB() {
   const bVal = Math.max(1, Math.min(99, 100 - aVal));
   const bEl = document.getElementById('partnerBPct');
   if (bEl) bEl.value = bVal;
+}
+function syncPartnerC() {
+  // C = 100 - A - B (read-only auto); also validate total
+  const aVal = parseFloat(document.getElementById('partnerAPct').value) || 0;
+  const bVal = parseFloat(document.getElementById('partnerBPct').value) || 0;
+  const cVal = Math.max(0, parseFloat((100 - aVal - bVal).toFixed(2)));
+  const cEl = document.getElementById('partnerCPct');
+  if (cEl) cEl.value = cVal;
+  const total = aVal + bVal + cVal;
+  const warn = document.getElementById('pctWarning');
+  const totEl = document.getElementById('pctTotal');
+  if (warn) warn.style.display = Math.abs(total - 100) > 0.1 ? '' : 'none';
+  if (totEl) totEl.textContent = total.toFixed(2);
+}
+function syncPartners() {
+  if (ownershipMode === 'joint3') syncPartnerC();
+  else syncPartnerB();
 }
 
 function calcJointPurchaseTax(price, partnerAPct, partnerAType, partnerBType) {
@@ -1566,7 +1726,90 @@ function doCalc(){
     if(elPALM) elPALM.textContent = suppA>0 ? fmt(suppMonthlyA)+'/חודש' : '—';
     if(elPBLM) elPBLM.textContent = suppB>0 ? fmt(suppMonthlyB)+'/חודש' : '—';
     // Store for later use after reNet + principalLeft are calculated
-    window._partnerData = { pAPctR, pBPct, reqA, reqB };
+    window._partnerData = { pAPctR, pBPct, pCPct: 0, reqA, reqB, reqC: 0 };
+
+  } else if (ownershipMode === 'joint3') {
+    // ── 3-PARTNER JOINT OWNERSHIP ──
+    const pAPct3 = parseFloat(document.getElementById('partnerAPct').value) || 33.33;
+    const pBPct3 = parseFloat(document.getElementById('partnerBPct').value) || 33.33;
+    const pCPct3 = parseFloat(document.getElementById('partnerCPct').value) || 33.34;
+    const pAType3 = document.getElementById('partnerAType').value;
+    const pBType3 = document.getElementById('partnerBType').value;
+    const pCType3 = (document.getElementById('partnerCType')||{value:'first'}).value;
+
+    const priceA3 = price * pAPct3 / 100;
+    const priceB3 = price * pBPct3 / 100;
+    const priceC3 = price * pCPct3 / 100;
+    ptaxA = purchaseTax(priceA3, pAType3);
+    ptaxB = purchaseTax(priceB3, pBType3);
+    const ptaxC = purchaseTax(priceC3, pCType3);
+    ptax = ptaxA + ptaxB + ptaxC;
+
+    // Display per-partner tax
+    const e3 = id => document.getElementById(id);
+    if(e3('ptaxA')) e3('ptaxA').textContent = fmt(ptaxA);
+    if(e3('ptaxB')) e3('ptaxB').textContent = fmt(ptaxB);
+    if(e3('ptaxC')) e3('ptaxC').textContent = fmt(ptaxC);
+    if(e3('ptaxALabel')) e3('ptaxALabel').textContent = isHe?`${pAPct3}% מהנכס — ${fmt(priceA3)}`:`${pAPct3}% of property — ${fmt(priceA3)}`;
+    if(e3('ptaxBLabel')) e3('ptaxBLabel').textContent = isHe?`${pBPct3}% מהנכס — ${fmt(priceB3)}`:`${pBPct3}% of property — ${fmt(priceB3)}`;
+    if(e3('ptaxCLabel')) e3('ptaxCLabel').textContent = isHe?`${pCPct3}% מהנכס — ${fmt(priceC3)}`:`${pCPct3}% of property — ${fmt(priceC3)}`;
+
+    // Joint summary
+    const soloTax3 = purchaseTax(price, pAType3);
+    const saving3 = soloTax3 - ptax;
+    if(e3('ptaxJointTotal')) e3('ptaxJointTotal').textContent = fmt(ptax);
+    if(e3('ptaxSaving')) { e3('ptaxSaving').textContent = saving3>0?fmt(saving3):(isHe?'אין חיסכון':'No saving'); e3('ptaxSaving').style.color=saving3>0?'var(--green)':'var(--text3)'; }
+
+    // Rent shares
+    const rentM3 = parseRaw('rent');
+    const vacM3 = parseFloat(document.getElementById('vacancy').value)||0;
+    const annRent3 = rentM3*(12-vacM3);
+    if(e3('rentShareA')) e3('rentShareA').textContent = fmt(annRent3*pAPct3/100/12)+'/חודש';
+    if(e3('rentShareB')) e3('rentShareB').textContent = fmt(annRent3*pBPct3/100/12)+'/חודש';
+    if(e3('rentShareC')) e3('rentShareC').textContent = fmt(annRent3*pCPct3/100/12)+'/חודש';
+
+    // Partner financial breakdown
+    const pAR3=pAPct3/100, pBR3=pBPct3/100, pCR3=pCPct3/100;
+    const _bb3=(parseFloat(document.getElementById('buyBroker').value)||0)/100;
+    const _bbv3=(document.getElementById('buyBrokerVat')||{}).checked!==false;
+    const _bba3=price*_bb3*(_bbv3?1.18:1);
+    const _bl3=lawyerMode==='val'?parseRaw('buyLawyer'):price*(parseFloat(document.getElementById('buyLawyerPct').value)||0)/100;
+    const _r3=parseRaw('reno');
+    const _ma3=mortAdvMode==='val'?parseRaw('mortAdv'):mortgage*(parseFloat(document.getElementById('mortAdvPct').value)||0)/100;
+    const _ap3=parseRaw('appraiser');
+    const _ra3=reAdvMode==='val'?parseRaw('reAdv'):price*(parseFloat(document.getElementById('reAdvPct').value)||0)/100;
+    const oc3=_bba3+_bl3+_r3+_ma3+_ap3+_ra3;
+    const reqA3=(price-mortgage)*pAR3+ptaxA+oc3*pAR3;
+    const reqB3=(price-mortgage)*pBR3+ptaxB+oc3*pBR3;
+    const reqC3=(price-mortgage)*pCR3+ptaxC+oc3*pCR3;
+
+    const availA3=parseFloat((e3('pA-equity-avail')||{}).value?.replace(/,/g,'')||0)||0;
+    const availB3=parseFloat((e3('pB-equity-avail')||{}).value?.replace(/,/g,'')||0)||0;
+    const availC3=parseFloat((e3('pC-equity-avail')||{}).value?.replace(/,/g,'')||0)||0;
+    const suppA3=Math.max(0,reqA3-availA3);
+    const suppB3=Math.max(0,reqB3-availB3);
+    const suppC3=Math.max(0,reqC3-availC3);
+
+    const sLR=id=>(parseFloat((e3(id)||{}).value)||7)/100/12;
+    const sLY=id=>(parseInt((e3(id)||{}).value)||5)*12;
+    const lm=(amt,r,n)=>amt<=0?0:(r===0?amt/n:amt*r*Math.pow(1+r,n)/(Math.pow(1+r,n)-1));
+    const smA3=lm(suppA3,sLR('pA-loan-rate'),sLY('pA-loan-years'));
+    const smB3=lm(suppB3,sLR('pB-loan-rate'),sLY('pB-loan-years'));
+    const smC3=lm(suppC3,sLR('pC-loan-rate'),sLY('pC-loan-years'));
+
+    const pS3=(id,v)=>{if(e3(id))e3(id).textContent=v;};
+    const setSupp3=(id,supp,mon)=>{
+      pS3(id,supp>0?fmt(supp):(isHe?'אין צורך':'Not needed'));
+      if(e3(id)) e3(id).style.color=supp>0?'var(--amber)':'var(--green)';
+      pS3(id.replace('supp-loan','loan-monthly'),supp>0?fmt(mon)+'/חודש':'—');
+    };
+    pS3('pA-equity-req',fmt(reqA3)); pS3('pB-equity-req',fmt(reqB3)); pS3('pC-equity-req',fmt(reqC3));
+    setSupp3('pA-supp-loan',suppA3,smA3); setSupp3('pB-supp-loan',suppB3,smB3); setSupp3('pC-supp-loan',suppC3,smC3);
+    pS3('pA-mortgage',fmt(mortgage*pAR3)); pS3('pB-mortgage',fmt(mortgage*pBR3)); pS3('pC-mortgage',fmt(mortgage*pCR3));
+    pS3('pA-monthly-mort',fmt(monthlyMort*pAR3)+'/חודש'); pS3('pB-monthly-mort',fmt(monthlyMort*pBR3)+'/חודש'); pS3('pC-monthly-mort',fmt(monthlyMort*pCR3)+'/חודש');
+    pS3('pA-monthly-total',fmt(monthlyMort*pAR3+smA3)+'/חודש'); pS3('pB-monthly-total',fmt(monthlyMort*pBR3+smB3)+'/חודש'); pS3('pC-monthly-total',fmt(monthlyMort*pCR3+smC3)+'/חודש');
+
+    window._partnerData = { pAPctR: pAR3, pBPct: pBR3, pCPct: pCR3, reqA: reqA3, reqB: reqB3, reqC: reqC3 };
 
   } else {
     ptax = purchaseTax(price, propType);
@@ -1804,37 +2047,29 @@ function doCalc(){
   const reTotal=reTotalGross;
 
   // Partner profit display (needs reNet + totalInvested)
-  if(ownershipMode==='joint' && window._partnerData){
-    const {pAPctR,pBPct,reqA,reqB}=window._partnerData;
+  if((ownershipMode==='joint'||ownershipMode==='joint3') && window._partnerData){
+    const {pAPctR,pBPct,pCPct,reqA,reqB,reqC}=window._partnerData;
+    const is3p=ownershipMode==='joint3';
     const pSet2=(id,val)=>{const el=document.getElementById(id);if(el)el.textContent=val;};
-    // Remaining mortgage per partner
-    const mortRemainingA=principalLeft*pAPctR;
-    const mortRemainingB=principalLeft*pBPct;
-    pSet2('pA-mort-remaining', fmt(mortRemainingA));
-    pSet2('pB-mort-remaining', fmt(mortRemainingB));
-    // Equity in hand after sale (net of sell costs, per partner share)
     const sellCostsShare=sellBrokerAmt+sellLawyer;
-    const equityEndA=futureVal*pAPctR - mortRemainingA - sellCostsShare*pAPctR - sTax*pAPctR;
-    const equityEndB=futureVal*pBPct  - mortRemainingB - sellCostsShare*pBPct  - sTax*pBPct;
-    pSet2('pA-equity-end', fmt(equityEndA));
-    pSet2('pB-equity-end', fmt(equityEndB));
-    const elPAEE=document.getElementById('pA-equity-end');
-    const elPBEE=document.getElementById('pB-equity-end');
-    if(elPAEE)elPAEE.style.color=equityEndA>=0?'var(--green)':'var(--red)';
-    if(elPBEE)elPBEE.style.color=equityEndB>=0?'var(--green)':'var(--red)';
-    // Profit and ROI
-    const profitA=(reNet-totalInvested)*pAPctR;
-    const profitB=(reNet-totalInvested)*pBPct;
-    const roiA=reqA>0?profitA/reqA*100:0;
-    const roiB=reqB>0?profitB/reqB*100:0;
-    pSet2('pA-profit',(profitA>=0?'':'-')+fmt(Math.abs(profitA)));
-    pSet2('pB-profit',(profitB>=0?'':'-')+fmt(Math.abs(profitB)));
-    pSet2('pA-roi',pct(roiA));
-    pSet2('pB-roi',pct(roiB));
-    const elPAP=document.getElementById('pA-profit');
-    const elPBP=document.getElementById('pB-profit');
-    if(elPAP)elPAP.style.color=profitA>=0?'var(--green)':'var(--red)';
-    if(elPBP)elPBP.style.color=profitB>=0?'var(--green)':'var(--red)';
+    // helper: compute per-partner end equity + profit + ROI
+    const calcPartner=(pfx,r,req)=>{
+      const mortRem=principalLeft*r;
+      pSet2(pfx+'-mort-remaining',fmt(mortRem));
+      const eqEnd=futureVal*r - mortRem - sellCostsShare*r - sTax*r;
+      pSet2(pfx+'-equity-end',fmt(eqEnd));
+      const ee=document.getElementById(pfx+'-equity-end');
+      if(ee) ee.style.color=eqEnd>=0?'var(--green)':'var(--red)';
+      const profit=(reNet-totalInvested)*r;
+      pSet2(pfx+'-profit',(profit>=0?'':'-')+fmt(Math.abs(profit)));
+      const pp=document.getElementById(pfx+'-profit');
+      if(pp) pp.style.color=profit>=0?'var(--green)':'var(--red)';
+      const roi2=req>0?profit/req*100:0;
+      pSet2(pfx+'-roi',pct(roi2));
+    };
+    calcPartner('pA',pAPctR,reqA);
+    calcPartner('pB',pBPct,reqB);
+    if(is3p) calcPartner('pC',pCPct,reqC);
   }
   setEl('mROI',pct(roi));
   setEl('mROE',pct(roePct));
