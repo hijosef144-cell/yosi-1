@@ -83,6 +83,10 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:1
 /* ── MAIN ── */
 .main{max-width:1280px;margin:0 auto;padding:28px;display:grid;grid-template-columns:1fr 1fr;gap:18px}
 @media(max-width:860px){.main{grid-template-columns:1fr;padding:16px}}
+/* 3-partner compact cards */
+#partnerCCard,#partnerCFinCard{font-size:95%}
+#partnerFinGrid.three-cols>div,#partnerCardsGrid.three-cols>div{padding:12px!important}
+@media(max-width:1100px){#partnerCardsGrid,#partnerFinGrid{grid-template-columns:1fr!important}}
 .full{grid-column:1/-1}
 
 /* ── EDITABLE PARTNER NAME ── */
@@ -1462,8 +1466,8 @@ function setOwnership(mode) {
   if(cCard) cCard.style.display=is3?'':'none';
   if(cFin) cFin.style.display=is3?'':'none';
   if(cRent) cRent.style.display=is3?'':'none';
-  if(cardsGrid) cardsGrid.style.gridTemplateColumns=is3?'1fr 1fr 1fr':'1fr 1fr';
-  if(finGrid) finGrid.style.gridTemplateColumns=is3?'1fr 1fr 1fr':'1fr 1fr';
+  if(cardsGrid) { cardsGrid.style.gridTemplateColumns=is3?'1fr 1fr 1fr':'1fr 1fr'; cardsGrid.style.gap=is3?'12px':'18px'; }
+  if(finGrid) { finGrid.style.gridTemplateColumns=is3?'1fr 1fr 1fr':'1fr 1fr'; finGrid.style.gap=is3?'8px':'12px'; }
   if(pTaxLbl) pTaxLbl.textContent=is3?'סה״כ מס רכישה (שלושתם)':'סה״כ מס רכישה (שניהם)';
   // Partner B %: editable in 3-partner, readonly in 2-partner
   if(bPctEl){
