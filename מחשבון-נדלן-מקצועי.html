@@ -1466,8 +1466,8 @@ function setOwnership(mode) {
   if(cCard) cCard.style.display=is3?'':'none';
   if(cFin) cFin.style.display=is3?'':'none';
   if(cRent) cRent.style.display=is3?'':'none';
-  if(cardsGrid) { cardsGrid.style.gridTemplateColumns=is3?'1fr 1fr 1fr':'1fr 1fr'; cardsGrid.style.gap=is3?'12px':'18px'; }
-  if(finGrid) { finGrid.style.gridTemplateColumns=is3?'1fr 1fr 1fr':'1fr 1fr'; finGrid.style.gap=is3?'8px':'12px'; }
+  if(cardsGrid) { cardsGrid.style.gridTemplateColumns=is3?'repeat(auto-fit,minmax(240px,1fr))':'1fr 1fr'; cardsGrid.style.gap=is3?'12px':'18px'; }
+  if(finGrid)   { finGrid.style.gridTemplateColumns  =is3?'repeat(auto-fit,minmax(240px,1fr))':'1fr 1fr'; finGrid.style.gap  =is3?'8px':'12px'; }
   if(pTaxLbl) pTaxLbl.textContent=is3?'סה״כ מס רכישה (שלושתם)':'סה״כ מס רכישה (שניהם)';
   // Partner B %: editable in 3-partner, readonly in 2-partner
   if(bPctEl){
