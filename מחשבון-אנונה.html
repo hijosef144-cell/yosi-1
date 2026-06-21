@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>מחשבון אנונה | מצפן כלכלי</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --primary:#1e3a5f;--accent:#2563eb;--text:#1a1a2e;--text2:#4a5568;--text3:#718096;
+  --bg:#f8f9fa;--white:#ffffff;--border:#e2e8f0;
+  --green:#166534;--green-bg:#f0fdf4;
+  --red:#991b1b;--red-bg:#fef2f2;
+  --amber:#92400e;--amber-bg:#fffbeb;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);direction:rtl;min-height:100vh}
+
+/* header */
+.site-header{position:sticky;top:0;z-index:100;background:var(--white);border-bottom:1px solid var(--border);
+  padding:12px 24px;display:flex;align-items:center;justify-content:space-between}
+.site-header h1{font-size:20px;font-weight:800;color:var(--primary)}
+.site-header .sub{font-size:12px;color:var(--text3);margin-top:1px}
+.btn-print{background:var(--white);border:1px solid var(--border);border-radius:8px;padding:7px 14px;
+  font-family:'Heebo',sans-serif;font-size:13px;cursor:pointer;color:var(--text2);display:flex;align-items:center;gap:5px}
+.btn-print:hover{background:var(--bg)}
+
+/* summary bar */
+.sbar{position:sticky;top:57px;z-index:99;background:var(--primary);color:#fff;
+  padding:8px 24px;display:flex;gap:0;flex-wrap:wrap;border-bottom:2px solid rgba(255,255,255,.1)}
+.si{flex:1;min-width:120px;text-align:center;padding:4px 8px}
+.si-lbl{font-size:10px;opacity:.7;letter-spacing:.5px;text-transform:uppercase}
+.si-val{font-family:'Courier New',monospace;font-size:14px;font-weight:700;margin-top:2px}
+.si-val.g{color:#86efac}
+.si-val.y{color:#fcd34d}
+
+/* layout */
+.main{max-width:960px;margin:0 auto;padding:20px 14px}
+
+/* modules */
+.mod{background:var(--white);border:1px solid var(--border);border-radius:14px;
+  box-shadow:0 1px 3px rgba(0,0,0,.07);padding:18px 22px;margin-bottom:18px}
+.mod-title{font-size:15px;font-weight:700;color:var(--primary);margin-bottom:14px;display:flex;align-items:center;gap:7px}
+
+/* fields */
+.fg{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+.fld{display:flex;flex-direction:column;gap:4px}
+.fld label{font-size:12px;font-weight:600;color:var(--text2);display:flex;align-items:center;gap:4px}
+.fld input,.fld select{width:100%;padding:8px 11px;border:1px solid var(--border);border-radius:9px;
+  font-family:'Heebo',sans-serif;font-size:14px;color:var(--text);background:var(--white);
+  outline:none;transition:border .15s,box-shadow .15s}
+.fld input:focus,.fld select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+.fld .hint{font-size:11px;color:var(--text3)}
+
+/* toggles */
+.tgl{display:flex;border-radius:10px;overflow:hidden;border:1px solid var(--border);background:var(--bg)}
+.tgl button{flex:1;padding:9px 12px;border:none;background:transparent;
+  font-family:'Heebo',sans-serif;font-size:13px;font-weight:500;color:var(--text2);
+  cursor:pointer;transition:all .15s;text-align:center;line-height:1.3}
+.tgl button.on{background:var(--primary);color:#fff;font-weight:700}
+.tgl-lg button{padding:13px 16px;font-size:14px}
+
+/* result cards */
+.rg{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:12px;margin-bottom:16px}
+.rc{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center}
+.rc.hi{border-color:#86efac;background:var(--green-bg)}
+.rc.danger{border-color:#fca5a5;background:var(--red-bg)}
+.rc-lbl{font-size:10px;font-weight:600;color:var(--text3);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px}
+.rc-val{font-family:'Courier New',monospace;font-size:21px;font-weight:700;color:var(--primary)}
+.rc.hi .rc-val{color:var(--green)}
+.rc.danger .rc-val{color:var(--red)}
+.rc-sub{font-size:11px;color:var(--text3);margin-top:3px}
+
+/* alerts */
+.alert{border-radius:10px;padding:13px 16px;margin-bottom:14px;font-size:13px;line-height:1.6}
+.alert.amber{background:var(--amber-bg);border:1px solid #fcd34d;color:var(--amber)}
+.alert.blue{background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af}
+.alert.green{background:var(--green-bg);border:1px solid #86efac;color:var(--green)}
+.alert strong{font-weight:700}
+
+/* tax breakdown */
+.tax-detail{background:var(--bg);border-radius:10px;padding:12px 14px}
+.tx-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;
+  border-bottom:1px solid var(--border);font-size:13px}
+.tx-row:last-child{border-bottom:none;font-weight:700;font-size:14px;padding-top:8px;margin-top:2px;border-top:2px solid var(--border)}
+.tx-row .num{font-family:'Courier New',monospace}
+
+/* comp table */
+.ct{width:100%;border-collapse:collapse;font-size:13px}
+.ct th{background:var(--bg);padding:9px 11px;font-size:11px;font-weight:700;color:var(--text2);
+  border-bottom:2px solid var(--border);text-align:center}
+.ct th:first-child{text-align:right}
+.ct td{padding:9px 11px;border-bottom:1px solid var(--border);text-align:center;color:var(--text)}
+.ct td:first-child{font-weight:600;text-align:right}
+.ct tr:last-child td{border-bottom:none}
+.ct .w td{background:#eff6ff}
+.ct .num{font-family:'Courier New',monospace}
+
+/* annual table */
+.ann-wrap{overflow-x:auto}
+.ann{width:100%;border-collapse:collapse;font-size:12px}
+.ann th{background:var(--bg);padding:8px 9px;font-size:11px;font-weight:700;color:var(--text2);
+  border-bottom:2px solid var(--border);white-space:nowrap}
+.ann td{padding:6px 9px;border-bottom:1px solid var(--border);font-family:'Courier New',monospace;
+  font-size:12px;white-space:nowrap;text-align:center}
+.ann tr.amber td{background:var(--amber-bg)}
+.ann tr.blue-row td{background:#eff6ff;font-weight:600}
+.ann tr:hover td{background:var(--bg)}
+
+/* collapsible */
+.col-hdr{display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none}
+.col-hdr .arr{transition:transform .2s;font-size:12px;color:var(--text3)}
+.col-hdr.open .arr{transform:rotate(180deg)}
+.col-body{margin-top:14px}
+
+/* tooltip */
+.tt{position:relative;cursor:help;display:inline-flex}
+.tt .ti{font-size:11px;color:var(--text3);border:1px solid var(--border);border-radius:50%;
+  width:15px;height:15px;display:inline-flex;align-items:center;justify-content:center;font-weight:700}
+.tt .tc{display:none;position:absolute;bottom:20px;right:0;width:230px;background:var(--text);
+  color:#fff;font-size:12px;line-height:1.5;padding:9px 11px;border-radius:8px;z-index:300;
+  font-weight:400;white-space:normal;text-align:right}
+.tt:hover .tc{display:block}
+
+/* float */
+.fbtn{position:fixed;bottom:22px;left:22px;z-index:500;background:var(--primary);color:#fff;
+  border:none;border-radius:50%;width:50px;height:50px;font-size:19px;cursor:pointer;
+  box-shadow:0 4px 12px rgba(0,0,0,.25);transition:transform .15s;display:flex;align-items:center;justify-content:center}
+.fbtn:hover{transform:scale(1.1)}
+.fpanel{position:fixed;bottom:82px;left:22px;z-index:499;background:var(--white);
+  border:1px solid var(--border);border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.15);
+  padding:14px 18px;min-width:230px;display:none}
+.fpanel.open{display:block}
+.fpanel h3{font-size:13px;font-weight:700;color:var(--primary);margin-bottom:10px}
+.fp-row{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);font-size:13px}
+.fp-row:last-child{border-bottom:none}
+.fp-row .fv{font-family:'Courier New',monospace;font-weight:700}
+
+/* charts */
+.ch-wrap{position:relative;height:280px;margin-top:10px}
+.ch-title{font-size:13px;font-weight:600;color:var(--text2);margin-bottom:6px}
+.divider{height:1px;background:var(--border);margin:18px 0}
+
+/* info row */
+.inf{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text2);margin-top:8px}
+.inf strong{font-family:'Courier New',monospace;color:var(--primary)}
+
+/* reverse result */
+.rev-box{background:var(--green-bg);border:1px solid #86efac;border-radius:12px;padding:14px;
+  margin-bottom:14px;text-align:center}
+.rev-box .rv-main{font-family:'Courier New',monospace;font-size:26px;font-weight:700;color:var(--primary);margin:6px 0}
+.rev-box .rv-hint{font-size:12px;color:var(--text3);margin-top:6px}
+
+/* CTA */
+.cta{background:#eff6ff;border:1px solid #bfdbfe;border-radius:14px;padding:20px 22px;
+  text-align:center;margin-top:18px}
+.cta p{font-size:14px;color:#1e40af;line-height:1.7;margin-bottom:12px}
+.cta a{background:var(--primary);color:#fff;border:none;border-radius:10px;padding:11px 26px;
+  font-family:'Heebo',sans-serif;font-size:15px;font-weight:700;cursor:pointer;text-decoration:none;
+  display:inline-block;transition:background .15s}
+.cta a:hover{background:var(--accent)}
+
+/* mode visibility */
+.m-amount{display:block}
+.m-target{display:none}
+body.target-mode .m-target{display:block}
+body.target-mode .m-amount{display:none}
+
+@media print{
+  .site-header,.sbar,.fbtn,.fpanel,.btn-print{display:none!important}
+  .mod{break-inside:avoid;box-shadow:none;border:1px solid #ccc}
+  body{background:#fff}
+}
+@media(max-width:600px){
+  .si{min-width:90px}.sbar{gap:0}
+  .main{padding:12px 8px}.mod{padding:14px}
+  .tgl-lg button{font-size:12px;padding:10px 8px}
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div>
+    <h1>מחשבון אנונה</h1>
+    <div class="sub">מצפן כלכלי | יוסי כץ</div>
+  </div>
+  <button class="btn-print" onclick="window.print()">🖨️ הדפסה</button>
+</header>
+
+<div class="sbar">
+  <div class="si"><div class="si-lbl">קצבה ברוטו</div><div class="si-val" id="sb-gross">—</div></div>
+  <div class="si"><div class="si-lbl">קצבה נטו</div><div class="si-val g" id="sb-net">—</div></div>
+  <div class="si"><div class="si-lbl">קצבה ריאלית</div><div class="si-val" id="sb-real">—</div></div>
+  <div class="si"><div class="si-lbl">סך קצבאות</div><div class="si-val" id="sb-total">—</div></div>
+  <div class="si"><div class="si-lbl">נקודת איזון</div><div class="si-val y" id="sb-be">—</div></div>
+</div>
+
+<div class="main">
+
+<!-- M1: כיוון -->
+<div class="mod">
+  <div class="mod-title">📐 כיוון החישוב</div>
+  <div class="tgl tgl-lg">
+    <button class="on" id="btnAmount" onclick="setMode('amount')">💰 יש לי סכום — כמה אקבל בחודש?</button>
+    <button id="btnTarget" onclick="setMode('target')">📅 רוצה קצבה חודשית — כמה צריך לצבור?</button>
+  </div>
+</div>
+
+<!-- M2: נתוני צבירה -->
+<div class="mod">
+  <div class="mod-title">💰 נתוני הצבירה</div>
+  <div class="fg">
+    <div class="fld m-amount">
+      <label>סכום צבור (₪)</label>
+      <input type="text" id="totalSaved" value="1,000,000" placeholder="סכום החיסכון/הפנסיה שלך" oninput="fmtLive(this);calc()" onblur="fmtBlur(this)">
+    </div>
+    <div class="fld m-target">
+      <label>קצבה חודשית רצויה (₪)</label>
+      <input type="text" id="targetMonthly" value="10,000" oninput="fmtLive(this);calc()" onblur="fmtBlur(this)">
+    </div>
+    <div class="fld">
+      <label>
+        תשואה שנתית (%)
+        <span class="tt"><span class="ti">?</span><span class="tc">התשואה הצפויה שהכסף ימשיך להרוויח בזמן שמושכים ממנו קצבה. קרן פנסיה ממוצעת: 4–6% בשנה</span></span>
+      </label>
+      <input type="number" id="annualReturn" value="4.5" step="0.1" min="0" max="20" oninput="calc()">
+    </div>
+    <div class="fld">
+      <label>
+        אינפלציה שנתית (%)
+        <span class="tt"><span class="ti">?</span><span class="tc">אינפלציה מקטינה את כוח הקנייה. ממוצע ישראל: 2.5–3.5% בשנה</span></span>
+      </label>
+      <input type="number" id="inflation" value="3" step="0.1" min="0" max="15" oninput="calc()">
+    </div>
+  </div>
+</div>
+
+<!-- M3: סוג קצבה -->
+<div class="mod">
+  <div class="mod-title">📅 סוג הקצבה</div>
+  <div class="tgl" style="margin-bottom:14px">
+    <button class="on" id="btnLifetime" onclick="setAnnuity('lifetime')">♾️ קצבה לכל החיים</button>
+    <button id="btnFixed" onclick="setAnnuity('fixed')">📆 קצבה לתקופה קבועה</button>
+    <button id="btnPortfolio" onclick="setAnnuity('portfolio')">📈 משיכות מתיק גדל</button>
+  </div>
+
+  <div id="fLifetime">
+    <div class="fg">
+      <div class="fld">
+        <label>גיל נוכחי</label>
+        <input type="number" id="currentAge" value="67" min="40" max="99" oninput="calc()">
+      </div>
+      <div class="fld">
+        <label>
+          תוחלת חיים
+          <span class="tt"><span class="ti">?</span><span class="tc">ממוצע ישראל: גברים ~82, נשים ~85. מומלץ לתכנן ל-90 לביטחון.</span></span>
+        </label>
+        <input type="number" id="lifeExpectancy" value="87" min="60" max="110" oninput="calc()">
+      </div>
+    </div>
+    <div class="inf">תקופת קצבה: <strong id="ltYears">—</strong> שנים (גיל <strong id="ltRange">—</strong>)</div>
+  </div>
+
+  <div id="fFixed" style="display:none">
+    <div class="fg">
+      <div class="fld">
+        <label>מספר שנות קצבה</label>
+        <input type="number" id="fixedYears" value="20" min="1" max="50" oninput="calc()">
+      </div>
+      <div class="fld">
+        <label>גיל בתחילת קצבה</label>
+        <input type="number" id="fixedStartAge" value="67" min="40" max="100" oninput="calc()">
+      </div>
+    </div>
+    <div class="inf">קצבה עד גיל: <strong id="fixedEndAge">—</strong></div>
+  </div>
+
+  <div id="fPortfolio" style="display:none">
+    <div class="fg">
+      <div class="fld">
+        <label>
+          % משיכה שנתי
+          <span class="tt"><span class="ti">?</span><span class="tc">כלל ה-4%: משיכה של 4% בשנה מאפשרת לתיק להחזיק מעמד לאורך זמן רב. מחקרים מראים שזה בר-קיימא ב-30 שנה+</span></span>
+        </label>
+        <input type="number" id="withdrawalPct" value="4" step="0.1" min="0.1" max="20" oninput="calc()">
+      </div>
+      <div class="fld">
+        <label>תקופת משיכה (שנים)</label>
+        <input type="number" id="portfolioYears" value="25" min="1" max="50" oninput="calc()">
+      </div>
+    </div>
+    <div class="inf">קצבה חודשית: <strong id="portMonthly">—</strong> (<strong id="portPct">—</strong>% שנתי)</div>
+  </div>
+</div>
+
+<!-- M4: מיסוי -->
+<div class="mod">
+  <div class="col-hdr open" onclick="toggleCol(this)">
+    <div class="mod-title" style="margin-bottom:0">🏛️ מיסוי ופטורים</div>
+    <span class="arr">▼</span>
+  </div>
+  <div class="col-body">
+    <div class="fg" style="margin-bottom:14px">
+      <div class="fld">
+        <label>גיל בקבלת קצבה</label>
+        <input type="number" id="taxAge" value="67" min="40" max="100" oninput="calc()">
+      </div>
+      <div class="fld">
+        <label>
+          ותק שנות חיסכון
+          <span class="tt"><span class="ti">?</span><span class="tc">סעיף 9א: פטור ממס עד 35% מהקצבה המזכה (2% לכל שנת חיסכון), ועד תקרה חודשית של ₪8,990 (2026).</span></span>
+        </label>
+        <input type="number" id="savingYears" value="30" min="1" max="50" oninput="calc()">
+      </div>
+      <div class="fld">
+        <label>נקודות זיכוי</label>
+        <input type="number" id="creditPoints" value="2.25" step="0.25" min="0" max="20" oninput="calc()">
+        <span class="hint">242 ₪ לנקודה (2026)</span>
+      </div>
+    </div>
+    <div style="margin-bottom:14px">
+      <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">מס על קצבה מעל הפטור</label>
+      <div class="tgl" style="max-width:340px">
+        <button class="on" id="btnBrackets" onclick="setTaxMode('brackets')">מדרגות מס רגילות</button>
+        <button id="btnFlat" onclick="setTaxMode('flat')">שיעור מס קבוע</button>
+      </div>
+      <div id="flatField" style="display:none;margin-top:10px;max-width:170px">
+        <div class="fld"><label>שיעור מס קבוע (%)</label>
+        <input type="number" id="flatRate" value="25" min="0" max="50" oninput="calc()"></div>
+      </div>
+    </div>
+    <div class="tax-detail">
+      <div class="tx-row"><span>פטור חודשי (סעיף 9א):</span><span class="num" id="dExempt">—</span></div>
+      <div class="tx-row"><span>חייב במס:</span><span class="num" id="dTaxable">—</span></div>
+      <div class="tx-row"><span>מס לתשלום (לפני זיכוי):</span><span class="num" id="dGrossTax">—</span></div>
+      <div class="tx-row"><span>זיכוי נקודות:</span><span class="num" id="dCredit">—</span></div>
+      <div class="tx-row"><span>מס נטו:</span><span class="num" id="dNetTax">—</span></div>
+      <div class="tx-row" style="color:var(--green)"><span>קצבה נטו:</span><span class="num" id="dNetPension">—</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- M5: תוצאות -->
+<div class="mod">
+  <div class="mod-title">📊 תוצאות</div>
+
+  <div id="reverseBox" class="rev-box" style="display:none">
+    <div style="font-size:13px;color:var(--text2)">כדי לקבל <strong id="revTarget">—</strong> נטו בחודש:</div>
+    <div class="rv-main" id="revRequired">—</div>
+    <div style="font-size:12px;color:var(--text3)">סכום נדרש לצבירה</div>
+    <div class="rv-hint" id="revHint"></div>
+  </div>
+
+  <div class="rg">
+    <div class="rc"><div class="rc-lbl">קצבה חודשית ברוטו</div><div class="rc-val" id="rGross">—</div><div class="rc-sub">לפני מס</div></div>
+    <div class="rc hi"><div class="rc-lbl">קצבה חודשית נטו</div><div class="rc-val" id="rNet">—</div><div class="rc-sub">אחרי מס וזיכויים</div></div>
+    <div class="rc"><div class="rc-lbl">קצבה ריאלית (היום) <span class="tt"><span class="ti">?</span><span class="tc">בערכי כסף של היום — אינפלציה שוחקת את כוח הקנייה לאורך זמן</span></span></div><div class="rc-val" style="color:var(--text2)" id="rReal">—</div><div class="rc-sub">בערכי כסף של היום</div></div>
+    <div class="rc"><div class="rc-lbl">סך קצבאות לאורך התקופה</div><div class="rc-val" id="rTotalPayout">—</div><div class="rc-sub">סה"כ שתקבל</div></div>
+    <div class="rc danger"><div class="rc-lbl">סך מס ששולם</div><div class="rc-val" id="rTotalTax">—</div><div class="rc-sub">לאורך כל התקופה</div></div>
+    <div class="rc" id="rBalCard"><div class="rc-lbl">יתרה צבורה בסוף תקופה</div><div class="rc-val" id="rBalance">—</div><div class="rc-sub">כמה נשאר בקרן</div></div>
+  </div>
+
+  <div id="depAlert" class="alert amber" style="display:none"></div>
+  <div id="beBox" class="alert blue" style="display:none"></div>
+</div>
+
+<!-- M6: השוואה -->
+<div class="mod">
+  <div class="mod-title">⚖️ השוואת אסטרטגיות</div>
+  <div style="overflow-x:auto">
+    <table class="ct">
+      <thead><tr>
+        <th>קריטריון</th>
+        <th>♾️ לכל החיים</th>
+        <th>📆 קצבה קבועה</th>
+        <th>📈 משיכות מתיק</th>
+      </tr></thead>
+      <tbody id="compBody"><tr><td colspan="4" style="text-align:center;color:var(--text3);padding:16px">מחשב...</td></tr></tbody>
+    </table>
+  </div>
+  <div id="compWinner" class="alert green" style="display:none;margin-top:10px"></div>
+</div>
+
+<!-- M8: גרפים -->
+<div class="mod">
+  <div class="mod-title">📈 גרפים</div>
+  <div class="ch-title">יתרת הצבירה לאורך הזמן</div>
+  <div class="ch-wrap"><canvas id="chartBal"></canvas></div>
+  <div class="divider"></div>
+  <div class="ch-title">קצבה ריאלית vs נומינלית</div>
+  <div class="ch-wrap"><canvas id="chartReal"></canvas></div>
+  <div class="divider"></div>
+  <div class="ch-title">השוואת 3 אסטרטגיות — סך תקבולים מצטבר</div>
+  <div class="ch-wrap"><canvas id="chartComp"></canvas></div>
+</div>
+
+<!-- M9: טבלה שנתית -->
+<div class="mod">
+  <div class="col-hdr" onclick="toggleCol(this)">
+    <div class="mod-title" style="margin-bottom:0">📋 פירוט שנתי</div>
+    <span class="arr">▼</span>
+  </div>
+  <div class="col-body" style="display:none">
+    <div class="ann-wrap">
+      <table class="ann">
+        <thead><tr>
+          <th>שנה</th><th>גיל</th><th>קצבה ברוטו</th><th>מס</th>
+          <th>קצבה נטו</th><th>קצבה ריאלית</th><th>יתרה בקרן</th><th>תשואה שנתית</th>
+        </tr></thead>
+        <tbody id="annBody"><tr><td colspan="8" style="text-align:center;color:var(--text3)">מחשב...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- CTA -->
+<div class="cta">
+  <p>💡 תוצאות המחשבון הן הערכה בלבד.<br>לתכנון אנונה מותאם אישית — נשמח לייעץ לך.</p>
+  <a href="https://matzpenkalkali.com/#contact">לייעוץ אישי עם יוסי כץ ←</a>
+</div>
+
+</div><!-- /main -->
+
+<!-- float -->
+<button class="fbtn" onclick="toggleFloat()" title="סיכום">📋</button>
+<div class="fpanel" id="floatPanel">
+  <h3>📊 סיכום</h3>
+  <div class="fp-row"><span>קצבה ברוטו:</span><span class="fv" id="fp-gross">—</span></div>
+  <div class="fp-row"><span>קצבה נטו:</span><span class="fv" id="fp-net">—</span></div>
+  <div class="fp-row"><span>קצבה ריאלית:</span><span class="fv" id="fp-real">—</span></div>
+  <div class="fp-row"><span>פטור ממס חודשי:</span><span class="fv" id="fp-exempt">—</span></div>
+  <div class="fp-row"><span>סך קצבאות:</span><span class="fv" id="fp-total">—</span></div>
+  <div class="fp-row"><span>יתרה בסוף:</span><span class="fv" id="fp-bal">—</span></div>
+  <div class="fp-row"><span>נקודת איזון:</span><span class="fv" id="fp-be">—</span></div>
+  <div class="fp-row"><span>סוג קצבה:</span><span class="fv" id="fp-type">—</span></div>
+</div>
+
+<script>
+'use strict';
+
+// === STATE ===
+let calcMode='amount', annuityType='lifetime', taxMode='brackets', debT;
+let chBal=null, chReal=null, chComp=null;
+
+// === DOM ===
+function $(id){return document.getElementById(id)}
+function setEl(id,v){const e=$(id);if(e)e.textContent=v}
+
+// === NUMBER FORMATTING ===
+function parseRaw(id){
+  const e=$(id); if(!e) return 0;
+  return parseFloat(e.value.replace(/,/g,''))||0;
+}
+function fmtLive(el){
+  const raw=el.value.replace(/[^0-9]/g,'');
+  el.value=raw?parseInt(raw,10).toLocaleString('he-IL'):'';
+}
+function fmtBlur(el){
+  const raw=el.value.replace(/[^0-9]/g,'');
+  el.value=raw?parseInt(raw,10).toLocaleString('he-IL'):'0';
+}
+function fmt(n){
+  if(n==null||isNaN(n))return'—';
+  const abs=Math.abs(Math.round(n));
+  return(n<0?'-':'')+'₪'+abs.toLocaleString('he-IL');
+}
+function fmtM(n){
+  const abs=Math.abs(n);
+  if(abs>=1e6) return(n<0?'-':'')+'₪'+(abs/1e6).toFixed(2)+'מ׳';
+  if(abs>=1e4) return(n<0?'-':'')+'₪'+Math.round(abs).toLocaleString('he-IL');
+  return fmt(n);
+}
+
+// === MODE SETTERS ===
+function setMode(m){
+  calcMode=m;
+  document.body.classList.toggle('target-mode',m==='target');
+  $('btnAmount').classList.toggle('on',m==='amount');
+  $('btnTarget').classList.toggle('on',m==='target');
+  $('reverseBox').style.display=m==='target'?'block':'none';
+  calc();
+}
+function setAnnuity(t){
+  annuityType=t;
+  $('btnLifetime').classList.toggle('on',t==='lifetime');
+  $('btnFixed').classList.toggle('on',t==='fixed');
+  $('btnPortfolio').classList.toggle('on',t==='portfolio');
+  $('fLifetime').style.display=t==='lifetime'?'block':'none';
+  $('fFixed').style.display=t==='fixed'?'block':'none';
+  $('fPortfolio').style.display=t==='portfolio'?'block':'none';
+  calc();
+}
+function setTaxMode(m){
+  taxMode=m;
+  $('btnBrackets').classList.toggle('on',m==='brackets');
+  $('btnFlat').classList.toggle('on',m==='flat');
+  $('flatField').style.display=m==='flat'?'block':'none';
+  calc();
+}
+function toggleCol(hdr){
+  hdr.classList.toggle('open');
+  const body=hdr.nextElementSibling;
+  body.style.display=body.style.display==='none'?'block':'none';
+}
+function toggleFloat(){
+  $('floatPanel').classList.toggle('open');
+}
+
+// === CALC TRIGGER ===
+function calc(){clearTimeout(debT);debT=setTimeout(doCalc,300)}
+
+// === FORMULAS ===
+function calcPMT(principal,annualRate,years){
+  if(years<=0||principal<=0) return 0;
+  if(annualRate===0) return principal/(years*12);
+  const r=annualRate/100/12, n=years*12;
+  return principal*r*Math.pow(1+r,n)/(Math.pow(1+r,n)-1);
+}
+
+function calcExemption(monthlyGross,savingYears){
+  const pct=Math.min(0.35,savingYears*0.02);
+  return Math.min(monthlyGross*pct,8990);
+}
+
+function calcTaxBrackets(annualIncome){
+  const br=[[84120,.10],[120720,.14],[193800,.20],[269280,.31],[558240,.35],[Infinity,.47]];
+  let tax=0,prev=0;
+  for(const[lim,rate] of br){
+    if(annualIncome<=lim){tax+=(annualIncome-prev)*rate;break}
+    tax+=(lim-prev)*rate; prev=lim;
+  }
+  return Math.max(0,tax);
+}
+
+function calcNet(gross,savingYears,creditPoints,flatRate){
+  const exempt=calcExemption(gross,savingYears);
+  const taxable=Math.max(0,gross-exempt);
+  const annTaxable=taxable*12;
+  const grossTaxM=(flatRate!==null?annTaxable*flatRate/100:calcTaxBrackets(annTaxable))/12;
+  const creditM=creditPoints*242;
+  const netTaxM=Math.max(0,grossTaxM-creditM);
+  return{gross,exempt,taxable,grossTax:grossTaxM,creditAmt:creditM,netTax:netTaxM,net:gross-netTaxM};
+}
+
+function simulate(principal,annualRate,inflation,years,gross,net){
+  const mr=annualRate/100/12;
+  let bal=principal, cumPayout=0, cumTax=0, deplY=null;
+  const rows=[];
+  for(let y=1;y<=years;y++){
+    let yReturn=0;
+    for(let m=0;m<12;m++){
+      if(bal<=0){break}
+      const interest=bal*mr;
+      yReturn+=interest;
+      bal=bal+interest-gross;
+      if(bal<0)bal=0;
+    }
+    const tax=gross-net;
+    cumPayout+=net*12; cumTax+=tax*12;
+    if(bal<=0&&deplY===null)deplY=y;
+    rows.push({year:y,gross,tax,net,real:net/Math.pow(1+inflation/100,y),balance:bal,yReturn});
+  }
+  return{rows,cumPayout,cumTax,finalBal:Math.max(0,bal),deplY};
+}
+
+function findSustainable(principal,annualRate,years){
+  let lo=0,hi=principal;
+  for(let i=0;i<60;i++){
+    const mid=(lo+hi)/2;
+    const s=simulate(principal,annualRate,0,years,mid,mid);
+    if(s.deplY===null)lo=mid; else hi=mid;
+  }
+  return lo;
+}
+
+function findRequired(targetNet,annualRate,years,savingYears,creditPoints,flatRate){
+  let lo=0,hi=50000000;
+  for(let i=0;i<60;i++){
+    const mid=(lo+hi)/2;
+    let gross;
+    if(annuityType==='portfolio'){
+      gross=mid*(parseFloat($('withdrawalPct').value)||4)/100/12;
+    } else {
+      gross=calcPMT(mid,annualRate,years);
+    }
+    const{net}=calcNet(gross,savingYears,creditPoints,flatRate);
+    if(net<targetNet)lo=mid; else hi=mid;
+  }
+  return Math.ceil(hi/1000)*1000;
+}
+
+// === MAIN CALC ===
+function doCalc(){
+  const annualReturn=parseFloat($('annualReturn').value)||4.5;
+  const inflation=parseFloat($('inflation').value)||3;
+  const currentAge=parseFloat($('currentAge').value)||67;
+  const lifeExp=parseFloat($('lifeExpectancy').value)||87;
+  const fixedYrs=parseFloat($('fixedYears').value)||20;
+  const fixedStart=parseFloat($('fixedStartAge').value)||67;
+  const wdPct=parseFloat($('withdrawalPct').value)||4;
+  const portYrs=parseFloat($('portfolioYears').value)||25;
+  const savingYears=parseFloat($('savingYears').value)||30;
+  const creditPoints=parseFloat($('creditPoints').value)||2.25;
+  const flatRate=taxMode==='flat'?(parseFloat($('flatRate').value)||25):null;
+  const targetMonthly=parseRaw('targetMonthly');
+
+  // period
+  let calcYears, startAge;
+  if(annuityType==='lifetime'){
+    calcYears=Math.max(1,lifeExp-currentAge);
+    startAge=currentAge;
+    setEl('ltYears',calcYears);
+    setEl('ltRange',currentAge+'–'+lifeExp);
+  } else if(annuityType==='fixed'){
+    calcYears=Math.max(1,fixedYrs);
+    startAge=fixedStart;
+    setEl('fixedEndAge',fixedStart+fixedYrs);
+  } else {
+    calcYears=Math.max(1,portYrs);
+    startAge=currentAge;
+  }
+
+  // gross monthly
+  let principal, gross;
+  if(calcMode==='target'){
+    principal=findRequired(targetMonthly,annualReturn,calcYears,savingYears,creditPoints,flatRate);
+  } else {
+    principal=parseRaw('totalSaved');
+  }
+  if(annuityType==='portfolio'){
+    gross=principal*wdPct/100/12;
+    setEl('portMonthly',fmt(gross));
+    setEl('portPct',wdPct);
+  } else {
+    gross=calcPMT(principal,annualReturn,calcYears);
+  }
+
+  // tax
+  const t=calcNet(gross,savingYears,creditPoints,flatRate);
+  const exemptPctShow=Math.min(35,savingYears*2);
+  setEl('dExempt',fmt(t.exempt)+' ('+exemptPctShow+'%)');
+  setEl('dTaxable',fmt(t.taxable));
+  setEl('dGrossTax',fmt(t.grossTax));
+  setEl('dCredit',fmt(t.creditAmt));
+  setEl('dNetTax',fmt(t.netTax));
+  setEl('dNetPension',fmt(t.net));
+
+  // simulation
+  const sim=simulate(principal,annualReturn,inflation,calcYears,gross,t.net);
+
+  // real at year 1
+  const realY1=t.net/Math.pow(1+inflation/100,1);
+
+  // break-even: lump sum vs annuity
+  // approximate lump sum net using same effective tax rate
+  const effTaxRate=gross>0?t.netTax/gross:0;
+  const lumpSumNet=principal*(1-effTaxRate);
+  const beMonths=t.net>0?lumpSumNet/t.net:0;
+  const beAge=startAge+beMonths/12;
+
+  // depletion
+  if(sim.deplY!==null&&annuityType!=='portfolio'){
+    const depAge=Math.round(startAge+sim.deplY);
+    const susGross=findSustainable(principal,annualReturn,calcYears);
+    const susNet=calcNet(susGross,savingYears,creditPoints,flatRate).net;
+    $('depAlert').style.display='block';
+    $('depAlert').innerHTML='⚠️ <strong>הכסף ייגמר בגיל '+depAge+'</strong> (בעוד '+sim.deplY+' שנים)<br>שקול להפחית קצבה ל-<strong>'+fmt(susNet)+'/חודש</strong> כדי שהכסף יחזיק מעמד לכל התקופה';
+  } else {
+    $('depAlert').style.display='none';
+  }
+
+  // break-even box
+  if(beMonths>0&&beAge<startAge+calcYears+30&&beAge<120){
+    $('beBox').style.display='block';
+    $('beBox').innerHTML='📍 <strong>נקודת האיזון — מתי הקצבה משתלמת?</strong><br>'+
+      'אם תמשוך הכל היום: <strong>'+fmt(Math.round(lumpSumNet))+' נטו</strong><br>'+
+      'אם תיקח קצבה: תקבל את אותו הסכום בגיל <strong>'+Math.round(beAge)+'</strong><br>'+
+      'מגיל '+Math.round(beAge)+' ואילך — הקצבה משתלמת יותר';
+  } else {
+    $('beBox').style.display='none';
+  }
+
+  // balance card color
+  const balCard=$('rBalCard');
+  balCard.className=sim.finalBal<=0?'rc danger':sim.finalBal>principal*0.3?'rc hi':'rc';
+
+  // result cards
+  setEl('rGross',fmt(gross));
+  setEl('rNet',fmt(t.net));
+  setEl('rReal',fmt(realY1));
+  setEl('rTotalPayout',fmtM(sim.cumPayout));
+  setEl('rTotalTax',fmtM(sim.cumTax));
+  setEl('rBalance',fmt(sim.finalBal));
+
+  // summary bar
+  setEl('sb-gross',fmt(gross));
+  setEl('sb-net',fmt(t.net));
+  setEl('sb-real',fmt(realY1));
+  setEl('sb-total',fmtM(sim.cumPayout));
+  setEl('sb-be',beAge>0&&beAge<120?'גיל '+Math.round(beAge):'—');
+
+  // reverse mode
+  if(calcMode==='target'){
+    $('reverseBox').style.display='block';
+    setEl('revTarget',fmt(targetMonthly));
+    setEl('revRequired',fmt(principal));
+    const savPeriod=Math.max(1,startAge-35);
+    const mr2=annualReturn/100/12, n2=savPeriod*12;
+    const monthlySave=mr2>0?principal*mr2/(Math.pow(1+mr2,n2)-1):principal/n2;
+    setEl('revHint','חיסכון של '+fmt(Math.round(monthlySave))+'/חודש מגיל 35 בתשואה '+annualReturn+'% יגיע ליעד');
+  } else {
+    $('reverseBox').style.display='none';
+  }
+
+  // annual table
+  updateTable(sim.rows,startAge,Math.round(beAge));
+
+  // charts
+  updateCharts(sim.rows,startAge,principal,annualReturn,inflation,calcYears,gross,t.net,beMonths,
+    savingYears,creditPoints,flatRate,wdPct,portYrs,fixedYrs,lifeExp,currentAge);
+
+  // comparison
+  updateComparison(principal,annualReturn,inflation,currentAge,lifeExp,fixedYrs,wdPct,portYrs,savingYears,creditPoints,flatRate);
+
+  // float panel
+  setEl('fp-gross',fmt(gross));
+  setEl('fp-net',fmt(t.net));
+  setEl('fp-real',fmt(realY1));
+  setEl('fp-exempt',fmt(t.exempt));
+  setEl('fp-total',fmtM(sim.cumPayout));
+  setEl('fp-bal',fmt(sim.finalBal));
+  setEl('fp-be',beAge>0&&beAge<120?'גיל '+Math.round(beAge):'—');
+  setEl('fp-type',annuityType==='lifetime'?'קצבה לכל החיים':annuityType==='fixed'?'קצבה קבועה':'משיכות מתיק');
+}
+
+// === ANNUAL TABLE ===
+function updateTable(rows,startAge,beAge){
+  let html='';
+  rows.forEach(function(r){
+    const age=startAge+r.year;
+    const cls=r.balance<=0?'amber':age===beAge?'blue-row':'';
+    const balStr=r.balance<=0?'<span style="color:var(--red)">₪0 ⚠️</span>':fmt(r.balance);
+    html+=`<tr class="${cls}"><td>${r.year}</td><td>${age}</td><td>${fmt(r.gross)}</td><td>${fmt(r.tax)}</td><td>${fmt(r.net)}</td><td>${fmt(r.real)}</td><td>${balStr}</td><td>${fmt(r.yReturn)}</td></tr>`;
+  });
+  $('annBody').innerHTML=html||'<tr><td colspan="8" style="text-align:center;color:var(--text3)">אין נתונים</td></tr>';
+}
+
+// === CHARTS ===
+function mkChartOpts(yFmt){
+  return{
+    responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{font:{family:'Heebo',size:12},boxWidth:14}},
+      tooltip:{callbacks:{label:function(c){return c.dataset.label+': '+yFmt(c.parsed.y)}}}},
+    scales:{
+      y:{ticks:{callback:function(v){return yFmt(v)},font:{family:'Heebo',size:11}},grid:{color:'#e2e8f0'}},
+      x:{ticks:{font:{family:'Heebo',size:10},maxTicksLimit:10},grid:{display:false}}
+    }
+  };
+}
+
+function updateCharts(rows,startAge,principal,annualReturn,inflation,calcYears,gross,net,beMonths,
+    savingYears,creditPoints,flatRate,wdPct,portYrs,fixedYrs,lifeExp,currentAge){
+
+  const labels=rows.map(r=>'גיל '+(startAge+r.year));
+
+  // Chart 1: balance
+  const balN=rows.map(r=>Math.round(r.balance));
+  const balR=rows.map((r,i)=>Math.round(r.balance/Math.pow(1+inflation/100,i+1)));
+  if(chBal){chBal.destroy();chBal=null}
+  chBal=new Chart($('chartBal').getContext('2d'),{
+    type:'line',
+    data:{labels,datasets:[
+      {label:'יתרה נומינלית',data:balN,borderColor:'#1e3a5f',backgroundColor:'rgba(30,58,95,.1)',fill:true,tension:.3,pointRadius:2},
+      {label:'יתרה ריאלית',data:balR,borderColor:'#166534',borderDash:[6,3],fill:false,tension:.3,pointRadius:2}
+    ]},
+    options:{...mkChartOpts(v=>{const a=Math.abs(v);return a>=1e6?'₪'+(v/1e6).toFixed(1)+'מ׳':'₪'+Math.round(v).toLocaleString('he-IL')})}
+  });
+
+  // Chart 2: real vs nominal pension
+  const nomArr=rows.map(()=>Math.round(net));
+  const realArr=rows.map((r,i)=>Math.round(net/Math.pow(1+inflation/100,i+1)));
+  if(chReal){chReal.destroy();chReal=null}
+  chReal=new Chart($('chartReal').getContext('2d'),{
+    type:'line',
+    data:{labels,datasets:[
+      {label:'קצבה נומינלית',data:nomArr,borderColor:'#2563eb',backgroundColor:'rgba(37,99,235,.12)',fill:true,tension:0,pointRadius:0},
+      {label:'קצבה ריאלית',data:realArr,borderColor:'#166534',backgroundColor:'rgba(22,101,52,.1)',fill:true,tension:0,pointRadius:0}
+    ]},
+    options:{...mkChartOpts(v=>'₪'+Math.round(v).toLocaleString('he-IL'))}
+  });
+
+  // Chart 3: cumulative comparison
+  const ltYrs=Math.max(1,lifeExp-currentAge);
+  const fxYrs=Math.max(1,fixedYrs);
+  const ptYrs=Math.max(1,portYrs);
+  const maxY=Math.max(ltYrs,fxYrs,ptYrs);
+  const compLabels=Array.from({length:maxY},(_,i)=>'שנה '+(i+1));
+
+  const gL=calcPMT(principal,annualReturn,ltYrs);
+  const nL=calcNet(gL,savingYears,creditPoints,flatRate).net;
+  const gF=calcPMT(principal,annualReturn,fxYrs);
+  const nF=calcNet(gF,savingYears,creditPoints,flatRate).net;
+  const gP=principal*wdPct/100/12;
+  const nP=calcNet(gP,savingYears,creditPoints,flatRate).net;
+
+  const cumL=[],cumF=[],cumP=[];
+  for(let y=1;y<=maxY;y++){
+    cumL.push(y<=ltYrs?Math.round(nL*y*12):null);
+    cumF.push(y<=fxYrs?Math.round(nF*y*12):null);
+    cumP.push(y<=ptYrs?Math.round(nP*y*12):null);
+  }
+
+  if(chComp){chComp.destroy();chComp=null}
+  chComp=new Chart($('chartComp').getContext('2d'),{
+    type:'line',
+    data:{labels:compLabels,datasets:[
+      {label:'קצבה לכל החיים',data:cumL,borderColor:'#1e3a5f',fill:false,tension:.3,pointRadius:2,spanGaps:false},
+      {label:'קצבה קבועה',data:cumF,borderColor:'#d97706',fill:false,tension:.3,pointRadius:2,spanGaps:false},
+      {label:'משיכות מתיק',data:cumP,borderColor:'#166534',fill:false,tension:.3,pointRadius:2,spanGaps:false}
+    ]},
+    options:{...mkChartOpts(v=>v===null?null:fmtM(v))}
+  });
+}
+
+// === COMPARISON TABLE ===
+function updateComparison(principal,annualReturn,inflation,currentAge,lifeExp,fixedYrs,wdPct,portYrs,savingYears,creditPoints,flatRate){
+  const ltY=Math.max(1,lifeExp-currentAge);
+  const fxY=Math.max(1,fixedYrs);
+  const ptY=Math.max(1,portYrs);
+
+  const gL=calcPMT(principal,annualReturn,ltY); const tL=calcNet(gL,savingYears,creditPoints,flatRate);
+  const gF=calcPMT(principal,annualReturn,fxY); const tF=calcNet(gF,savingYears,creditPoints,flatRate);
+  const gP=principal*wdPct/100/12;             const tP=calcNet(gP,savingYears,creditPoints,flatRate);
+
+  const sL=simulate(principal,annualReturn,inflation,ltY,gL,tL.net);
+  const sF=simulate(principal,annualReturn,inflation,fxY,gF,tF.net);
+  const sP=simulate(principal,annualReturn,inflation,ptY,gP,tP.net);
+
+  // winner by total value (payout + final balance)
+  const tvL=sL.cumPayout+sL.finalBal;
+  const tvF=sF.cumPayout+sF.finalBal;
+  const tvP=sP.cumPayout+sP.finalBal;
+  const w=tvL>=tvF&&tvL>=tvP?0:tvF>=tvP?1:2;
+
+  const names=['♾️ לכל החיים','📆 קצבה קבועה','📈 משיכות מתיק'];
+  const descs=[
+    'קצבה לכל החיים מגנה מפני סיכון אריכות ימים ומבטיחה הכנסה לאורך כל החיים',
+    'קצבה קבועה מאפשרת גמישות לתכנון מחדש בסיום התקופה',
+    'משיכות מתיק משמרות שליטה על ההון ומותירות פוטנציאל ירושה'
+  ];
+
+  const rowDefs=[
+    ['קצבה חודשית נטו',fmt(tL.net),fmt(tF.net),fmt(tP.net),true],
+    ['סך קצבאות',fmtM(sL.cumPayout),fmtM(sF.cumPayout),fmtM(sP.cumPayout),true],
+    ['יתרה בסוף תקופה',fmt(sL.finalBal),fmt(sF.finalBal),fmt(sP.finalBal),true],
+    ['תקופה',ltY+' שנים',fxY+' שנים',ptY+' שנים',false],
+    ['סיכון אריכות ימים','✅ מכוסה','❌ לא מכוסה','⚠️ תלוי',false],
+    ['גמישות','❌ נמוכה','✅ בינונית','✅ גבוהה',false]
+  ];
+
+  let html=rowDefs.map(function(row){
+    const numCls=row[4]?'num':'';
+    return`<tr>
+      <td>${row[0]}</td>
+      <td class="${numCls}${w===0?' w':''}">${row[1]}</td>
+      <td class="${numCls}${w===1?' w':''}">${row[2]}</td>
+      <td class="${numCls}${w===2?' w':''}">${row[3]}</td>
+    </tr>`;
+  }).join('');
+
+  $('compBody').innerHTML=html;
+  $('compWinner').style.display='block';
+  $('compWinner').innerHTML='✅ <strong>האסטרטגיה המומלצת: '+names[w]+'</strong><br>'+descs[w];
+}
+
+// === INIT ===
+document.addEventListener('click',function(e){
+  const p=$('floatPanel'),b=document.querySelector('.fbtn');
+  if(p&&b&&!p.contains(e.target)&&!b.contains(e.target))p.classList.remove('open');
+});
+
+doCalc();
+</script>
+</body>
+</html>
