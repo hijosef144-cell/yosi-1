@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>מחשבון אנונה | מצפן כלכלי</title>
+<link rel="icon" type="image/png" sizes="32x32" href="https://matzpenkalkali.com/images/2אייקון לאתר למעלה.png">
+<link rel="icon" type="image/png" href="https://matzpenkalkali.com/images/2אייקון לאתר למעלה.png">
+<link rel="apple-touch-icon" href="https://matzpenkalkali.com/images/2אייקון לאתר למעלה.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -21,15 +24,22 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);direc
 
 /* header */
 .site-header{position:sticky;top:0;z-index:100;background:var(--white);border-bottom:1px solid var(--border);
-  padding:12px 24px;display:flex;align-items:center;justify-content:space-between}
+  padding:14px 28px;display:flex;align-items:center;justify-content:space-between;
+  box-shadow:0 1px 4px rgba(0,0,0,.06);backdrop-filter:blur(10px)}
+.hdr-left{display:flex;flex-direction:column}
 .site-header h1{font-size:20px;font-weight:800;color:var(--primary)}
 .site-header .sub{font-size:12px;color:var(--text3);margin-top:1px}
-.btn-print{background:var(--white);border:1px solid var(--border);border-radius:8px;padding:7px 14px;
-  font-family:'Heebo',sans-serif;font-size:13px;cursor:pointer;color:var(--text2);display:flex;align-items:center;gap:5px}
-.btn-print:hover{background:var(--bg)}
+.hdr-actions{display:flex;gap:8px;align-items:center}
+.btn-ghost{background:var(--bg);border:1px solid var(--border);color:var(--text2);
+  padding:7px 14px;border-radius:8px;cursor:pointer;font-family:'Heebo',sans-serif;
+  font-size:13px;font-weight:500;text-decoration:none;display:inline-flex;align-items:center;gap:5px;
+  transition:all .15s}
+.btn-ghost:hover{border-color:var(--primary);color:var(--primary)}
+.btn-ghost.email{background:#eff6ff;border-color:#bfdbfe;color:#1e40af}
+.btn-ghost.email:hover{background:#dbeafe}
 
 /* summary bar */
-.sbar{position:sticky;top:57px;z-index:99;background:var(--primary);color:#fff;
+.sbar{position:sticky;top:65px;z-index:99;background:var(--primary);color:#fff;
   padding:8px 24px;display:flex;gap:0;flex-wrap:wrap;border-bottom:2px solid rgba(255,255,255,.1)}
 .si{flex:1;min-width:120px;text-align:center;padding:4px 8px}
 .si-lbl{font-size:10px;opacity:.7;letter-spacing:.5px;text-transform:uppercase}
@@ -170,9 +180,13 @@ body.target-mode .m-target{display:block}
 body.target-mode .m-amount{display:none}
 
 @media print{
-  .site-header,.sbar,.fbtn,.fpanel,.btn-print{display:none!important}
+  .site-header,.sbar,.fbtn,.fpanel,.btn-ghost,#emailModal{display:none!important}
   .mod{break-inside:avoid;box-shadow:none;border:1px solid #ccc}
   body{background:#fff}
+}
+@media(max-width:600px){
+  .hdr-actions .btn-ghost span{display:none}
+  .hdr-actions .btn-ghost{padding:7px 9px}
 }
 @media(max-width:600px){
   .si{min-width:90px}.sbar{gap:0}
@@ -184,11 +198,15 @@ body.target-mode .m-amount{display:none}
 <body>
 
 <header class="site-header">
-  <div>
+  <div class="hdr-left">
     <h1>מחשבון אנונה</h1>
     <div class="sub">מצפן כלכלי | יוסי כץ</div>
   </div>
-  <button class="btn-print" onclick="window.print()">🖨️ הדפסה</button>
+  <div class="hdr-actions">
+    <a href="index.html" class="btn-ghost" style="text-decoration:none">🏠 <span>חזרה למחשבונים</span></a>
+    <button class="btn-ghost email" onclick="openEmailModal()">📧 <span>שלח לי את התוצאות</span></button>
+    <button class="btn-ghost" onclick="window.print()">🖨️ <span>הדפסה</span></button>
+  </div>
 </header>
 
 <div class="sbar">
@@ -884,6 +902,102 @@ document.addEventListener('click',function(e){
 });
 
 doCalc();
+
+// === EMAIL ===
+function openEmailModal(){
+  const m=$('emailModal');
+  m.style.display='flex';
+  $('emailInput').value='';
+  $('emailError').textContent='';
+  $('emailStatus').textContent='';
+  const btn=$('emailSendBtn');
+  btn.disabled=false;btn.textContent='שלח';btn.style.background='var(--accent)';
+  setTimeout(function(){$('emailInput').focus();},80);
+}
+function closeEmailModal(){
+  $('emailModal').style.display='none';
+}
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeEmailModal();});
+
+function collectAnnuityResults(){
+  const g=function(id){const el=$(id);return el?el.textContent.trim():'—';};
+  const data={
+    'סוג קצבה':g('fp-type'),
+    'קצבה חודשית ברוטו':g('rGross'),
+    'קצבה חודשית נטו':g('rNet'),
+    'קצבה ריאלית (היום)':g('rReal'),
+    'פטור ממס חודשי (סעיף 9א)':g('dExempt'),
+    'מס נטו חודשי':g('dNetTax'),
+    'סך קצבאות לאורך התקופה':g('rTotalPayout'),
+    'סך מס ששולם':g('rTotalTax'),
+    'יתרה צבורה בסוף תקופה':g('rBalance'),
+    'נקודת איזון':g('sb-be')
+  };
+  const rows=Object.entries(data).map(function(p){
+    return '<tr>'
+      +'<td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;color:#4a5568;font-weight:500;text-align:right">'+p[0]+'</td>'
+      +'<td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;color:#1a1a2e;font-weight:600;text-align:left;direction:ltr">'+p[1]+'</td>'
+      +'</tr>';
+  }).join('');
+  return{
+    type:'annuity',
+    html:'<table style="width:100%;border-collapse:collapse">'+rows+'</table>',
+    data:data
+  };
+}
+
+function sendEmailResults(){
+  const email=$('emailInput').value.trim();
+  if(!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+    $('emailError').textContent='נא להזין כתובת מייל תקינה';
+    return;
+  }
+  const btn=$('emailSendBtn');
+  btn.disabled=true;btn.textContent='שולח...';
+  $('emailStatus').textContent='';
+  const res=collectAnnuityResults();
+  fetch('/.netlify/functions/send-results',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({userEmail:email,calculatorType:res.type,resultsHtml:res.html,resultsData:res.data})
+  })
+  .then(function(r){return r.json();})
+  .then(function(r){
+    if(r.ok){
+      $('emailStatus').innerHTML='<span style="color:#166534">✅ נשלח! בדוק את תיבת הדואר שלך</span>';
+      btn.textContent='✓ נשלח';
+      setTimeout(closeEmailModal,2800);
+    } else { throw new Error(r.error||'שגיאה'); }
+  })
+  .catch(function(){
+    $('emailStatus').innerHTML='<span style="color:#991b1b">❌ אירעה שגיאה. נסה שוב.</span>';
+    btn.disabled=false;btn.textContent='שלח';
+  });
+}
 </script>
+
+<!-- Email modal -->
+<div id="emailModal"
+     style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);align-items:center;justify-content:center"
+     onclick="if(event.target===this)closeEmailModal()">
+  <div style="background:#fff;border-radius:14px;padding:28px 24px;width:min(420px,92vw);box-shadow:0 20px 60px rgba(0,0,0,0.25);position:relative;direction:rtl;font-family:'Heebo',sans-serif">
+    <button onclick="closeEmailModal()"
+            style="position:absolute;top:12px;left:14px;background:none;border:none;font-size:18px;cursor:pointer;color:#718096;line-height:1;padding:4px 6px;border-radius:4px">✕</button>
+    <h3 style="font-size:18px;font-weight:700;color:#1e3a5f;margin:0 0 4px 0">📧 קבל את התוצאות במייל</h3>
+    <p style="font-size:13px;color:#718096;margin:0 0 20px 0">סיכום מחשבון האנונה יישלח אליך ישירות למייל</p>
+    <label style="display:block;font-size:13px;color:#4a5568;font-weight:600;margin-bottom:6px">כתובת המייל שלך</label>
+    <input type="email" id="emailInput" placeholder="you@example.com" autocomplete="email"
+           style="width:100%;border:1px solid #e2e8f0;border-radius:9px;padding:10px 12px;font-size:15px;color:#1a1a2e;outline:none;box-sizing:border-box;direction:ltr;text-align:left;background:#fff;transition:border-color .15s,box-shadow .15s"
+           oninput="document.getElementById('emailError').textContent=''"
+           onfocus="this.style.borderColor='#2563eb';this.style.boxShadow='0 0 0 3px rgba(37,99,235,0.12)'"
+           onblur="this.style.borderColor='#e2e8f0';this.style.boxShadow='none'">
+    <div id="emailError" style="font-size:12px;color:#991b1b;margin-top:4px;min-height:16px"></div>
+    <button id="emailSendBtn" onclick="sendEmailResults()"
+            style="width:100%;background:var(--accent);color:#fff;border:none;border-radius:9px;padding:12px;font-size:15px;font-weight:700;cursor:pointer;margin-top:12px;font-family:'Heebo',sans-serif;transition:background .15s"
+            onmouseover="if(!this.disabled)this.style.background='#1e3a5f'"
+            onmouseout="this.style.background='var(--accent)'">שלח</button>
+    <div id="emailStatus" style="text-align:center;font-size:13px;margin-top:10px;min-height:18px"></div>
+  </div>
+</div>
 </body>
 </html>
