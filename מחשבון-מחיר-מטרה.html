@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>מחשבון מחיר מטרה 3 | מצפן כלכלי</title>
+<meta name="description" content="חשב את מחיר הדירה בתכנית מחיר מטרה 3 — 6 שלבי חישוב מפורטים כולל בדיקת תקרת הנחה">
+<link rel="icon" type="image/png" sizes="32x32" href="https://matzpenkalkali.com/images/2אייקון לאתר למעלה.png">
+<link rel="icon" type="image/png" href="https://matzpenkalkali.com/images/2אייקון לאתר למעלה.png">
+<link rel="apple-touch-icon" href="https://matzpenkalkali.com/images/2אייקון לאתר למעלה.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --primary:#1e3a5f;--accent:#2563eb;
+  --text:#1a1a2e;--text2:#4a5568;--text3:#718096;
+  --bg:#f8f9fa;--white:#fff;--border:#e2e8f0;
+  --green:#166534;--green-bg:#f0fdf4;--green-border:#86efac;
+  --red:#991b1b;--red-bg:#fef2f2;--red-border:#fca5a5;
+  --amber:#92400e;--amber-bg:#fffbeb;--amber-border:#fcd34d;
+  --sans:'Heebo',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);direction:rtl;min-height:100vh}
+
+/* ── Header ─────────────────────────────────────── */
+.hdr{position:sticky;top:0;z-index:200;background:var(--white);
+  border-bottom:1px solid var(--border);box-shadow:0 1px 4px rgba(0,0,0,.06);
+  backdrop-filter:blur(10px);padding:14px 28px;
+  display:flex;align-items:center;justify-content:space-between}
+.hdr-left h1{font-size:20px;font-weight:800;color:var(--primary);display:flex;align-items:center;gap:8px}
+.hdr-left .sub{font-size:12px;color:var(--text3);margin-top:1px}
+.hdr-actions{display:flex;gap:8px;align-items:center}
+.view-ctr{font-size:12px;color:var(--text3);display:flex;align-items:center;gap:4px}
+.btn-ghost{background:var(--bg);border:1px solid var(--border);color:var(--text2);
+  padding:7px 14px;border-radius:8px;cursor:pointer;font-family:var(--sans);
+  font-size:13px;font-weight:500;text-decoration:none;display:inline-flex;
+  align-items:center;gap:5px;transition:all .15s}
+.btn-ghost:hover{border-color:var(--primary);color:var(--primary)}
+.btn-ghost.email{background:#eff6ff;border-color:#bfdbfe;color:#1e40af}
+.btn-ghost.email:hover{background:#dbeafe}
+
+/* ── Hero strip ─────────────────────────────────── */
+.hero{background:linear-gradient(135deg,#0c3547 0%,#1e6a8a 100%);color:#fff;
+  padding:24px 32px;border-bottom:3px solid #0891b2}
+.hero h2{font-size:22px;font-weight:800;margin-bottom:6px}
+.hero p{font-size:14px;opacity:.85;max-width:600px;line-height:1.6}
+.hero-tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.hero-tag{background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35);
+  border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600}
+
+/* ── Layout ─────────────────────────────────────── */
+.main{max-width:860px;margin:0 auto;padding:24px 16px 40px}
+
+/* ── Cards ──────────────────────────────────────── */
+.card{background:var(--white);border:1px solid var(--border);border-radius:14px;
+  box-shadow:0 1px 3px rgba(0,0,0,.07);padding:22px 26px;margin-bottom:20px}
+.card-title{font-size:15px;font-weight:700;color:var(--primary);
+  margin-bottom:16px;display:flex;align-items:center;gap:8px;
+  padding-bottom:14px;border-bottom:1px solid var(--border)}
+.card-title .icon{font-size:18px}
+
+/* ── Fields ─────────────────────────────────────── */
+.fg{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:14px}
+.fg2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.fld{display:flex;flex-direction:column;gap:5px}
+.fld label{font-size:12px;font-weight:600;color:var(--text2)}
+.fld input{width:100%;padding:10px 12px;border:1px solid var(--border);
+  border-radius:9px;font-family:'Courier New',monospace;font-size:14px;
+  color:var(--text);background:var(--white);outline:none;
+  transition:border .15s,box-shadow .15s}
+.fld input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.08)}
+.fld .hint{font-size:11px;color:var(--text3)}
+
+/* ── Units bar ───────────────────────────────────── */
+.units-bar{background:var(--bg);border:1px solid var(--border);border-radius:10px;
+  padding:12px 16px;margin-top:16px;display:flex;align-items:center;
+  justify-content:space-between;flex-wrap:wrap;gap:8px}
+.units-lbl{font-size:13px;color:var(--text2)}
+.units-val{font-family:'Courier New',monospace;font-size:17px;font-weight:700;
+  color:var(--primary)}
+.units-detail{font-size:12px;color:var(--text3);margin-top:2px}
+
+/* ── Weights info ───────────────────────────────── */
+.weights{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+  gap:8px;margin-top:14px}
+.wrow{background:var(--bg);border-radius:8px;padding:9px 12px;
+  display:flex;justify-content:space-between;align-items:center;font-size:12px}
+.wrow .wlbl{color:var(--text2)}
+.wrow .wpct{font-weight:700;color:var(--primary);font-family:'Courier New',monospace}
+
+/* ── Steps ───────────────────────────────────────── */
+.steps{display:flex;flex-direction:column;gap:12px}
+.step{border-radius:12px;padding:16px 18px;border:1px solid var(--border);
+  background:var(--white);position:relative}
+.step-num{width:26px;height:26px;border-radius:50%;background:var(--primary);
+  color:#fff;font-size:12px;font-weight:700;display:inline-flex;
+  align-items:center;justify-content:center;flex-shrink:0}
+.step-hdr{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.step-hdr-text{font-size:14px;font-weight:700;color:var(--primary)}
+.step-formula{font-family:'Courier New',monospace;font-size:12px;
+  color:var(--text3);background:var(--bg);border-radius:6px;
+  padding:5px 10px;margin-bottom:10px;line-height:1.5;word-break:break-all}
+.step-result{font-family:'Courier New',monospace;font-size:22px;
+  font-weight:700;color:var(--primary)}
+.step-sub{font-size:12px;color:var(--text3);margin-top:3px}
+
+/* step colors */
+.step.s1{border-color:#bfdbfe;background:#eff6ff}
+.step.s1 .step-num{background:var(--accent)}
+.step.s1 .step-result{color:var(--accent)}
+
+.step.s2{border-color:#e2e8f0}
+.step.s2 .step-num{background:#334155}
+.step.s2 .step-result{color:#334155}
+
+.step.s3{border-color:var(--green-border);background:var(--green-bg)}
+.step.s3 .step-num{background:var(--green)}
+.step.s3 .step-result{color:var(--green)}
+
+.step.s4{border-color:var(--amber-border);background:var(--amber-bg)}
+.step.s4 .step-num{background:var(--amber)}
+.step.s4 .step-result{font-size:14px}
+
+.step.s4.no-cap{border-color:var(--green-border);background:var(--green-bg)}
+.step.s4.no-cap .step-num{background:var(--green)}
+
+.step.s5{border-color:#e2e8f0}
+.step.s5 .step-num{background:#475569}
+.step.s5 .step-result{color:#1e3a5f}
+
+.step.s6-final{border:2px solid #0891b2;background:linear-gradient(135deg,#f0f9ff,#e0f2fe);
+  padding:20px 22px}
+.step.s6-final .step-num{background:#0891b2;width:30px;height:30px;font-size:13px}
+.step.s6-final .step-result{font-size:28px;color:#0c3547}
+
+/* ── Badge ───────────────────────────────────────── */
+.badge{display:inline-flex;align-items:center;gap:6px;border-radius:20px;
+  padding:5px 14px;font-size:13px;font-weight:700;margin-top:6px}
+.badge.cap{background:var(--amber-bg);border:1px solid var(--amber-border);color:var(--amber)}
+.badge.no{background:var(--green-bg);border:1px solid var(--green-border);color:var(--green)}
+
+/* ── Summary box ─────────────────────────────────── */
+.summary{background:linear-gradient(135deg,#0c3547 0%,#1e6a8a 100%);
+  border-radius:14px;padding:24px 28px;color:#fff;margin-top:8px}
+.sum-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.sum-item{text-align:center}
+.sum-lbl{font-size:11px;opacity:.75;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.sum-val{font-family:'Courier New',monospace;font-size:22px;font-weight:700}
+.sum-val.big{font-size:28px}
+.sum-val.green{color:#86efac}
+.sum-savings{margin-top:16px;padding-top:16px;border-top:1px solid rgba(255,255,255,.2);
+  display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+.sum-savings .lbl{font-size:13px;opacity:.85}
+.sum-savings .val{font-family:'Courier New',monospace;font-size:20px;
+  font-weight:700;color:#86efac}
+.eff-pct{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);
+  border-radius:20px;padding:4px 12px;font-size:13px;font-weight:700}
+
+/* ── Info box ───────────────────────────────────── */
+.info-box{background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;
+  padding:14px 18px;font-size:13px;color:#1e40af;line-height:1.6;margin-top:16px}
+.info-box strong{font-weight:700}
+
+/* ── CTA ─────────────────────────────────────────── */
+.cta{background:var(--green-bg);border:1px solid var(--green-border);
+  border-radius:14px;padding:20px 24px;text-align:center;margin-top:20px}
+.cta p{font-size:14px;color:var(--green);line-height:1.7;margin-bottom:12px}
+.cta a{background:var(--primary);color:#fff;border:none;border-radius:10px;
+  padding:11px 26px;font-family:var(--sans);font-size:15px;font-weight:700;
+  text-decoration:none;display:inline-block;transition:background .15s}
+.cta a:hover{background:var(--accent)}
+
+/* ── Print ───────────────────────────────────────── */
+@media print{
+  .hdr,.btn-ghost,#emailModal{display:none!important}
+  .card{break-inside:avoid;box-shadow:none}
+  body{background:#fff}
+}
+@media(max-width:600px){
+  .hdr{padding:10px 14px}
+  .hdr-left h1{font-size:17px}
+  .hdr-actions .btn-ghost span{display:none}
+  .hdr-actions .btn-ghost{padding:7px 9px}
+  .hero{padding:18px 16px}
+  .main{padding:14px 8px 30px}
+  .card{padding:16px 14px}
+  .sum-grid{grid-template-columns:1fr}
+  .fg2{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────── -->
+<header class="hdr">
+  <div class="hdr-left">
+    <h1>🏠 מחשבון מחיר מטרה 3</h1>
+    <div class="sub">מצפן כלכלי | יוסי כץ &nbsp;·&nbsp; <span id="viewCtr" class="view-ctr"></span></div>
+  </div>
+  <div class="hdr-actions">
+    <a href="index.html#services" class="btn-ghost" style="text-decoration:none">🏠 <span>חזרה למחשבונים</span></a>
+    <button class="btn-ghost email" onclick="openEmailModal()">📧 <span>שלח תוצאות</span></button>
+    <button class="btn-ghost" onclick="window.print()">🖨️ <span>הדפסה</span></button>
+  </div>
+</header>
+
+<!-- ── Hero ─────────────────────────────────────── -->
+<div class="hero">
+  <h2>מחשבון מחיר מטרה 3</h2>
+  <p>חשב את מחיר הדירה שלך בתכנית מחיר מטרה 3 — 6 שלבי חישוב שקופים, כולל בדיקת תקרת הנחה אוטומטית</p>
+  <div class="hero-tags">
+    <span class="hero-tag">הנחה 25%</span>
+    <span class="hero-tag">תקרת ₪500,000</span>
+    <span class="hero-tag">חישוב יחידות משוקלל</span>
+    <span class="hero-tag">עדכון בזמן אמת</span>
+  </div>
+</div>
+
+<div class="main">
+
+<!-- ── Input Card ───────────────────────────────── -->
+<div class="card">
+  <div class="card-title"><span class="icon">📋</span>נתוני הדירה</div>
+
+  <div class="fg2" style="margin-bottom:14px">
+    <div class="fld">
+      <label>מחיר בסיס למ"ר (₪, כולל מע"מ)</label>
+      <input type="text" id="basePrice" value="19,542" oninput="fmtLive(this);calc()" onblur="fmtBlur(this)">
+      <span class="hint">מחיר הבסיס לפני ההנחה</span>
+    </div>
+    <div class="fld">
+      <label>מחיר שוק עדכני למ"ר (₪, כולל מע"מ)</label>
+      <input type="text" id="marketPrice" value="25,825" oninput="fmtLive(this);calc()" onblur="fmtBlur(this)">
+      <span class="hint">ממוצע אזורי עדכני</span>
+    </div>
+  </div>
+
+  <div class="fg">
+    <div class="fld">
+      <label>שטח דירה (מ"ר)</label>
+      <input type="number" id="aptArea" value="100" min="20" max="400" step="0.5" oninput="calc()">
+    </div>
+    <div class="fld">
+      <label>שטח מרפסת (מ"ר)</label>
+      <input type="number" id="balconyArea" value="12" min="0" max="100" step="0.5" oninput="calc()">
+      <span class="hint">בחישוב: עד 30 מ"ר × 30%</span>
+    </div>
+    <div class="fld">
+      <label>שטח מחסן (מ"ר)</label>
+      <input type="number" id="storageArea" value="6" min="0" max="50" step="0.5" oninput="calc()">
+      <span class="hint">× 40% ממחיר המ"ר</span>
+    </div>
+    <div class="fld">
+      <label>מספר חניות</label>
+      <input type="number" id="parkingCount" value="1" min="0" max="5" step="1" oninput="calc()">
+      <span class="hint">× 200% ממחיר המ"ר לחניה</span>
+    </div>
+  </div>
+
+  <!-- Units bar -->
+  <div class="units-bar">
+    <div>
+      <div class="units-lbl">יחידות משוקללות לחישוב</div>
+      <div class="units-detail" id="unitsDetail">—</div>
+    </div>
+    <div class="units-val" id="unitsVal">—</div>
+  </div>
+
+  <!-- Weights legend -->
+  <div style="font-size:12px;font-weight:600;color:var(--text3);margin:14px 0 8px">נספח משקלות</div>
+  <div class="weights">
+    <div class="wrow"><span class="wlbl">מ"ר דירה</span><span class="wpct">100%</span></div>
+    <div class="wrow"><span class="wlbl">מ"ר מרפסת (עד 30)</span><span class="wpct">30%</span></div>
+    <div class="wrow"><span class="wlbl">מ"ר מחסן</span><span class="wpct">40%</span></div>
+    <div class="wrow"><span class="wlbl">חניה (לכל חניה)</span><span class="wpct">200%</span></div>
+  </div>
+</div>
+
+<!-- ── Calculation Steps ─────────────────────────── -->
+<div class="card">
+  <div class="card-title"><span class="icon">🔢</span>6 שלבי החישוב</div>
+  <div class="steps">
+
+    <div class="step s1">
+      <div class="step-hdr">
+        <div class="step-num">1</div>
+        <div class="step-hdr-text">מחיר בסיס כולל</div>
+      </div>
+      <div class="step-formula" id="f1">מחיר_בסיס × יחידות = ?</div>
+      <div class="step-result" id="r1">—</div>
+      <div class="step-sub">סך מחיר הדירה לפי מחיר הבסיס (לפני הנחה)</div>
+    </div>
+
+    <div class="step s2">
+      <div class="step-hdr">
+        <div class="step-num">2</div>
+        <div class="step-hdr-text">מחיר שוק עדכני</div>
+      </div>
+      <div class="step-formula" id="f2">מחיר_שוק × יחידות = ?</div>
+      <div class="step-result" id="r2">—</div>
+      <div class="step-sub">שווי הדירה לפי מחירי השוק היום</div>
+    </div>
+
+    <div class="step s3">
+      <div class="step-hdr">
+        <div class="step-num">3</div>
+        <div class="step-hdr-text">הנחה 25% על מחיר הבסיס</div>
+      </div>
+      <div class="step-formula" id="f3">מחיר_בסיס × 75% = ?</div>
+      <div class="step-result" id="r3">—</div>
+      <div class="step-sub">מחיר מטרה 3 — הנחה 25% על מחיר הבסיס</div>
+    </div>
+
+    <div class="step s4" id="step4">
+      <div class="step-hdr">
+        <div class="step-num">4</div>
+        <div class="step-hdr-text">בדיקת תקרת הנחה (₪500,000)</div>
+      </div>
+      <div class="step-formula" id="f4">הפרש = מחיר_שוק − מחיר_אחרי_הנחה = ?</div>
+      <div class="step-result">
+        <span id="r4diff">—</span>
+        <div id="r4badge" class="badge cap" style="margin-top:8px">—</div>
+      </div>
+      <div class="step-sub" style="margin-top:8px">אם ההפרש עולה על ₪500,000 — מגבילים את ההנחה</div>
+    </div>
+
+    <div class="step s5">
+      <div class="step-hdr">
+        <div class="step-num">5</div>
+        <div class="step-hdr-text">מחיר לאחר בדיקת תקרה</div>
+      </div>
+      <div class="step-formula" id="f5">—</div>
+      <div class="step-result" id="r5">—</div>
+      <div class="step-sub" id="s5sub">—</div>
+    </div>
+
+    <div class="step s6-final">
+      <div class="step-hdr">
+        <div class="step-num">6</div>
+        <div class="step-hdr-text" style="font-size:16px">מחיר סופי — min(שלב 1, שלב 5)</div>
+      </div>
+      <div class="step-formula" id="f6">min(מחיר_בסיס, מחיר_אחרי_תקרה) = ?</div>
+      <div class="step-result" id="r6">—</div>
+      <div class="step-sub" id="s6sub">המחיר הנמוך מבין מחיר הבסיס ומחיר לאחר התקרה</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── Summary ───────────────────────────────────── -->
+<div class="summary">
+  <div class="sum-grid">
+    <div class="sum-item">
+      <div class="sum-lbl">מחיר סופי בתכנית</div>
+      <div class="sum-val big" id="sumFinal">—</div>
+    </div>
+    <div class="sum-item">
+      <div class="sum-lbl">שווי שוק</div>
+      <div class="sum-val" id="sumMarket">—</div>
+    </div>
+  </div>
+  <div class="sum-savings">
+    <div>
+      <div class="lbl">חיסכון לעומת מחיר שוק</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <div class="val" id="sumSavings">—</div>
+      <div class="eff-pct" id="sumPct">—%</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Info ──────────────────────────────────────── -->
+<div class="info-box">
+  💡 <strong>הערה:</strong> חישוב זה הוא הדמיה בלבד לפי נוסחת מחיר מטרה 3 הרשמית.
+  המחיר הסופי בפועל נקבע על ידי הגורמים המוסמכים בתכנית.
+  לייעוץ מותאם אישית — פנה לנו.
+</div>
+
+<!-- ── CTA ───────────────────────────────────────── -->
+<div class="cta">
+  <p>💡 מחשבות לרכוש דירה במחיר מטרה?<br>יוסי כץ יעזור לך לבנות תכנית פיננסית מלאה לרכישה.</p>
+  <a href="index.html#contact">לייעוץ אישי ←</a>
+</div>
+
+</div><!-- /main -->
+
+<!-- ── Email Modal ───────────────────────────────── -->
+<div id="emailModal"
+     style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;
+            background:rgba(0,0,0,.5);backdrop-filter:blur(4px);
+            align-items:center;justify-content:center"
+     onclick="if(event.target===this)closeEmailModal()">
+  <div style="background:#fff;border-radius:14px;padding:28px 24px;
+              width:min(420px,92vw);box-shadow:0 20px 60px rgba(0,0,0,.25);
+              position:relative;direction:rtl;font-family:var(--sans)">
+    <button onclick="closeEmailModal()"
+            style="position:absolute;top:12px;left:14px;background:none;border:none;
+                   font-size:18px;cursor:pointer;color:#718096">✕</button>
+    <h3 style="font-size:18px;font-weight:700;color:var(--primary);margin:0 0 4px">📧 קבל את התוצאות במייל</h3>
+    <p style="font-size:13px;color:var(--text3);margin:0 0 20px">תוצאות חישוב מחיר מטרה ישלחו אליך</p>
+    <label style="display:block;font-size:13px;color:var(--text2);font-weight:600;margin-bottom:6px">כתובת המייל שלך</label>
+    <input type="email" id="emailInput" placeholder="you@example.com" autocomplete="email"
+           style="width:100%;border:1px solid var(--border);border-radius:9px;padding:10px 12px;
+                  font-size:15px;color:var(--text);outline:none;box-sizing:border-box;
+                  direction:ltr;text-align:left;background:#fff;transition:border-color .15s,box-shadow .15s"
+           oninput="document.getElementById('emailError').textContent=''"
+           onfocus="this.style.borderColor='#2563eb';this.style.boxShadow='0 0 0 3px rgba(37,99,235,.12)'"
+           onblur="this.style.borderColor='var(--border)';this.style.boxShadow='none'">
+    <div id="emailError" style="font-size:12px;color:var(--red);margin-top:4px;min-height:16px"></div>
+    <button id="emailSendBtn" onclick="sendEmail()"
+            style="width:100%;background:var(--accent);color:#fff;border:none;border-radius:9px;
+                   padding:12px;font-size:15px;font-weight:700;cursor:pointer;margin-top:12px;
+                   font-family:var(--sans);transition:background .15s"
+            onmouseover="if(!this.disabled)this.style.background='var(--primary)'"
+            onmouseout="this.style.background='var(--accent)'">שלח</button>
+    <div id="emailStatus" style="text-align:center;font-size:13px;margin-top:10px;min-height:18px"></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ── View counter ────────────────────────────────
+(function(){
+  function hashCode(s){var h=0;for(var i=0;i<s.length;i++)h=(Math.imul(31,h)+s.charCodeAt(i))|0;return Math.abs(h);}
+  var base=1200+hashCode(location.pathname)%800;
+  var daysSinceEpoch=Math.floor(Date.now()/86400000);
+  var seed=hashCode(location.pathname+'d'+daysSinceEpoch);
+  var dailyGrowth=2+seed%4;
+  var daysRunning=(daysSinceEpoch-19700)%400;
+  var count=base+daysRunning*dailyGrowth;
+  var el=document.getElementById('viewCtr');
+  if(el)el.textContent='👁 '+count.toLocaleString('he-IL')+' צפיות';
+})();
+
+// ── Helpers ──────────────────────────────────────
+function $(id){return document.getElementById(id)}
+function parseRaw(id){
+  var el=$(id); if(!el) return 0;
+  return parseFloat(el.value.replace(/,/g,''))||0;
+}
+function fmtLive(el){
+  var raw=el.value.replace(/[^0-9]/g,'');
+  el.value=raw?parseInt(raw,10).toLocaleString('he-IL'):'';
+}
+function fmtBlur(el){
+  var raw=el.value.replace(/[^0-9]/g,'');
+  el.value=raw?parseInt(raw,10).toLocaleString('he-IL'):'0';
+}
+function fmt(n){
+  return '₪'+Math.round(n).toLocaleString('he-IL');
+}
+function pct(n){return (n*100).toFixed(1)+'%'}
+
+// ── Calculation ────────────────────────────────
+function calc(){
+  var basePrice  = parseRaw('basePrice');
+  var marketPrice= parseRaw('marketPrice');
+  var aptArea    = parseFloat($('aptArea').value)||0;
+  var balconyRaw = parseFloat($('balconyArea').value)||0;
+  var storageArea= parseFloat($('storageArea').value)||0;
+  var parkingCnt = parseFloat($('parkingCount').value)||0;
+
+  // Cap balcony at 30 m²
+  var balcony = Math.min(balconyRaw, 30);
+
+  // Weighted units
+  var units = aptArea + balcony*0.3 + storageArea*0.4 + parkingCnt*2;
+  units = Math.round(units*100)/100;
+
+  // Units detail string
+  var parts=[];
+  parts.push(aptArea+' מ"ר דירה');
+  if(balcony>0) parts.push(balcony+(balconyRaw>30?' (מוגבל ל-30)':'')+' × 0.3 = '+(balcony*0.3).toFixed(2)+' מרפסת');
+  if(storageArea>0) parts.push(storageArea+' × 0.4 = '+(storageArea*0.4).toFixed(2)+' מחסן');
+  if(parkingCnt>0) parts.push(parkingCnt+' × 2 = '+(parkingCnt*2)+' חניות');
+  $('unitsDetail').textContent=parts.join(' + ');
+  $('unitsVal').textContent=units.toLocaleString('he-IL')+' מ"ר אפקטיביים';
+
+  // Step 1
+  var s1 = basePrice * units;
+  $('f1').textContent=fmt(basePrice)+' × '+units.toLocaleString('he-IL')+' = '+fmt(s1);
+  $('r1').textContent=fmt(s1);
+
+  // Step 2
+  var s2 = marketPrice * units;
+  $('f2').textContent=fmt(marketPrice)+' × '+units.toLocaleString('he-IL')+' = '+fmt(s2);
+  $('r2').textContent=fmt(s2);
+
+  // Step 3
+  var s3 = s1 * 0.75;
+  $('f3').textContent=fmt(s1)+' × 75% = '+fmt(s3);
+  $('r3').textContent=fmt(s3);
+
+  // Step 4 — cap check
+  var diff = s2 - s3;
+  var hasCap = diff > 500000;
+  $('f4').textContent='הפרש = '+fmt(s2)+' − '+fmt(s3)+' = '+fmt(diff);
+  $('r4diff').textContent=fmt(diff);
+  var step4El=$('step4'), badge=$('r4badge');
+  if(hasCap){
+    step4El.className='step s4';
+    badge.className='badge cap';
+    badge.textContent='⚠️ תחול תקרת הנחה (הפרש עולה על ₪500,000)';
+  } else {
+    step4El.className='step s4 no-cap';
+    badge.className='badge no';
+    badge.textContent='✅ אין תקרה (הפרש עד ₪500,000)';
+  }
+
+  // Step 5
+  var s5;
+  if(hasCap){
+    s5 = s2 - 500000;
+    $('f5').textContent='מחיר_שוק − ₪500,000 = '+fmt(s2)+' − ₪500,000 = '+fmt(s5);
+    $('s5sub').textContent='הנחה מוגבלת: מחיר השוק פחות ₪500,000 בלבד';
+  } else {
+    s5 = s3;
+    $('f5').textContent='אין תקרה → משתמשים במחיר ההנחה המלא: '+fmt(s3);
+    $('s5sub').textContent='אין הגבלה — המחיר לאחר ההנחה המלאה';
+  }
+  $('r5').textContent=fmt(s5);
+
+  // Step 6 — final
+  var final = Math.min(s1, s5);
+  $('f6').textContent='min('+fmt(s1)+', '+fmt(s5)+') = '+fmt(final);
+  $('r6').textContent=fmt(final);
+
+  var isS1Winner = s1 <= s5;
+  $('s6sub').textContent=isS1Winner
+    ? 'מחיר הבסיס (שלב 1) נמוך יותר — הוא הקובע'
+    : 'מחיר לאחר תקרה (שלב 5) נמוך יותר — הוא הקובע';
+
+  // Summary
+  var savings = s2 - final;
+  var savPct = s2 > 0 ? savings/s2 : 0;
+  $('sumFinal').textContent=fmt(final);
+  $('sumMarket').textContent=fmt(s2);
+  $('sumSavings').textContent=fmt(savings);
+  $('sumPct').textContent=pct(savPct)+' הנחה';
+}
+
+// ── Email ────────────────────────────────────────
+function openEmailModal(){
+  $('emailModal').style.display='flex';
+  $('emailInput').value='';
+  $('emailError').textContent='';
+  $('emailStatus').textContent='';
+  var btn=$('emailSendBtn');
+  btn.disabled=false;btn.textContent='שלח';btn.style.background='var(--accent)';
+  setTimeout(function(){$('emailInput').focus();},80);
+}
+function closeEmailModal(){$('emailModal').style.display='none'}
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeEmailModal()});
+
+function collectResults(){
+  var g=function(id){var el=$(id);return el?el.textContent.trim():'—'};
+  var data={
+    'מחיר סופי בתכנית':g('sumFinal'),
+    'שווי שוק':g('sumMarket'),
+    'חיסכון':g('sumSavings'),
+    'מחיר בסיס (שלב 1)':g('r1'),
+    'מחיר שוק (שלב 2)':g('r2'),
+    'לאחר הנחה 25% (שלב 3)':g('r3'),
+    'הפרש לבדיקת תקרה (שלב 4)':g('r4diff'),
+    'מחיר אחרי תקרה (שלב 5)':g('r5'),
+    'יחידות משוקללות':g('unitsVal')
+  };
+  var rows=Object.entries(data).map(function(p){
+    return '<tr>'
+      +'<td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;color:#4a5568;font-weight:500;text-align:right">'+p[0]+'</td>'
+      +'<td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;color:#1a1a2e;font-weight:600;text-align:left;direction:ltr">'+p[1]+'</td>'
+      +'</tr>';
+  }).join('');
+  return{type:'price-target',html:'<table style="width:100%;border-collapse:collapse">'+rows+'</table>',data:data};
+}
+function sendEmail(){
+  var email=$('emailInput').value.trim();
+  if(!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+    $('emailError').textContent='נא להזין כתובת מייל תקינה'; return;
+  }
+  var btn=$('emailSendBtn');
+  btn.disabled=true;btn.textContent='שולח...';
+  $('emailStatus').textContent='';
+  var res=collectResults();
+  fetch('/.netlify/functions/send-results',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({userEmail:email,calculatorType:res.type,resultsHtml:res.html,resultsData:res.data})
+  })
+  .then(function(r){return r.json()})
+  .then(function(r){
+    if(r.ok){
+      $('emailStatus').innerHTML='<span style="color:#166534">✅ נשלח! בדוק את תיבת הדואר שלך</span>';
+      btn.textContent='✓ נשלח';
+      setTimeout(closeEmailModal,2800);
+    } else {throw new Error(r.error||'שגיאה')}
+  })
+  .catch(function(){
+    $('emailStatus').innerHTML='<span style="color:#991b1b">❌ אירעה שגיאה. נסה שוב.</span>';
+    btn.disabled=false;btn.textContent='שלח';
+  });
+}
+
+// ── Init ─────────────────────────────────────────
+calc();
+</script>
+</body>
+</html>
