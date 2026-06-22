@@ -215,6 +215,31 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);direc
 .b-inf{background:rgba(255,255,255,.15);border-radius:10px;padding:13px 16px;
   margin-top:12px;font-size:13px;line-height:1.6;display:none}
 
+/* SCREEN B ANNUAL TABLE */
+.b-tbl-section{margin-top:14px;display:none}
+.b-tbl-section.show{display:block}
+.b-tbl-toggle{display:flex;align-items:center;justify-content:space-between;
+  background:var(--white);border:1px solid var(--border);border-radius:10px;
+  padding:12px 16px;cursor:pointer;font-size:14px;font-weight:600;color:var(--primary);
+  width:100%;text-align:right;font-family:'Heebo',sans-serif;transition:background .12s}
+.b-tbl-toggle:hover{background:var(--bg)}
+.b-tbl-body{display:none;background:var(--white);border:1px solid var(--border);
+  border-top:none;border-radius:0 0 10px 10px;overflow:hidden}
+.b-tbl-body.open{display:block}
+.b-tbl{width:100%;border-collapse:collapse;font-size:13px}
+.b-tbl th{background:#f8f9fa;padding:9px 10px;font-size:11px;font-weight:700;
+  color:var(--text3);border-bottom:2px solid var(--border);text-transform:uppercase;
+  letter-spacing:.3px;text-align:center;white-space:nowrap}
+.b-tbl td{padding:8px 10px;border-bottom:1px solid #f1f5f9;font-family:'Courier New',monospace;
+  font-size:12px;text-align:center;color:var(--text)}
+.b-tbl tr:last-child td{border-bottom:none}
+.b-tbl tr:hover td{background:#f8f9fa}
+.b-tbl tr.b-depleted td{background:#fef2f2;color:#991b1b;font-weight:600}
+.b-tbl td.bal-ok{color:#166534}
+.b-tbl td.bal-warn{color:#d97706}
+.b-tbl-summary{padding:10px 14px;background:#f8f9fa;font-size:12px;color:var(--text2);
+  border-top:1px solid var(--border);display:flex;gap:16px;flex-wrap:wrap}
+
 /* CTA */
 .cta{background:#eff6ff;border:1px solid #bfdbfe;border-radius:14px;padding:20px 22px;
   text-align:center;margin-top:18px}
@@ -473,6 +498,25 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);direc
     <div class="b-detail" id="b-detail"></div>
     <div id="b-warn" class="b-warn"></div>
     <div id="b-inf" class="b-inf"></div>
+  </div>
+
+  <div id="bTableSection" class="b-tbl-section">
+    <button class="b-tbl-toggle" onclick="toggleBTable(this)">
+      <span id="bTblLabel">הצג פירוט שנתי</span>
+      <span id="bTblArrow">▼</span>
+    </button>
+    <div id="bTblCollapse" class="b-tbl-body">
+      <div style="overflow-x:auto">
+        <table class="b-tbl">
+          <thead><tr>
+            <th>שנה</th><th>גיל</th><th>יתרה בתחילת שנה</th>
+            <th>משיכות השנה</th><th>תשואה השנה</th><th>יתרה בסוף שנה</th>
+          </tr></thead>
+          <tbody id="bTblRows"></tbody>
+        </table>
+      </div>
+      <div class="b-tbl-summary" id="bTblSummary"></div>
+    </div>
   </div>
 
   <div style="text-align:center;margin-top:16px">
@@ -825,6 +869,65 @@ function findSustainable(principal,annualRate,years){
 }
 
 // ════════════════════════════════
+// SCREEN B — table toggle
+// ════════════════════════════════
+function toggleBTable(btn){
+  var body=$('bTblCollapse'),isOpen=body.classList.contains('open');
+  body.classList.toggle('open',!isOpen);
+  $('bTblLabel').textContent=isOpen?'הצג פירוט שנתי':'הסתר פירוט שנתי';
+  $('bTblArrow').textContent=isOpen?'▼':'▲';
+}
+
+function buildBTable(principal,annualRate,monthly,age){
+  var annualWithdrawal=monthly*12;
+  var bal=principal,rows=[];
+  var totalWithdrawals=0,totalGrowth=0;
+  var deplCalYear=null;
+  var nowYear=new Date().getFullYear();
+
+  for(var y=1;y<=300;y++){
+    var balStart=bal;
+    if(balStart<=0)break;
+    var growth=balStart*annualRate/100;
+    var rawEnd=balStart+growth-annualWithdrawal;
+    var isLast=rawEnd<=0;
+    var actualWd=isLast?Math.max(0,balStart+growth):annualWithdrawal;
+    var balEnd=Math.max(0,rawEnd);
+    totalWithdrawals+=actualWd;
+    totalGrowth+=growth;
+    rows.push({year:y,age:age+y,balStart,withdrawal:actualWd,growth,balEnd,isLast,calYear:nowYear+y});
+    bal=balEnd;
+    if(isLast){deplCalYear=nowYear+y;break}
+  }
+
+  // determine "near zero" — last 2 rows before depletion
+  var nearZeroStart=rows.length-2;
+
+  var html='';
+  rows.forEach(function(r,i){
+    var balClass=r.isLast?'':'bal-ok';
+    if(!r.isLast&&i>=nearZeroStart)balClass='bal-warn';
+    var balStr=r.isLast
+      ?'<span style="color:#991b1b;font-weight:700">₪0 — הכסף נגמר</span>'
+      :'<span class="'+balClass+'">'+fmt(r.balEnd)+'</span>';
+    html+='<tr'+(r.isLast?' class="b-depleted"':'')+'>'
+      +'<td>'+r.year+'</td>'
+      +'<td>'+r.age+'</td>'
+      +'<td>'+fmt(r.balStart)+'</td>'
+      +'<td>'+fmt(r.withdrawal)+'</td>'
+      +'<td style="color:#2563eb">'+fmt(r.growth)+'</td>'
+      +'<td>'+balStr+'</td>'
+      +'</tr>';
+  });
+  $('bTblRows').innerHTML=html||'<tr><td colspan="6" style="text-align:center;color:var(--text3)">אין נתונים</td></tr>';
+
+  var summary='סך משיכות: <strong>'+fmtM(totalWithdrawals)+'</strong>'
+    +' &nbsp;|&nbsp; סך תשואה: <strong>'+fmtM(totalGrowth)+'</strong>';
+  if(deplCalYear)summary+=' &nbsp;|&nbsp; כסף שנגמר: <strong>שנת '+deplCalYear+'</strong>';
+  $('bTblSummary').innerHTML=summary;
+}
+
+// ════════════════════════════════
 // SCREEN B — duration
 // ════════════════════════════════
 function calcDuration(principal,annualRate,monthly){
@@ -855,6 +958,7 @@ function calcB(){
     warn.style.display='none';
     inf.style.display='block';
     inf.innerHTML='✅ <strong>כסף בלתי-מוגבל:</strong> המשיכה החודשית שלך נמוכה מהתשואה חודשית. הקרן לא תיגמר.';
+    $('bTableSection').classList.remove('show');
     return;
   }
 
@@ -873,6 +977,14 @@ function calcB(){
     warn.innerHTML='⚠️ <strong>אזהרה:</strong> הכסף יגמר תוך פחות מ-10 שנים. שקול להקטין את המשיכה החודשית.';
   } else{warn.style.display='none'}
   inf.style.display='none';
+
+  // build annual table
+  buildBTable(principal,annualRate,monthly,age);
+  $('bTableSection').classList.add('show');
+  // collapse table on recalc so user sees fresh toggle
+  $('bTblCollapse').classList.remove('open');
+  $('bTblLabel').textContent='הצג פירוט שנתי';
+  $('bTblArrow').textContent='▼';
 }
 
 // ════════════════════════════════
