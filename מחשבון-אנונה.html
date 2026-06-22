@@ -15,90 +15,156 @@
 :root{
   --primary:#1e3a5f;--accent:#2563eb;--text:#1a1a2e;--text2:#4a5568;--text3:#718096;
   --bg:#f8f9fa;--white:#ffffff;--border:#e2e8f0;
-  --green:#166534;--green-bg:#f0fdf4;
-  --red:#991b1b;--red-bg:#fef2f2;
+  --green:#166534;--green-bg:#f0fdf4;--red:#991b1b;--red-bg:#fef2f2;
   --amber:#92400e;--amber-bg:#fffbeb;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);direction:rtl;min-height:100vh}
 
-/* header */
+/* SITE HEADER */
 .site-header{position:sticky;top:0;z-index:100;background:var(--white);border-bottom:1px solid var(--border);
-  padding:14px 28px;display:flex;align-items:center;justify-content:space-between;
-  box-shadow:0 1px 4px rgba(0,0,0,.06);backdrop-filter:blur(10px)}
+  padding:12px 24px;display:flex;align-items:center;justify-content:space-between;
+  box-shadow:0 1px 4px rgba(0,0,0,.06)}
 .hdr-left{display:flex;flex-direction:column}
-.site-header h1{font-size:20px;font-weight:800;color:var(--primary)}
-.site-header .sub{font-size:12px;color:var(--text3);margin-top:1px}
+.hdr-title{font-size:18px;font-weight:800;color:var(--primary)}
+.hdr-sub{font-size:11px;color:var(--text3);margin-top:1px}
 .hdr-actions{display:flex;gap:8px;align-items:center}
 .btn-ghost{background:var(--bg);border:1px solid var(--border);color:var(--text2);
   padding:7px 14px;border-radius:8px;cursor:pointer;font-family:'Heebo',sans-serif;
-  font-size:13px;font-weight:500;text-decoration:none;display:inline-flex;align-items:center;gap:5px;
-  transition:all .15s}
+  font-size:13px;font-weight:500;text-decoration:none;display:inline-flex;align-items:center;gap:5px;transition:all .15s}
 .btn-ghost:hover{border-color:var(--primary);color:var(--primary)}
 .btn-ghost.email{background:#eff6ff;border-color:#bfdbfe;color:#1e40af}
 .btn-ghost.email:hover{background:#dbeafe}
 
-/* summary bar */
-.sbar{position:sticky;top:65px;z-index:99;background:var(--primary);color:#fff;
-  padding:8px 24px;display:flex;gap:0;flex-wrap:wrap;border-bottom:2px solid rgba(255,255,255,.1)}
-.si{flex:1;min-width:120px;text-align:center;padding:4px 8px}
-.si-lbl{font-size:10px;opacity:.7;letter-spacing:.5px;text-transform:uppercase}
-.si-val{font-family:'Courier New',monospace;font-size:14px;font-weight:700;margin-top:2px}
-.si-val.g{color:#86efac}
-.si-val.y{color:#fcd34d}
+/* PAGE LAYOUT */
+.page-wrap{max-width:800px;margin:0 auto;padding:24px 16px}
 
-/* layout */
-.main{max-width:960px;margin:0 auto;padding:20px 14px}
+/* PAGE HEADER */
+.page-hdr{margin-bottom:24px}
+.page-hdr-row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.page-title{font-size:26px;font-weight:800;color:var(--primary);display:flex;align-items:center;gap:8px}
+.page-desc{font-size:14px;color:var(--text2);margin-top:6px;max-width:560px;line-height:1.6}
+.view-counter{font-size:13px;color:var(--text3);background:var(--white);border:1px solid var(--border);
+  padding:5px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0}
 
-/* modules */
-.mod{background:var(--white);border:1px solid var(--border);border-radius:14px;
-  box-shadow:0 1px 3px rgba(0,0,0,.07);padding:18px 22px;margin-bottom:18px}
-.mod-title{font-size:15px;font-weight:700;color:var(--primary);margin-bottom:14px;display:flex;align-items:center;gap:7px}
+/* SCREENS */
+.screen{display:none}
+.screen.active{display:block}
 
-/* fields */
-.fg{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+/* LANDING */
+.landing-sub{font-size:16px;font-weight:600;color:var(--text2);margin-bottom:18px}
+.qcard{background:var(--white);border:2px solid var(--border);border-radius:16px;padding:20px 22px;
+  margin-bottom:12px;cursor:pointer;display:flex;align-items:center;gap:18px;transition:all .18s}
+.qcard:hover{box-shadow:0 4px 18px rgba(0,0,0,.1);transform:translateY(-2px)}
+.qcard-icon{font-size:32px;width:54px;height:54px;border-radius:13px;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.qcard-body{flex:1}
+.qcard-title{font-size:18px;font-weight:700;color:var(--primary);margin-bottom:4px}
+.qcard-sub{font-size:13px;color:var(--text2);line-height:1.5}
+.qcard-arrow{font-size:22px;color:var(--text3);flex-shrink:0}
+.qcard--a:hover{border-color:#2563eb}.qcard--a .qcard-icon{background:#eff6ff}
+.qcard--b:hover{border-color:#166534}.qcard--b .qcard-icon{background:#f0fdf4}
+.qcard--c:hover{border-color:#92400e}.qcard--c .qcard-icon{background:#fffbeb}
+
+/* STEP CARDS */
+.step-card{background:var(--white);border:1px solid var(--border);border-radius:14px;
+  box-shadow:0 1px 3px rgba(0,0,0,.07);padding:22px;margin-bottom:14px}
+.step-hdr{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:600;color:var(--primary);
+  border-bottom:1px solid var(--border);padding-bottom:13px;margin-bottom:18px}
+.step-num{width:26px;height:26px;border-radius:50%;background:var(--primary);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
+
+/* FIELDS */
+.fg{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}
+.fg2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .fld{display:flex;flex-direction:column;gap:4px}
-.fld label{font-size:12px;font-weight:600;color:var(--text2);display:flex;align-items:center;gap:4px}
-.fld input,.fld select{width:100%;padding:8px 11px;border:1px solid var(--border);border-radius:9px;
-  font-family:'Heebo',sans-serif;font-size:14px;color:var(--text);background:var(--white);
+.fld label{font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:2px}
+.fld input,.fld select{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:9px;
+  font-family:'Courier New',monospace;font-size:14px;color:var(--text);background:var(--white);
   outline:none;transition:border .15s,box-shadow .15s}
-.fld input:focus,.fld select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.12)}
-.fld .hint{font-size:11px;color:var(--text3)}
+.fld input:focus,.fld select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.08)}
+.fld .hint{font-size:11px;color:var(--text3);margin-top:2px}
 
-/* toggles */
-.tgl{display:flex;border-radius:10px;overflow:hidden;border:1px solid var(--border);background:var(--bg)}
-.tgl button{flex:1;padding:9px 12px;border:none;background:transparent;
-  font-family:'Heebo',sans-serif;font-size:13px;font-weight:500;color:var(--text2);
-  cursor:pointer;transition:all .15s;text-align:center;line-height:1.3}
-.tgl button.on{background:var(--primary);color:#fff;font-weight:700}
-.tgl-lg button{padding:13px 16px;font-size:14px}
+/* TOGGLES */
+.tgl{display:flex;background:#f1f5f9;border:1px solid var(--border);border-radius:9px;padding:3px}
+.tgl button{flex:1;padding:9px 10px;border:none;background:transparent;font-family:'Heebo',sans-serif;
+  font-size:13px;font-weight:500;color:var(--text3);cursor:pointer;transition:all .15s;border-radius:7px}
+.tgl button.on{background:var(--primary);color:#fff;box-shadow:0 2px 6px rgba(30,58,95,.25);font-weight:700}
 
-/* result cards */
-.rg{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:12px;margin-bottom:16px}
-.rc{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center}
+/* TOOLTIP */
+.tt{position:relative;cursor:help;display:inline-flex}
+.tt .ti{font-size:11px;color:var(--text3);border:1px solid var(--border);border-radius:50%;
+  width:15px;height:15px;display:inline-flex;align-items:center;justify-content:center;font-weight:700}
+.tt .tc{display:none;position:absolute;bottom:20px;right:0;width:230px;background:var(--text);
+  color:#fff;font-size:12px;line-height:1.5;padding:9px 11px;border-radius:8px;z-index:300;
+  font-weight:400;white-space:normal;text-align:right}
+.tt:hover .tc{display:block}
+
+/* INFO ROW */
+.inf{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text2);margin-top:8px}
+.inf strong{font-family:'Courier New',monospace;color:var(--primary)}
+
+/* ADVANCED TOGGLE */
+.adv-btn{display:inline-flex;align-items:center;gap:6px;color:var(--text3);font-size:13px;
+  cursor:pointer;border:none;background:none;font-family:'Heebo',sans-serif;padding:0;margin-top:2px}
+.adv-btn:hover{color:var(--primary)}
+.adv-body{display:none;margin-top:18px;padding-top:18px;border-top:1px solid var(--border)}
+.adv-body.open{display:block}
+
+/* CALC BUTTONS */
+.btn-calc{width:100%;background:var(--primary);color:#fff;padding:14px;border-radius:10px;
+  font-size:16px;font-weight:700;font-family:'Heebo',sans-serif;border:none;cursor:pointer;
+  transition:background .15s;margin-top:6px}
+.btn-calc:hover{background:#152d4a}
+.btn-back{background:var(--white);border:1px solid var(--border);color:var(--text2);
+  padding:10px 18px;border-radius:8px;font-size:14px;font-family:'Heebo',sans-serif;
+  cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:6px}
+.btn-back:hover{border-color:var(--primary);color:var(--primary)}
+
+/* RESULTS NAV */
+.results-nav{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+
+/* TOP STRIP */
+.top-strip{background:var(--primary);color:#fff;padding:20px 22px;border-radius:12px;
+  margin-bottom:18px;display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.strip-item{text-align:center}
+.strip-lbl{font-size:10px;opacity:.7;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+.strip-val{font-family:'Courier New',monospace;font-size:18px;font-weight:600}
+.strip-val.main{font-size:21px;background:rgba(255,255,255,.13);border-radius:8px;padding:4px 8px;display:inline-block}
+.top-strip3{grid-template-columns:repeat(3,1fr)}
+
+/* RESULT CARDS */
+.rg{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.rc{background:var(--white);border:1px solid var(--border);border-radius:10px;padding:15px 17px}
 .rc.hi{border-color:#86efac;background:var(--green-bg)}
 .rc.danger{border-color:#fca5a5;background:var(--red-bg)}
-.rc-lbl{font-size:10px;font-weight:600;color:var(--text3);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px}
-.rc-val{font-family:'Courier New',monospace;font-size:21px;font-weight:700;color:var(--primary)}
+.rc-lbl{font-size:12px;color:var(--text3);margin-bottom:4px}
+.rc-val{font-family:'Courier New',monospace;font-size:17px;font-weight:700;color:var(--primary)}
 .rc.hi .rc-val{color:var(--green)}
 .rc.danger .rc-val{color:var(--red)}
 .rc-sub{font-size:11px;color:var(--text3);margin-top:3px}
 
-/* alerts */
+/* ALERTS */
 .alert{border-radius:10px;padding:13px 16px;margin-bottom:14px;font-size:13px;line-height:1.6}
 .alert.amber{background:var(--amber-bg);border:1px solid #fcd34d;color:var(--amber)}
 .alert.blue{background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af}
 .alert.green{background:var(--green-bg);border:1px solid #86efac;color:var(--green)}
 .alert strong{font-weight:700}
 
-/* tax breakdown */
+/* MODULE CARDS */
+.mod{background:var(--white);border:1px solid var(--border);border-radius:14px;
+  box-shadow:0 1px 3px rgba(0,0,0,.07);padding:18px 22px;margin-bottom:14px}
+.mod-title{font-size:15px;font-weight:700;color:var(--primary);margin-bottom:14px;
+  display:flex;align-items:center;gap:7px}
+
+/* TAX DETAIL */
 .tax-detail{background:var(--bg);border-radius:10px;padding:12px 14px}
 .tx-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;
   border-bottom:1px solid var(--border);font-size:13px}
-.tx-row:last-child{border-bottom:none;font-weight:700;font-size:14px;padding-top:8px;margin-top:2px;border-top:2px solid var(--border)}
+.tx-row:last-child{border-bottom:none;font-weight:700;font-size:14px;padding-top:8px;border-top:2px solid var(--border)}
 .tx-row .num{font-family:'Courier New',monospace}
 
-/* comp table */
+/* COMPARISON TABLE */
 .ct{width:100%;border-collapse:collapse;font-size:13px}
 .ct th{background:var(--bg);padding:9px 11px;font-size:11px;font-weight:700;color:var(--text2);
   border-bottom:2px solid var(--border);text-align:center}
@@ -106,10 +172,10 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);direc
 .ct td{padding:9px 11px;border-bottom:1px solid var(--border);text-align:center;color:var(--text)}
 .ct td:first-child{font-weight:600;text-align:right}
 .ct tr:last-child td{border-bottom:none}
-.ct .w td{background:#eff6ff}
+.ct td.w{background:#eff6ff}
 .ct .num{font-family:'Courier New',monospace}
 
-/* annual table */
+/* ANNUAL TABLE */
 .ann-wrap{overflow-x:auto}
 .ann{width:100%;border-collapse:collapse;font-size:12px}
 .ann th{background:var(--bg);padding:8px 9px;font-size:11px;font-weight:700;color:var(--text2);
@@ -120,25 +186,49 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);direc
 .ann tr.blue-row td{background:#eff6ff;font-weight:600}
 .ann tr:hover td{background:var(--bg)}
 
-/* collapsible */
+/* COLLAPSIBLE */
 .col-hdr{display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none}
 .col-hdr .arr{transition:transform .2s;font-size:12px;color:var(--text3)}
 .col-hdr.open .arr{transform:rotate(180deg)}
 .col-body{margin-top:14px}
 
-/* tooltip */
-.tt{position:relative;cursor:help;display:inline-flex}
-.tt .ti{font-size:11px;color:var(--text3);border:1px solid var(--border);border-radius:50%;
-  width:15px;height:15px;display:inline-flex;align-items:center;justify-content:center;font-weight:700}
-.tt .tc{display:none;position:absolute;bottom:20px;right:0;width:230px;background:var(--text);
-  color:#fff;font-size:12px;line-height:1.5;padding:9px 11px;border-radius:8px;z-index:300;
-  font-weight:400;white-space:normal;text-align:right}
-.tt:hover .tc{display:block}
+/* CHARTS */
+.ch-wrap{position:relative;height:270px;margin-top:10px}
+.ch-title{font-size:13px;font-weight:600;color:var(--text2);margin-bottom:6px}
+.divider{height:1px;background:var(--border);margin:16px 0}
 
-/* float */
+/* REVERSE BOX */
+.rev-box{background:var(--green-bg);border:1px solid #86efac;border-radius:12px;padding:14px;
+  margin-bottom:14px;text-align:center}
+.rv-main{font-family:'Courier New',monospace;font-size:26px;font-weight:700;color:var(--primary);margin:6px 0}
+.rv-hint{font-size:12px;color:var(--text3);margin-top:6px}
+
+/* SCREEN B INLINE RESULT */
+.b-result-box{background:var(--primary);color:#fff;border-radius:14px;padding:24px;
+  text-align:center;margin-top:16px;display:none}
+.b-result-box.show{display:block}
+.b-dur{font-family:'Courier New',monospace;font-size:34px;font-weight:700;margin:8px 0 4px}
+.b-until{font-size:15px;opacity:.85}
+.b-detail{font-size:13px;opacity:.7;margin-top:10px}
+.b-warn{background:var(--amber-bg);border:1px solid #fcd34d;color:var(--amber);
+  border-radius:10px;padding:13px 16px;margin-top:12px;font-size:13px;line-height:1.6;display:none}
+.b-inf{background:rgba(255,255,255,.15);border-radius:10px;padding:13px 16px;
+  margin-top:12px;font-size:13px;line-height:1.6;display:none}
+
+/* CTA */
+.cta{background:#eff6ff;border:1px solid #bfdbfe;border-radius:14px;padding:20px 22px;
+  text-align:center;margin-top:18px}
+.cta p{font-size:14px;color:#1e40af;line-height:1.7;margin-bottom:12px}
+.cta a{background:var(--primary);color:#fff;border:none;border-radius:10px;padding:11px 26px;
+  font-family:'Heebo',sans-serif;font-size:15px;font-weight:700;text-decoration:none;
+  display:inline-block;transition:background .15s}
+.cta a:hover{background:var(--accent)}
+
+/* FLOAT */
 .fbtn{position:fixed;bottom:22px;left:22px;z-index:500;background:var(--primary);color:#fff;
   border:none;border-radius:50%;width:50px;height:50px;font-size:19px;cursor:pointer;
-  box-shadow:0 4px 12px rgba(0,0,0,.25);transition:transform .15s;display:flex;align-items:center;justify-content:center}
+  box-shadow:0 4px 12px rgba(0,0,0,.25);transition:transform .15s;
+  align-items:center;justify-content:center;display:none}
 .fbtn:hover{transform:scale(1.1)}
 .fpanel{position:fixed;bottom:82px;left:22px;z-index:499;background:var(--white);
   border:1px solid var(--border);border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.15);
@@ -149,49 +239,20 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);direc
 .fp-row:last-child{border-bottom:none}
 .fp-row .fv{font-family:'Courier New',monospace;font-weight:700}
 
-/* charts */
-.ch-wrap{position:relative;height:280px;margin-top:10px}
-.ch-title{font-size:13px;font-weight:600;color:var(--text2);margin-bottom:6px}
-.divider{height:1px;background:var(--border);margin:18px 0}
-
-/* info row */
-.inf{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text2);margin-top:8px}
-.inf strong{font-family:'Courier New',monospace;color:var(--primary)}
-
-/* reverse result */
-.rev-box{background:var(--green-bg);border:1px solid #86efac;border-radius:12px;padding:14px;
-  margin-bottom:14px;text-align:center}
-.rev-box .rv-main{font-family:'Courier New',monospace;font-size:26px;font-weight:700;color:var(--primary);margin:6px 0}
-.rev-box .rv-hint{font-size:12px;color:var(--text3);margin-top:6px}
-
-/* CTA */
-.cta{background:#eff6ff;border:1px solid #bfdbfe;border-radius:14px;padding:20px 22px;
-  text-align:center;margin-top:18px}
-.cta p{font-size:14px;color:#1e40af;line-height:1.7;margin-bottom:12px}
-.cta a{background:var(--primary);color:#fff;border:none;border-radius:10px;padding:11px 26px;
-  font-family:'Heebo',sans-serif;font-size:15px;font-weight:700;cursor:pointer;text-decoration:none;
-  display:inline-block;transition:background .15s}
-.cta a:hover{background:var(--accent)}
-
-/* mode visibility */
-.m-amount{display:block}
-.m-target{display:none}
-body.target-mode .m-target{display:block}
-body.target-mode .m-amount{display:none}
-
 @media print{
-  .site-header,.sbar,.fbtn,.fpanel,.btn-ghost,#emailModal{display:none!important}
-  .mod{break-inside:avoid;box-shadow:none;border:1px solid #ccc}
+  .site-header,.fbtn,.fpanel,.results-nav,.btn-ghost,#emailModal{display:none!important}
+  .mod,.step-card{break-inside:avoid;box-shadow:none;border:1px solid #ccc}
   body{background:#fff}
 }
 @media(max-width:600px){
   .hdr-actions .btn-ghost span{display:none}
   .hdr-actions .btn-ghost{padding:7px 9px}
-}
-@media(max-width:600px){
-  .si{min-width:90px}.sbar{gap:0}
-  .main{padding:12px 8px}.mod{padding:14px}
-  .tgl-lg button{font-size:12px;padding:10px 8px}
+  .top-strip{grid-template-columns:1fr 1fr}
+  .top-strip.top-strip3{grid-template-columns:1fr}
+  .fg2{grid-template-columns:1fr}
+  .rg{grid-template-columns:1fr}
+  .page-title{font-size:21px}
+  .qcard-title{font-size:16px}
 }
 </style>
 </head>
@@ -199,158 +260,320 @@ body.target-mode .m-amount{display:none}
 
 <header class="site-header">
   <div class="hdr-left">
-    <h1>מחשבון אנונה</h1>
-    <div class="sub">מצפן כלכלי | יוסי כץ</div>
+    <div class="hdr-title">📊 מחשבון אנונה</div>
+    <div class="hdr-sub">מצפן כלכלי | יוסי כץ</div>
   </div>
   <div class="hdr-actions">
     <a href="index.html" class="btn-ghost" style="text-decoration:none">🏠 <span>חזרה למחשבונים</span></a>
-    <button class="btn-ghost email" onclick="openEmailModal()">📧 <span>שלח לי את התוצאות</span></button>
+    <button class="btn-ghost email" onclick="openEmailModal()">📧 <span>שלח תוצאות</span></button>
     <button class="btn-ghost" onclick="window.print()">🖨️ <span>הדפסה</span></button>
   </div>
 </header>
 
-<div class="sbar">
-  <div class="si"><div class="si-lbl">קצבה ברוטו</div><div class="si-val" id="sb-gross">—</div></div>
-  <div class="si"><div class="si-lbl">קצבה נטו</div><div class="si-val g" id="sb-net">—</div></div>
-  <div class="si"><div class="si-lbl">קצבה ריאלית</div><div class="si-val" id="sb-real">—</div></div>
-  <div class="si"><div class="si-lbl">סך קצבאות</div><div class="si-val" id="sb-total">—</div></div>
-  <div class="si"><div class="si-lbl">נקודת איזון</div><div class="si-val y" id="sb-be">—</div></div>
-</div>
+<div class="page-wrap">
 
-<div class="main">
-
-<!-- M1: כיוון -->
-<div class="mod">
-  <div class="mod-title">📐 כיוון החישוב</div>
-  <div class="tgl tgl-lg">
-    <button class="on" id="btnAmount" onclick="setMode('amount')">💰 יש לי סכום — כמה אקבל בחודש?</button>
-    <button id="btnTarget" onclick="setMode('target')">📅 רוצה קצבה חודשית — כמה צריך לצבור?</button>
+<!-- PAGE HEADER -->
+<div class="page-hdr">
+  <div class="page-hdr-row">
+    <div>
+      <div class="page-title">📊 מחשבון אנונה</div>
+      <div class="page-desc">חשב קצבה חודשית, משך הכסף, וכמה צריך לצבור — כולל מיסוי ישראלי 2026</div>
+    </div>
+    <div class="view-counter">👁 <span id="viewCount">—</span> צפיות</div>
   </div>
 </div>
 
-<!-- M2: נתוני צבירה -->
-<div class="mod">
-  <div class="mod-title">💰 נתוני הצבירה</div>
-  <div class="fg">
-    <div class="fld m-amount">
-      <label>סכום צבור (₪)</label>
-      <input type="text" id="totalSaved" value="1,000,000" placeholder="סכום החיסכון/הפנסיה שלך" oninput="fmtLive(this);calc()" onblur="fmtBlur(this)">
+<!-- ══════════════════════════════
+     SCREEN: LANDING
+══════════════════════════════ -->
+<div id="s-landing" class="screen active">
+  <div class="landing-sub">מה תרצה לחשב?</div>
+
+  <div class="qcard qcard--a" onclick="goScreen('a')">
+    <div class="qcard-icon">💰</div>
+    <div class="qcard-body">
+      <div class="qcard-title">כמה אקבל בחודש?</div>
+      <div class="qcard-sub">יש לי סכום חסכון — כמה קצבה חודשית אקבל?</div>
     </div>
-    <div class="fld m-target">
-      <label>קצבה חודשית רצויה (₪)</label>
-      <input type="text" id="targetMonthly" value="10,000" oninput="fmtLive(this);calc()" onblur="fmtBlur(this)">
+    <div class="qcard-arrow">←</div>
+  </div>
+
+  <div class="qcard qcard--b" onclick="goScreen('b')">
+    <div class="qcard-icon">⏱️</div>
+    <div class="qcard-body">
+      <div class="qcard-title">כמה זמן הכסף יחזיק?</div>
+      <div class="qcard-sub">יש לי סכום ואני יודע כמה אמשוך — עד מתי יחזיק?</div>
     </div>
-    <div class="fld">
-      <label>
-        תשואה שנתית (%)
-        <span class="tt"><span class="ti">?</span><span class="tc">התשואה הצפויה שהכסף ימשיך להרוויח בזמן שמושכים ממנו קצבה. קרן פנסיה ממוצעת: 4–6% בשנה</span></span>
-      </label>
-      <input type="number" id="annualReturn" value="4.5" step="0.1" min="0" max="20" oninput="calc()">
+    <div class="qcard-arrow">←</div>
+  </div>
+
+  <div class="qcard qcard--c" onclick="goScreen('c')">
+    <div class="qcard-icon">🎯</div>
+    <div class="qcard-body">
+      <div class="qcard-title">כמה צריך לצבור?</div>
+      <div class="qcard-sub">רוצה קצבה חודשית מסוימת — כמה צריך לחסוך?</div>
     </div>
-    <div class="fld">
-      <label>
-        אינפלציה שנתית (%)
-        <span class="tt"><span class="ti">?</span><span class="tc">אינפלציה מקטינה את כוח הקנייה. ממוצע ישראל: 2.5–3.5% בשנה</span></span>
-      </label>
-      <input type="number" id="inflation" value="3" step="0.1" min="0" max="15" oninput="calc()">
-    </div>
+    <div class="qcard-arrow">←</div>
   </div>
 </div>
 
-<!-- M3: סוג קצבה -->
-<div class="mod">
-  <div class="mod-title">📅 סוג הקצבה</div>
-  <div class="tgl" style="margin-bottom:14px">
-    <button class="on" id="btnLifetime" onclick="setAnnuity('lifetime')">♾️ קצבה לכל החיים</button>
-    <button id="btnFixed" onclick="setAnnuity('fixed')">📆 קצבה לתקופה קבועה</button>
-    <button id="btnPortfolio" onclick="setAnnuity('portfolio')">📈 משיכות מתיק גדל</button>
-  </div>
+<!-- ══════════════════════════════
+     SCREEN A: כמה אקבל
+══════════════════════════════ -->
+<div id="s-a" class="screen">
 
-  <div id="fLifetime">
+  <div class="step-card">
+    <div class="step-hdr"><div class="step-num">1</div>שלב 1 — נתוני הצבירה</div>
     <div class="fg">
+      <div class="fld">
+        <label>סכום חסכון (₪)</label>
+        <input type="text" id="totalSaved" value="1,000,000" oninput="fmtLive(this)" onblur="fmtBlur(this)">
+      </div>
+      <div class="fld">
+        <label>תשואה שנתית (%)</label>
+        <input type="number" id="annualReturn" value="4.5" step="0.1" min="0" max="20">
+      </div>
+      <div class="fld">
+        <label>אינפלציה שנתית (%)</label>
+        <input type="number" id="inflation" value="3" step="0.1" min="0" max="15">
+      </div>
+    </div>
+  </div>
+
+  <div class="step-card">
+    <div class="step-hdr"><div class="step-num">2</div>שלב 2 — תקופה וגיל</div>
+    <div class="fg2">
       <div class="fld">
         <label>גיל נוכחי</label>
-        <input type="number" id="currentAge" value="67" min="40" max="99" oninput="calc()">
+        <input type="number" id="currentAge" value="67" min="40" max="99" oninput="updateLtYears()">
       </div>
       <div class="fld">
-        <label>
-          תוחלת חיים
-          <span class="tt"><span class="ti">?</span><span class="tc">ממוצע ישראל: גברים ~82, נשים ~85. מומלץ לתכנן ל-90 לביטחון.</span></span>
-        </label>
-        <input type="number" id="lifeExpectancy" value="87" min="60" max="110" oninput="calc()">
+        <label>תוחלת חיים <span class="tt"><span class="ti">?</span><span class="tc">ממוצע ישראל: גברים ~82, נשים ~85. מומלץ לתכנן ל-90 לביטחון.</span></span></label>
+        <input type="number" id="lifeExpectancy" value="87" min="60" max="110" oninput="updateLtYears()">
       </div>
     </div>
-    <div class="inf">תקופת קצבה: <strong id="ltYears">—</strong> שנים (גיל <strong id="ltRange">—</strong>)</div>
+    <div class="inf">תקופת קצבה: <strong id="ltYears">20</strong> שנים (גיל <strong id="ltRange">67–87</strong>)</div>
   </div>
 
-  <div id="fFixed" style="display:none">
-    <div class="fg">
-      <div class="fld">
-        <label>מספר שנות קצבה</label>
-        <input type="number" id="fixedYears" value="20" min="1" max="50" oninput="calc()">
+  <div class="step-card">
+    <button class="adv-btn" type="button" id="advBtn" onclick="toggleAdv()">
+      ⚙️ הגדרות מתקדמות (סוג קצבה, מיסוי, נקודות זיכוי)
+      <span id="advArrow" style="font-size:11px">▼</span>
+    </button>
+    <div class="adv-body" id="advBody">
+
+      <div style="margin-bottom:18px">
+        <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:8px">סוג הקצבה</label>
+        <div class="tgl">
+          <button class="on" id="btnLifetime" onclick="setAnnuity('lifetime')">♾️ לכל החיים</button>
+          <button id="btnFixed" onclick="setAnnuity('fixed')">📆 קצבה קבועה</button>
+          <button id="btnPortfolio" onclick="setAnnuity('portfolio')">📈 משיכות מתיק</button>
+        </div>
       </div>
-      <div class="fld">
-        <label>גיל בתחילת קצבה</label>
-        <input type="number" id="fixedStartAge" value="67" min="40" max="100" oninput="calc()">
+
+      <div id="fLifetime" style="display:none"></div>
+
+      <div id="fFixed" style="display:none;margin-bottom:16px">
+        <div class="fg2">
+          <div class="fld">
+            <label>מספר שנות קצבה</label>
+            <input type="number" id="fixedYears" value="20" min="1" max="50">
+          </div>
+          <div class="fld">
+            <label>גיל בתחילת קצבה</label>
+            <input type="number" id="fixedStartAge" value="67" min="40" max="100">
+          </div>
+        </div>
+        <div class="inf">קצבה עד גיל: <strong id="fixedEndAge">87</strong></div>
       </div>
-    </div>
-    <div class="inf">קצבה עד גיל: <strong id="fixedEndAge">—</strong></div>
+
+      <div id="fPortfolio" style="display:none;margin-bottom:16px">
+        <div class="fg2">
+          <div class="fld">
+            <label>% משיכה שנתי <span class="tt"><span class="ti">?</span><span class="tc">כלל ה-4%: משיכה שנתית של 4% נחשבת בת-קיימא לטווח ארוך</span></span></label>
+            <input type="number" id="withdrawalPct" value="4" step="0.1" min="0.1" max="20">
+          </div>
+          <div class="fld">
+            <label>תקופת משיכה (שנים)</label>
+            <input type="number" id="portfolioYears" value="25" min="1" max="50">
+          </div>
+        </div>
+        <div class="inf">קצבה חודשית: <strong id="portMonthly">—</strong> (<strong id="portPct">—</strong>% שנתי)</div>
+      </div>
+
+      <div style="border-top:1px solid var(--border);padding-top:16px">
+        <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:10px">מיסוי ופטורים</label>
+        <div class="fg" style="margin-bottom:12px">
+          <div class="fld">
+            <label>ותק שנות חיסכון <span class="tt"><span class="ti">?</span><span class="tc">סעיף 9א: פטור ממס עד 35% (2% לשנה), תקרה ₪8,990/חודש (2026)</span></span></label>
+            <input type="number" id="savingYears" value="30" min="1" max="50">
+          </div>
+          <div class="fld">
+            <label>נקודות זיכוי</label>
+            <input type="number" id="creditPoints" value="2.25" step="0.25" min="0" max="20">
+            <span class="hint">242 ₪ לנקודה (2026)</span>
+          </div>
+        </div>
+        <div class="tgl" style="max-width:340px;margin-bottom:10px">
+          <button class="on" id="btnBrackets" onclick="setTaxMode('brackets')">מדרגות מס רגילות</button>
+          <button id="btnFlat" onclick="setTaxMode('flat')">שיעור מס קבוע</button>
+        </div>
+        <div id="flatField" style="display:none;max-width:160px">
+          <div class="fld"><label>שיעור מס קבוע (%)</label>
+          <input type="number" id="flatRate" value="25" min="0" max="50"></div>
+        </div>
+      </div>
+
+    </div><!-- /adv-body -->
   </div>
 
-  <div id="fPortfolio" style="display:none">
-    <div class="fg">
-      <div class="fld">
-        <label>
-          % משיכה שנתי
-          <span class="tt"><span class="ti">?</span><span class="tc">כלל ה-4%: משיכה של 4% בשנה מאפשרת לתיק להחזיק מעמד לאורך זמן רב. מחקרים מראים שזה בר-קיימא ב-30 שנה+</span></span>
-        </label>
-        <input type="number" id="withdrawalPct" value="4" step="0.1" min="0.1" max="20" oninput="calc()">
-      </div>
-      <div class="fld">
-        <label>תקופת משיכה (שנים)</label>
-        <input type="number" id="portfolioYears" value="25" min="1" max="50" oninput="calc()">
-      </div>
-    </div>
-    <div class="inf">קצבה חודשית: <strong id="portMonthly">—</strong> (<strong id="portPct">—</strong>% שנתי)</div>
+  <button class="btn-calc" onclick="runCalcA()">חשב קצבה 📊</button>
+  <div style="text-align:center;margin-top:12px">
+    <button class="btn-back" onclick="goScreen('landing')">↩ חזרה לשאלות</button>
   </div>
 </div>
 
-<!-- M4: מיסוי -->
-<div class="mod">
-  <div class="col-hdr open" onclick="toggleCol(this)">
-    <div class="mod-title" style="margin-bottom:0">🏛️ מיסוי ופטורים</div>
-    <span class="arr">▼</span>
+<!-- ══════════════════════════════
+     SCREEN B: כמה זמן יחזיק
+══════════════════════════════ -->
+<div id="s-b" class="screen">
+
+  <div class="step-card">
+    <div class="step-hdr"><div class="step-num">1</div>שלב 1 — הכסף שלי</div>
+    <div class="fg2">
+      <div class="fld">
+        <label>סכום חסכון (₪)</label>
+        <input type="text" id="b-principal" value="1,000,000" oninput="fmtLive(this);calcB()" onblur="fmtBlur(this)">
+      </div>
+      <div class="fld">
+        <label>תשואה שנתית (%)</label>
+        <input type="number" id="b-return" value="4.5" step="0.1" min="0" max="20" oninput="calcB()">
+      </div>
+    </div>
   </div>
-  <div class="col-body">
-    <div class="fg" style="margin-bottom:14px">
+
+  <div class="step-card">
+    <div class="step-hdr"><div class="step-num">2</div>שלב 2 — המשיכה שלי</div>
+    <div class="fg2">
       <div class="fld">
-        <label>גיל בקבלת קצבה</label>
-        <input type="number" id="taxAge" value="67" min="40" max="100" oninput="calc()">
+        <label>משיכה חודשית (₪)</label>
+        <input type="text" id="b-monthly" value="5,000" oninput="fmtLive(this);calcB()" onblur="fmtBlur(this)">
       </div>
       <div class="fld">
-        <label>
-          ותק שנות חיסכון
-          <span class="tt"><span class="ti">?</span><span class="tc">סעיף 9א: פטור ממס עד 35% מהקצבה המזכה (2% לכל שנת חיסכון), ועד תקרה חודשית של ₪8,990 (2026).</span></span>
-        </label>
-        <input type="number" id="savingYears" value="30" min="1" max="50" oninput="calc()">
-      </div>
-      <div class="fld">
-        <label>נקודות זיכוי</label>
-        <input type="number" id="creditPoints" value="2.25" step="0.25" min="0" max="20" oninput="calc()">
-        <span class="hint">242 ₪ לנקודה (2026)</span>
+        <label>גיל נוכחי</label>
+        <input type="number" id="b-age" value="67" min="40" max="99" oninput="calcB()">
       </div>
     </div>
-    <div style="margin-bottom:14px">
-      <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">מס על קצבה מעל הפטור</label>
-      <div class="tgl" style="max-width:340px">
-        <button class="on" id="btnBrackets" onclick="setTaxMode('brackets')">מדרגות מס רגילות</button>
-        <button id="btnFlat" onclick="setTaxMode('flat')">שיעור מס קבוע</button>
+  </div>
+
+  <div id="bResultBox" class="b-result-box">
+    <div style="font-size:14px;opacity:.8">הכסף יחזיק:</div>
+    <div class="b-dur" id="b-dur">—</div>
+    <div class="b-until" id="b-until">—</div>
+    <div class="b-detail" id="b-detail"></div>
+    <div id="b-warn" class="b-warn"></div>
+    <div id="b-inf" class="b-inf"></div>
+  </div>
+
+  <div style="text-align:center;margin-top:16px">
+    <button class="btn-back" onclick="goScreen('landing')">↩ חזרה לשאלות</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════
+     SCREEN C: כמה לצבור
+══════════════════════════════ -->
+<div id="s-c" class="screen">
+
+  <div class="step-card">
+    <div class="step-hdr"><div class="step-num">1</div>שלב 1 — היעד שלי</div>
+    <div class="fg2">
+      <div class="fld">
+        <label>קצבה חודשית רצויה נטו (₪)</label>
+        <input type="text" id="c-target" value="5,000" oninput="fmtLive(this)" onblur="fmtBlur(this)">
       </div>
-      <div id="flatField" style="display:none;margin-top:10px;max-width:170px">
-        <div class="fld"><label>שיעור מס קבוע (%)</label>
-        <input type="number" id="flatRate" value="25" min="0" max="50" oninput="calc()"></div>
+      <div class="fld">
+        <label>לכמה שנים?</label>
+        <input type="number" id="c-years" value="20" min="1" max="50">
       </div>
     </div>
+  </div>
+
+  <div class="step-card">
+    <div class="step-hdr"><div class="step-num">2</div>שלב 2 — הנחות חישוב</div>
+    <div class="fg2">
+      <div class="fld">
+        <label>תשואה שנתית (%)</label>
+        <input type="number" id="c-return" value="4.5" step="0.1" min="0" max="20">
+      </div>
+      <div class="fld">
+        <label>אינפלציה שנתית (%)</label>
+        <input type="number" id="c-inflation" value="3" step="0.1" min="0" max="15">
+      </div>
+    </div>
+    <div class="fg2" style="margin-top:12px">
+      <div class="fld">
+        <label>גיל נוכחי</label>
+        <input type="number" id="c-age" value="40" min="20" max="80">
+      </div>
+      <div class="fld">
+        <label>גיל פרישה</label>
+        <input type="number" id="c-retire" value="67" min="40" max="99">
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="runCalcC()">חשב כמה לצבור 🎯</button>
+  <div style="text-align:center;margin-top:12px">
+    <button class="btn-back" onclick="goScreen('landing')">↩ חזרה לשאלות</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════
+     RESULTS A: תוצאות מלאות
+══════════════════════════════ -->
+<div id="s-ra" class="screen">
+
+  <div class="results-nav">
+    <button class="btn-back" onclick="goScreen('landing')">↩ חזרה לשאלות</button>
+    <button class="btn-back" onclick="goScreen('a')" style="border-color:#2563eb;color:#2563eb">⚙️ שנה פרמטרים</button>
+    <button class="btn-back" onclick="openEmailModal()" style="background:#eff6ff;border-color:#bfdbfe;color:#1e40af">📧 שלח תוצאות</button>
+    <button class="btn-back" onclick="window.print()">🖨️ הדפסה</button>
+  </div>
+
+  <div class="top-strip">
+    <div class="strip-item">
+      <div class="strip-lbl">קצבה ברוטו</div>
+      <div class="strip-val" id="sb-gross">—</div>
+    </div>
+    <div class="strip-item">
+      <div class="strip-lbl">קצבה נטו</div>
+      <div class="strip-val main" id="sb-net">—</div>
+    </div>
+    <div class="strip-item">
+      <div class="strip-lbl">קצבה ריאלית</div>
+      <div class="strip-val" id="sb-real">—</div>
+    </div>
+    <div class="strip-item">
+      <div class="strip-lbl">נקודת איזון</div>
+      <div class="strip-val" id="sb-be">—</div>
+    </div>
+  </div>
+
+  <div id="depAlert" class="alert amber" style="display:none"></div>
+  <div id="beBox" class="alert blue" style="display:none"></div>
+
+  <div class="rg">
+    <div class="rc hi"><div class="rc-lbl">קצבה חודשית נטו</div><div class="rc-val" id="rNet">—</div><div class="rc-sub">אחרי מס וזיכויים</div></div>
+    <div class="rc"><div class="rc-lbl">קצבה חודשית ברוטו</div><div class="rc-val" id="rGross">—</div><div class="rc-sub">לפני מס</div></div>
+    <div class="rc"><div class="rc-lbl">קצבה ריאלית (היום)</div><div class="rc-val" style="color:var(--text2)" id="rReal">—</div><div class="rc-sub">כוח קנייה אמיתי</div></div>
+    <div class="rc"><div class="rc-lbl">סך קצבאות לאורך התקופה</div><div class="rc-val" id="rTotalPayout">—</div><div class="rc-sub">סה"כ שתקבל</div></div>
+    <div class="rc danger"><div class="rc-lbl">סך מס ששולם</div><div class="rc-val" id="rTotalTax">—</div><div class="rc-sub">לאורך כל התקופה</div></div>
+    <div class="rc" id="rBalCard"><div class="rc-lbl">יתרה בסוף תקופה</div><div class="rc-val" id="rBalance">—</div><div class="rc-sub">כמה נשאר בקרן</div></div>
+  </div>
+
+  <div class="mod">
+    <div class="mod-title">🏛️ פירוט מיסוי</div>
     <div class="tax-detail">
       <div class="tx-row"><span>פטור חודשי (סעיף 9א):</span><span class="num" id="dExempt">—</span></div>
       <div class="tx-row"><span>חייב במס:</span><span class="num" id="dTaxable">—</span></div>
@@ -360,91 +583,96 @@ body.target-mode .m-amount{display:none}
       <div class="tx-row" style="color:var(--green)"><span>קצבה נטו:</span><span class="num" id="dNetPension">—</span></div>
     </div>
   </div>
-</div>
 
-<!-- M5: תוצאות -->
-<div class="mod">
-  <div class="mod-title">📊 תוצאות</div>
-
-  <div id="reverseBox" class="rev-box" style="display:none">
-    <div style="font-size:13px;color:var(--text2)">כדי לקבל <strong id="revTarget">—</strong> נטו בחודש:</div>
-    <div class="rv-main" id="revRequired">—</div>
-    <div style="font-size:12px;color:var(--text3)">סכום נדרש לצבירה</div>
-    <div class="rv-hint" id="revHint"></div>
-  </div>
-
-  <div class="rg">
-    <div class="rc"><div class="rc-lbl">קצבה חודשית ברוטו</div><div class="rc-val" id="rGross">—</div><div class="rc-sub">לפני מס</div></div>
-    <div class="rc hi"><div class="rc-lbl">קצבה חודשית נטו</div><div class="rc-val" id="rNet">—</div><div class="rc-sub">אחרי מס וזיכויים</div></div>
-    <div class="rc"><div class="rc-lbl">קצבה ריאלית (היום) <span class="tt"><span class="ti">?</span><span class="tc">בערכי כסף של היום — אינפלציה שוחקת את כוח הקנייה לאורך זמן</span></span></div><div class="rc-val" style="color:var(--text2)" id="rReal">—</div><div class="rc-sub">בערכי כסף של היום</div></div>
-    <div class="rc"><div class="rc-lbl">סך קצבאות לאורך התקופה</div><div class="rc-val" id="rTotalPayout">—</div><div class="rc-sub">סה"כ שתקבל</div></div>
-    <div class="rc danger"><div class="rc-lbl">סך מס ששולם</div><div class="rc-val" id="rTotalTax">—</div><div class="rc-sub">לאורך כל התקופה</div></div>
-    <div class="rc" id="rBalCard"><div class="rc-lbl">יתרה צבורה בסוף תקופה</div><div class="rc-val" id="rBalance">—</div><div class="rc-sub">כמה נשאר בקרן</div></div>
-  </div>
-
-  <div id="depAlert" class="alert amber" style="display:none"></div>
-  <div id="beBox" class="alert blue" style="display:none"></div>
-</div>
-
-<!-- M6: השוואה -->
-<div class="mod">
-  <div class="mod-title">⚖️ השוואת אסטרטגיות</div>
-  <div style="overflow-x:auto">
-    <table class="ct">
-      <thead><tr>
-        <th>קריטריון</th>
-        <th>♾️ לכל החיים</th>
-        <th>📆 קצבה קבועה</th>
-        <th>📈 משיכות מתיק</th>
-      </tr></thead>
-      <tbody id="compBody"><tr><td colspan="4" style="text-align:center;color:var(--text3);padding:16px">מחשב...</td></tr></tbody>
-    </table>
-  </div>
-  <div id="compWinner" class="alert green" style="display:none;margin-top:10px"></div>
-</div>
-
-<!-- M8: גרפים -->
-<div class="mod">
-  <div class="mod-title">📈 גרפים</div>
-  <div class="ch-title">יתרת הצבירה לאורך הזמן</div>
-  <div class="ch-wrap"><canvas id="chartBal"></canvas></div>
-  <div class="divider"></div>
-  <div class="ch-title">קצבה ריאלית vs נומינלית</div>
-  <div class="ch-wrap"><canvas id="chartReal"></canvas></div>
-  <div class="divider"></div>
-  <div class="ch-title">השוואת 3 אסטרטגיות — סך תקבולים מצטבר</div>
-  <div class="ch-wrap"><canvas id="chartComp"></canvas></div>
-</div>
-
-<!-- M9: טבלה שנתית -->
-<div class="mod">
-  <div class="col-hdr" onclick="toggleCol(this)">
-    <div class="mod-title" style="margin-bottom:0">📋 פירוט שנתי</div>
-    <span class="arr">▼</span>
-  </div>
-  <div class="col-body" style="display:none">
-    <div class="ann-wrap">
-      <table class="ann">
+  <div class="mod">
+    <div class="mod-title">⚖️ השוואת אסטרטגיות</div>
+    <div style="overflow-x:auto">
+      <table class="ct">
         <thead><tr>
-          <th>שנה</th><th>גיל</th><th>קצבה ברוטו</th><th>מס</th>
-          <th>קצבה נטו</th><th>קצבה ריאלית</th><th>יתרה בקרן</th><th>תשואה שנתית</th>
+          <th>קריטריון</th><th>♾️ לכל החיים</th><th>📆 קצבה קבועה</th><th>📈 משיכות מתיק</th>
         </tr></thead>
-        <tbody id="annBody"><tr><td colspan="8" style="text-align:center;color:var(--text3)">מחשב...</td></tr></tbody>
+        <tbody id="compBody"><tr><td colspan="4" style="text-align:center;color:var(--text3);padding:16px">מחשב...</td></tr></tbody>
       </table>
     </div>
+    <div id="compWinner" class="alert green" style="display:none;margin-top:10px"></div>
+  </div>
+
+  <div class="mod">
+    <div class="mod-title">📈 גרפים</div>
+    <div class="ch-title">יתרת הצבירה לאורך הזמן</div>
+    <div class="ch-wrap"><canvas id="chartBal"></canvas></div>
+    <div class="divider"></div>
+    <div class="ch-title">קצבה ריאלית vs נומינלית</div>
+    <div class="ch-wrap"><canvas id="chartReal"></canvas></div>
+    <div class="divider"></div>
+    <div class="ch-title">השוואת 3 אסטרטגיות — סך תקבולים מצטבר</div>
+    <div class="ch-wrap"><canvas id="chartComp"></canvas></div>
+  </div>
+
+  <div class="mod">
+    <div class="col-hdr" onclick="toggleCol(this)">
+      <div class="mod-title" style="margin-bottom:0">📋 פירוט שנתי</div>
+      <span class="arr">▼</span>
+    </div>
+    <div class="col-body" style="display:none">
+      <div class="ann-wrap">
+        <table class="ann">
+          <thead><tr>
+            <th>שנה</th><th>גיל</th><th>קצבה ברוטו</th><th>מס</th>
+            <th>קצבה נטו</th><th>קצבה ריאלית</th><th>יתרה בקרן</th><th>תשואה שנתית</th>
+          </tr></thead>
+          <tbody id="annBody"><tr><td colspan="8" style="text-align:center;color:var(--text3)">מחשב...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="cta">
+    <p>💡 תוצאות המחשבון הן הערכה בלבד.<br>לתכנון אנונה מותאם אישית — נשמח לייעץ לך.</p>
+    <a href="https://matzpenkalkali.com/#contact">לייעוץ אישי עם יוסי כץ ←</a>
   </div>
 </div>
 
-<!-- CTA -->
-<div class="cta">
-  <p>💡 תוצאות המחשבון הן הערכה בלבד.<br>לתכנון אנונה מותאם אישית — נשמח לייעץ לך.</p>
-  <a href="https://matzpenkalkali.com/#contact">לייעוץ אישי עם יוסי כץ ←</a>
+<!-- ══════════════════════════════
+     RESULTS C: כמה לצבור
+══════════════════════════════ -->
+<div id="s-rc" class="screen">
+
+  <div class="results-nav">
+    <button class="btn-back" onclick="goScreen('landing')">↩ חזרה לשאלות</button>
+    <button class="btn-back" onclick="goScreen('c')" style="border-color:#2563eb;color:#2563eb">⚙️ שנה פרמטרים</button>
+  </div>
+
+  <div class="top-strip top-strip3">
+    <div class="strip-item">
+      <div class="strip-lbl">צריך לצבור</div>
+      <div class="strip-val main" id="c-res-principal">—</div>
+    </div>
+    <div class="strip-item">
+      <div class="strip-lbl">חיסכון חודשי נדרש</div>
+      <div class="strip-val" id="c-res-monthly">—</div>
+    </div>
+    <div class="strip-item">
+      <div class="strip-lbl">קצבה שתקבל</div>
+      <div class="strip-val" id="c-res-gets">—</div>
+    </div>
+  </div>
+
+  <div class="mod">
+    <div class="mod-title">📊 פירוט החישוב</div>
+    <div class="tax-detail" id="c-breakdown"></div>
+  </div>
+
+  <div class="cta">
+    <p>💡 תוצאות המחשבון הן הערכה בלבד.<br>לתכנון חיסכון מותאם אישית — נשמח לייעץ לך.</p>
+    <a href="https://matzpenkalkali.com/#contact">לייעוץ אישי עם יוסי כץ ←</a>
+  </div>
 </div>
 
-</div><!-- /main -->
+</div><!-- /page-wrap -->
 
-<!-- float -->
-<button class="fbtn" onclick="toggleFloat()" title="סיכום">📋</button>
+<!-- FLOAT -->
+<button class="fbtn" id="floatBtn" onclick="toggleFloat()" title="סיכום">📋</button>
 <div class="fpanel" id="floatPanel">
   <h3>📊 סיכום</h3>
   <div class="fp-row"><span>קצבה ברוטו:</span><span class="fv" id="fp-gross">—</span></div>
@@ -460,82 +688,83 @@ body.target-mode .m-amount{display:none}
 <script>
 'use strict';
 
-// === STATE ===
-let calcMode='amount', annuityType='lifetime', taxMode='brackets', debT;
+// STATE
+let annuityType='lifetime', taxMode='brackets';
 let chBal=null, chReal=null, chComp=null;
 
-// === DOM ===
+// DOM
 function $(id){return document.getElementById(id)}
 function setEl(id,v){const e=$(id);if(e)e.textContent=v}
 
-// === NUMBER FORMATTING ===
-function parseRaw(id){
-  const e=$(id); if(!e) return 0;
-  return parseFloat(e.value.replace(/,/g,''))||0;
-}
-function fmtLive(el){
-  const raw=el.value.replace(/[^0-9]/g,'');
-  el.value=raw?parseInt(raw,10).toLocaleString('he-IL'):'';
-}
-function fmtBlur(el){
-  const raw=el.value.replace(/[^0-9]/g,'');
-  el.value=raw?parseInt(raw,10).toLocaleString('he-IL'):'0';
-}
-function fmt(n){
-  if(n==null||isNaN(n))return'—';
-  const abs=Math.abs(Math.round(n));
-  return(n<0?'-':'')+'₪'+abs.toLocaleString('he-IL');
-}
-function fmtM(n){
-  const abs=Math.abs(n);
-  if(abs>=1e6) return(n<0?'-':'')+'₪'+(abs/1e6).toFixed(2)+'מ׳';
-  if(abs>=1e4) return(n<0?'-':'')+'₪'+Math.round(abs).toLocaleString('he-IL');
-  return fmt(n);
+// VIEW COUNTER
+(function(){
+  function hc(s){let h=0;for(let i=0;i<s.length;i++)h=(Math.imul(31,h)+s.charCodeAt(i))|0;return Math.abs(h)}
+  const base=800+hc(location.pathname)%400;
+  const days=Math.floor((Date.now()-new Date('2025-01-01').getTime())/86400000);
+  const growth=2+hc(location.pathname+'g')%4;
+  setEl('viewCount',(base+days*growth).toLocaleString('he-IL'));
+})();
+
+// SCREEN NAVIGATION
+function goScreen(name){
+  document.querySelectorAll('.screen').forEach(function(el){el.classList.remove('active')});
+  var el=$(name==='ra'?'s-ra':name==='rc'?'s-rc':'s-'+name);
+  if(el)el.classList.add('active');
+  var fb=$('floatBtn');
+  fb.style.display=name==='ra'?'flex':'none';
+  window.scrollTo(0,0);
 }
 
-// === MODE SETTERS ===
-function setMode(m){
-  calcMode=m;
-  document.body.classList.toggle('target-mode',m==='target');
-  $('btnAmount').classList.toggle('on',m==='amount');
-  $('btnTarget').classList.toggle('on',m==='target');
-  $('reverseBox').style.display=m==='target'?'block':'none';
-  calc();
+// ADVANCED TOGGLE
+function toggleAdv(){
+  var body=$('advBody'),isOpen=body.classList.contains('open');
+  body.classList.toggle('open',!isOpen);
+  $('advArrow').textContent=isOpen?'▼':'▲';
 }
+
+// NUMBER FORMATTING
+function parseRaw(id){const e=$(id);if(!e)return 0;return parseFloat(e.value.replace(/,/g,''))||0}
+function fmtLive(el){const r=el.value.replace(/[^0-9]/g,'');el.value=r?parseInt(r,10).toLocaleString('he-IL'):''}
+function fmtBlur(el){const r=el.value.replace(/[^0-9]/g,'');el.value=r?parseInt(r,10).toLocaleString('he-IL'):'0'}
+function fmt(n){if(n==null||isNaN(n))return'—';const a=Math.abs(Math.round(n));return(n<0?'-':'')+'₪'+a.toLocaleString('he-IL')}
+function fmtM(n){const a=Math.abs(n);if(a>=1e6)return(n<0?'-':'')+'₪'+(a/1e6).toFixed(2)+'מ׳';if(a>=1e4)return(n<0?'-':'')+'₪'+Math.round(a).toLocaleString('he-IL');return fmt(n)}
+
+// MODE SETTERS
 function setAnnuity(t){
   annuityType=t;
   $('btnLifetime').classList.toggle('on',t==='lifetime');
   $('btnFixed').classList.toggle('on',t==='fixed');
   $('btnPortfolio').classList.toggle('on',t==='portfolio');
-  $('fLifetime').style.display=t==='lifetime'?'block':'none';
   $('fFixed').style.display=t==='fixed'?'block':'none';
   $('fPortfolio').style.display=t==='portfolio'?'block':'none';
-  calc();
 }
 function setTaxMode(m){
   taxMode=m;
   $('btnBrackets').classList.toggle('on',m==='brackets');
   $('btnFlat').classList.toggle('on',m==='flat');
   $('flatField').style.display=m==='flat'?'block':'none';
-  calc();
 }
 function toggleCol(hdr){
   hdr.classList.toggle('open');
-  const body=hdr.nextElementSibling;
+  var body=hdr.nextElementSibling;
   body.style.display=body.style.display==='none'?'block':'none';
 }
-function toggleFloat(){
-  $('floatPanel').classList.toggle('open');
+function toggleFloat(){$('floatPanel').classList.toggle('open')}
+
+function updateLtYears(){
+  var age=parseFloat($('currentAge').value)||67;
+  var life=parseFloat($('lifeExpectancy').value)||87;
+  setEl('ltYears',Math.max(1,life-age));
+  setEl('ltRange',age+'–'+life);
 }
 
-// === CALC TRIGGER ===
-function calc(){clearTimeout(debT);debT=setTimeout(doCalc,300)}
-
-// === FORMULAS ===
+// ════════════════════════════════
+// FORMULAS — UNCHANGED
+// ════════════════════════════════
 function calcPMT(principal,annualRate,years){
-  if(years<=0||principal<=0) return 0;
-  if(annualRate===0) return principal/(years*12);
-  const r=annualRate/100/12, n=years*12;
+  if(years<=0||principal<=0)return 0;
+  if(annualRate===0)return principal/(years*12);
+  const r=annualRate/100/12,n=years*12;
   return principal*r*Math.pow(1+r,n)/(Math.pow(1+r,n)-1);
 }
 
@@ -549,7 +778,7 @@ function calcTaxBrackets(annualIncome){
   let tax=0,prev=0;
   for(const[lim,rate] of br){
     if(annualIncome<=lim){tax+=(annualIncome-prev)*rate;break}
-    tax+=(lim-prev)*rate; prev=lim;
+    tax+=(lim-prev)*rate;prev=lim;
   }
   return Math.max(0,tax);
 }
@@ -566,19 +795,19 @@ function calcNet(gross,savingYears,creditPoints,flatRate){
 
 function simulate(principal,annualRate,inflation,years,gross,net){
   const mr=annualRate/100/12;
-  let bal=principal, cumPayout=0, cumTax=0, deplY=null;
+  let bal=principal,cumPayout=0,cumTax=0,deplY=null;
   const rows=[];
   for(let y=1;y<=years;y++){
     let yReturn=0;
     for(let m=0;m<12;m++){
-      if(bal<=0){break}
+      if(bal<=0)break;
       const interest=bal*mr;
       yReturn+=interest;
       bal=bal+interest-gross;
       if(bal<0)bal=0;
     }
     const tax=gross-net;
-    cumPayout+=net*12; cumTax+=tax*12;
+    cumPayout+=net*12;cumTax+=tax*12;
     if(bal<=0&&deplY===null)deplY=y;
     rows.push({year:y,gross,tax,net,real:net/Math.pow(1+inflation/100,y),balance:bal,yReturn});
   }
@@ -590,287 +819,288 @@ function findSustainable(principal,annualRate,years){
   for(let i=0;i<60;i++){
     const mid=(lo+hi)/2;
     const s=simulate(principal,annualRate,0,years,mid,mid);
-    if(s.deplY===null)lo=mid; else hi=mid;
+    if(s.deplY===null)lo=mid;else hi=mid;
   }
   return lo;
 }
 
-function findRequired(targetNet,annualRate,years,savingYears,creditPoints,flatRate){
-  let lo=0,hi=50000000;
-  for(let i=0;i<60;i++){
-    const mid=(lo+hi)/2;
-    let gross;
-    if(annuityType==='portfolio'){
-      gross=mid*(parseFloat($('withdrawalPct').value)||4)/100/12;
-    } else {
-      gross=calcPMT(mid,annualRate,years);
-    }
-    const{net}=calcNet(gross,savingYears,creditPoints,flatRate);
-    if(net<targetNet)lo=mid; else hi=mid;
-  }
-  return Math.ceil(hi/1000)*1000;
+// ════════════════════════════════
+// SCREEN B — duration
+// ════════════════════════════════
+function calcDuration(principal,annualRate,monthly){
+  if(monthly<=0)return Infinity;
+  const r=annualRate/100/12;
+  if(r===0)return principal/monthly;
+  const ratio=principal*r/monthly;
+  if(ratio>=1)return Infinity;
+  return -Math.log(1-ratio)/Math.log(1+r);
 }
 
-// === MAIN CALC ===
+function calcB(){
+  const principal=parseRaw('b-principal');
+  const annualRate=parseFloat($('b-return').value)||4.5;
+  const monthly=parseRaw('b-monthly');
+  const age=parseFloat($('b-age').value)||67;
+  if(!principal||!monthly)return;
+
+  const box=$('bResultBox');
+  box.classList.add('show');
+  const months=calcDuration(principal,annualRate,monthly);
+  const warn=$('b-warn'),inf=$('b-inf');
+
+  if(!isFinite(months)){
+    setEl('b-dur','∞ לנצח');
+    setEl('b-until','המשיכה נמוכה מהתשואה — הכסף לא ייגמר');
+    setEl('b-detail','');
+    warn.style.display='none';
+    inf.style.display='block';
+    inf.innerHTML='✅ <strong>כסף בלתי-מוגבל:</strong> המשיכה החודשית שלך נמוכה מהתשואה חודשית. הקרן לא תיגמר.';
+    return;
+  }
+
+  const totalM=Math.round(months);
+  const yrs=Math.floor(totalM/12),rem=totalM%12;
+  const deplAge=Math.round(age+totalM/12);
+  const deplYear=new Date().getFullYear()+Math.round(totalM/12);
+  const durStr=yrs>0?(yrs+' שנים'+(rem>0?' ו-'+rem+' חודשים':'')):rem+' חודשים';
+
+  setEl('b-dur',durStr);
+  setEl('b-until','עד גיל '+deplAge+' (שנת '+deplYear+')');
+  setEl('b-detail','סך כל המשיכות: '+fmtM(monthly*totalM));
+
+  if(totalM<120){
+    warn.style.display='block';
+    warn.innerHTML='⚠️ <strong>אזהרה:</strong> הכסף יגמר תוך פחות מ-10 שנים. שקול להקטין את המשיכה החודשית.';
+  } else{warn.style.display='none'}
+  inf.style.display='none';
+}
+
+// ════════════════════════════════
+// SCREEN A — main calc
+// ════════════════════════════════
+function runCalcA(){
+  doCalc();
+  goScreen('ra');
+}
+
 function doCalc(){
   const annualReturn=parseFloat($('annualReturn').value)||4.5;
   const inflation=parseFloat($('inflation').value)||3;
   const currentAge=parseFloat($('currentAge').value)||67;
   const lifeExp=parseFloat($('lifeExpectancy').value)||87;
-  const fixedYrs=parseFloat($('fixedYears').value)||20;
-  const fixedStart=parseFloat($('fixedStartAge').value)||67;
-  const wdPct=parseFloat($('withdrawalPct').value)||4;
-  const portYrs=parseFloat($('portfolioYears').value)||25;
+  const fixedYrs=parseFloat(($('fixedYears')||{value:'20'}).value)||20;
+  const fixedStart=parseFloat(($('fixedStartAge')||{value:'67'}).value)||67;
+  const wdPct=parseFloat(($('withdrawalPct')||{value:'4'}).value)||4;
+  const portYrs=parseFloat(($('portfolioYears')||{value:'25'}).value)||25;
   const savingYears=parseFloat($('savingYears').value)||30;
   const creditPoints=parseFloat($('creditPoints').value)||2.25;
   const flatRate=taxMode==='flat'?(parseFloat($('flatRate').value)||25):null;
-  const targetMonthly=parseRaw('targetMonthly');
 
-  // period
-  let calcYears, startAge;
+  let calcYears,startAge;
   if(annuityType==='lifetime'){
-    calcYears=Math.max(1,lifeExp-currentAge);
-    startAge=currentAge;
-    setEl('ltYears',calcYears);
-    setEl('ltRange',currentAge+'–'+lifeExp);
-  } else if(annuityType==='fixed'){
-    calcYears=Math.max(1,fixedYrs);
-    startAge=fixedStart;
+    calcYears=Math.max(1,lifeExp-currentAge);startAge=currentAge;
+    setEl('ltYears',calcYears);setEl('ltRange',currentAge+'–'+lifeExp);
+  }else if(annuityType==='fixed'){
+    calcYears=Math.max(1,fixedYrs);startAge=fixedStart;
     setEl('fixedEndAge',fixedStart+fixedYrs);
-  } else {
-    calcYears=Math.max(1,portYrs);
-    startAge=currentAge;
+  }else{
+    calcYears=Math.max(1,portYrs);startAge=currentAge;
   }
 
-  // gross monthly
-  let principal, gross;
-  if(calcMode==='target'){
-    principal=findRequired(targetMonthly,annualReturn,calcYears,savingYears,creditPoints,flatRate);
-  } else {
-    principal=parseRaw('totalSaved');
-  }
+  const principal=parseRaw('totalSaved');
+  let gross;
   if(annuityType==='portfolio'){
     gross=principal*wdPct/100/12;
-    setEl('portMonthly',fmt(gross));
-    setEl('portPct',wdPct);
-  } else {
+    setEl('portMonthly',fmt(gross));setEl('portPct',wdPct);
+  }else{
     gross=calcPMT(principal,annualReturn,calcYears);
   }
 
-  // tax
   const t=calcNet(gross,savingYears,creditPoints,flatRate);
-  const exemptPctShow=Math.min(35,savingYears*2);
-  setEl('dExempt',fmt(t.exempt)+' ('+exemptPctShow+'%)');
+  const exemptPct=Math.min(35,savingYears*2);
+  setEl('dExempt',fmt(t.exempt)+' ('+exemptPct+'%)');
   setEl('dTaxable',fmt(t.taxable));
   setEl('dGrossTax',fmt(t.grossTax));
   setEl('dCredit',fmt(t.creditAmt));
   setEl('dNetTax',fmt(t.netTax));
   setEl('dNetPension',fmt(t.net));
 
-  // simulation
   const sim=simulate(principal,annualReturn,inflation,calcYears,gross,t.net);
-
-  // real at year 1
   const realY1=t.net/Math.pow(1+inflation/100,1);
-
-  // break-even: lump sum vs annuity
-  // approximate lump sum net using same effective tax rate
   const effTaxRate=gross>0?t.netTax/gross:0;
   const lumpSumNet=principal*(1-effTaxRate);
   const beMonths=t.net>0?lumpSumNet/t.net:0;
   const beAge=startAge+beMonths/12;
 
-  // depletion
   if(sim.deplY!==null&&annuityType!=='portfolio'){
     const depAge=Math.round(startAge+sim.deplY);
     const susGross=findSustainable(principal,annualReturn,calcYears);
     const susNet=calcNet(susGross,savingYears,creditPoints,flatRate).net;
     $('depAlert').style.display='block';
-    $('depAlert').innerHTML='⚠️ <strong>הכסף ייגמר בגיל '+depAge+'</strong> (בעוד '+sim.deplY+' שנים)<br>שקול להפחית קצבה ל-<strong>'+fmt(susNet)+'/חודש</strong> כדי שהכסף יחזיק מעמד לכל התקופה';
-  } else {
-    $('depAlert').style.display='none';
-  }
+    $('depAlert').innerHTML='⚠️ <strong>הכסף ייגמר בגיל '+depAge+'</strong> (בעוד '+sim.deplY+' שנים)<br>שקול להפחית קצבה ל-<strong>'+fmt(susNet)+'/חודש</strong> כדי שהכסף יחזיק לכל התקופה';
+  }else{$('depAlert').style.display='none'}
 
-  // break-even box
   if(beMonths>0&&beAge<startAge+calcYears+30&&beAge<120){
     $('beBox').style.display='block';
     $('beBox').innerHTML='📍 <strong>נקודת האיזון — מתי הקצבה משתלמת?</strong><br>'+
       'אם תמשוך הכל היום: <strong>'+fmt(Math.round(lumpSumNet))+' נטו</strong><br>'+
       'אם תיקח קצבה: תקבל את אותו הסכום בגיל <strong>'+Math.round(beAge)+'</strong><br>'+
       'מגיל '+Math.round(beAge)+' ואילך — הקצבה משתלמת יותר';
-  } else {
-    $('beBox').style.display='none';
-  }
+  }else{$('beBox').style.display='none'}
 
-  // balance card color
   const balCard=$('rBalCard');
   balCard.className=sim.finalBal<=0?'rc danger':sim.finalBal>principal*0.3?'rc hi':'rc';
 
-  // result cards
-  setEl('rGross',fmt(gross));
-  setEl('rNet',fmt(t.net));
-  setEl('rReal',fmt(realY1));
-  setEl('rTotalPayout',fmtM(sim.cumPayout));
-  setEl('rTotalTax',fmtM(sim.cumTax));
-  setEl('rBalance',fmt(sim.finalBal));
-
-  // summary bar
-  setEl('sb-gross',fmt(gross));
-  setEl('sb-net',fmt(t.net));
-  setEl('sb-real',fmt(realY1));
-  setEl('sb-total',fmtM(sim.cumPayout));
+  setEl('rGross',fmt(gross));setEl('rNet',fmt(t.net));setEl('rReal',fmt(realY1));
+  setEl('rTotalPayout',fmtM(sim.cumPayout));setEl('rTotalTax',fmtM(sim.cumTax));setEl('rBalance',fmt(sim.finalBal));
+  setEl('sb-gross',fmt(gross));setEl('sb-net',fmt(t.net));setEl('sb-real',fmt(realY1));
   setEl('sb-be',beAge>0&&beAge<120?'גיל '+Math.round(beAge):'—');
-
-  // reverse mode
-  if(calcMode==='target'){
-    $('reverseBox').style.display='block';
-    setEl('revTarget',fmt(targetMonthly));
-    setEl('revRequired',fmt(principal));
-    const savPeriod=Math.max(1,startAge-35);
-    const mr2=annualReturn/100/12, n2=savPeriod*12;
-    const monthlySave=mr2>0?principal*mr2/(Math.pow(1+mr2,n2)-1):principal/n2;
-    setEl('revHint','חיסכון של '+fmt(Math.round(monthlySave))+'/חודש מגיל 35 בתשואה '+annualReturn+'% יגיע ליעד');
-  } else {
-    $('reverseBox').style.display='none';
-  }
-
-  // annual table
-  updateTable(sim.rows,startAge,Math.round(beAge));
-
-  // charts
-  updateCharts(sim.rows,startAge,principal,annualReturn,inflation,calcYears,gross,t.net,beMonths,
-    savingYears,creditPoints,flatRate,wdPct,portYrs,fixedYrs,lifeExp,currentAge);
-
-  // comparison
-  updateComparison(principal,annualReturn,inflation,currentAge,lifeExp,fixedYrs,wdPct,portYrs,savingYears,creditPoints,flatRate);
-
-  // float panel
-  setEl('fp-gross',fmt(gross));
-  setEl('fp-net',fmt(t.net));
-  setEl('fp-real',fmt(realY1));
-  setEl('fp-exempt',fmt(t.exempt));
-  setEl('fp-total',fmtM(sim.cumPayout));
-  setEl('fp-bal',fmt(sim.finalBal));
-  setEl('fp-be',beAge>0&&beAge<120?'גיל '+Math.round(beAge):'—');
+  setEl('fp-gross',fmt(gross));setEl('fp-net',fmt(t.net));setEl('fp-real',fmt(realY1));
+  setEl('fp-exempt',fmt(t.exempt));setEl('fp-total',fmtM(sim.cumPayout));
+  setEl('fp-bal',fmt(sim.finalBal));setEl('fp-be',beAge>0&&beAge<120?'גיל '+Math.round(beAge):'—');
   setEl('fp-type',annuityType==='lifetime'?'קצבה לכל החיים':annuityType==='fixed'?'קצבה קבועה':'משיכות מתיק');
+
+  updateTable(sim.rows,startAge,Math.round(beAge));
+  updateCharts(sim.rows,startAge,principal,annualReturn,inflation,calcYears,gross,t.net,
+    savingYears,creditPoints,flatRate,wdPct,portYrs,fixedYrs,lifeExp,currentAge);
+  updateComparison(principal,annualReturn,inflation,currentAge,lifeExp,fixedYrs,wdPct,portYrs,savingYears,creditPoints,flatRate);
 }
 
-// === ANNUAL TABLE ===
+// ════════════════════════════════
+// SCREEN C — כמה לצבור
+// ════════════════════════════════
+function runCalcC(){
+  const targetNet=parseRaw('c-target');
+  const annualRate=parseFloat($('c-return').value)||4.5;
+  const years=parseFloat($('c-years').value)||20;
+  const currentAge=parseFloat($('c-age').value)||40;
+  const retireAge=parseFloat($('c-retire').value)||67;
+  const savingYears=30,creditPoints=2.25,flatRate=null;
+
+  let lo=0,hi=100000000;
+  for(let i=0;i<60;i++){
+    const mid=(lo+hi)/2;
+    const gross=calcPMT(mid,annualRate,years);
+    const{net}=calcNet(gross,savingYears,creditPoints,flatRate);
+    if(net<targetNet)lo=mid;else hi=mid;
+  }
+  const principal=Math.ceil(hi/1000)*1000;
+  const gross=calcPMT(principal,annualRate,years);
+  const t=calcNet(gross,savingYears,creditPoints,flatRate);
+
+  const savePeriod=Math.max(1,retireAge-currentAge);
+  const mr=annualRate/100/12,n=savePeriod*12;
+  const monthlySave=mr>0?principal*mr/(Math.pow(1+mr,n)-1):principal/n;
+
+  setEl('c-res-principal',fmtM(principal));
+  setEl('c-res-monthly',fmt(Math.round(monthlySave)));
+  setEl('c-res-gets',fmt(Math.round(t.net)));
+
+  const rows=[
+    ['יעד קצבה חודשית נטו',fmt(targetNet)],
+    ['קצבה ברוטו הנדרשת',fmt(Math.round(gross))],
+    ['סכום נדרש לצבירה',fmtM(principal)],
+    ['תקופת חיסכון',savePeriod+' שנים (גיל '+currentAge+'–'+retireAge+')'],
+    ['חיסכון חודשי נדרש',fmt(Math.round(monthlySave))],
+    ['תשואה שנתית',annualRate+'%'],
+    ['תקופת קצבה',years+' שנים'],
+  ];
+  $('c-breakdown').innerHTML=rows.map(function(r){
+    return'<div class="tx-row"><span>'+r[0]+':</span><span class="num">'+r[1]+'</span></div>';
+  }).join('');
+
+  goScreen('rc');
+}
+
+// ════════════════════════════════
+// ANNUAL TABLE
+// ════════════════════════════════
 function updateTable(rows,startAge,beAge){
   let html='';
   rows.forEach(function(r){
     const age=startAge+r.year;
     const cls=r.balance<=0?'amber':age===beAge?'blue-row':'';
     const balStr=r.balance<=0?'<span style="color:var(--red)">₪0 ⚠️</span>':fmt(r.balance);
-    html+=`<tr class="${cls}"><td>${r.year}</td><td>${age}</td><td>${fmt(r.gross)}</td><td>${fmt(r.tax)}</td><td>${fmt(r.net)}</td><td>${fmt(r.real)}</td><td>${balStr}</td><td>${fmt(r.yReturn)}</td></tr>`;
+    html+='<tr class="'+cls+'"><td>'+r.year+'</td><td>'+age+'</td><td>'+fmt(r.gross)+'</td><td>'+fmt(r.tax)+'</td><td>'+fmt(r.net)+'</td><td>'+fmt(r.real)+'</td><td>'+balStr+'</td><td>'+fmt(r.yReturn)+'</td></tr>';
   });
   $('annBody').innerHTML=html||'<tr><td colspan="8" style="text-align:center;color:var(--text3)">אין נתונים</td></tr>';
 }
 
-// === CHARTS ===
-function mkChartOpts(yFmt){
+// ════════════════════════════════
+// CHARTS
+// ════════════════════════════════
+function mkOpts(yFmt){
   return{
     responsive:true,maintainAspectRatio:false,
-    plugins:{legend:{labels:{font:{family:'Heebo',size:12},boxWidth:14}},
-      tooltip:{callbacks:{label:function(c){return c.dataset.label+': '+yFmt(c.parsed.y)}}}},
+    plugins:{
+      legend:{labels:{font:{family:'Heebo',size:12},boxWidth:14}},
+      tooltip:{callbacks:{label:function(c){return c.dataset.label+': '+yFmt(c.parsed.y)}}}
+    },
     scales:{
-      y:{ticks:{callback:function(v){return yFmt(v)},font:{family:'Heebo',size:11}},grid:{color:'#e2e8f0'}},
+      y:{ticks:{callback:function(v){return yFmt(v)},font:{family:'Heebo',size:11}},grid:{color:'rgba(0,0,0,0.05)'}},
       x:{ticks:{font:{family:'Heebo',size:10},maxTicksLimit:10},grid:{display:false}}
     }
   };
 }
 
-function updateCharts(rows,startAge,principal,annualReturn,inflation,calcYears,gross,net,beMonths,
+function updateCharts(rows,startAge,principal,annualReturn,inflation,calcYears,gross,net,
     savingYears,creditPoints,flatRate,wdPct,portYrs,fixedYrs,lifeExp,currentAge){
-
-  const labels=rows.map(r=>'גיל '+(startAge+r.year));
-
-  // Chart 1: balance
-  const balN=rows.map(r=>Math.round(r.balance));
-  const balR=rows.map((r,i)=>Math.round(r.balance/Math.pow(1+inflation/100,i+1)));
+  const labels=rows.map(function(r){return'גיל '+(startAge+r.year)});
+  const balN=rows.map(function(r){return Math.round(r.balance)});
+  const balR=rows.map(function(r,i){return Math.round(r.balance/Math.pow(1+inflation/100,i+1))});
   if(chBal){chBal.destroy();chBal=null}
-  chBal=new Chart($('chartBal').getContext('2d'),{
-    type:'line',
-    data:{labels,datasets:[
-      {label:'יתרה נומינלית',data:balN,borderColor:'#1e3a5f',backgroundColor:'rgba(30,58,95,.1)',fill:true,tension:.3,pointRadius:2},
-      {label:'יתרה ריאלית',data:balR,borderColor:'#166534',borderDash:[6,3],fill:false,tension:.3,pointRadius:2}
-    ]},
-    options:{...mkChartOpts(v=>{const a=Math.abs(v);return a>=1e6?'₪'+(v/1e6).toFixed(1)+'מ׳':'₪'+Math.round(v).toLocaleString('he-IL')})}
-  });
+  chBal=new Chart($('chartBal').getContext('2d'),{type:'line',data:{labels,datasets:[
+    {label:'יתרה נומינלית',data:balN,borderColor:'#1e3a5f',backgroundColor:'rgba(30,58,95,.1)',fill:true,tension:.3,pointRadius:2},
+    {label:'יתרה ריאלית',data:balR,borderColor:'#166534',borderDash:[6,3],fill:false,tension:.3,pointRadius:2}
+  ]},options:mkOpts(function(v){const a=Math.abs(v);return a>=1e6?'₪'+(v/1e6).toFixed(1)+'מ׳':'₪'+Math.round(v).toLocaleString('he-IL')})});
 
-  // Chart 2: real vs nominal pension
-  const nomArr=rows.map(()=>Math.round(net));
-  const realArr=rows.map((r,i)=>Math.round(net/Math.pow(1+inflation/100,i+1)));
+  const nomArr=rows.map(function(){return Math.round(net)});
+  const realArr=rows.map(function(r,i){return Math.round(net/Math.pow(1+inflation/100,i+1))});
   if(chReal){chReal.destroy();chReal=null}
-  chReal=new Chart($('chartReal').getContext('2d'),{
-    type:'line',
-    data:{labels,datasets:[
-      {label:'קצבה נומינלית',data:nomArr,borderColor:'#2563eb',backgroundColor:'rgba(37,99,235,.12)',fill:true,tension:0,pointRadius:0},
-      {label:'קצבה ריאלית',data:realArr,borderColor:'#166534',backgroundColor:'rgba(22,101,52,.1)',fill:true,tension:0,pointRadius:0}
-    ]},
-    options:{...mkChartOpts(v=>'₪'+Math.round(v).toLocaleString('he-IL'))}
-  });
+  chReal=new Chart($('chartReal').getContext('2d'),{type:'line',data:{labels,datasets:[
+    {label:'קצבה נומינלית',data:nomArr,borderColor:'#2563eb',backgroundColor:'rgba(37,99,235,.12)',fill:true,tension:0,pointRadius:0},
+    {label:'קצבה ריאלית',data:realArr,borderColor:'#166634',backgroundColor:'rgba(22,101,52,.1)',fill:true,tension:0,pointRadius:0}
+  ]},options:mkOpts(function(v){return'₪'+Math.round(v).toLocaleString('he-IL')})});
 
-  // Chart 3: cumulative comparison
-  const ltYrs=Math.max(1,lifeExp-currentAge);
-  const fxYrs=Math.max(1,fixedYrs);
-  const ptYrs=Math.max(1,portYrs);
-  const maxY=Math.max(ltYrs,fxYrs,ptYrs);
-  const compLabels=Array.from({length:maxY},(_,i)=>'שנה '+(i+1));
-
-  const gL=calcPMT(principal,annualReturn,ltYrs);
-  const nL=calcNet(gL,savingYears,creditPoints,flatRate).net;
-  const gF=calcPMT(principal,annualReturn,fxYrs);
-  const nF=calcNet(gF,savingYears,creditPoints,flatRate).net;
-  const gP=principal*wdPct/100/12;
-  const nP=calcNet(gP,savingYears,creditPoints,flatRate).net;
-
+  const ltY=Math.max(1,lifeExp-currentAge),fxY=Math.max(1,fixedYrs),ptY=Math.max(1,portYrs);
+  const maxY=Math.max(ltY,fxY,ptY);
+  const compLabels=Array.from({length:maxY},function(_,i){return'שנה '+(i+1)});
+  const gL=calcPMT(principal,annualReturn,ltY),nL=calcNet(gL,savingYears,creditPoints,flatRate).net;
+  const gF=calcPMT(principal,annualReturn,fxY),nF=calcNet(gF,savingYears,creditPoints,flatRate).net;
+  const gP=principal*wdPct/100/12,nP=calcNet(gP,savingYears,creditPoints,flatRate).net;
   const cumL=[],cumF=[],cumP=[];
   for(let y=1;y<=maxY;y++){
-    cumL.push(y<=ltYrs?Math.round(nL*y*12):null);
-    cumF.push(y<=fxYrs?Math.round(nF*y*12):null);
-    cumP.push(y<=ptYrs?Math.round(nP*y*12):null);
+    cumL.push(y<=ltY?Math.round(nL*y*12):null);
+    cumF.push(y<=fxY?Math.round(nF*y*12):null);
+    cumP.push(y<=ptY?Math.round(nP*y*12):null);
   }
-
   if(chComp){chComp.destroy();chComp=null}
-  chComp=new Chart($('chartComp').getContext('2d'),{
-    type:'line',
-    data:{labels:compLabels,datasets:[
-      {label:'קצבה לכל החיים',data:cumL,borderColor:'#1e3a5f',fill:false,tension:.3,pointRadius:2,spanGaps:false},
-      {label:'קצבה קבועה',data:cumF,borderColor:'#d97706',fill:false,tension:.3,pointRadius:2,spanGaps:false},
-      {label:'משיכות מתיק',data:cumP,borderColor:'#166534',fill:false,tension:.3,pointRadius:2,spanGaps:false}
-    ]},
-    options:{...mkChartOpts(v=>v===null?null:fmtM(v))}
-  });
+  chComp=new Chart($('chartComp').getContext('2d'),{type:'line',data:{labels:compLabels,datasets:[
+    {label:'קצבה לכל החיים',data:cumL,borderColor:'#1e3a5f',fill:false,tension:.3,pointRadius:2,spanGaps:false},
+    {label:'קצבה קבועה',data:cumF,borderColor:'#d97706',fill:false,tension:.3,pointRadius:2,spanGaps:false},
+    {label:'משיכות מתיק',data:cumP,borderColor:'#166534',fill:false,tension:.3,pointRadius:2,spanGaps:false}
+  ]},options:mkOpts(function(v){return v===null?null:fmtM(v)})});
 }
 
-// === COMPARISON TABLE ===
+// ════════════════════════════════
+// COMPARISON TABLE
+// ════════════════════════════════
 function updateComparison(principal,annualReturn,inflation,currentAge,lifeExp,fixedYrs,wdPct,portYrs,savingYears,creditPoints,flatRate){
-  const ltY=Math.max(1,lifeExp-currentAge);
-  const fxY=Math.max(1,fixedYrs);
-  const ptY=Math.max(1,portYrs);
-
-  const gL=calcPMT(principal,annualReturn,ltY); const tL=calcNet(gL,savingYears,creditPoints,flatRate);
-  const gF=calcPMT(principal,annualReturn,fxY); const tF=calcNet(gF,savingYears,creditPoints,flatRate);
-  const gP=principal*wdPct/100/12;             const tP=calcNet(gP,savingYears,creditPoints,flatRate);
-
+  const ltY=Math.max(1,lifeExp-currentAge),fxY=Math.max(1,fixedYrs),ptY=Math.max(1,portYrs);
+  const gL=calcPMT(principal,annualReturn,ltY),tL=calcNet(gL,savingYears,creditPoints,flatRate);
+  const gF=calcPMT(principal,annualReturn,fxY),tF=calcNet(gF,savingYears,creditPoints,flatRate);
+  const gP=principal*wdPct/100/12,tP=calcNet(gP,savingYears,creditPoints,flatRate);
   const sL=simulate(principal,annualReturn,inflation,ltY,gL,tL.net);
   const sF=simulate(principal,annualReturn,inflation,fxY,gF,tF.net);
   const sP=simulate(principal,annualReturn,inflation,ptY,gP,tP.net);
-
-  // winner by total value (payout + final balance)
-  const tvL=sL.cumPayout+sL.finalBal;
-  const tvF=sF.cumPayout+sF.finalBal;
-  const tvP=sP.cumPayout+sP.finalBal;
+  const tvL=sL.cumPayout+sL.finalBal,tvF=sF.cumPayout+sF.finalBal,tvP=sP.cumPayout+sP.finalBal;
   const w=tvL>=tvF&&tvL>=tvP?0:tvF>=tvP?1:2;
-
   const names=['♾️ לכל החיים','📆 קצבה קבועה','📈 משיכות מתיק'];
   const descs=[
     'קצבה לכל החיים מגנה מפני סיכון אריכות ימים ומבטיחה הכנסה לאורך כל החיים',
     'קצבה קבועה מאפשרת גמישות לתכנון מחדש בסיום התקופה',
     'משיכות מתיק משמרות שליטה על ההון ומותירות פוטנציאל ירושה'
   ];
-
   const rowDefs=[
     ['קצבה חודשית נטו',fmt(tL.net),fmt(tF.net),fmt(tP.net),true],
     ['סך קצבאות',fmtM(sL.cumPayout),fmtM(sF.cumPayout),fmtM(sP.cumPayout),true],
@@ -879,95 +1109,69 @@ function updateComparison(principal,annualReturn,inflation,currentAge,lifeExp,fi
     ['סיכון אריכות ימים','✅ מכוסה','❌ לא מכוסה','⚠️ תלוי',false],
     ['גמישות','❌ נמוכה','✅ בינונית','✅ גבוהה',false]
   ];
-
-  let html=rowDefs.map(function(row){
-    const numCls=row[4]?'num':'';
-    return`<tr>
-      <td>${row[0]}</td>
-      <td class="${numCls}${w===0?' w':''}">${row[1]}</td>
-      <td class="${numCls}${w===1?' w':''}">${row[2]}</td>
-      <td class="${numCls}${w===2?' w':''}">${row[3]}</td>
-    </tr>`;
+  $('compBody').innerHTML=rowDefs.map(function(row){
+    const n=row[4]?'num':'';
+    return'<tr><td>'+row[0]+'</td>'+
+      '<td class="'+n+(w===0?' w':'')+'">'+row[1]+'</td>'+
+      '<td class="'+n+(w===1?' w':'')+'">'+row[2]+'</td>'+
+      '<td class="'+n+(w===2?' w':'')+'">'+row[3]+'</td></tr>';
   }).join('');
-
-  $('compBody').innerHTML=html;
   $('compWinner').style.display='block';
   $('compWinner').innerHTML='✅ <strong>האסטרטגיה המומלצת: '+names[w]+'</strong><br>'+descs[w];
 }
 
-// === INIT ===
+// INIT
+updateLtYears();
+calcB();
+
 document.addEventListener('click',function(e){
-  const p=$('floatPanel'),b=document.querySelector('.fbtn');
+  const p=$('floatPanel'),b=$('floatBtn');
   if(p&&b&&!p.contains(e.target)&&!b.contains(e.target))p.classList.remove('open');
 });
 
-doCalc();
-
-// === EMAIL ===
+// EMAIL
 function openEmailModal(){
-  const m=$('emailModal');
-  m.style.display='flex';
-  $('emailInput').value='';
-  $('emailError').textContent='';
-  $('emailStatus').textContent='';
-  const btn=$('emailSendBtn');
-  btn.disabled=false;btn.textContent='שלח';btn.style.background='var(--accent)';
-  setTimeout(function(){$('emailInput').focus();},80);
+  const m=$('emailModal');m.style.display='flex';
+  $('emailInput').value='';$('emailError').textContent='';$('emailStatus').textContent='';
+  const btn=$('emailSendBtn');btn.disabled=false;btn.textContent='שלח';btn.style.background='#2563eb';
+  setTimeout(function(){$('emailInput').focus()},80);
 }
-function closeEmailModal(){
-  $('emailModal').style.display='none';
-}
-document.addEventListener('keydown',function(e){if(e.key==='Escape')closeEmailModal();});
+function closeEmailModal(){$('emailModal').style.display='none'}
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeEmailModal()});
 
 function collectAnnuityResults(){
-  const g=function(id){const el=$(id);return el?el.textContent.trim():'—';};
+  const g=function(id){const el=$(id);return el?el.textContent.trim():'—'};
   const data={
-    'סוג קצבה':g('fp-type'),
-    'קצבה חודשית ברוטו':g('rGross'),
-    'קצבה חודשית נטו':g('rNet'),
-    'קצבה ריאלית (היום)':g('rReal'),
-    'פטור ממס חודשי (סעיף 9א)':g('dExempt'),
-    'מס נטו חודשי':g('dNetTax'),
-    'סך קצבאות לאורך התקופה':g('rTotalPayout'),
-    'סך מס ששולם':g('rTotalTax'),
-    'יתרה צבורה בסוף תקופה':g('rBalance'),
-    'נקודת איזון':g('sb-be')
+    'קצבה חודשית ברוטו':g('rGross'),'קצבה חודשית נטו':g('rNet'),
+    'קצבה ריאלית (היום)':g('rReal'),'פטור ממס חודשי (סעיף 9א)':g('dExempt'),
+    'מס נטו חודשי':g('dNetTax'),'סך קצבאות':g('rTotalPayout'),
+    'סך מס ששולם':g('rTotalTax'),'יתרה בסוף תקופה':g('rBalance'),'נקודת איזון':g('sb-be')
   };
   const rows=Object.entries(data).map(function(p){
-    return '<tr>'
-      +'<td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;color:#4a5568;font-weight:500;text-align:right">'+p[0]+'</td>'
-      +'<td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;color:#1a1a2e;font-weight:600;text-align:left;direction:ltr">'+p[1]+'</td>'
-      +'</tr>';
+    return'<tr><td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;color:#4a5568;font-weight:500;text-align:right">'+p[0]+'</td>'+
+      '<td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;color:#1a1a2e;font-weight:600;text-align:left;direction:ltr">'+p[1]+'</td></tr>';
   }).join('');
-  return{
-    type:'annuity',
-    html:'<table style="width:100%;border-collapse:collapse">'+rows+'</table>',
-    data:data
-  };
+  return{type:'annuity',html:'<table style="width:100%;border-collapse:collapse">'+rows+'</table>',data};
 }
 
 function sendEmailResults(){
   const email=$('emailInput').value.trim();
   if(!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
-    $('emailError').textContent='נא להזין כתובת מייל תקינה';
-    return;
+    $('emailError').textContent='נא להזין כתובת מייל תקינה';return;
   }
   const btn=$('emailSendBtn');
-  btn.disabled=true;btn.textContent='שולח...';
-  $('emailStatus').textContent='';
+  btn.disabled=true;btn.textContent='שולח...';$('emailStatus').textContent='';
   const res=collectAnnuityResults();
   fetch('/.netlify/functions/send-results',{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
+    method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({userEmail:email,calculatorType:res.type,resultsHtml:res.html,resultsData:res.data})
   })
-  .then(function(r){return r.json();})
+  .then(function(r){return r.json()})
   .then(function(r){
     if(r.ok){
       $('emailStatus').innerHTML='<span style="color:#166534">✅ נשלח! בדוק את תיבת הדואר שלך</span>';
-      btn.textContent='✓ נשלח';
-      setTimeout(closeEmailModal,2800);
-    } else { throw new Error(r.error||'שגיאה'); }
+      btn.textContent='✓ נשלח';setTimeout(closeEmailModal,2800);
+    }else throw new Error();
   })
   .catch(function(){
     $('emailStatus').innerHTML='<span style="color:#991b1b">❌ אירעה שגיאה. נסה שוב.</span>';
@@ -976,26 +1180,34 @@ function sendEmailResults(){
 }
 </script>
 
-<!-- Email modal -->
+<!-- EMAIL MODAL -->
 <div id="emailModal"
-     style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);align-items:center;justify-content:center"
+     style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;
+            background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);align-items:center;justify-content:center"
      onclick="if(event.target===this)closeEmailModal()">
-  <div style="background:#fff;border-radius:14px;padding:28px 24px;width:min(420px,92vw);box-shadow:0 20px 60px rgba(0,0,0,0.25);position:relative;direction:rtl;font-family:'Heebo',sans-serif">
+  <div style="background:#fff;border-radius:14px;padding:28px 24px;width:min(420px,92vw);
+              box-shadow:0 20px 60px rgba(0,0,0,0.25);position:relative;direction:rtl;
+              font-family:'Heebo',sans-serif">
     <button onclick="closeEmailModal()"
-            style="position:absolute;top:12px;left:14px;background:none;border:none;font-size:18px;cursor:pointer;color:#718096;line-height:1;padding:4px 6px;border-radius:4px">✕</button>
-    <h3 style="font-size:18px;font-weight:700;color:#1e3a5f;margin:0 0 4px 0">📧 קבל את התוצאות במייל</h3>
-    <p style="font-size:13px;color:#718096;margin:0 0 20px 0">סיכום מחשבון האנונה יישלח אליך ישירות למייל</p>
+            style="position:absolute;top:12px;left:14px;background:none;border:none;
+                   font-size:18px;cursor:pointer;color:#718096;padding:4px 6px;border-radius:4px">✕</button>
+    <h3 style="font-size:18px;font-weight:700;color:#1e3a5f;margin:0 0 4px">📧 קבל את התוצאות במייל</h3>
+    <p style="font-size:13px;color:#718096;margin:0 0 20px">סיכום מחשבון האנונה יישלח אליך ישירות למייל</p>
     <label style="display:block;font-size:13px;color:#4a5568;font-weight:600;margin-bottom:6px">כתובת המייל שלך</label>
     <input type="email" id="emailInput" placeholder="you@example.com" autocomplete="email"
-           style="width:100%;border:1px solid #e2e8f0;border-radius:9px;padding:10px 12px;font-size:15px;color:#1a1a2e;outline:none;box-sizing:border-box;direction:ltr;text-align:left;background:#fff;transition:border-color .15s,box-shadow .15s"
+           style="width:100%;border:1px solid #e2e8f0;border-radius:9px;padding:10px 12px;
+                  font-size:15px;color:#1a1a2e;outline:none;box-sizing:border-box;
+                  direction:ltr;text-align:left;background:#fff;transition:border-color .15s,box-shadow .15s"
            oninput="document.getElementById('emailError').textContent=''"
            onfocus="this.style.borderColor='#2563eb';this.style.boxShadow='0 0 0 3px rgba(37,99,235,0.12)'"
            onblur="this.style.borderColor='#e2e8f0';this.style.boxShadow='none'">
     <div id="emailError" style="font-size:12px;color:#991b1b;margin-top:4px;min-height:16px"></div>
     <button id="emailSendBtn" onclick="sendEmailResults()"
-            style="width:100%;background:var(--accent);color:#fff;border:none;border-radius:9px;padding:12px;font-size:15px;font-weight:700;cursor:pointer;margin-top:12px;font-family:'Heebo',sans-serif;transition:background .15s"
+            style="width:100%;background:#2563eb;color:#fff;border:none;border-radius:9px;
+                   padding:12px;font-size:15px;font-weight:700;cursor:pointer;margin-top:12px;
+                   font-family:'Heebo',sans-serif;transition:background .15s"
             onmouseover="if(!this.disabled)this.style.background='#1e3a5f'"
-            onmouseout="this.style.background='var(--accent)'">שלח</button>
+            onmouseout="if(!this.disabled)this.style.background='#2563eb'">שלח</button>
     <div id="emailStatus" style="text-align:center;font-size:13px;margin-top:10px;min-height:18px"></div>
   </div>
 </div>
