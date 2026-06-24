@@ -227,6 +227,29 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);direction:rt
 /* ═══════════════════════════════════════════════
    WEIGHTS LEGEND
 ═══════════════════════════════════════════════ */
+/* Settlement selector */
+.settle-wrap{margin-bottom:16px}
+.settle-title{font-size:10.5px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.settle-toggle{display:grid;grid-template-columns:1fr 1fr;border:1.5px solid var(--border);border-radius:11px;overflow:hidden}
+.settle-radio{display:none}
+.settle-lbl{
+  padding:10px 10px;text-align:center;cursor:pointer;
+  font-size:12px;font-weight:700;color:var(--text2);
+  background:var(--bg);transition:all .18s;line-height:1.4;
+  border-left:1px solid var(--border);
+}
+.settle-lbl:last-of-type{border-left:none}
+.settle-radio:checked+.settle-lbl{
+  background:var(--accent-dark);color:#fff;
+  box-shadow:inset 0 1px 3px rgba(0,0,0,.15);
+}
+.settle-cap-note{
+  margin-top:8px;font-size:11px;color:var(--text3);
+  background:var(--bg);border:1px solid var(--border);
+  border-radius:8px;padding:7px 10px;line-height:1.5;
+}
+.settle-cap-note strong{color:var(--accent-dark);font-weight:700}
+
 .weights-title{font-size:10.5px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:16px 0 8px}
 .weights{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .wrow{
@@ -521,6 +544,20 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);direction:rt
 <!-- ═══ RIGHT COLUMN: INPUTS ════════════════════ -->
 <aside class="col-inputs">
 <div class="card">
+  <!-- Settlement type selector -->
+  <div class="settle-wrap">
+    <div class="settle-title">🏙️ סוג יישוב</div>
+    <div class="settle-toggle">
+      <input type="radio" name="settle" id="s-center" class="settle-radio" value="center" checked onchange="calc()">
+      <label for="s-center" class="settle-lbl">מרכז / ביקוש</label>
+      <input type="radio" name="settle" id="s-periphery" class="settle-radio" value="periphery" onchange="calc()">
+      <label for="s-periphery" class="settle-lbl">פריפריה / עדיפות לאומית</label>
+    </div>
+    <div class="settle-cap-note" id="settleCapNote">
+      תקרה: <strong>min(₪500,000, 20% × מחיר בסיס)</strong>
+    </div>
+  </div>
+
   <div class="card-title">💰 מחירי מ"ר</div>
 
   <div class="price-row">
@@ -639,10 +676,10 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);direction:rt
     <div class="step-content">
       <div class="step-hdr">
         <div class="step-num">4</div>
-        <div class="step-hdr-text">בדיקת תקרת הנחה (₪500,000)</div>
+        <div class="step-hdr-text" id="step4title">בדיקת תקרת הנחה</div>
       </div>
-      <div class="step-formula" id="f4">הפרש = מחיר_שוק − מחיר_אחרי_הנחה = ?</div>
-      <div class="step-sub">אם ההפרש עולה על ₪500,000 — מגבילים את ההנחה</div>
+      <div class="step-formula" id="f4">תקרה = min(קבוע, s1 × אחוז) | הפרש = מחיר_שוק − מחיר_אחרי_הנחה = ?</div>
+      <div class="step-sub" id="step4sub">אם ההפרש עולה על התקרה האפקטיבית — מגבילים את ההנחה</div>
     </div>
     <div class="step-result-col">
       <div class="s4-result-inner">
@@ -835,28 +872,43 @@ function calc(){
   $('f3').textContent=fmt(s1)+' × 75% = '+fmt(s3);
   $('r3').textContent=fmt(s3);
 
-  // Step 4 — cap check
+  // Step 4 — dynamic cap by settlement type
+  var isPeriphery = document.getElementById('s-periphery').checked;
+  var capFixed = isPeriphery ? 600000 : 500000;
+  var capPct   = isPeriphery ? 0.25   : 0.20;
+  var effectiveCap = Math.min(capFixed, s1 * capPct);
+
+  // update settlement note
+  $('settleCapNote').innerHTML = 'תקרה: <strong>min('
+    + fmt(capFixed) + ', ' + (capPct*100) + '% × מחיר בסיס) = '
+    + fmt(effectiveCap) + '</strong>';
+
   var diff = s2 - s3;
-  var hasCap = diff > 500000;
-  $('f4').textContent='הפרש = '+fmt(s2)+' − '+fmt(s3)+' = '+fmt(diff);
-  $('r4diff').textContent=fmt(diff);
+  var hasCap = diff > effectiveCap;
+
+  $('step4title').textContent = 'בדיקת תקרת הנחה (תקרה: ' + fmt(effectiveCap) + ')';
+  $('f4').textContent = 'תקרה = min(' + fmt(capFixed) + ', ' + fmt(s1) + ' × ' + (capPct*100) + '%) = ' + fmt(effectiveCap)
+    + '  |  הפרש = ' + fmt(s2) + ' − ' + fmt(s3) + ' = ' + fmt(diff);
+  $('r4diff').textContent = fmt(diff);
+  $('step4sub').textContent = 'אם ההפרש עולה על ' + fmt(effectiveCap) + ' — מגבילים את ההנחה';
+
   var step4El=$('step4'), badge=$('r4badge');
   if(hasCap){
     step4El.className='step s4';
     badge.className='badge cap';
-    badge.textContent='⚠️ תחול תקרת הנחה (הפרש עולה על ₪500,000)';
+    badge.textContent='⚠️ תחול תקרת הנחה (הפרש עולה על ' + fmt(effectiveCap) + ')';
   } else {
     step4El.className='step s4 no-cap';
     badge.className='badge no';
-    badge.textContent='✅ אין תקרה (הפרש עד ₪500,000)';
+    badge.textContent='✅ אין תקרה (הפרש עד ' + fmt(effectiveCap) + ')';
   }
 
   // Step 5
   var s5;
   if(hasCap){
-    s5 = s2 - 500000;
-    $('f5').textContent='מחיר_שוק − ₪500,000 = '+fmt(s2)+' − ₪500,000 = '+fmt(s5);
-    $('s5sub').textContent='הנחה מוגבלת: מחיר השוק פחות ₪500,000 בלבד';
+    s5 = s2 - effectiveCap;
+    $('f5').textContent='מחיר_שוק − תקרה = '+fmt(s2)+' − '+fmt(effectiveCap)+' = '+fmt(s5);
+    $('s5sub').textContent='הנחה מוגבלת: מחיר השוק פחות תקרה של '+fmt(effectiveCap);
   } else {
     s5 = s3;
     $('f5').textContent='אין תקרה → משתמשים במחיר ההנחה המלא: '+fmt(s3);
