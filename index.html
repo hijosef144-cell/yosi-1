@@ -159,6 +159,27 @@
   }
   </script>
 
+  <!-- JSON-LD: יוסף כץ - Person -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    "name": "יוסף כץ",
+    "jobTitle": "יועץ כלכלי",
+    "worksFor": {
+      "@type": "Organization",
+      "name": "מצפן כלכלי"
+    },
+    "hasCredential": [
+      {"@type": "EducationalOccupationalCredential", "name": "יועץ כלכלי מוסמך"},
+      {"@type": "EducationalOccupationalCredential", "name": "יועץ ומאמן כלכלי מוסמך - קורס שפע"},
+      {"@type": "EducationalOccupationalCredential", "name": "יועץ משכנתאות ומימון בהצטיינות - מכללת הון ובית"}
+    ],
+    "url": "https://matzpenkalkali.com/#about",
+    "image": "https://matzpenkalkali.com/images/2266.jpg"
+  }
+  </script>
+
   <!-- Google Analytics 4 -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-CLWP2CD2EC"></script>
   <script>
@@ -985,29 +1006,40 @@
           </p>
         </div>
 
-        <!-- תמונה (לחיצה פותחת את תעודת הבנק) -->
+        <!-- תמונה ראשית (לחיצה פותחת את תעודת הבנק) + תמונת הרצאה -->
         <div class="flex justify-center">
-          <div class="w-72 h-72 rounded-2xl shadow-2xl overflow-hidden ring-2 ring-blue-200 cursor-pointer transform transition-all duration-300 hover:scale-105 hover:shadow-3xl hover:ring-blue-400 group"
-               onclick="if(window.openCertificateModal){window.openCertificateModal();}">
-            <div class="relative w-full h-full">
-              <img
-                src="images/2266.jpg"
-                alt="יוסף כץ - יועץ כלכלי"
-                class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-              >
-              <div class="absolute inset-0 bg-gradient-to-t from-blue-900/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            </div>
-            <!-- פלייסהולדר אם יש שגיאה -->
-            <div class="w-full h-full bg-gradient-to-br from-blue-50 via-blue-100 to-blue-200 flex items-center justify-center hidden">
-              <div class="text-center">
-                <svg class="w-24 h-24 text-blue-900 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-                </svg>
-                <p class="text-blue-900 font-bold text-lg">תמונה אישית</p>
-                <p class="text-blue-700 text-base mt-2 font-semibold">יוסף כץ</p>
+          <div class="relative w-72 md:w-80 mx-auto pb-16 md:pb-0">
+            <div class="w-72 h-72 md:w-80 md:h-80 rounded-2xl shadow-2xl overflow-hidden ring-2 ring-blue-200 cursor-pointer transform transition-all duration-300 hover:scale-105 hover:shadow-3xl hover:ring-blue-400 group"
+                 onclick="if(window.openCertificateModal){window.openCertificateModal();}">
+              <div class="relative w-full h-full">
+                <img
+                  src="images/2266.jpg"
+                  alt="יוסף כץ, יועץ כלכלי מוסמך"
+                  class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                  onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                >
+                <div class="absolute inset-0 bg-gradient-to-t from-blue-900/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               </div>
+              <!-- פלייסהולדר אם יש שגיאה -->
+              <div class="w-full h-full bg-gradient-to-br from-blue-50 via-blue-100 to-blue-200 flex items-center justify-center hidden">
+                <div class="text-center">
+                  <svg class="w-24 h-24 text-blue-900 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                  </svg>
+                  <p class="text-blue-900 font-bold text-lg">תמונה אישית</p>
+                  <p class="text-blue-700 text-base mt-2 font-semibold">יוסף כץ</p>
+                </div>
+              </div>
+            </div>
+            <!-- תמונת הרצאה: נערמת מתחת במובייל, צפה בפינה בדסקטופ -->
+            <div class="static md:absolute md:-bottom-6 md:-start-6 mx-auto md:mx-0 mt-4 md:mt-0 w-32 h-32 md:w-36 md:h-36 rounded-xl shadow-2xl overflow-hidden ring-4 ring-white transform transition-all duration-300 hover:scale-110 hover:z-20 z-10 bg-white">
+              <img
+                src="images/יוסי-כץ-מרצה.jpg"
+                alt="יוסף כץ מרצה בפני קהל על תכנון כלכלי משפחתי"
+                loading="lazy"
+                class="w-full h-full object-cover"
+              >
             </div>
           </div>
         </div>
@@ -1030,23 +1062,80 @@
       <div class="mt-8">
         <div class="card bg-gradient-to-br from-blue-50 via-blue-100/50 to-blue-50 border-2 border-blue-200 shadow-lg">
           <h3 class="section-subtitle text-right mb-6">הסמכות והכשרות:</h3>
-          <div class="grid md:grid-cols-2 gap-5">
-            <div class="flex items-center group">
-              <div class="w-4 h-4 bg-gradient-to-br from-blue-900 to-blue-700 rounded-full ml-3 shadow-md group-hover:scale-125 transition-transform"></div>
-              <span class="text-gray-800 font-medium text-base group-hover:text-blue-900 transition-colors">יועץ כלכלי מוסמך</span>
+          <div class="grid md:grid-cols-3 gap-5">
+
+            <!-- 1 -->
+            <div class="bg-white rounded-2xl border border-blue-100 shadow-md p-5 flex flex-col gap-3 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-blue-300">
+              <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-900 to-blue-700 flex items-center justify-center text-white font-extrabold shadow-md">1</div>
+              <div class="text-gray-800 font-bold text-base">יועץ כלכלי מוסמך</div>
+              <p class="text-gray-600 text-sm leading-relaxed">ליווי פיננסי מקצועי ומותאם אישית למשפחות ויחידים.</p>
             </div>
-            <div class="flex items-center group">
-              <div class="w-4 h-4 bg-gradient-to-br from-blue-900 to-blue-700 rounded-full ml-3 shadow-md group-hover:scale-125 transition-transform"></div>
-              <span class="text-gray-800 font-medium text-base group-hover:text-blue-900 transition-colors">מומחה בחובות ותיקים מורכבים</span>
+
+            <!-- 2 -->
+            <div class="bg-white rounded-2xl border border-blue-100 shadow-md p-5 flex flex-col gap-3 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-blue-300">
+              <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-900 to-blue-700 flex items-center justify-center text-white font-extrabold shadow-md">2</div>
+              <div class="text-gray-800 font-bold text-base">יועץ ומאמן כלכלי מוסמך</div>
+              <p class="text-gray-600 text-sm leading-relaxed">בוגר קורס "שפע" (60 שעות) להכשרת יועצים ומאמנים כלכליים, מטעם אגף שפע באהבת חסד בשיתוף ארגון מסילה.</p>
+              <button type="button"
+                      onclick="if(window.openCredLightbox){window.openCredLightbox('images/תעודת-יועץ-ומאמן-כלכלי.jpg','תעודת יועץ ומאמן כלכלי מוסמך - קורס שפע','תעודת יועץ ומאמן כלכלי מוסמך');}"
+                      aria-label="לצפייה בתעודת יועץ ומאמן כלכלי מוסמך"
+                      class="mt-1 inline-flex items-center gap-2 self-start rounded-full bg-blue-50 border border-blue-200 px-3 py-1.5 text-xs font-semibold text-blue-900 hover:bg-blue-100 transition-colors">
+                🎓 לצפייה בתעודה
+              </button>
             </div>
-            <div class="flex items-center group">
-              <div class="w-4 h-4 bg-gradient-to-br from-blue-900 to-blue-700 rounded-full ml-3 shadow-md group-hover:scale-125 transition-transform"></div>
-              <span class="text-gray-800 font-medium text-base group-hover:text-blue-900 transition-colors">בוגר מסילה לכלכלה נבונה</span>
+
+            <!-- 3 -->
+            <div class="bg-white rounded-2xl border border-blue-100 shadow-md p-5 flex flex-col gap-3 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-blue-300">
+              <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-900 to-blue-700 flex items-center justify-center text-white font-extrabold shadow-md">3</div>
+              <div class="text-gray-800 font-bold text-base">יועץ משכנתאות ומימון, בהצטיינות</div>
+              <p class="text-gray-600 text-sm leading-relaxed">מכללת הון ובית.</p>
+              <button type="button"
+                      onclick="if(window.openCredLightbox){window.openCredLightbox('images/תעודת-ייעוץ-משכנתאות-בהצטיינות.jpg','תעודת יועץ משכנתאות ומימון בהצטיינות - מכללת הון ובית','תעודת יועץ משכנתאות ומימון, בהצטיינות');}"
+                      aria-label="לצפייה בתעודת יועץ משכנתאות ומימון בהצטיינות"
+                      class="mt-1 inline-flex items-center gap-2 self-start rounded-full bg-blue-50 border border-blue-200 px-3 py-1.5 text-xs font-semibold text-blue-900 hover:bg-blue-100 transition-colors">
+                🎓 לצפייה בתעודה
+              </button>
             </div>
-            <div class="flex items-center group">
-              <div class="w-4 h-4 bg-gradient-to-br from-blue-900 to-blue-700 rounded-full ml-3 shadow-md group-hover:scale-125 transition-transform"></div>
-              <span class="text-gray-800 font-medium text-base group-hover:text-blue-900 transition-colors">מרצה בקהילות הקודש</span>
+
+            <!-- 4 -->
+            <div class="bg-white rounded-2xl border border-blue-100 shadow-md p-5 flex flex-col gap-3 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-blue-300">
+              <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-900 to-blue-700 flex items-center justify-center text-white font-extrabold shadow-md">4</div>
+              <div class="text-gray-800 font-bold text-base">מומחה בחובות ותיקים מורכבים</div>
+              <p class="text-gray-600 text-sm leading-relaxed">פתרונות מעשיים ליציאה מחובות ולניהול תיקים מורכבים.</p>
             </div>
+
+            <!-- 5 -->
+            <div class="bg-white rounded-2xl border border-blue-100 shadow-md p-5 flex flex-col gap-3 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-blue-300">
+              <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-900 to-blue-700 flex items-center justify-center text-white font-extrabold shadow-md">5</div>
+              <div class="text-gray-800 font-bold text-base">בוגר מסילה לכלכלה נבונה</div>
+              <p class="text-gray-600 text-sm leading-relaxed">הכשרה מקיפה בתכנון כלכלי משפחתי.</p>
+            </div>
+
+            <!-- 6 -->
+            <div class="bg-white rounded-2xl border border-blue-100 shadow-md p-5 flex flex-col gap-3 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-blue-300">
+              <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-900 to-blue-700 flex items-center justify-center text-white font-extrabold shadow-md">6</div>
+              <div class="text-gray-800 font-bold text-base">מרצה בקהילות הקודש</div>
+              <p class="text-gray-600 text-sm leading-relaxed">הרצאות והדרכה בנושאי כלכלת המשפחה.</p>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- פעילות בקהילה -->
+      <div class="mt-8">
+        <div class="card relative overflow-hidden">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-2xl">🤝</span>
+            <h3 class="section-subtitle mb-0">פעילות בקהילה</h3>
+          </div>
+          <p class="text-gray-700 leading-relaxed text-lg">
+            מלווה משפחות במסגרת מיזם אפריון ויזניץ, ומלווה משפחות בארגון אהבת חסד בעלז — לצד ההרצאות בקהילות הקודש,
+            אני שותף פעיל בליווי משפחות דרך שני הארגונים הללו, ומביא את אותה גישה מעשית וזהירה שמאפיינת את הליווי הפרטני.
+          </p>
+          <div class="flex flex-wrap gap-2 mt-4">
+            <span class="process-chip bg-blue-100 text-blue-900">מיזם אפריון ויזניץ</span>
+            <span class="process-chip bg-blue-100 text-blue-900">אהבת חסד בעלז</span>
           </div>
         </div>
       </div>
@@ -3078,6 +3167,26 @@ window.addEventListener('DOMContentLoaded', () => {
     </div>
   </div>
 
+  <!-- מודאל גנרי לצפייה בתעודות הסמכה (הסמכות והכשרות) -->
+  <div id="credLightbox"
+       class="fixed inset-0 bg-black/60 hidden items-center justify-center z-[1200]"
+       role="dialog" aria-modal="true" aria-labelledby="credLightboxTitle"
+       onclick="if(event.target === this && window.closeCredLightbox){window.closeCredLightbox();}">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-3xl w-[90%] p-4 relative" onclick="event.stopPropagation();">
+      <button type="button"
+              id="credLightboxClose"
+              onclick="if(window.closeCredLightbox){window.closeCredLightbox();}"
+              aria-label="סגור תצוגת תעודה"
+              class="absolute top-3 right-3 text-gray-500 hover:text-gray-800 text-xl">
+        ✖
+      </button>
+      <h2 id="credLightboxTitle" class="text-xl font-semibold text-blue-900 mb-4 text-right"></h2>
+      <div class="max-h-[80vh] overflow-auto">
+        <img id="credLightboxImg" src="" alt="" class="w-full h-auto rounded-lg shadow-md">
+      </div>
+    </div>
+  </div>
+
   <!-- ========== Legal Disclaimer (Small, Right Corner) ========== -->
   <div id="legalDisclaimer" class="legal-bubble hidden" dir="rtl">
     ⚠️ אין לראות באמור באתר המלצה לביצוע פעולות השקעה. 
@@ -5090,7 +5199,36 @@ window.closeCertificateModal = function() {
   modal.classList.add('hidden');
   modal.classList.remove('flex');
 };
-    
+
+// מודאל גנרי לתעודות הסמכה (סקשן "מי אני?")
+window._credLightboxLastFocus = null;
+window.openCredLightbox = function(src, alt, title) {
+  const modal = document.getElementById('credLightbox');
+  if (!modal) return;
+  document.getElementById('credLightboxImg').src = src;
+  document.getElementById('credLightboxImg').alt = alt || '';
+  document.getElementById('credLightboxTitle').textContent = title || '';
+  window._credLightboxLastFocus = document.activeElement;
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+  const closeBtn = document.getElementById('credLightboxClose');
+  if (closeBtn) closeBtn.focus();
+};
+window.closeCredLightbox = function() {
+  const modal = document.getElementById('credLightbox');
+  if (!modal) return;
+  modal.classList.add('hidden');
+  modal.classList.remove('flex');
+  document.getElementById('credLightboxImg').src = '';
+  if (window._credLightboxLastFocus) window._credLightboxLastFocus.focus();
+};
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    const modal = document.getElementById('credLightbox');
+    if (modal && !modal.classList.contains('hidden') && window.closeCredLightbox) window.closeCredLightbox();
+  }
+});
+
     console.log('Script tag completed successfully');
   } catch(err) {
     console.error('Error in script tag:', err);
