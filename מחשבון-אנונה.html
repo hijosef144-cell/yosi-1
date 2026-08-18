@@ -142,6 +142,28 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);direc
   font-size:13px;font-weight:500;color:var(--text3);cursor:pointer;transition:all .15s;border-radius:7px}
 .tgl button.on{background:var(--primary);color:#fff;box-shadow:0 2px 6px rgba(30,58,95,.25);font-weight:700}
 
+/* ANNUITY TYPE SELECTOR (visible, step 2) */
+.tgl-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.tgl-opt{display:flex;flex-direction:column;gap:6px}
+.tgl-btn{width:100%;padding:12px 10px;border:2px solid var(--border);background:var(--white);
+  font-family:'Heebo',sans-serif;font-size:14px;font-weight:600;color:var(--text2);
+  cursor:pointer;transition:all .15s;border-radius:10px;text-align:center}
+.tgl-btn.on{background:var(--primary);color:#fff;border-color:var(--primary);
+  box-shadow:0 2px 6px rgba(30,58,95,.25)}
+.tgl-cap{font-size:11px;color:var(--text3);line-height:1.4;text-align:center;padding:0 2px}
+@media(max-width:600px){.tgl-grid{grid-template-columns:1fr}}
+
+/* BIG RESULT BLOCK */
+.big-result{background:var(--primary);color:#fff;padding:26px 24px;border-radius:14px;
+  margin-bottom:14px;text-align:center}
+.big-result-lbl{font-size:13px;opacity:.75;margin-bottom:6px}
+.big-result-val{font-family:'Courier New',monospace;font-size:34px;font-weight:800}
+.big-result-sub{font-size:13px;opacity:.8;margin-top:6px}
+.big-tax-line{margin-top:14px;font-size:14px;font-weight:600;padding-top:12px;
+  border-top:1px solid rgba(255,255,255,.2)}
+.big-tax-line.green{color:#86efac}
+.big-tax-line.neutral{color:rgba(255,255,255,.85)}
+
 /* TOOLTIP */
 .tt{position:relative;cursor:help;display:inline-flex}
 .tt .ti{font-size:11px;color:var(--text3);border:1px solid var(--border);border-radius:50%;
@@ -200,6 +222,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);direc
 .alert.amber{background:var(--amber-bg);border:1px solid #fcd34d;color:var(--amber)}
 .alert.blue{background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af}
 .alert.green{background:var(--green-bg);border:1px solid #86efac;color:var(--green)}
+.alert.gray{background:#f1f5f9;border:1px solid var(--border);color:var(--text2)}
 .alert strong{font-weight:700}
 
 /* MODULE CARDS */
@@ -409,84 +432,91 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);direc
 
   <div class="step-card">
     <div class="step-hdr"><div class="step-num">1</div>שלב 1 — נתוני הצבירה</div>
-    <div class="fg">
+    <div class="fg2">
       <div class="fld">
         <label>סכום חסכון (₪)</label>
         <input type="text" id="totalSaved" value="1,000,000" oninput="fmtLive(this)" onblur="fmtBlur(this)">
       </div>
       <div class="fld">
-        <label>תשואה שנתית (%)</label>
-        <input type="number" id="annualReturn" value="4.5" step="0.1" min="0" max="20">
-      </div>
-      <div class="fld">
-        <label>אינפלציה שנתית (%)</label>
-        <input type="number" id="inflation" value="3" step="0.1" min="0" max="15">
+        <label>גיל נוכחי</label>
+        <input type="number" id="currentAge" value="67" min="40" max="99" oninput="updateLtYears();syncFixedStartAge()">
       </div>
     </div>
   </div>
 
   <div class="step-card">
-    <div class="step-hdr"><div class="step-num">2</div>שלב 2 — תקופה וגיל</div>
-    <div class="fg2">
-      <div class="fld">
-        <label>גיל נוכחי</label>
-        <input type="number" id="currentAge" value="67" min="40" max="99" oninput="updateLtYears()">
+    <div class="step-hdr"><div class="step-num">2</div>סוג הקצבה</div>
+    <div class="tgl-grid" role="group" aria-label="בחירת סוג קצבה">
+      <div class="tgl-opt">
+        <button type="button" class="tgl-btn on" id="btnLifetime" onclick="setAnnuity('lifetime')" aria-pressed="true">♾️ לכל החיים</button>
+        <div class="tgl-cap">קצבה קבועה שלא נגמרת, גם אם תחיה יותר מהצפוי</div>
       </div>
-      <div class="fld">
-        <label>תוחלת חיים <span class="tt"><span class="ti">?</span><span class="tc">ממוצע ישראל: גברים ~82, נשים ~85. מומלץ לתכנן ל-90 לביטחון.</span></span></label>
-        <input type="number" id="lifeExpectancy" value="87" min="60" max="110" oninput="updateLtYears()">
+      <div class="tgl-opt">
+        <button type="button" class="tgl-btn" id="btnFixed" onclick="setAnnuity('fixed')" aria-pressed="false">📆 קצבה קבועה</button>
+        <div class="tgl-cap">סכום קבוע לתקופה שתבחר</div>
+      </div>
+      <div class="tgl-opt">
+        <button type="button" class="tgl-btn" id="btnPortfolio" onclick="setAnnuity('portfolio')" aria-pressed="false">📈 משיכות מתיק</button>
+        <div class="tgl-cap">אתה קובע כמה למשוך בכל חודש, הכסף נשאר מושקע</div>
       </div>
     </div>
-    <div class="inf">תקופת קצבה: <strong id="ltYears">20</strong> שנים (גיל <strong id="ltRange">67–87</strong>)</div>
+
+    <div id="fLifetime" style="display:none"></div>
+
+    <div id="fFixed" style="display:none;margin-top:16px">
+      <div class="fld">
+        <label>מספר שנות קצבה</label>
+        <input type="number" id="fixedYears" value="20" min="1" max="50">
+      </div>
+      <div class="inf">קצבה עד גיל: <strong id="fixedEndAge">87</strong></div>
+    </div>
+
+    <div id="fPortfolio" style="display:none;margin-top:16px">
+      <div class="fg2">
+        <div class="fld">
+          <label>% משיכה שנתי <span class="tt"><span class="ti">?</span><span class="tc">כלל ה-4%: משיכה שנתית של 4% נחשבת בת-קיימא לטווח ארוך</span></span></label>
+          <input type="number" id="withdrawalPct" value="4" step="0.1" min="0.1" max="20">
+        </div>
+        <div class="fld">
+          <label>תקופת משיכה (שנים)</label>
+          <input type="number" id="portfolioYears" value="25" min="1" max="50">
+        </div>
+      </div>
+      <div class="inf">קצבה חודשית: <strong id="portMonthly">—</strong> (<strong id="portPct">—</strong>% שנתי)</div>
+    </div>
   </div>
 
   <div class="step-card">
     <button class="adv-btn" type="button" id="advBtn" onclick="toggleAdv()">
-      ⚙️ הגדרות מתקדמות (סוג קצבה, מיסוי, נקודות זיכוי)
+      ⚙️ הגדרות מתקדמות
       <span id="advArrow" style="font-size:11px">▼</span>
     </button>
     <div class="adv-body" id="advBody">
 
-      <div style="margin-bottom:18px">
-        <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:8px">סוג הקצבה</label>
-        <div class="tgl">
-          <button class="on" id="btnLifetime" onclick="setAnnuity('lifetime')">♾️ לכל החיים</button>
-          <button id="btnFixed" onclick="setAnnuity('fixed')">📆 קצבה קבועה</button>
-          <button id="btnPortfolio" onclick="setAnnuity('portfolio')">📈 משיכות מתיק</button>
+      <div class="fg" style="margin-bottom:16px">
+        <div class="fld">
+          <label>תשואה שנתית (%)</label>
+          <input type="number" id="annualReturn" value="7" step="0.1" min="0" max="20">
+        </div>
+        <div class="fld">
+          <label>אינפלציה שנתית (%)</label>
+          <input type="number" id="inflation" value="2" step="0.1" min="0" max="15">
+        </div>
+        <div class="fld">
+          <label>תוחלת חיים <span class="tt"><span class="ti">?</span><span class="tc">ממוצע ישראל: גברים ~82, נשים ~85. מומלץ לתכנן ל-90 לביטחון.</span></span></label>
+          <input type="number" id="lifeExpectancy" value="87" min="60" max="110" oninput="updateLtYears()">
+        </div>
+      </div>
+      <div class="inf">תקופת קצבה: <strong id="ltYears">20</strong> שנים (גיל <strong id="ltRange">67–87</strong>)</div>
+
+      <div style="border-top:1px solid var(--border);margin-top:16px;padding-top:16px">
+        <div class="fld">
+          <label>גיל בתחילת קצבה <span class="hint">(רלוונטי ל"קצבה קבועה"; ברירת מחדל = גיל נוכחי)</span></label>
+          <input type="number" id="fixedStartAge" value="67" min="40" max="100" oninput="fixedStartAgeTouched=true">
         </div>
       </div>
 
-      <div id="fLifetime" style="display:none"></div>
-
-      <div id="fFixed" style="display:none;margin-bottom:16px">
-        <div class="fg2">
-          <div class="fld">
-            <label>מספר שנות קצבה</label>
-            <input type="number" id="fixedYears" value="20" min="1" max="50">
-          </div>
-          <div class="fld">
-            <label>גיל בתחילת קצבה</label>
-            <input type="number" id="fixedStartAge" value="67" min="40" max="100">
-          </div>
-        </div>
-        <div class="inf">קצבה עד גיל: <strong id="fixedEndAge">87</strong></div>
-      </div>
-
-      <div id="fPortfolio" style="display:none;margin-bottom:16px">
-        <div class="fg2">
-          <div class="fld">
-            <label>% משיכה שנתי <span class="tt"><span class="ti">?</span><span class="tc">כלל ה-4%: משיכה שנתית של 4% נחשבת בת-קיימא לטווח ארוך</span></span></label>
-            <input type="number" id="withdrawalPct" value="4" step="0.1" min="0.1" max="20">
-          </div>
-          <div class="fld">
-            <label>תקופת משיכה (שנים)</label>
-            <input type="number" id="portfolioYears" value="25" min="1" max="50">
-          </div>
-        </div>
-        <div class="inf">קצבה חודשית: <strong id="portMonthly">—</strong> (<strong id="portPct">—</strong>% שנתי)</div>
-      </div>
-
-      <div style="border-top:1px solid var(--border);padding-top:16px">
+      <div style="border-top:1px solid var(--border);margin-top:16px;padding-top:16px">
         <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:10px">מיסוי ופטורים</label>
         <div class="fg" style="margin-bottom:12px">
           <div class="fld">
@@ -645,90 +675,110 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);direc
     <button class="btn-back" onclick="window.print()">🖨️ הדפסה</button>
   </div>
 
-  <div class="top-strip">
-    <div class="strip-item">
-      <div class="strip-lbl">קצבה ברוטו</div>
-      <div class="strip-val" id="sb-gross">—</div>
-    </div>
-    <div class="strip-item">
-      <div class="strip-lbl">קצבה נטו</div>
-      <div class="strip-val main" id="sb-net">—</div>
-    </div>
-    <div class="strip-item">
-      <div class="strip-lbl">קצבה ריאלית</div>
-      <div class="strip-val" id="sb-real">—</div>
-    </div>
-    <div class="strip-item">
-      <div class="strip-lbl">נקודת איזון</div>
-      <div class="strip-val" id="sb-be">—</div>
-    </div>
+  <div class="big-result">
+    <div class="big-result-lbl">קצבה חודשית נטו</div>
+    <div class="big-result-val" id="bigNet">—</div>
+    <div class="big-result-sub">(ברוטו: <span id="bigGross">—</span> · בערכי היום: <span id="bigReal">—</span>)</div>
+    <div id="bigTaxLine" class="big-tax-line neutral">—</div>
   </div>
 
   <div id="depAlert" class="alert amber" style="display:none"></div>
-  <div id="beBox" class="alert blue" style="display:none"></div>
-
-  <div class="rg">
-    <div class="rc hi"><div class="rc-lbl">קצבה חודשית נטו</div><div class="rc-val" id="rNet">—</div><div class="rc-sub">אחרי מס וזיכויים</div></div>
-    <div class="rc"><div class="rc-lbl">קצבה חודשית ברוטו</div><div class="rc-val" id="rGross">—</div><div class="rc-sub">לפני מס</div></div>
-    <div class="rc"><div class="rc-lbl">קצבה ריאלית (היום)</div><div class="rc-val" style="color:var(--text2)" id="rReal">—</div><div class="rc-sub">כוח קנייה אמיתי</div></div>
-    <div class="rc"><div class="rc-lbl">סך קצבאות לאורך התקופה</div><div class="rc-val" id="rTotalPayout">—</div><div class="rc-sub">סה"כ שתקבל</div></div>
-    <div class="rc danger"><div class="rc-lbl">סך מס ששולם</div><div class="rc-val" id="rTotalTax">—</div><div class="rc-sub">לאורך כל התקופה</div></div>
-    <div class="rc" id="rBalCard"><div class="rc-lbl">יתרה בסוף תקופה</div><div class="rc-val" id="rBalance">—</div><div class="rc-sub">כמה נשאר בקרן</div></div>
-  </div>
 
   <div class="mod">
-    <div class="mod-title">🏛️ פירוט מיסוי</div>
-    <div class="tax-detail">
-      <div class="tx-row"><span>פטור חודשי (סעיף 9א):</span><span class="num" id="dExempt">—</span></div>
-      <div class="tx-row"><span>חייב במס:</span><span class="num" id="dTaxable">—</span></div>
-      <div class="tx-row"><span>מס לתשלום (לפני זיכוי):</span><span class="num" id="dGrossTax">—</span></div>
-      <div class="tx-row"><span>זיכוי נקודות:</span><span class="num" id="dCredit">—</span></div>
-      <div class="tx-row"><span>מס נטו:</span><span class="num" id="dNetTax">—</span></div>
-      <div class="tx-row" style="color:var(--green)"><span>קצבה נטו:</span><span class="num" id="dNetPension">—</span></div>
-    </div>
-  </div>
-
-  <div class="mod">
-    <div class="mod-title">⚖️ השוואת אסטרטגיות</div>
-    <div style="overflow-x:auto">
-      <table class="ct">
-        <thead><tr>
-          <th>קריטריון</th><th>♾️ לכל החיים</th><th>📆 קצבה קבועה</th><th>📈 משיכות מתיק</th>
-        </tr></thead>
-        <tbody id="compBody"><tr><td colspan="4" style="text-align:center;color:var(--text3);padding:16px">מחשב...</td></tr></tbody>
-      </table>
-    </div>
-    <div id="compWinner" class="alert green" style="display:none;margin-top:10px"></div>
-  </div>
-
-  <div class="mod">
-    <div class="mod-title">📈 גרפים</div>
-    <div class="ch-title">יתרת הצבירה לאורך הזמן</div>
-    <div class="ch-wrap"><canvas id="chartBal"></canvas></div>
-    <div class="divider"></div>
-    <div class="ch-title">קצבה ריאלית vs נומינלית</div>
-    <div class="ch-wrap"><canvas id="chartReal"></canvas></div>
-    <div class="divider"></div>
-    <div class="ch-title">השוואת 3 אסטרטגיות — סך תקבולים מצטבר</div>
-    <div class="ch-wrap"><canvas id="chartComp"></canvas></div>
-  </div>
-
-  <div class="mod">
-    <div class="col-hdr" onclick="toggleCol(this)">
-      <div class="mod-title" style="margin-bottom:0">📋 פירוט שנתי</div>
+    <div class="col-hdr" onclick="toggleCol(this)" role="button" tabindex="0" aria-expanded="false"
+         onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleCol(this)}">
+      <div class="mod-title" style="margin-bottom:0">לפרטים נוספים והשוואת אפשרויות</div>
       <span class="arr">▼</span>
     </div>
     <div class="col-body" style="display:none">
-      <div class="ann-wrap">
-        <table class="ann">
-          <thead><tr>
-            <th>שנה</th><th>גיל</th><th>קצבה ברוטו</th><th>מס</th>
-            <th>קצבה נטו</th><th>קצבה ריאלית</th><th>יתרה בקרן</th><th>תשואה שנתית</th>
-          </tr></thead>
-          <tbody id="annBody"><tr><td colspan="8" style="text-align:center;color:var(--text3)">מחשב...</td></tr></tbody>
-        </table>
+
+      <div class="top-strip" style="margin-top:14px">
+        <div class="strip-item">
+          <div class="strip-lbl">קצבה ברוטו</div>
+          <div class="strip-val" id="sb-gross">—</div>
+        </div>
+        <div class="strip-item">
+          <div class="strip-lbl">קצבה נטו</div>
+          <div class="strip-val main" id="sb-net">—</div>
+        </div>
+        <div class="strip-item">
+          <div class="strip-lbl">קצבה ריאלית</div>
+          <div class="strip-val" id="sb-real">—</div>
+        </div>
+        <div class="strip-item">
+          <div class="strip-lbl">נקודת איזון</div>
+          <div class="strip-val" id="sb-be">—</div>
+        </div>
       </div>
-    </div>
+
+      <div id="beBox" class="alert blue" style="display:none"></div>
+
+      <div class="rg">
+        <div class="rc hi"><div class="rc-lbl">קצבה חודשית נטו</div><div class="rc-val" id="rNet">—</div><div class="rc-sub">אחרי מס וזיכויים</div></div>
+        <div class="rc"><div class="rc-lbl">קצבה חודשית ברוטו</div><div class="rc-val" id="rGross">—</div><div class="rc-sub">לפני מס</div></div>
+        <div class="rc"><div class="rc-lbl">קצבה ריאלית (היום)</div><div class="rc-val" style="color:var(--text2)" id="rReal">—</div><div class="rc-sub">כוח קנייה אמיתי</div></div>
+        <div class="rc"><div class="rc-lbl">סך קצבאות לאורך התקופה</div><div class="rc-val" id="rTotalPayout">—</div><div class="rc-sub">סה"כ שתקבל</div></div>
+        <div class="rc" id="rTaxCard"><div class="rc-lbl">סך מס ששולם</div><div class="rc-val" id="rTotalTax">—</div><div class="rc-sub">לאורך כל התקופה</div></div>
+        <div class="rc" id="rBalCard"><div class="rc-lbl">יתרה בסוף תקופה</div><div class="rc-val" id="rBalance">—</div><div class="rc-sub">כמה נשאר בקרן</div></div>
+      </div>
+
+      <div class="mod" style="box-shadow:none;border:1px solid var(--border)">
+        <div class="mod-title">🏛️ פירוט מיסוי</div>
+        <div class="tax-detail">
+          <div class="tx-row"><span>פטור חודשי (סעיף 9א):</span><span class="num" id="dExempt">—</span></div>
+          <div class="tx-row"><span>חייב במס:</span><span class="num" id="dTaxable">—</span></div>
+          <div class="tx-row"><span>מס לתשלום (לפני זיכוי):</span><span class="num" id="dGrossTax">—</span></div>
+          <div class="tx-row"><span>זיכוי נקודות:</span><span class="num" id="dCredit">—</span></div>
+          <div class="tx-row"><span>מס נטו:</span><span class="num" id="dNetTax">—</span></div>
+          <div class="tx-row" style="color:var(--green)"><span>קצבה נטו:</span><span class="num" id="dNetPension">—</span></div>
+        </div>
+      </div>
+
+      <div class="mod" style="box-shadow:none;border:1px solid var(--border)">
+        <div class="mod-title">⚖️ השוואת אסטרטגיות</div>
+        <div style="overflow-x:auto">
+          <table class="ct">
+            <thead><tr>
+              <th>קריטריון</th><th>♾️ לכל החיים</th><th>📆 קצבה קבועה</th><th>📈 משיכות מתיק</th>
+            </tr></thead>
+            <tbody id="compBody"><tr><td colspan="4" style="text-align:center;color:var(--text3);padding:16px">מחשב...</td></tr></tbody>
+          </table>
+        </div>
+        <div id="compWinner" class="alert green" style="display:none;margin-top:10px"></div>
+      </div>
+
+      <div class="mod" style="box-shadow:none;border:1px solid var(--border)">
+        <div class="mod-title">📈 גרפים</div>
+        <div class="ch-title">יתרת הצבירה לאורך הזמן</div>
+        <div class="ch-wrap"><canvas id="chartBal"></canvas></div>
+        <div class="divider"></div>
+        <div class="ch-title">קצבה ריאלית vs נומינלית</div>
+        <div class="ch-wrap"><canvas id="chartReal"></canvas></div>
+        <div class="divider"></div>
+        <div class="ch-title">השוואת 3 אסטרטגיות — סך תקבולים מצטבר</div>
+        <div class="ch-wrap"><canvas id="chartComp"></canvas></div>
+      </div>
+
+      <div class="mod" style="box-shadow:none;border:1px solid var(--border)">
+        <div class="col-hdr" onclick="toggleCol(this)" role="button" tabindex="0" aria-expanded="false"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleCol(this)}">
+          <div class="mod-title" style="margin-bottom:0">📋 פירוט שנתי</div>
+          <span class="arr">▼</span>
+        </div>
+        <div class="col-body" style="display:none">
+          <div class="ann-wrap">
+            <table class="ann">
+              <thead><tr>
+                <th>שנה</th><th>גיל</th><th>קצבה ברוטו</th><th>מס</th>
+                <th>קצבה נטו</th><th>קצבה ריאלית</th><th>יתרה בקרן</th><th>תשואה שנתית</th>
+              </tr></thead>
+              <tbody id="annBody"><tr><td colspan="8" style="text-align:center;color:var(--text3)">מחשב...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /col-body -->
   </div>
 
   <div class="cta">
@@ -839,6 +889,9 @@ function setAnnuity(t){
   $('btnLifetime').classList.toggle('on',t==='lifetime');
   $('btnFixed').classList.toggle('on',t==='fixed');
   $('btnPortfolio').classList.toggle('on',t==='portfolio');
+  $('btnLifetime').setAttribute('aria-pressed',t==='lifetime');
+  $('btnFixed').setAttribute('aria-pressed',t==='fixed');
+  $('btnPortfolio').setAttribute('aria-pressed',t==='portfolio');
   $('fFixed').style.display=t==='fixed'?'block':'none';
   $('fPortfolio').style.display=t==='portfolio'?'block':'none';
 }
@@ -849,9 +902,10 @@ function setTaxMode(m){
   $('flatField').style.display=m==='flat'?'block':'none';
 }
 function toggleCol(hdr){
-  hdr.classList.toggle('open');
+  var isOpen=hdr.classList.toggle('open');
   var body=hdr.nextElementSibling;
   body.style.display=body.style.display==='none'?'block':'none';
+  hdr.setAttribute('aria-expanded',isOpen?'true':'false');
 }
 function toggleFloat(){$('floatPanel').classList.toggle('open')}
 
@@ -860,6 +914,15 @@ function updateLtYears(){
   var life=parseFloat($('lifeExpectancy').value)||87;
   setEl('ltYears',Math.max(1,life-age));
   setEl('ltRange',age+'–'+life);
+}
+
+// גיל בתחילת קצבה - ברירת מחדל = גיל נוכחי, עד שהמשתמש נוגע בשדה בעצמו
+let fixedStartAgeTouched=false;
+function syncFixedStartAge(){
+  if(fixedStartAgeTouched) return;
+  var age=$('currentAge').value;
+  var f=$('fixedStartAge');
+  if(f) f.value=age;
 }
 
 // ════════════════════════════════
@@ -1106,10 +1169,16 @@ function doCalc(){
 
   if(sim.deplY!==null&&annuityType!=='portfolio'){
     const depAge=Math.round(startAge+sim.deplY);
-    const susGross=findSustainable(principal,annualReturn,calcYears);
-    const susNet=calcNet(susGross,savingYears,creditPoints,flatRate).net;
     $('depAlert').style.display='block';
-    $('depAlert').innerHTML='⚠️ <strong>הכסף ייגמר בגיל '+depAge+'</strong> (בעוד '+sim.deplY+' שנים)<br>שקול להפחית קצבה ל-<strong>'+fmt(susNet)+'/חודש</strong> כדי שהכסף יחזיק לכל התקופה';
+    if(annuityType==='lifetime'){
+      $('depAlert').className='alert gray';
+      $('depAlert').innerHTML='הקצבה מחושבת כך שתלווה אותך עד גיל '+lifeExp+' (תוחלת החיים שהזנת).';
+    }else{
+      const susGross=findSustainable(principal,annualReturn,calcYears);
+      const susNet=calcNet(susGross,savingYears,creditPoints,flatRate).net;
+      $('depAlert').className='alert amber';
+      $('depAlert').innerHTML='⚠️ <strong>הכסף ייגמר בגיל '+depAge+'</strong> (בעוד '+sim.deplY+' שנים)<br>שקול להפחית קצבה ל-<strong>'+fmt(susNet)+'/חודש</strong> כדי שהכסף יחזיק לכל התקופה';
+    }
   }else{$('depAlert').style.display='none'}
 
   if(beMonths>0&&beAge<startAge+calcYears+30&&beAge<120){
@@ -1121,12 +1190,27 @@ function doCalc(){
   }else{$('beBox').style.display='none'}
 
   const balCard=$('rBalCard');
-  balCard.className=sim.finalBal<=0?'rc danger':sim.finalBal>principal*0.3?'rc hi':'rc';
+  balCard.className=sim.finalBal<=0?(annuityType==='lifetime'?'rc':'rc danger'):sim.finalBal>principal*0.3?'rc hi':'rc';
+
+  const isExempt=Math.round(t.netTax)<=0;
+  const taxCard=$('rTaxCard');
+  if(taxCard) taxCard.className=isExempt?'rc hi':'rc';
 
   setEl('rGross',fmt(gross));setEl('rNet',fmt(t.net));setEl('rReal',fmt(realY1));
   setEl('rTotalPayout',fmtM(sim.cumPayout));setEl('rTotalTax',fmtM(sim.cumTax));setEl('rBalance',fmt(sim.finalBal));
   setEl('sb-gross',fmt(gross));setEl('sb-net',fmt(t.net));setEl('sb-real',fmt(realY1));
   setEl('sb-be',beAge>0&&beAge<120?'גיל '+Math.round(beAge):'—');
+  setEl('bigNet',fmt(t.net));setEl('bigGross',fmt(gross));setEl('bigReal',fmt(realY1));
+  const bigTaxEl=$('bigTaxLine');
+  if(bigTaxEl){
+    if(isExempt){
+      bigTaxEl.className='big-tax-line green';
+      bigTaxEl.innerHTML='✓ פטור מלא ממס';
+    }else{
+      bigTaxEl.className='big-tax-line neutral';
+      bigTaxEl.innerHTML='מס חודשי בפועל: '+fmt(t.netTax);
+    }
+  }
   setEl('fp-gross',fmt(gross));setEl('fp-net',fmt(t.net));setEl('fp-real',fmt(realY1));
   setEl('fp-exempt',fmt(t.exempt));setEl('fp-total',fmtM(sim.cumPayout));
   setEl('fp-bal',fmt(sim.finalBal));setEl('fp-be',beAge>0&&beAge<120?'גיל '+Math.round(beAge):'—');
