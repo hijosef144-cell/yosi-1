@@ -205,6 +205,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);direc
 .strip-val{font-family:'Courier New',monospace;font-size:18px;font-weight:600}
 .strip-val.main{font-size:21px;background:rgba(255,255,255,.13);border-radius:8px;padding:4px 8px;display:inline-block}
 .top-strip3{grid-template-columns:repeat(3,1fr)}
+.top-strip2{grid-template-columns:repeat(2,1fr)}
 
 /* RESULT CARDS */
 .rg{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
@@ -640,7 +641,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);direc
 
   <div class="step-card">
     <div class="step-hdr"><div class="step-num">1</div>שלב 1 — היעד שלי</div>
-    <div class="fg2">
+    <div class="fg">
       <div class="fld">
         <label>קצבה חודשית רצויה נטו (₪)</label>
         <input type="text" id="c-target" value="5,000" oninput="fmtLive(this)" onblur="fmtBlur(this)">
@@ -648,6 +649,10 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);direc
       <div class="fld">
         <label>לכמה שנים?</label>
         <input type="number" id="c-years" value="20" min="1" max="50">
+      </div>
+      <div class="fld">
+        <label>כמה כבר חסכת עד היום? (₪, אופציונלי)</label>
+        <input type="text" id="c-existing" value="0" oninput="fmtLive(this)" onblur="fmtBlur(this)">
       </div>
     </div>
   </div>
@@ -825,20 +830,18 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);direc
     <button class="btn-back" onclick="goScreen('c')" style="border-color:#2563eb;color:#2563eb">⚙️ שנה פרמטרים</button>
   </div>
 
-  <div class="top-strip top-strip3">
+  <div class="top-strip top-strip2">
     <div class="strip-item">
-      <div class="strip-lbl">צריך לצבור</div>
+      <div class="strip-lbl">הסכום שאתה צריך שיהיה לך</div>
       <div class="strip-val main" id="c-res-principal">—</div>
-    </div>
-    <div class="strip-item">
-      <div class="strip-lbl">חיסכון חודשי נדרש</div>
-      <div class="strip-val" id="c-res-monthly">—</div>
     </div>
     <div class="strip-item">
       <div class="strip-lbl">קצבה נטו שתקבל</div>
       <div class="strip-val" id="c-res-gets">—</div>
     </div>
   </div>
+
+  <div id="c-saveBox" class="alert blue" style="display:none"></div>
 
   <div class="mod">
     <div class="mod-title">📊 הנחות ופרטים נוספים</div>
@@ -1278,6 +1281,7 @@ function runCalcC(){
   const years=parseFloat($('c-years').value)||20;
   const currentAge=parseFloat($('c-age').value)||40;
   const retireAge=parseFloat($('c-retire').value)||67;
+  const existingSaved=parseRaw('c-existing');
   const savingYears=30,creditPoints=2.25,flatRate=null;
 
   let lo=0,hi=100000000;
@@ -1292,12 +1296,25 @@ function runCalcC(){
   const t=calcNet(gross,savingYears,creditPoints,flatRate);
 
   const savePeriod=Math.max(1,retireAge-currentAge);
+  const fvExisting=existingSaved*Math.pow(1+annualRate/100,savePeriod);
+  const remainingToSave=principal-fvExisting;
   const mr=annualRate/100/12,n=savePeriod*12;
-  const monthlySave=mr>0?principal*mr/(Math.pow(1+mr,n)-1):principal/n;
+  const monthlySave=remainingToSave>0?(mr>0?remainingToSave*mr/(Math.pow(1+mr,n)-1):remainingToSave/n):0;
 
   setEl('c-res-principal',fmtM(principal));
-  setEl('c-res-monthly',fmt(Math.round(monthlySave)));
   setEl('c-res-gets',fmt(Math.round(t.net)));
+
+  const saveBox=$('c-saveBox');
+  saveBox.style.display='block';
+  if(remainingToSave<=0){
+    saveBox.className='alert green';
+    saveBox.innerHTML='✅ <strong>יש לך כבר מספיק!</strong> הסכום שחסכת צפוי להגיע ליעד גם בלי חיסכון נוסף.';
+  }else{
+    saveBox.className='alert blue';
+    saveBox.innerHTML='💡 <strong>אין לך את הסכום הזה עדיין?</strong><br>'+
+      'אפשר לחסוך אותו בהדרגה: <strong>'+fmt(Math.round(monthlySave))+'</strong> לחודש, במשך <strong>'+savePeriod+'</strong> שנים '+
+      '(מגיל <strong>'+currentAge+'</strong> עד גיל <strong>'+retireAge+'</strong>), יביאו אותך ליעד.';
+  }
 
   const rows=[
     ['תקופת חיסכון',savePeriod+' שנים (גיל '+currentAge+'–'+retireAge+')'],
