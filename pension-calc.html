@@ -267,6 +267,7 @@
             <label class="lbl" for="compensationPct">פיצויים לפנסיה (%)</label>
             <input type="number" id="compensationPct" class="ci" min="0" max="20" step="0.1" value="6" oninput="onInput()">
             <div class="hint" id="compensationPctHelper" style="display:none;margin-top:2px"></div>
+            <div id="totalDepositHelper" style="display:none;margin-top:6px;font-weight:600;color:#1e3a8a;font-size:13px"></div>
           </div>
         </div>
       </div>
@@ -1461,10 +1462,36 @@ document.addEventListener('DOMContentLoaded', function(){
     helperEl.textContent = '= ₪' + monthly.toLocaleString('he-IL') + ' לחודש';
     helperEl.style.display = 'block';
   }
+  function calcTotalHelper(){
+    var salaryEl = document.getElementById('grossSalary');
+    var e1 = document.getElementById('employerPct');
+    var e2 = document.getElementById('employeePct');
+    var e3 = document.getElementById('compensationPct');
+    var totalEl = document.getElementById('totalDepositHelper');
+    if(!salaryEl || !e1 || !e2 || !e3 || !totalEl) return;
+    var salary = parseFloat(salaryEl.value);
+    var pct1 = parseFloat(e1.value);
+    var pct2 = parseFloat(e2.value);
+    var pct3 = parseFloat(e3.value);
+    if(!salary || salary<=0 || isNaN(pct1) || isNaN(pct2) || isNaN(pct3)){
+      totalEl.style.display = 'none';
+      totalEl.textContent = '';
+      return;
+    }
+    var m1 = Math.round(salary * pct1 / 100);
+    var m2 = Math.round(salary * pct2 / 100);
+    var m3 = Math.round(salary * pct3 / 100);
+    var totalMonthly = m1 + m2 + m3;
+    var totalPct = Math.round((pct1 + pct2 + pct3) * 10) / 10;
+    var totalPctStr = (totalPct % 1 === 0) ? totalPct.toFixed(0) : totalPct.toFixed(1);
+    totalEl.textContent = 'סה"כ הפקדה חודשית לפנסיה: ₪' + totalMonthly.toLocaleString('he-IL') + ' לחודש (' + totalPctStr + '% מהשכר)';
+    totalEl.style.display = 'block';
+  }
   window.updatePctHelpers = function(){
     calcPctHelper('employerPct', 'employerPctHelper');
     calcPctHelper('employeePct', 'employeePctHelper');
     calcPctHelper('compensationPct', 'compensationPctHelper');
+    calcTotalHelper();
   };
   function wire(){
     ['grossSalary','employerPct','employeePct','compensationPct'].forEach(function(id){
