@@ -1371,14 +1371,16 @@ function setMortMode(m){
 
 // ── FORMAT LIVE (while typing) ──
 function fmtLive(el){
-  const pos=el.selectionStart;
-  const raw=el.value.replace(/[^0-9]/g,'');
+  const before=el.value;
+  const distFromEnd=before.length-el.selectionStart;
+  const raw=before.replace(/[^0-9]/g,'');
   if(!raw){el.value='';return;}
   const num=parseInt(raw,10);
   const formatted=num.toLocaleString('he-IL');
   el.value=formatted;
-  // restore cursor roughly
-  try{const diff=formatted.length-el.value.length; el.setSelectionRange(pos+diff,pos+diff);}catch(e){}
+  // restore cursor at the same distance from the end as before formatting
+  const newPos=Math.max(0,formatted.length-distFromEnd);
+  try{el.setSelectionRange(newPos,newPos);}catch(e){}
 }
 
 function fmtBlur(el){
