@@ -256,14 +256,17 @@
           <div>
             <label class="lbl" for="employerPct">הפקדת מעסיק לפנסיה (%)</label>
             <input type="number" id="employerPct" class="ci" min="0" max="20" step="0.1" value="6.5" oninput="onInput()">
+            <div class="hint" id="employerPctHelper" style="display:none;margin-top:2px"></div>
           </div>
           <div>
             <label class="lbl" for="employeePct">הפקדת עובד לפנסיה (%)</label>
             <input type="number" id="employeePct" class="ci" min="0" max="20" step="0.1" value="6" oninput="onInput()">
+            <div class="hint" id="employeePctHelper" style="display:none;margin-top:2px"></div>
           </div>
           <div class="sm:col-span-2">
             <label class="lbl" for="compensationPct">פיצויים לפנסיה (%)</label>
             <input type="number" id="compensationPct" class="ci" min="0" max="20" step="0.1" value="6" oninput="onInput()">
+            <div class="hint" id="compensationPctHelper" style="display:none;margin-top:2px"></div>
           </div>
         </div>
       </div>
@@ -1437,6 +1440,45 @@ document.addEventListener('DOMContentLoaded', function(){
     trackEvent('calculator_time_spent', { seconds: Math.round((Date.now()-startTime)/1000), calculator_name: window.CALCULATOR_NAME });
   });
 });
+</script>
+
+<!-- Step 2 (שכיר) — תצוגת עזר: ערך שקלי חי ליד שדות האחוזים -->
+<script>
+(function(){
+  function calcPctHelper(pctId, helperId){
+    var salaryEl = document.getElementById('grossSalary');
+    var pctEl = document.getElementById(pctId);
+    var helperEl = document.getElementById(helperId);
+    if(!salaryEl || !pctEl || !helperEl) return;
+    var salary = parseFloat(salaryEl.value);
+    var pct = parseFloat(pctEl.value);
+    if(!salary || salary<=0 || isNaN(pct)){
+      helperEl.style.display = 'none';
+      helperEl.textContent = '';
+      return;
+    }
+    var monthly = Math.round(salary * pct / 100);
+    helperEl.textContent = '= ₪' + monthly.toLocaleString('he-IL') + ' לחודש';
+    helperEl.style.display = 'block';
+  }
+  window.updatePctHelpers = function(){
+    calcPctHelper('employerPct', 'employerPctHelper');
+    calcPctHelper('employeePct', 'employeePctHelper');
+    calcPctHelper('compensationPct', 'compensationPctHelper');
+  };
+  function wire(){
+    ['grossSalary','employerPct','employeePct','compensationPct'].forEach(function(id){
+      var el = document.getElementById(id);
+      if(el) el.addEventListener('input', window.updatePctHelpers);
+    });
+    window.updatePctHelpers();
+  }
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', wire);
+  }else{
+    wire();
+  }
+})();
 </script>
 
 </body>
