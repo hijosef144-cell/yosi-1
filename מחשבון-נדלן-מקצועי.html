@@ -129,6 +129,7 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:1
 .mod-hdr{padding:15px 20px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;border-bottom:1px solid var(--border);background:#ffffff}
 .mod-hdr:hover{background:#f8f9fa}
 .mod-icon-wrap{display:flex;align-items:center;gap:12px}
+.step-num{width:26px;height:26px;border-radius:50%;background:#1e3a5f;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
 .mod-icon{width:32px;height:32px;border-radius:9px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;color:#1e3a5f}
 .mod-title{font-size:15px;font-weight:600;letter-spacing:.2px;color:#1e3a5f}
 .mod-sub{font-size:12px;color:var(--text3);margin-top:1px}
@@ -402,11 +403,12 @@ tbody tr.pre-delivery td{background:rgba(245,158,11,.07)!important}
 <div class="main">
 
 <!-- ═══════════ MODULE 2: DEAL ═══════════ -->
-<div class="mod" id="mod1">
+<div class="mod full" id="mod1">
   <div class="mod-hdr" onclick="toggleMod('mod1')">
     <div class="mod-icon-wrap">
+      <div class="step-num">1</div>
       <div class="mod-icon" style="background:rgba(79,142,247,.15)">🏠</div>
-      <div><div class="mod-title" data-he="נתוני העסקה" data-en="Deal Parameters">נתוני העסקה</div><div class="mod-sub" data-he="פרטי הנכס, משכנתא ועלויות רכישה" data-en="Property, mortgage and purchase costs">פרטי הנכס, משכנתא ועלויות רכישה</div></div>
+      <div><div class="mod-title" data-he="שלב 1 — פרטי הנכס והעסקה" data-en="Step 1 — Property and Deal Details">שלב 1 — פרטי הנכס והעסקה</div><div class="mod-sub" data-he="מחיר, בעלות, סוג נכס ותקופת אחזקה" data-en="Price, ownership, property type and holding period">מחיר, בעלות, סוג נכס ותקופת אחזקה</div></div>
     </div>
     <div class="mod-chev open" id="mod1-chev">▾</div>
   </div>
@@ -804,7 +806,20 @@ tbody tr.pre-delivery td{background:rgba(245,158,11,.07)!important}
 
       </div>
     </div>
+  </div>
+</div>
 
+<!-- ═══════════ MODULE: FINANCING & PURCHASE COSTS ═══════════ -->
+<div class="mod full" id="modFinance">
+  <div class="mod-hdr" onclick="toggleMod('modFinance')">
+    <div class="mod-icon-wrap">
+      <div class="step-num">2</div>
+      <div class="mod-icon" style="background:rgba(79,142,247,.15)">🏦</div>
+      <div><div class="mod-title" data-he="שלב 2 — מימון ועלויות רכישה" data-en="Step 2 — Financing and Purchase Costs">שלב 2 — מימון ועלויות רכישה</div><div class="mod-sub" data-he="משכנתא ועלויות הרכישה" data-en="Mortgage and purchase costs">משכנתא ועלויות הרכישה</div></div>
+    </div>
+    <div class="mod-chev open" id="modFinance-chev">▾</div>
+  </div>
+  <div class="mod-body">
         <div class="sect-label full" data-he="משכנתא" data-en="Mortgage">משכנתא</div>
 
     <div class="fld full">
@@ -963,11 +978,12 @@ tbody tr.pre-delivery td{background:rgba(245,158,11,.07)!important}
 </div>
 
 <!-- ═══════════ MODULE 1: EQUITY CHECK ═══════════ -->
-<div class="mod" id="mod0">
+<div class="mod full" id="mod0">
   <div class="mod-hdr" onclick="toggleMod('mod0')">
     <div class="mod-icon-wrap">
+      <div class="step-num">3</div>
       <div class="mod-icon" style="background:rgba(245,158,11,.15)">💼</div>
-      <div><div class="mod-title" data-he="בדיקת הון עצמי" data-en="Equity Check">בדיקת הון עצמי</div><div class="mod-sub" data-he="כמה הון עצמי יש לך ואיפה חסר?" data-en="How much equity do you have and what's missing?">כמה הון עצמי יש לך ואיפה חסר?</div></div>
+      <div><div class="mod-title" data-he="שלב 3 — בדיקת הון עצמי" data-en="Step 3 — Equity Check">שלב 3 — בדיקת הון עצמי</div><div class="mod-sub" data-he="כמה הון עצמי יש לך ואיפה חסר?" data-en="How much equity do you have and what's missing?">כמה הון עצמי יש לך ואיפה חסר?</div></div>
     </div>
     <div class="mod-chev open" id="mod0-chev">▾</div>
   </div>
@@ -1017,11 +1033,12 @@ tbody tr.pre-delivery td{background:rgba(245,158,11,.07)!important}
 </div>
 
 <!-- ═══════════ MODULE 3: CASH FLOW ═══════════ -->
-<div class="mod" id="mod2">
+<div class="mod full" id="mod2">
   <div class="mod-hdr" onclick="toggleMod('mod2')">
     <div class="mod-icon-wrap">
+      <div class="step-num">4</div>
       <div class="mod-icon" style="background:rgba(34,197,94,.15)">💸</div>
-      <div><div class="mod-title" data-he="תזרים שנתי" data-en="Annual Cash Flow">תזרים שנתי</div><div class="mod-sub" data-he="שכירות, הוצאות שוטפות ומיסוי" data-en="Rent, operating expenses and tax">שכירות, הוצאות שוטפות ומיסוי</div></div>
+      <div><div class="mod-title" data-he="שלב 4 — הכנסות והוצאות שכירות שוטפות" data-en="Step 4 — Rental Income and Expenses">שלב 4 — הכנסות והוצאות שכירות שוטפות</div><div class="mod-sub" data-he="שכירות, הוצאות שוטפות ומיסוי" data-en="Rent, operating expenses and tax">שכירות, הוצאות שוטפות ומיסוי</div></div>
     </div>
     <div class="mod-chev open" id="mod2-chev">▾</div>
   </div>
@@ -1067,11 +1084,12 @@ tbody tr.pre-delivery td{background:rgba(245,158,11,.07)!important}
 </div>
 
 <!-- ═══════════ MODULE 4: EXIT ═══════════ -->
-<div class="mod" id="mod3">
+<div class="mod full" id="mod3">
   <div class="mod-hdr" onclick="toggleMod('mod3')">
     <div class="mod-icon-wrap">
+      <div class="step-num">5</div>
       <div class="mod-icon" style="background:rgba(239,68,68,.15)">🚪</div>
-      <div><div class="mod-title" data-he="ניתוח יציאה ומס שבח" data-en="Exit Analysis & Capital Gains">ניתוח יציאה ומס שבח</div><div class="mod-sub" data-he="ערך עתידי, עלויות מכירה ומיסוי" data-en="Future value, sale costs and taxation">ערך עתידי, עלויות מכירה ומיסוי</div></div>
+      <div><div class="mod-title" data-he="שלב 5 — הנחות למכירה עתידית" data-en="Step 5 — Exit Assumptions">שלב 5 — הנחות למכירה עתידית</div><div class="mod-sub" data-he="ערך עתידי, עלויות מכירה, מיסוי והשוואה לשוק ההון" data-en="Future value, sale costs, taxation and stock market comparison">ערך עתידי, עלויות מכירה, מיסוי והשוואה לשוק ההון</div></div>
     </div>
     <div class="mod-chev open" id="mod3-chev">▾</div>
   </div>
@@ -1122,6 +1140,12 @@ tbody tr.pre-delivery td{background:rgba(245,158,11,.07)!important}
       <input type="number" id="cpiSale" value="130" oninput="calc()">
     </div>
 
+    <div class="sect-label full" data-he="השוואה לשוק ההון" data-en="Stock Market Comparison">השוואה לשוק ההון</div>
+    <div class="fld" style="max-width:280px">
+      <label><span data-he="תשואת שוק הון (השוואה)" data-en="Stock Market Return %">תשואת שוק ההון להשוואה</span></label>
+      <div class="inp-wrap"><input type="number" id="stockReturn" value="7" step="0.1" oninput="calc()"><span class="sym l">%</span></div>
+    </div>
+
     <div class="stat-strip">
       <div class="stat-item"><div class="stat-lbl" data-he="ערך עתידי" data-en="Future Value">ערך עתידי</div><div class="stat-val a" id="dFutureVal">—</div></div>
       <div class="stat-item"><div class="stat-lbl" data-he="רווח גולמי" data-en="Gross Profit">רווח גולמי</div><div class="stat-val g" id="dGrossProfit">—</div></div>
@@ -1129,6 +1153,11 @@ tbody tr.pre-delivery td{background:rgba(245,158,11,.07)!important}
       <div class="stat-item"><div class="stat-lbl" data-he="הון זמין אחרי מכירה" data-en="Net Equity After Sale">הון זמין</div><div class="stat-val g" id="dNetEquity">—</div></div>
     </div>
   </div>
+</div>
+
+<!-- ═══════════ RESULTS DIVIDER ═══════════ -->
+<div class="full" style="margin-top:6px;padding-top:26px;border-top:2px solid var(--border);display:flex;align-items:center;gap:8px">
+  <span style="font-size:18px;font-weight:700;color:#1e3a5f" data-he="📊 התוצאות שלך" data-en="📊 Your Results">📊 התוצאות שלך</span>
 </div>
 
 <!-- ═══════════ MODULE 5: METRICS ═══════════ -->
@@ -1164,11 +1193,7 @@ tbody tr.pre-delivery td{background:rgba(245,158,11,.07)!important}
       </div>
     </div>
 
-    <!-- COMPARISON -->
-    <div class="fld" style="max-width:280px">
-      <label><span data-he="תשואת שוק הון (השוואה)" data-en="Stock Market Return %">תשואת שוק ההון להשוואה</span></label>
-      <div class="inp-wrap"><input type="number" id="stockReturn" value="7" step="0.1" oninput="calc()"><span class="sym l">%</span></div>
-    </div>
+    <!-- COMPARISON (מקדם ה-stockReturn עצמו הוזז לשלב 5 — "הנחות למכירה עתידית" -->
     <div class="comp-grid">
       <div class="ccard" id="ccRE">
         <div class="ctitle" data-he="🏠 נדל״ן — הון נזיל מצטבר" data-en="🏠 Real Estate — Net Liquid Capital">🏠 נדל״ן — הון נזיל מצטבר</div>
