@@ -1265,6 +1265,7 @@ tbody tr.pre-delivery td{background:rgba(245,158,11,.07)!important}
 let isHe=true, mortMode='pct';
 let loans=[{id:1,amt:'',rate:7,years:5}];
 let loanCounter=1;
+let loansRenderedSig=null;
 let purchaseMode='resale';
 let payStages=[
   {name:'חתימה על חוזה',pct:10},
@@ -1310,6 +1311,7 @@ function renderLoans(){
     `;
     c.appendChild(div);
   });
+  loansRenderedSig=loans.map(l=>l.id).join(',');
 }
 let cfCI=null, eqCI=null, debT=null;
 
@@ -1903,8 +1905,9 @@ function doCalc(){
   } else {
     equityAlert.innerHTML=`<div class="alert danger"><div class="alert-icon">⚠️</div><div class="alert-body"><strong>${isHe?'חסר הון עצמי!':'Equity Gap!'}</strong> ${isHe?'נדרש: ':'Required: '}${fmt(totalInvested)} | ${isHe?'יש לך: ':'You have: '}${fmt(avail)} | ${isHe?'גירעון: ':'Gap: '}${fmt(gap)}</div></div>`;
     loanSec.style.display='';
-    // multi-loan calc
-    renderLoans();
+    // multi-loan calc — only rebuild the loan inputs' DOM when the loan list itself changed
+    // (added/removed/language toggle); a plain recalc while typing must not blow away focus
+    if(loans.map(l=>l.id).join(',')!==loansRenderedSig) renderLoans();
     let totalSuppMonthly=0, totalSuppInterest=0, totalSuppAmt=0;
     let remainingGap=gap;
     loans.forEach((loan,idx)=>{
