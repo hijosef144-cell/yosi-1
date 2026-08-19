@@ -581,6 +581,25 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);direc
     </div>
   </div>
 
+  <div class="step-card">
+    <button class="adv-btn" type="button" id="advBtnB" onclick="toggleAdvB()">
+      ⚙️ הגדרות מתקדמות
+      <span id="advArrowB" style="font-size:11px">▼</span>
+    </button>
+    <div class="adv-body" id="advBodyB">
+      <div class="fg2">
+        <div class="fld">
+          <label>דמי ניהול שנתיים (%)</label>
+          <input type="number" id="b-mgmt-fee" value="1" step="0.1" min="0" max="10" oninput="calcB()">
+        </div>
+        <div class="fld">
+          <label>מס רווח הון על התשואה (%)</label>
+          <input type="number" id="b-cap-gains-tax" value="25" step="0.1" min="0" max="50" oninput="calcB()">
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="bResultBox" class="b-result-box">
     <div style="font-size:14px;opacity:.8">הכסף יחזיק:</div>
     <div class="b-dur" id="b-dur">—</div>
@@ -1053,6 +1072,12 @@ function buildBTable(principal,annualRate,monthly,age){
 // ════════════════════════════════
 // SCREEN B — duration
 // ════════════════════════════════
+function toggleAdvB(){
+  var body=$('advBodyB'),isOpen=body.classList.contains('open');
+  body.classList.toggle('open',!isOpen);
+  $('advArrowB').textContent=isOpen?'▼':'▲';
+}
+
 function calcDuration(principal,annualRate,monthly){
   if(monthly<=0)return Infinity;
   const r=annualRate/100/12;
@@ -1069,9 +1094,15 @@ function calcB(){
   const age=parseFloat($('b-age').value)||67;
   if(!principal||!monthly)return;
 
+  const mgmtFeeRaw=parseFloat($('b-mgmt-fee').value);
+  const mgmtFee=isNaN(mgmtFeeRaw)?1:mgmtFeeRaw;
+  const capGainsTaxRaw=parseFloat($('b-cap-gains-tax').value);
+  const capGainsTax=isNaN(capGainsTaxRaw)?25:capGainsTaxRaw;
+  const netRate=(annualRate-mgmtFee)*(1-capGainsTax/100);
+
   const box=$('bResultBox');
   box.classList.add('show');
-  const months=calcDuration(principal,annualRate,monthly);
+  const months=calcDuration(principal,netRate,monthly);
   const warn=$('b-warn'),inf=$('b-inf');
 
   if(!isFinite(months)){
@@ -1102,7 +1133,7 @@ function calcB(){
   inf.style.display='none';
 
   // build annual table
-  buildBTable(principal,annualRate,monthly,age);
+  buildBTable(principal,netRate,monthly,age);
   $('bTableSection').classList.add('show');
   // collapse table on recalc so user sees fresh toggle
   $('bTblCollapse').classList.remove('open');
