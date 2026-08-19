@@ -100,7 +100,7 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:1
 .sval.g{color:#86efac}.sval.r{color:#fca5a5}.sval.a{color:#93c5fd}
 
 /* ── MAIN ── */
-.main{max-width:1280px;margin:0 auto;padding:28px;display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.main{max-width:1280px;margin:0 auto;padding:28px;display:grid;grid-template-columns:1fr 340px;gap:18px;align-items:start}
 @media(max-width:860px){.main{grid-template-columns:1fr;padding:16px}}
 /* 3-partner compact cards */
 #partnerCCard,#partnerCFinCard{font-size:95%}
@@ -140,6 +140,40 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:1
 .mod-body.three{grid-template-columns:1fr 1fr 1fr}
 .collapsed .mod-body{display:none}
 .collapsed .mod-chev{transform:none!important}
+
+/* ── WIZARD ACCORDION (step summary / status / sub-badge) ── */
+.step-status{font-size:13px;font-weight:700;width:16px;text-align:center;flex-shrink:0}
+.step-status.done{color:#16a34a}
+.step-status.pending{color:transparent}
+.step-num.sub{width:auto;min-width:22px;height:22px;padding:0 7px;border-radius:11px;font-size:10px;background:#78350f}
+.step-summary{display:none;padding:11px 20px;font-size:12px;color:var(--text3);background:#fafbfc;border-bottom:1px solid var(--border)}
+.collapsed .step-summary{display:block}
+
+/* ── WIZARD COLUMN + STICKY RESULTS SIDEBAR ── */
+.wizard-col{display:flex;flex-direction:column;gap:18px;min-width:0}
+.results-sidebar{min-width:0}
+.sticky-results{position:sticky;top:84px;background:#ffffff;border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 4px 20px rgba(0,0,0,.08);padding:18px}
+.sr-title{font-size:13px;font-weight:700;color:#1e3a5f;margin-bottom:12px}
+.sr-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.sr-item{background:#f8f9fa;border:1px solid var(--border);border-radius:8px;padding:10px 12px}
+.sr-lbl{font-size:10px;color:var(--text3);margin-bottom:3px}
+.sr-val{font-family:var(--mono);font-size:15px;font-weight:700;color:#1e3a5f}
+.sr-cta{width:100%;background:#1e3a5f;color:#fff;border:none;border-radius:8px;padding:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--sans)}
+.sr-cta:hover{background:#152d4a}
+
+/* ── FULL RESULTS COLLAPSE ── */
+.results-toggle-hdr{cursor:pointer;user-select:none}
+.results-toggle-hdr:hover{opacity:.85}
+
+@media(max-width:860px){
+  .results-sidebar{order:-1;position:static}
+  .sticky-results{position:static}
+  .sr-title{display:none}
+  .sr-grid{grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px}
+  .sr-item{padding:6px 4px;text-align:center}
+  .sr-lbl{font-size:8px}
+  .sr-val{font-size:11px}
+}
 
 /* ── FIELD ── */
 .fld{display:flex;flex-direction:column;gap:7px}
@@ -402,16 +436,20 @@ tbody tr.pre-delivery td{background:rgba(245,158,11,.07)!important}
 
 <div class="main">
 
+<div class="wizard-col">
+
 <!-- ═══════════ MODULE 2: DEAL ═══════════ -->
 <div class="mod full" id="mod1">
-  <div class="mod-hdr" onclick="toggleMod('mod1')">
+  <div class="mod-hdr" onclick="toggleWizardStep('mod1')">
     <div class="mod-icon-wrap">
       <div class="step-num">1</div>
+      <span class="step-status pending" id="step1Status"></span>
       <div class="mod-icon" style="background:rgba(79,142,247,.15)">🏠</div>
       <div><div class="mod-title" data-he="שלב 1 — פרטי הנכס והעסקה" data-en="Step 1 — Property and Deal Details">שלב 1 — פרטי הנכס והעסקה</div><div class="mod-sub" data-he="מחיר, בעלות, סוג נכס ותקופת אחזקה" data-en="Price, ownership, property type and holding period">מחיר, בעלות, סוג נכס ותקופת אחזקה</div></div>
     </div>
     <div class="mod-chev open" id="mod1-chev">▾</div>
   </div>
+  <div class="step-summary" id="step1Summary"></div>
   <div class="mod-body">
     <div class="fld">
       <label><span data-he="מחיר רכישה" data-en="Purchase Price">מחיר רכישה</span></label>
@@ -810,15 +848,17 @@ tbody tr.pre-delivery td{background:rgba(245,158,11,.07)!important}
 </div>
 
 <!-- ═══════════ MODULE: FINANCING & PURCHASE COSTS ═══════════ -->
-<div class="mod full" id="modFinance">
-  <div class="mod-hdr" onclick="toggleMod('modFinance')">
+<div class="mod full collapsed" id="modFinance">
+  <div class="mod-hdr" onclick="toggleWizardStep('modFinance')">
     <div class="mod-icon-wrap">
       <div class="step-num">2</div>
+      <span class="step-status pending" id="step2Status"></span>
       <div class="mod-icon" style="background:rgba(79,142,247,.15)">🏦</div>
       <div><div class="mod-title" data-he="שלב 2 — מימון ועלויות רכישה" data-en="Step 2 — Financing and Purchase Costs">שלב 2 — מימון ועלויות רכישה</div><div class="mod-sub" data-he="משכנתא ועלויות הרכישה" data-en="Mortgage and purchase costs">משכנתא ועלויות הרכישה</div></div>
     </div>
-    <div class="mod-chev open" id="modFinance-chev">▾</div>
+    <div class="mod-chev" id="modFinance-chev">▾</div>
   </div>
+  <div class="step-summary" id="step2Summary"></div>
   <div class="mod-body">
         <div class="sect-label full" data-he="משכנתא" data-en="Mortgage">משכנתא</div>
 
@@ -948,17 +988,19 @@ tbody tr.pre-delivery td{background:rgba(245,158,11,.07)!important}
 </div>
 
 <!-- ═══════════ MODULE: CONTRACTOR PAYMENT SCHEDULE ═══════════ -->
-<div class="mod full" id="modContractor" style="display:none">
-  <div class="mod-hdr" onclick="toggleMod('modContractor')">
+<div class="mod full collapsed" id="modContractor" style="display:none">
+  <div class="mod-hdr" onclick="toggleWizardStep('modContractor')">
     <div class="mod-icon-wrap">
+      <div class="step-num sub" data-he="2ב׳" data-en="2b">2ב׳</div>
       <div class="mod-icon" style="background:rgba(245,158,11,.15)">🏗️</div>
       <div>
         <div class="mod-title" data-he="לוח תשלומים לקבלן" data-en="Contractor Payment Schedule">לוח תשלומים לקבלן</div>
         <div class="mod-sub" data-he="שלבי תשלום ועלות מימון לתקופת הבנייה" data-en="Payment stages and construction financing cost">שלבי תשלום ועלות מימון לתקופת הבנייה</div>
       </div>
     </div>
-    <div class="mod-chev open" id="modContractor-chev">▾</div>
+    <div class="mod-chev" id="modContractor-chev">▾</div>
   </div>
+  <div class="step-summary" id="stepContractorSummary"></div>
   <div class="mod-body one">
     <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:16px;margin-bottom:16px">
       <div class="sect-label" style="margin-bottom:12px" data-he="שלבי תשלום" data-en="Payment Stages">שלבי תשלום</div>
@@ -978,15 +1020,17 @@ tbody tr.pre-delivery td{background:rgba(245,158,11,.07)!important}
 </div>
 
 <!-- ═══════════ MODULE 1: EQUITY CHECK ═══════════ -->
-<div class="mod full" id="mod0">
-  <div class="mod-hdr" onclick="toggleMod('mod0')">
+<div class="mod full collapsed" id="mod0">
+  <div class="mod-hdr" onclick="toggleWizardStep('mod0')">
     <div class="mod-icon-wrap">
       <div class="step-num">3</div>
+      <span class="step-status pending" id="step3Status"></span>
       <div class="mod-icon" style="background:rgba(245,158,11,.15)">💼</div>
       <div><div class="mod-title" data-he="שלב 3 — בדיקת הון עצמי" data-en="Step 3 — Equity Check">שלב 3 — בדיקת הון עצמי</div><div class="mod-sub" data-he="כמה הון עצמי יש לך ואיפה חסר?" data-en="How much equity do you have and what's missing?">כמה הון עצמי יש לך ואיפה חסר?</div></div>
     </div>
-    <div class="mod-chev open" id="mod0-chev">▾</div>
+    <div class="mod-chev" id="mod0-chev">▾</div>
   </div>
+  <div class="step-summary" id="step3Summary"></div>
   <div class="mod-body">
     <div class="fld">
       <label><span data-he="הון עצמי זמין" data-en="Available Equity">הון עצמי זמין</span> <span class="tip-icon" data-tip="סך הכסף שיש לך להשקעה — מזומן, חיסכון, ניירות ערך">?</span></label>
@@ -1033,15 +1077,17 @@ tbody tr.pre-delivery td{background:rgba(245,158,11,.07)!important}
 </div>
 
 <!-- ═══════════ MODULE 3: CASH FLOW ═══════════ -->
-<div class="mod full" id="mod2">
-  <div class="mod-hdr" onclick="toggleMod('mod2')">
+<div class="mod full collapsed" id="mod2">
+  <div class="mod-hdr" onclick="toggleWizardStep('mod2')">
     <div class="mod-icon-wrap">
       <div class="step-num">4</div>
+      <span class="step-status pending" id="step4Status"></span>
       <div class="mod-icon" style="background:rgba(34,197,94,.15)">💸</div>
       <div><div class="mod-title" data-he="שלב 4 — הכנסות והוצאות שכירות שוטפות" data-en="Step 4 — Rental Income and Expenses">שלב 4 — הכנסות והוצאות שכירות שוטפות</div><div class="mod-sub" data-he="שכירות, הוצאות שוטפות ומיסוי" data-en="Rent, operating expenses and tax">שכירות, הוצאות שוטפות ומיסוי</div></div>
     </div>
-    <div class="mod-chev open" id="mod2-chev">▾</div>
+    <div class="mod-chev" id="mod2-chev">▾</div>
   </div>
+  <div class="step-summary" id="step4Summary"></div>
   <div class="mod-body">
     <div class="fld">
       <label><span data-he="שכירות" data-en="Rent">שכירות</span> <span style="font-size:10px;background:var(--bg4);border-radius:4px;padding:1px 6px;color:var(--accent)">חודשי</span></label>
@@ -1084,15 +1130,17 @@ tbody tr.pre-delivery td{background:rgba(245,158,11,.07)!important}
 </div>
 
 <!-- ═══════════ MODULE 4: EXIT ═══════════ -->
-<div class="mod full" id="mod3">
-  <div class="mod-hdr" onclick="toggleMod('mod3')">
+<div class="mod full collapsed" id="mod3">
+  <div class="mod-hdr" onclick="toggleWizardStep('mod3')">
     <div class="mod-icon-wrap">
       <div class="step-num">5</div>
+      <span class="step-status pending" id="step5Status"></span>
       <div class="mod-icon" style="background:rgba(239,68,68,.15)">🚪</div>
       <div><div class="mod-title" data-he="שלב 5 — הנחות למכירה עתידית" data-en="Step 5 — Exit Assumptions">שלב 5 — הנחות למכירה עתידית</div><div class="mod-sub" data-he="ערך עתידי, עלויות מכירה, מיסוי והשוואה לשוק ההון" data-en="Future value, sale costs, taxation and stock market comparison">ערך עתידי, עלויות מכירה, מיסוי והשוואה לשוק ההון</div></div>
     </div>
-    <div class="mod-chev open" id="mod3-chev">▾</div>
+    <div class="mod-chev" id="mod3-chev">▾</div>
   </div>
+  <div class="step-summary" id="step5Summary"></div>
   <div class="mod-body">
     <div class="fld">
       <label><span data-he="עליית ערך שנתית" data-en="Annual Appreciation">עליית ערך שנתית</span></label>
@@ -1155,10 +1203,47 @@ tbody tr.pre-delivery td{background:rgba(245,158,11,.07)!important}
   </div>
 </div>
 
-<!-- ═══════════ RESULTS DIVIDER ═══════════ -->
-<div class="full" style="margin-top:6px;padding-top:26px;border-top:2px solid var(--border);display:flex;align-items:center;gap:8px">
-  <span style="font-size:18px;font-weight:700;color:#1e3a5f" data-he="📊 התוצאות שלך" data-en="📊 Your Results">📊 התוצאות שלך</span>
+</div><!-- /wizard-col -->
+
+<!-- ═══════════ STICKY RESULTS SIDEBAR ═══════════ -->
+<div class="results-sidebar">
+  <div class="sticky-results" id="stickyResults">
+    <div class="sr-title" data-he="📊 סיכום חי" data-en="📊 Live Summary">📊 סיכום חי</div>
+    <div class="sr-grid">
+      <div class="sr-item">
+        <div class="sr-lbl" data-he="מצב הון עצמי" data-en="Equity Status">מצב הון עצמי</div>
+        <div class="sr-val" id="sr-equity">—</div>
+      </div>
+      <div class="sr-item">
+        <div class="sr-lbl" data-he="החזר חודשי" data-en="Monthly Payment">החזר חודשי</div>
+        <div class="sr-val" id="sr-monthly">—</div>
+      </div>
+      <div class="sr-item">
+        <div class="sr-lbl" data-he="תשואה נטו" data-en="Net Yield">תשואה נטו</div>
+        <div class="sr-val" id="sr-yield">—</div>
+      </div>
+      <div class="sr-item">
+        <div class="sr-lbl" data-he="ROI כולל" data-en="Total ROI">ROI כולל</div>
+        <div class="sr-val" id="sr-roi">—</div>
+      </div>
+    </div>
+    <button type="button" class="sr-cta" onclick="openFullResults()" data-he="לתוצאות המלאות ⌄" data-en="Full results ⌄">לתוצאות המלאות ⌄</button>
+  </div>
 </div>
+
+<!-- ═══════════ RESULTS DIVIDER (also the collapse toggle) ═══════════ -->
+<div class="full results-toggle-hdr" id="fullResultsToggle" onclick="toggleFullResults()"
+     role="button" tabindex="0" aria-expanded="false" aria-controls="fullResultsBody"
+     onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleFullResults()}"
+     style="margin-top:6px;padding-top:26px;border-top:2px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px">
+  <span style="font-size:18px;font-weight:700;color:#1e3a5f" data-he="📊 התוצאות שלך" data-en="📊 Your Results">📊 התוצאות שלך</span>
+  <span style="font-size:13px;font-weight:600;color:#1e3a5f;display:flex;align-items:center;gap:4px">
+    <span data-he="לתוצאות המלאות" data-en="Full results">לתוצאות המלאות</span>
+    <span id="fullResultsChev" style="display:inline-block;transition:transform .3s">⌄</span>
+  </span>
+</div>
+
+<div class="full" id="fullResultsBody" style="display:none">
 
 <!-- ═══════════ MODULE 5: METRICS ═══════════ -->
 <div class="mod full" id="mod4">
@@ -1250,6 +1335,8 @@ tbody tr.pre-delivery td{background:rgba(245,158,11,.07)!important}
   </div>
 </div>
 
+</div><!-- /fullResultsBody -->
+
   <!-- BACK TO SITE -->
   <div class="full" style="text-align:center;padding:28px 0 12px">
     <a href="index.html"
@@ -1324,6 +1411,8 @@ function toggleLang(){
   document.querySelectorAll('[data-he]').forEach(el=>{el.textContent=isHe?el.dataset.he:el.dataset.en});
   document.querySelectorAll('option[data-he]').forEach(el=>{el.textContent=isHe?el.dataset.he:el.dataset.en});
   updateTrackDesc(); doCalc();
+  if(typeof updateStickyCard==='function') updateStickyCard();
+  if(typeof updateStepSummaries==='function') updateStepSummaries();
 }
 
 // ── MODULE TOGGLE ──
@@ -1331,6 +1420,105 @@ function toggleMod(id){
   const m=document.getElementById(id);
   m.classList.toggle('collapsed');
   document.getElementById(id+'-chev').classList.toggle('open');
+}
+
+// ── WIZARD STEP ACCORDION (visual only — never touches input values) ──
+// Opening a step visually collapses the others; every input keeps its DOM node,
+// id, value and event listener regardless of collapsed state (CSS display:none only).
+const WIZARD_STEP_IDS=['mod1','modFinance','modContractor','mod0','mod2','mod3'];
+function toggleWizardStep(id){
+  const target=document.getElementById(id);
+  if(!target) return;
+  const wasCollapsed=target.classList.contains('collapsed');
+  WIZARD_STEP_IDS.forEach(function(wid){
+    const el=document.getElementById(wid);
+    if(!el) return;
+    const chev=document.getElementById(wid+'-chev');
+    if(wid===id){
+      el.classList.toggle('collapsed', !wasCollapsed);
+      if(chev) chev.classList.toggle('open', wasCollapsed);
+    } else {
+      el.classList.add('collapsed');
+      if(chev) chev.classList.remove('open');
+    }
+  });
+}
+
+// ── FULL RESULTS COLLAPSE (visual only) ──
+function toggleFullResults(){
+  const body=document.getElementById('fullResultsBody');
+  const toggle=document.getElementById('fullResultsToggle');
+  const chev=document.getElementById('fullResultsChev');
+  if(!body) return;
+  const isOpen=body.style.display!=='none';
+  body.style.display=isOpen?'none':'block';
+  if(chev) chev.style.transform=isOpen?'rotate(0deg)':'rotate(180deg)';
+  if(toggle) toggle.setAttribute('aria-expanded',(!isOpen).toString());
+}
+function openFullResults(){
+  const body=document.getElementById('fullResultsBody');
+  if(body && body.style.display==='none') toggleFullResults();
+  const toggle=document.getElementById('fullResultsToggle');
+  if(toggle) toggle.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// ── STICKY RESULTS CARD — mirrors already-computed values, never recalculates ──
+function updateStickyCard(){
+  function mirrorText(srcId,dstId){
+    const src=document.getElementById(srcId), dst=document.getElementById(dstId);
+    if(dst) dst.textContent = (src && src.textContent) ? src.textContent : '—';
+  }
+  mirrorText('dMonthly','sr-monthly');
+  mirrorText('dNetYield','sr-yield');
+  mirrorText('mROI','sr-roi');
+  const alertBox=document.getElementById('equityAlert');
+  const srEquity=document.getElementById('sr-equity');
+  if(srEquity){
+    if(alertBox && alertBox.querySelector('.alert.ok')) srEquity.textContent = isHe?'✅ מספיק':'✅ OK';
+    else if(alertBox && alertBox.querySelector('.alert.danger')) srEquity.textContent = isHe?'⚠️ חסר':'⚠️ Gap';
+    else srEquity.textContent='—';
+  }
+}
+
+// ── WIZARD STEP SUMMARIES — read straight from field .value, no re-calculation ──
+function updateStepSummaries(){
+  function setSummary(id,text){ const el=document.getElementById(id); if(el) el.textContent=text; }
+  function setStatus(id,done){
+    const el=document.getElementById(id); if(!el) return;
+    el.textContent = done ? '✓' : '';
+    el.className = 'step-status'+(done?' done':' pending');
+  }
+  function selText(selId){
+    const el=document.getElementById(selId);
+    return (el && el.selectedOptions && el.selectedOptions[0]) ? el.selectedOptions[0].textContent : '';
+  }
+  const price=document.getElementById('price'), propType=document.getElementById('propType'), holdYears=document.getElementById('holdYears');
+  if(price&&propType&&holdYears){
+    setSummary('step1Summary', (price.value?('₪'+price.value):'—')+' · '+selText('propType')+' · '+holdYears.value+' '+(isHe?'שנים':'yrs'));
+    setStatus('step1Status', !!price.value);
+  }
+  const mortPct=document.getElementById('mortPct'), mortRate=document.getElementById('mortRate');
+  if(mortPct&&mortRate){
+    setSummary('step2Summary', (isHe?'מימון ':'LTV ')+mortPct.value+'% · '+(isHe?'ריבית ':'Rate ')+mortRate.value+'%');
+    setStatus('step2Status', !!mortRate.value);
+  }
+  const constrRate=document.getElementById('constructionFinRate');
+  if(constrRate) setSummary('stepContractorSummary', (isHe?'ריבית מימון בנייה: ':'Construction financing rate: ')+constrRate.value+'%');
+  const availEquity=document.getElementById('availEquity');
+  if(availEquity){
+    setSummary('step3Summary', (isHe?'הון עצמי זמין: ₪':'Available equity: ₪')+(availEquity.value||'0'));
+    setStatus('step3Status', !!availEquity.value);
+  }
+  const rent=document.getElementById('rent');
+  if(rent){
+    setSummary('step4Summary', (isHe?'שכירות חודשית: ₪':'Monthly rent: ₪')+(rent.value||'0'));
+    setStatus('step4Status', !!rent.value);
+  }
+  const appreciation=document.getElementById('appreciation');
+  if(appreciation){
+    setSummary('step5Summary', (isHe?'עליית ערך ':'Appreciation ')+appreciation.value+'% · '+selText('shevachTrack'));
+    setStatus('step5Status', !!appreciation.value);
+  }
 }
 
 // ── MORTGAGE MODE ──
@@ -1645,7 +1833,7 @@ function updateStagesTotalDisplay(){
   }
 }
 
-function calc(){clearTimeout(debT);debT=setTimeout(doCalc,280);}
+function calc(){clearTimeout(debT);debT=setTimeout(function(){doCalc();updateStickyCard();updateStepSummaries();},280);}
 
 function doCalc(){
   const price=parseRaw('price');
@@ -2524,6 +2712,8 @@ function init(){
   updateTrackDesc();
   renderLoans();
   doCalc();
+  updateStickyCard();
+  updateStepSummaries();
 }
 </script>
 <!-- FLOATING SUMMARY -->
