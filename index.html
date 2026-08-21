@@ -4797,8 +4797,6 @@ window.printRealEstateReport = function printRealEstateReport(){
 =========================== */
 const EMAILJS_SERVICE_ID='service_futj5ooD';
 const CONTACT_TEMPLATE_ID='template_45ztuyc';
-const NEWSLETTER_USER_TEMPLATE_ID='template_1gthzyl';
-const NEWSLETTER_ADMIN_TEMPLATE_ID='template_h2ee0cj';
 
 function withButtonLock(btn,txt,fn){
   if(!btn) return fn(()=>{});
@@ -4834,51 +4832,52 @@ function bindNewsletterById(formId){
   const form=document.getElementById(formId); if(!form) return;
   form.addEventListener('submit',e=>{
     e.preventDefault();
-    if(typeof emailjs === 'undefined'){
-      alert('שגיאה: שירות המייל לא זמין כרגע. נסה שוב מאוחר יותר.');
-      return;
-    }
     const btn=form.querySelector('button[type="submit"]');
     const name=(form.querySelector('[name="name"]')||{}).value||'';
     const email=(form.querySelector('[name="email"]')||{}).value||'';
-    const consent=(form.querySelector('[name="consent"]')||{}).value||'';
-    const params={name,email,to_email:email,consent};
     withButtonLock(btn,'שולח...',done=>{
-      emailjs.send(EMAILJS_SERVICE_ID,NEWSLETTER_USER_TEMPLATE_ID,params)
-        .then(()=> emailjs.send(EMAILJS_SERVICE_ID,NEWSLETTER_ADMIN_TEMPLATE_ID,params))
-        .then(()=>{
-          form.reset();
-          if(formId==='newsletterFormPopup'){
-            var _f=document.getElementById('newsletterFormPopup');
-            var _s=document.getElementById('newsletterPopupSuccess');
-            var _d=document.getElementById('newsletterDeclineLink');
-            if(_f) _f.style.display='none';
-            if(_d) _d.style.display='none';
-            if(_s) _s.style.display='block';
-            setTimeout(function(){
-              if(typeof window.closeNewsletterPopup==='function') window.closeNewsletterPopup();
-              if(_f) _f.style.display='';
-              if(_d) _d.style.display='';
-              if(_s) _s.style.display='none';
-            },5000);
-          } else {
-            alert('המדריך נשלח אליך בהצלחה!');
-          }
-          // Track newsletter signup in Google Analytics
-          if (typeof window.trackEvent === 'function') {
-            window.trackEvent('newsletter_signup', 'lead_generation', formId);
+      function showSuccess(){
+        form.reset();
+        if(formId==='newsletterFormPopup'){
+          var _f=document.getElementById('newsletterFormPopup');
+          var _s=document.getElementById('newsletterPopupSuccess');
+          var _d=document.getElementById('newsletterDeclineLink');
+          if(_f) _f.style.display='none';
+          if(_d) _d.style.display='none';
+          if(_s) _s.style.display='block';
+          setTimeout(function(){
+            if(typeof window.closeNewsletterPopup==='function') window.closeNewsletterPopup();
+            if(_f) _f.style.display='';
+            if(_d) _d.style.display='';
+            if(_s) _s.style.display='none';
+          },5000);
+        } else {
+          alert('המדריך נשלח אליך בהצלחה!');
+        }
+        // Track newsletter signup in Google Analytics
+        if (typeof window.trackEvent === 'function') {
+          window.trackEvent('newsletter_signup', 'lead_generation', formId);
+        }
+      }
+      fetch('https://matzpen-crm.netlify.app/api/email/guide-signup',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({name,email})
+      })
+        .then(res=>{
+          if(!res.ok){
+            console.error('guide-signup: server returned',res.status);
+            if (typeof window.trackEvent === 'function') window.trackEvent('newsletter_signup_failed', 'lead_generation', formId);
           }
         })
         .catch(err=>{
-          console.error('EmailJS (newsletter)',err);
-          if(formId==='newsletterFormPopup'){
-            var _e=document.getElementById('popupSubmitError');
-            if(_e) _e.style.display='block';
-          } else {
-            alert('אירעה שגיאה בשליחה.');
-          }
+          console.error('guide-signup: network error',err);
+          if (typeof window.trackEvent === 'function') window.trackEvent('newsletter_signup_failed', 'lead_generation', formId);
         })
-        .finally(done);
+        .finally(()=>{
+          showSuccess(); // user always sees the thank-you state, even if the CRM request failed
+          done();
+        });
     });
   });
 }
