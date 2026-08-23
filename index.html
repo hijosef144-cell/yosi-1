@@ -4835,6 +4835,7 @@ function bindNewsletterById(formId){
     const btn=form.querySelector('button[type="submit"]');
     const name=(form.querySelector('[name="name"]')||{}).value||'';
     const email=(form.querySelector('[name="email"]')||{}).value||'';
+    const source_detail = formId === 'newsletterFormPopup' ? 'popup' : 'page';
     withButtonLock(btn,'שולח...',done=>{
       function showSuccess(){
         form.reset();
@@ -4862,7 +4863,7 @@ function bindNewsletterById(formId){
       fetch('https://matzpen-crm.netlify.app/api/email/guide-signup',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({name,email})
+        body:JSON.stringify({name,email,source_detail})
       })
         .then(res=>{
           if(!res.ok){
