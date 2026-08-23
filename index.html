@@ -4807,24 +4807,37 @@ function withButtonLock(btn,txt,fn){
 (function bindContactForm(){
   const form=document.getElementById('contactForm'); if(!form) return;
   form.addEventListener('submit',e=>{
-    e.preventDefault(); 
-    if(typeof emailjs === 'undefined'){
-      alert('שגיאה: שירות המייל לא זמין כרגע. נסה שוב מאוחר יותר.');
-      return;
-    }
+    e.preventDefault();
     const btn=form.querySelector('button[type="submit"]');
+    const name=(form.querySelector('[name="name"]')||{}).value||'';
+    const email=(form.querySelector('[name="email"]')||{}).value||'';
+    const phone=(form.querySelector('[name="phone"]')||{}).value||'';
+    const message=(form.querySelector('[name="message"]')||{}).value||'';
     withButtonLock(btn,'שולח...',done=>{
-      emailjs.sendForm(EMAILJS_SERVICE_ID,CONTACT_TEMPLATE_ID,form)
-        .then(()=>{ 
-          alert('ההודעה נשלחה בהצלחה!'); 
-          form.reset(); 
+      fetch('https://matzpen-crm.netlify.app/api/email/contact-submission',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({name,email,phone,message})
+      })
+        .then(res=>{
+          if(!res.ok){
+            console.error('contact-submission: server returned',res.status);
+            if (typeof window.trackEvent === 'function') window.trackEvent('contact_submit_failed', 'contact', 'contact_form');
+          }
+        })
+        .catch(err=>{
+          console.error('contact-submission: network error',err);
+          if (typeof window.trackEvent === 'function') window.trackEvent('contact_submit_failed', 'contact', 'contact_form');
+        })
+        .finally(()=>{
+          alert('ההודעה נשלחה בהצלחה!');
+          form.reset();
           // Track form submission in Google Analytics
           if (typeof window.trackEvent === 'function') {
             window.trackEvent('form_submit', 'contact', 'contact_form');
           }
-        })
-        .catch(err=>{ console.error('EmailJS (contact)',err); alert('אירעה שגיאה בשליחה.'); })
-        .finally(done);
+          done();
+        });
     });
   });
 })();
