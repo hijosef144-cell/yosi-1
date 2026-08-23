@@ -203,9 +203,6 @@
   <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- EmailJS CDN (v3) -->
-  <script defer src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
-
   <!-- תוסף נגישות "נגיש לי" – יש להחליף למקטע הקוד הרשמי שתקבל מנגיש לי -->
   <!--
   לאחר פתיחת חשבון ב-[נגיש לי](https://www.nagish.li/index.html) תקבל קוד הטמעה.
@@ -4246,21 +4243,6 @@ window.closeRealEstateCalculator = function(){
   }
 };
 
-// === EmailJS Configuration ===
-// Wait for EmailJS to load before initializing
-(function initEmailJS() {
-  if (typeof emailjs !== 'undefined') {
-    try {
-      emailjs.init('cGNMn5ZdoCv-99S3K');
-    } catch(e) {
-      console.warn('EmailJS init skipped:', e);
-    }
-  } else {
-    // Retry after a short delay if EmailJS isn't loaded yet
-    setTimeout(initEmailJS, 100);
-  }
-})();
-
 /* ===========================
    Articles (בקיצור כפי שהיה)
 =========================== */
@@ -4793,11 +4775,8 @@ window.printRealEstateReport = function printRealEstateReport(){
 // Functions are already defined at the start of the script tag (before IIFE)
 
 /* ===========================
-   EmailJS forms
+   CRM forms (contact + newsletter/guide signup)
 =========================== */
-const EMAILJS_SERVICE_ID='service_futj5ooD';
-const CONTACT_TEMPLATE_ID='template_45ztuyc';
-
 function withButtonLock(btn,txt,fn){
   if(!btn) return fn(()=>{});
   const original=btn.textContent; btn.disabled=true; btn.textContent=txt||'שולח...';
