@@ -37,7 +37,9 @@
   line-height: 1.6;
 }
 
-.kc-scope a { color: inherit; }
+/* :where() zeroes specificity so Tailwind utility classes (e.g. text-white
+   on the "כניסה לאזור האישי" button) always win over this default. */
+:where(.kc-scope) :where(a) { color: inherit; }
 
 /* ---------- Site nav link (matches homepage header exactly) ---------- */
 .kc-scope .nav-link {

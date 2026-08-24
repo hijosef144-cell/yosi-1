@@ -25,7 +25,9 @@
     overlay.setAttribute('aria-labelledby', 'kc-notice-title');
     overlay.innerHTML =
       '<div id="kc-notice-box">' +
+        '<div id="kc-notice-stripe" aria-hidden="true"></div>' +
         '<button id="kc-notice-close" aria-label="סגור הודעה" type="button">✕</button>' +
+        '<div id="kc-notice-icon" aria-hidden="true">🚧</div>' +
         '<h2 id="kc-notice-title">מרכז הידע בבנייה</h2>' +
         '<p>אנחנו כרגע מרחיבים את מרכז הידע ומוסיפים מונחים חדשים בהדרגה. חלק מהמידע כאן עדיין חלקי, אז אם לא מצאתם מה שחיפשתם — כתבו לנו ונוסיף.</p>' +
         '<button id="kc-notice-ok" type="button">הבנתי, תודה</button>' +

@@ -24,6 +24,27 @@
   direction: rtl;
   text-align: right;
   font-family: "Heebo", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  overflow: hidden;
+}
+
+#kc-notice-stripe {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 8px;
+  background: repeating-linear-gradient(
+    -45deg,
+    #f59e0b 0 12px,
+    #1e293b 12px 24px
+  );
+}
+
+#kc-notice-icon {
+  font-size: 34px;
+  line-height: 1;
+  margin: 10px 0 14px;
+  text-align: center;
 }
 
 #kc-notice-close {
