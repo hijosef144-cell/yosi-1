@@ -57,34 +57,38 @@
 <body class="kc-scope">
 
 <!-- Header -->
-<header class="bg-white shadow-sm sticky top-0 z-50 border-b border-gray-100">
-  <div class="max-w-5xl mx-auto px-4 md:px-6">
-    <div class="flex justify-between items-center py-3">
-      <a href="/" class="flex items-center hover:opacity-90 transition-opacity">
-        <img src="/images/לוגו.svg" alt="מצפן כלכלי - כיוון נכון לכלכלת המשפחה" class="h-9 md:h-11 w-auto">
-      </a>
-      <nav class="flex items-center gap-4 md:gap-6 text-sm">
-        <a href="/" class="font-medium text-gray-700 hover:text-blue-900 transition">דף הבית</a>
-        <a href="/knowledge/" class="font-medium text-blue-900">מרכז הידע</a>
-      </nav>
-    </div>
+<header class="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm">
+  <div class="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
+    <a href="/" class="flex items-center hover:opacity-90 transition-opacity shrink-0">
+      <img src="/images/לוגו.svg" alt="מצפן כלכלי - כיוון נכון לכלכלת המשפחה" class="h-9 md:h-10 w-auto">
+    </a>
+    <nav class="flex items-center gap-4 sm:gap-5 text-sm" aria-label="ניווט ראשי">
+      <a href="/#blog" class="text-gray-600 hover:text-blue-900 transition hidden sm:block">מאמרים</a>
+      <a href="/#services" class="text-gray-600 hover:text-blue-900 transition hidden sm:block">מחשבונים</a>
+      <a href="/knowledge/" class="text-blue-900 font-semibold">מרכז ידע</a>
+      <a href="/#contact" class="bg-blue-900 text-white px-4 py-2 rounded-lg hover:bg-blue-800 transition font-medium hidden sm:block">צור קשר</a>
+    </nav>
   </div>
 </header>
 
-<header class="kc-hero">
-  <div class="kc-wrap">
-    <div class="kc-breadcrumb">
-      <a href="/">מצפן כלכלי</a> &larr;
-      <a href="/knowledge/">מרכז הידע</a> &larr;
-      <a href="/knowledge/dictionary/">מילון מונחים</a> &larr;
-      {{NAME}}
-    </div>
-    <p class="kc-eyebrow">{{CAT_ICON}} {{CAT_LABEL}}</p>
-    <h1 class="kc-title" style="font-size:clamp(26px,4vw,36px);margin-bottom:0;">{{NAME}}</h1>
-  </div>
-</header>
+<!-- Breadcrumb -->
+<nav class="max-w-5xl mx-auto px-4 sm:px-6 pt-6 text-sm text-gray-500" aria-label="ניווט ארגוני">
+  <a href="/" class="hover:text-blue-900 transition">דף הבית</a>
+  <span class="mx-2 text-gray-300">&larr;</span>
+  <a href="/knowledge/" class="hover:text-blue-900 transition">מרכז הידע</a>
+  <span class="mx-2 text-gray-300">&larr;</span>
+  <a href="/knowledge/dictionary/" class="hover:text-blue-900 transition">מילון מונחים</a>
+  <span class="mx-2 text-gray-300">&larr;</span>
+  <span class="text-gray-700 font-medium">{{NAME}}</span>
+</nav>
 
-<main class="kc-wrap">
+<!-- Page title -->
+<div class="max-w-5xl mx-auto px-4 sm:px-6 pt-3 pb-2">
+  <p class="text-sm font-semibold text-blue-900 mb-1">{{CAT_ICON}} {{CAT_LABEL}}</p>
+  <h1 class="text-3xl font-extrabold text-blue-900">{{NAME}}</h1>
+</div>
+
+<main class="kc-wrap" style="margin-top:16px;">
   <article class="kc-term-detail">
     {{NAME_EN_BLOCK}}
 

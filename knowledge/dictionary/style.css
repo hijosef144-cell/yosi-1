@@ -51,64 +51,7 @@
   padding: 0 24px;
 }
 
-/* ---------- Hero ---------- */
-
-.kc-hero {
-  background: linear-gradient(180deg, var(--navy) 0%, var(--navy-deep) 100%);
-  color: #f4f7fb;
-  padding: 48px 0 76px;
-  position: relative;
-  overflow: hidden;
-}
-
-.kc-hero::after {
-  content: "";
-  position: absolute;
-  inset-inline-start: 0;
-  bottom: 0;
-  width: 100%;
-  height: 8px;
-  background: repeating-linear-gradient(90deg, var(--brass) 0 42px, transparent 42px 64px);
-  opacity: 0.5;
-}
-
-.kc-breadcrumb {
-  font-size: 13.5px;
-  color: #c7d3e8;
-  margin-bottom: 12px;
-}
-.kc-breadcrumb a { text-decoration: none; }
-.kc-breadcrumb a:hover { text-decoration: underline; }
-
-.kc-eyebrow {
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  color: var(--brass-soft);
-  font-size: 14px;
-  margin: 0 0 10px;
-}
-
-.kc-title {
-  font-size: clamp(28px, 4.2vw, 42px);
-  font-weight: 700;
-  margin: 0 0 14px;
-  line-height: 1.2;
-}
-
-.kc-subtitle {
-  font-size: 17px;
-  color: #d7e0f0;
-  max-width: 580px;
-  margin: 0 0 28px;
-}
-
 /* ---------- Search ---------- */
-
-.kc-search-shell {
-  position: relative;
-  margin-top: -48px;
-  z-index: 2;
-}
 
 .kc-search-card {
   background: var(--paper-raised);
@@ -143,7 +86,7 @@
 .kc-search-popular {
   margin-top: 14px;
   font-size: 14px;
-  color: #d7e0f0;
+  color: var(--ink-soft);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -151,9 +94,9 @@
 }
 
 .kc-search-popular button {
-  background: rgba(244, 247, 251, 0.12);
-  border: 1px solid rgba(244, 247, 251, 0.3);
-  color: #f4f7fb;
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  color: var(--navy);
   border-radius: var(--radius-pill);
   padding: 5px 14px;
   font-size: 13.5px;
@@ -163,8 +106,8 @@
 }
 
 .kc-search-popular button:hover {
-  background: rgba(244, 247, 251, 0.2);
-  border-color: var(--brass-soft);
+  background: #eef2ff;
+  border-color: var(--navy);
 }
 
 /* ---------- Categories ---------- */
@@ -298,9 +241,8 @@
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
   padding: 30px 32px;
-  margin: -48px auto 40px;
+  margin: 0 auto 40px;
   position: relative;
-  z-index: 2;
 }
 
 .kc-term-detail .kc-term-card-cat { margin-bottom: 10px; }
@@ -386,6 +328,5 @@
 .kc-module-card p { margin: 0; color: var(--ink-soft); font-size: 14.5px; }
 
 @media (max-width: 640px) {
-  .kc-term-detail { padding: 22px 18px; margin-top: -34px; }
-  .kc-hero { padding: 40px 0 60px; }
+  .kc-term-detail { padding: 22px 18px; }
 }
