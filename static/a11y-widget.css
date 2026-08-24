@@ -1,0 +1,118 @@
+/* =========================================================
+   ווידג'ט נגישות משותף — מצפן כלכלי
+   חולץ מ-index.html כדי שגם דפי /knowledge/ ישתמשו באותו רכיב.
+   לטעינה בכל דף: <link rel="stylesheet" href="/static/a11y-widget.css">
+   ========================================================= */
+
+/* כפתור נגישות צף */
+#a11y-btn {
+  position: fixed;
+  bottom: 80px;
+  right: 24px;
+  z-index: 9996;
+  width: 52px;
+  height: 52px;
+  border-radius: 999px;
+  background: #1e3a8a;
+  color: #fff;
+  border: none;
+  font-size: 22px;
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(30,58,138,0.4);
+  transition: box-shadow 0.2s ease;
+  user-select: none;
+  touch-action: none;
+}
+#a11y-btn:hover {
+  box-shadow: 0 8px 24px rgba(30,58,138,0.5);
+}
+#a11y-btn.dragging {
+  cursor: grabbing;
+  box-shadow: 0 12px 32px rgba(30,58,138,0.6);
+  opacity: 0.9;
+}
+#a11y-btn:focus-visible {
+  outline: 3px solid #60a5fa;
+  outline-offset: 3px;
+}
+/* פאנל נגישות */
+#a11y-panel {
+  position: fixed;
+  bottom: 140px;
+  right: 24px;
+  z-index: 9996;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 18px;
+  width: 230px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+  direction: rtl;
+  font-family: system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+}
+#a11y-panel h3 {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e3a8a;
+  margin: 0 0 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e5e7eb;
+}
+.a11y-group { margin-bottom: 10px; }
+.a11y-group-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 5px;
+}
+.a11y-row { display: flex; gap: 6px; }
+.a11y-btn-item {
+  flex: 1;
+  padding: 6px 4px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #f9fafb;
+  color: #374151;
+  cursor: pointer;
+  font-size: 13px;
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s;
+}
+.a11y-btn-item:hover { background: #eff6ff; border-color: #93c5fd; }
+.a11y-btn-item.active { background: #1e3a8a; color: #fff; border-color: #1e3a8a; }
+.a11y-btn-full {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #f9fafb;
+  color: #374151;
+  cursor: pointer;
+  font-size: 13px;
+  font-family: inherit;
+  text-align: right;
+  transition: background 0.15s, color 0.15s;
+}
+.a11y-btn-full:hover { background: #eff6ff; border-color: #93c5fd; }
+.a11y-btn-full.active { background: #1e3a8a; color: #fff; border-color: #1e3a8a; }
+.a11y-reset {
+  width: 100%;
+  margin-top: 10px;
+  padding: 7px;
+  border: 1px solid #fca5a5;
+  border-radius: 8px;
+  background: #fff;
+  color: #dc2626;
+  cursor: pointer;
+  font-size: 13px;
+  font-family: inherit;
+  font-weight: 600;
+}
+.a11y-reset:hover { background: #fef2f2; }
+/* מצבי נגישות */
+body.a11y-high-contrast { filter: contrast(155%); }
+body.a11y-underline-links a { text-decoration: underline !important; text-underline-offset: 3px; }
+body.a11y-no-animations * { animation: none !important; transition: none !important; }
