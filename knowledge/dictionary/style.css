@@ -39,6 +39,24 @@
 
 .kc-scope a { color: inherit; }
 
+/* ---------- Site nav link (matches homepage header exactly) ---------- */
+.kc-scope .nav-link {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+.kc-scope .nav-link::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  right: 0;
+  width: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #3b82f6, #2563eb);
+  transition: width 0.3s ease;
+}
+.kc-scope .nav-link:hover::after { width: 100%; }
+.kc-scope .nav-link:hover { color: #3b82f6; transform: translateY(-1px); }
+
 .kc-scope :focus-visible {
   outline: 3px solid var(--brass);
   outline-offset: 2px;

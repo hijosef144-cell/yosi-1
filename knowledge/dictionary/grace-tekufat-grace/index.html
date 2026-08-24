@@ -19,6 +19,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/knowledge/dictionary/style.css">
 <link rel="stylesheet" href="/static/a11y-widget.css">
+<link rel="stylesheet" href="/static/knowledge-notice.css">
 <script src="https://cdn.tailwindcss.com"></script>
 
 <script type="application/ld+json">
@@ -57,19 +58,61 @@
 <body class="kc-scope">
 
 <!-- Header -->
-<header class="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm">
-  <div class="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
-    <a href="/" class="flex items-center hover:opacity-90 transition-opacity shrink-0">
-      <img src="/images/לוגו.svg" alt="מצפן כלכלי - כיוון נכון לכלכלת המשפחה" class="h-9 md:h-10 w-auto">
-    </a>
-    <nav class="flex items-center gap-4 sm:gap-5 text-sm" aria-label="ניווט ראשי">
-      <a href="/#blog" class="text-gray-600 hover:text-blue-900 transition hidden sm:block">מאמרים</a>
-      <a href="/#services" class="text-gray-600 hover:text-blue-900 transition hidden sm:block">מחשבונים</a>
-      <a href="/knowledge/" class="text-blue-900 font-semibold">מרכז ידע</a>
-      <a href="/#contact" class="bg-blue-900 text-white px-4 py-2 rounded-lg hover:bg-blue-800 transition font-medium hidden sm:block">צור קשר</a>
-    </nav>
+<header class="bg-white shadow-sm sticky top-0 z-50 border-b border-gray-100">
+  <div class="max-w-7xl mx-auto px-6">
+    <div class="flex justify-between items-center py-4">
+      <div class="flex items-center">
+        <a href="/" class="flex items-center hover:opacity-90 transition-opacity">
+          <img src="/images/לוגו.svg" alt="מצפן כלכלי - כיוון נכון לכלכלת המשפחה" class="h-10 md:h-12 w-auto">
+        </a>
+      </div>
+
+      <nav class="hidden md:flex items-center gap-8">
+        <a href="/" class="nav-link font-medium text-gray-700">דף הבית</a>
+        <a href="/#about" class="nav-link font-medium text-gray-700">אודות</a>
+        <a href="/#process" class="nav-link font-medium text-gray-700">תהליך הליווי</a>
+        <a href="/#services" class="nav-link font-medium text-gray-700">מחשבונים</a>
+        <a href="/#faq" class="nav-link font-medium text-gray-700">שו"ת</a>
+        <a href="/#blog" class="nav-link font-medium text-gray-700">מאמרים</a>
+        <a href="/knowledge/" class="nav-link font-medium text-blue-900">מרכז ידע</a>
+        <a href="/#media" class="nav-link font-medium text-gray-700">מדיה</a>
+        <a href="/#links" class="nav-link font-medium text-gray-700">קישורים נחוצים</a>
+        <a href="/#contact" class="nav-link font-medium text-gray-700">יצירת קשר</a>
+        <a href="https://matzpen-crm.netlify.app/portal/login" target="_blank" rel="noopener" class="bg-blue-900 text-white px-3 py-1.5 rounded-lg hover:bg-blue-800 transition font-medium text-sm whitespace-nowrap">כניסה לאזור האישי שלך</a>
+      </nav>
+
+      <button id="kcMobileMenuBtn" class="md:hidden text-blue-900 p-2 -mr-2" aria-label="פתח תפריט" type="button">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Mobile Menu -->
+    <div id="kcMobileMenu" class="hidden md:hidden mt-4 pb-4 border-t border-gray-200 pt-4">
+      <div class="flex flex-col space-y-3">
+        <a href="/" class="nav-link text-gray-700 font-medium py-2 px-2 rounded-lg hover:bg-gray-50 transition">דף הבית</a>
+        <a href="/#about" class="nav-link text-gray-700 font-medium py-2 px-2 rounded-lg hover:bg-gray-50 transition">אודות</a>
+        <a href="/#process" class="nav-link text-gray-700 font-medium py-2 px-2 rounded-lg hover:bg-gray-50 transition">תהליך הליווי</a>
+        <a href="/#services" class="nav-link text-gray-700 font-medium py-2 px-2 rounded-lg hover:bg-gray-50 transition">מחשבונים</a>
+        <a href="/#faq" class="nav-link text-gray-700 font-medium py-2 px-2 rounded-lg hover:bg-gray-50 transition">שו"ת</a>
+        <a href="/#blog" class="nav-link text-gray-700 font-medium py-2 px-2 rounded-lg hover:bg-gray-50 transition">מאמרים</a>
+        <a href="/knowledge/" class="nav-link text-blue-900 font-medium py-2 px-2 rounded-lg hover:bg-blue-50 transition">מרכז ידע</a>
+        <a href="/#media" class="nav-link text-gray-700 font-medium py-2 px-2 rounded-lg hover:bg-gray-50 transition">מדיה</a>
+        <a href="/#links" class="nav-link text-gray-700 font-medium py-2 px-2 rounded-lg hover:bg-gray-50 transition">קישורים נחוצים</a>
+        <a href="/#contact" class="nav-link text-gray-700 font-medium py-2 px-2 rounded-lg hover:bg-gray-50 transition">יצירת קשר</a>
+        <a href="https://matzpen-crm.netlify.app/portal/login" target="_blank" rel="noopener" class="bg-blue-900 text-white font-medium py-2.5 px-2 rounded-lg text-center hover:bg-blue-800 transition">כניסה לאזור האישי שלך</a>
+      </div>
+    </div>
   </div>
 </header>
+<script>
+  (function () {
+    var btn = document.getElementById('kcMobileMenuBtn');
+    var menu = document.getElementById('kcMobileMenu');
+    if (btn && menu) btn.addEventListener('click', function () { menu.classList.toggle('hidden'); });
+  })();
+</script>
 
 <!-- Breadcrumb -->
 <nav class="max-w-5xl mx-auto px-4 sm:px-6 pt-6 text-sm text-gray-500" aria-label="ניווט ארגוני">
@@ -170,6 +213,7 @@
 </footer>
 
 <script src="/static/a11y-widget.js" defer></script>
+<script src="/static/knowledge-notice.js" defer></script>
 
 </body>
 </html>
