@@ -1,12 +1,17 @@
 /* =========================================================
    הודעת "מרכז הידע בבנייה" — מוצגת פעם אחת בכל session
    (לא בכל דף בתוך /knowledge/ בנפרד, כדי לא להטריד).
-   הסירו את הטעינה של הקובץ הזה כשמרכז הידע יהיה שלם.
+
+   נעלמת אוטומטית לתמיד ברגע ש-terms.json מגיע ל-TERM_COUNT_THRESHOLD
+   מונחים — אין צורך להסיר את הטעינה של הקובץ הזה ידנית. אם רוצים
+   בכל זאת להסיר את הקובץ עצמו בהמשך (ניקיון), אפשר, אבל זה לא חובה.
    ========================================================= */
 (function () {
   'use strict';
 
   var STORAGE_KEY = 'kc_notice_dismissed';
+  var TERM_COUNT_THRESHOLD = 40;
+  var TERMS_JSON_URL = '/knowledge/dictionary/terms.json';
 
   function alreadyDismissed() {
     try { return sessionStorage.getItem(STORAGE_KEY) === '1'; } catch (e) { return false; }
@@ -49,9 +54,21 @@
     });
   }
 
+  function checkAndInject() {
+    if (alreadyDismissed()) return;
+    fetch(TERMS_JSON_URL)
+      .then(function (res) { return res.ok ? res.json() : null; })
+      .then(function (data) {
+        var count = data && Array.isArray(data.terms) ? data.terms.length : null;
+        if (count !== null && count >= TERM_COUNT_THRESHOLD) return; // מספיק תוכן — לא מציגים
+        inject();
+      })
+      .catch(function () { inject(); }); // אם הבדיקה נכשלה, נציג בכל זאת (ברירת מחדל בטוחה)
+  }
+
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', inject);
+    document.addEventListener('DOMContentLoaded', checkAndInject);
   } else {
-    inject();
+    checkAndInject();
   }
 })();
