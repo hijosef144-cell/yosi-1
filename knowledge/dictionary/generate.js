@@ -58,6 +58,20 @@ function renderRelated(term, termsBySlug, categories) {
   </div>`;
 }
 
+function renderCalculator(term) {
+  const calcs = term.related_calculator || [];
+  if (calcs.length === 0) return "";
+
+  const links = calcs.map((c) =>
+    `<a class="kc-calc-link" href="${escapeHtml(c.url)}">🧮 ${escapeHtml(c.label)}</a>`
+  ).join("\n");
+
+  return `<div class="kc-calc-cta">
+    <h2>מחשבון רלוונטי</h2>
+    <div class="kc-calc-links">${links}</div>
+  </div>`;
+}
+
 function renderSources(term) {
   return (term.sources || [])
     .map((s) => `<a href="${escapeHtml(s.url)}" target="_blank" rel="noopener">${escapeHtml(s.label)} ↗</a>`)
@@ -108,6 +122,7 @@ function main() {
       .replaceAll("{{COMMON_MISTAKE}}", escapeHtml(term.common_mistake))
       .replaceAll("{{WHAT_TO_CHECK}}", escapeHtml(term.what_to_check))
       .replaceAll("{{SOURCES_HTML}}", renderSources(term))
+      .replaceAll("{{CALCULATOR_BLOCK}}", renderCalculator(term))
       .replaceAll("{{RELATED_BLOCK}}", renderRelated(term, termsBySlug, categories))
       .replaceAll("{{LAST_UPDATED_HE}}", toHebrewDate(term.last_updated))
       .replaceAll("{{ALIASES_JSON}}", JSON.stringify(term.aliases || []))

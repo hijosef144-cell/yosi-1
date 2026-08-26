@@ -324,6 +324,44 @@
   gap: 14px;
 }
 
+/* ---------- Calculator CTA (related_calculator) ---------- */
+
+.kc-calc-cta {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: var(--radius-card);
+  padding: 18px 20px;
+}
+
+.kc-calc-cta h2 {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--navy);
+  margin: 0 0 10px;
+}
+
+.kc-calc-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.kc-calc-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--navy);
+  color: #fff;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 9px 16px;
+  border-radius: var(--radius-pill);
+  transition: background 0.15s ease;
+}
+.kc-calc-link:hover { background: var(--navy-deep); }
+
 /* ---------- Landing (knowledge center) card ---------- */
 
 .kc-module-card {
