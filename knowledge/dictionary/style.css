@@ -104,7 +104,7 @@
 #kc-search-input::placeholder { color: #9aa6ad; }
 
 .kc-search-popular {
-  margin-top: 14px;
+  margin-top: 8px;
   font-size: 14px;
   color: var(--ink-soft);
   display: flex;
@@ -133,7 +133,7 @@
 /* ---------- Categories ---------- */
 
 .kc-categories {
-  margin: 36px 0 8px;
+  margin: 18px 0 8px;
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
