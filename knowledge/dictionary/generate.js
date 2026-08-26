@@ -63,7 +63,7 @@ function renderCalculator(term) {
   if (calcs.length === 0) return "";
 
   const links = calcs.map((c) =>
-    `<a class="kc-calc-link" href="${escapeHtml(c.url)}">🧮 ${escapeHtml(c.label)}</a>`
+    `<a class="kc-calc-link" href="${escapeHtml(c.url)}" target="_blank" rel="noopener">🧮 ${escapeHtml(c.label)}</a>`
   ).join("\n");
 
   return `<div class="kc-calc-cta">
