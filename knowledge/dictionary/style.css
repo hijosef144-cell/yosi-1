@@ -103,33 +103,6 @@
 #kc-search-input:focus { outline: none; }
 #kc-search-input::placeholder { color: #9aa6ad; }
 
-.kc-search-popular {
-  margin-top: 8px;
-  font-size: 14px;
-  color: var(--ink-soft);
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 6px;
-}
-
-.kc-search-popular button {
-  background: var(--paper-raised);
-  border: 1px solid var(--line);
-  color: var(--navy);
-  border-radius: var(--radius-pill);
-  padding: 5px 14px;
-  font-size: 13.5px;
-  font-family: var(--font-body);
-  cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
-}
-
-.kc-search-popular button:hover {
-  background: #eef2ff;
-  border-color: var(--navy);
-}
-
 /* ---------- Categories ---------- */
 
 .kc-categories {

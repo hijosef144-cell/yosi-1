@@ -126,7 +126,6 @@
     </svg>
     <input id="kc-search-input" type="text" placeholder="חפש מושג: ריבית פריים, LTV, שפיצר, קרן כספית..." aria-label="חיפוש מושג כלכלי" autocomplete="off">
   </div>
-  <div class="kc-search-popular" id="kc-popular" aria-label="חיפושים פופולריים"></div>
 </div>
 
 <main class="kc-wrap">
@@ -171,10 +170,7 @@
     results: document.getElementById("kc-results"),
     heading: document.getElementById("kc-results-heading"),
     count: document.getElementById("kc-result-count"),
-    popular: document.getElementById("kc-popular"),
   };
-
-  const POPULAR = ["ריבית פריים", "LTV", "קרן כספית", "מינוף", "גרייס", "שפיצר", "מדד המחירים לצרכן"];
 
   async function loadData() {
     const res = await fetch("/knowledge/dictionary/terms.json");
@@ -196,22 +192,6 @@
         render();
       });
       els.categories.appendChild(btn);
-    });
-  }
-
-  function renderPopular() {
-    els.popular.innerHTML = "חיפושים פופולריים: ";
-    POPULAR.forEach((label, i) => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.textContent = label;
-      btn.addEventListener("click", () => {
-        state.query = label;
-        els.input.value = label;
-        render();
-      });
-      els.popular.appendChild(btn);
-      if (i < POPULAR.length - 1) els.popular.appendChild(document.createTextNode(" "));
     });
   }
 
@@ -268,7 +248,6 @@
     const data = await loadData();
     state.terms = data.terms;
     state.categories = data.categories;
-    renderPopular();
     render();
   } catch (err) {
     els.results.innerHTML = `<div class="kc-no-results"><strong>שגיאה בטעינת המאגר</strong>${err.message}</div>`;
