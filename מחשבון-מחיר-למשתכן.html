@@ -1430,6 +1430,9 @@ canvas { max-width: 100%; }
       </div>
     </div>
 
+    <!-- Stage-timing liquidity warnings — separate from the cumulative equity check above -->
+    <div id="stage-liquidity-warning" style="display:none; margin-top:14px;"></div>
+
     <!-- Supplementary loan panel — shown automatically when equity is short -->
     <div id="supplementary-loan-section" style="display:none; margin-top:16px; padding:16px; background:#fffbeb; border:2px solid #f59e0b; border-radius:12px;">
       <div style="font-weight:700; color:#92400e; font-size:15px; margin-bottom:12px;">⚠️ חסר הון עצמי — סמול הלוואה משלימה</div>
@@ -2402,6 +2405,23 @@ function calculateAll() {
     return { ...s, amount: stageAmt, equityAmt: equityStageAmt, grantAmt: grantStageAmt, mortgageAmt: mortgageStageAmt, monthsToDelivery, isGrantStage };
   });
 
+  // ── STAGE-LEVEL LIQUIDITY CHECKS (timing, not just cumulative total) ──
+  // Stage 1 (חתימת חוזה) is funded from equity only — no grant/mortgage available yet.
+  // Stage 2 (עד 45 יום) adds the grant, but its mortgage portion isn't guaranteed within 45 days.
+  const liqStage1 = stagesWithAmounts[0];
+  const liqStage2 = stagesWithAmounts[1];
+  let stage1Shortfall = 0, stage1NeededAmt = 0;
+  let stage2Shortfall = 0, stage2NeededCumulative = 0, stage2AvailableCumulative = 0;
+  if (liqStage1) {
+    stage1NeededAmt = liqStage1.amount;
+    stage1Shortfall = Math.max(0, stage1NeededAmt - personalEquity);
+  }
+  if (liqStage1 && liqStage2) {
+    stage2NeededCumulative = liqStage1.amount + (liqStage2.amount - liqStage2.mortgageAmt);
+    stage2AvailableCumulative = effectiveEquity;
+    stage2Shortfall = Math.max(0, stage2NeededCumulative - stage2AvailableCumulative);
+  }
+
   // ── TRUE COST ──
   const trueCost = finalContractPrice + constructionFinancingCost + totalAdditionalCosts;
   const aboveContract = trueCost - contractPrice;
@@ -2568,6 +2588,29 @@ function calculateAll() {
     pctEl.className = 'stat-card-value ' + (incomePct <= 30 ? 'green' : incomePct <= 40 ? 'amber' : 'red');
   }
 
+  // Stage-timing liquidity warnings (separate from the cumulative equityDelta check above)
+  const stageWarnEl = document.getElementById('stage-liquidity-warning');
+  if (stageWarnEl) {
+    let stageWarnings = '';
+    if (stage1Shortfall > 0) {
+      stageWarnings += `<div style="background:#fef2f2; border:2px solid #ef4444; border-radius:12px; padding:14px 16px; margin-bottom:${stage2Shortfall > 0 ? '10px' : '0'};">` +
+        `<div style="font-weight:700; color:#991b1b; font-size:14px; margin-bottom:4px;">⚠️ בעיית תזרים בחתימת החוזה</div>` +
+        `<div style="font-size:13px; color:#7f1d1d; line-height:1.6;">נדרשים ${fmt(stage1NeededAmt)} בחתימה (הון עצמי בלבד, לפי כללי מחיר למשתכן), אבל יש לך רק ${fmt(personalEquity)} זמינים כרגע. חסר ${fmt(stage1Shortfall)} נזיל בשלב הזה — גם אם המענק וההון העצמי הכולל שלך מספיקים בסה"כ, הם לא זמינים עדיין בשלב החתימה.</div>` +
+      `</div>`;
+    }
+    if (stage2Shortfall > 0) {
+      const grantMentioned = liqStage2 && liqStage2.grantAmt > 0;
+      const basisText = grantMentioned ? 'הון עצמי + מענק' : 'הון עצמי בלבד';
+      const openingText = grantMentioned ? 'גם עם המענק, נדרשים' : 'נדרשים';
+      stageWarnings += `<div style="background:#fff7ed; border:2px solid #f97316; border-radius:12px; padding:14px 16px;">` +
+        `<div style="font-weight:700; color:#9a3412; font-size:14px; margin-bottom:4px;">⚠️ בעיית תזרים עד 45 יום</div>` +
+        `<div style="font-size:13px; color:#7c2d12; line-height:1.6;">${openingText} ${fmt(stage2NeededCumulative)} עד יום 45 (${basisText}, לפני שהמשכנתא נכנסת לתמונה), ויש לך ${fmt(stage2AvailableCumulative)}. חסר ${fmt(stage2Shortfall)}.</div>` +
+      `</div>`;
+    }
+    stageWarnEl.innerHTML = stageWarnings;
+    stageWarnEl.style.display = stageWarnings ? '' : 'none';
+  }
+
   // Summary bar
   setText('sum-equity', fmt(equityNeeded));
   setText('sum-mortgage-max', fmt(mortgageMax));
@@ -2605,6 +2648,11 @@ function calculateAll() {
 
     const grantAmt = s.grantAmt || 0;
 
+    // Stage-timing liquidity flags — visual addition to the main warning box above, not a replacement
+    const equityLiqFlag = (i === 0 && stage1Shortfall > 0) || (i === 1 && stage2Shortfall > 0);
+    const grantLiqFlag = (i === 1 && stage2Shortfall > 0);
+    const liqNote = `<br><span style="font-size:10px; color:#dc2626; font-weight:600;">⚠️ נדרשת השלמה תזרימית</span>`;
+
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td${grantTooltip}>${s.name}${s.isGrantStage ? ' <span style="font-size:11px;color:var(--accent);">ℹ️</span>' : ''}</td>
@@ -2612,8 +2660,8 @@ function calculateAll() {
       <td>${fmtNum(s.pct, 1)}%</td>
       <td>${fmt(s.amount)}</td>
       <td>${sourceBadge}</td>
-      <td>${s.equityAmt > 0 ? fmt(s.equityAmt) : '—'}</td>
-      <td style="color:var(--green); font-weight:600;">${grantAmt > 0 ? fmt(grantAmt) : '—'}</td>
+      <td${equityLiqFlag ? ' style="background:#fee2e2;"' : ''}>${s.equityAmt > 0 ? fmt(s.equityAmt) : '—'}${equityLiqFlag ? liqNote : ''}</td>
+      <td style="color:var(--green); font-weight:600;${grantLiqFlag ? ' background:#fee2e2;' : ''}">${grantAmt > 0 ? fmt(grantAmt) : '—'}${grantLiqFlag ? liqNote : ''}</td>
       <td>${s.mortgageAmt > 0 ? fmt(s.mortgageAmt) : '—'}</td>
     `;
     tbody.appendChild(tr);
