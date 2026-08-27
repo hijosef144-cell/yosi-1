@@ -180,6 +180,11 @@
       <input type="text" inputmode="numeric" id="grossSalary" class="ci" placeholder="לדוגמה: 12,000" value="12,000" oninput="fmtLive(this);calc()" onblur="fmtBlur(this)">
     </div>
 
+    <div class="mb-5">
+      <label class="lbl" for="travelAllowance">החזר נסיעות (₪ לחודש) <span class="hint">(אופציונלי, חייב במלואו במס הכנסה וביטוח לאומי)</span></label>
+      <input type="text" inputmode="numeric" id="travelAllowance" class="ci" placeholder="0" value="0" oninput="fmtLive(this);calc()" onblur="fmtBlur(this)">
+    </div>
+
     <div>
       <label class="lbl" for="creditPoints">נקודות זיכוי <span class="hint">(ברירת מחדל: 2.25)</span></label>
       <div class="flex gap-2 mb-2">
@@ -187,6 +192,17 @@
         <button type="button" class="quick-btn" onclick="setCreditPoints(2.75)">אישה (2.75)</button>
       </div>
       <input type="number" id="creditPoints" class="ci" min="0" step="0.25" value="2.25" oninput="calc()">
+    </div>
+
+    <div class="mt-5">
+      <label class="flex items-center gap-2 cursor-pointer">
+        <input type="checkbox" id="pensionEnabled" checked onchange="togglePensionRow();calc()" style="width:16px;height:16px;accent-color:#1e3a8a;">
+        <span class="lbl" style="margin-bottom:0">כלול הפרשת עובד לפנסיה בחישוב</span>
+      </label>
+      <div id="pensionRateRow" class="mt-2">
+        <label class="lbl" for="pensionRate">שיעור הפרשת עובד לפנסיה (%) <span class="hint">(ברירת מחדל: 6%)</span></label>
+        <input type="number" id="pensionRate" class="ci" min="0" max="20" step="0.5" value="6" oninput="calc()">
+      </div>
     </div>
 
     <div class="mt-5">
@@ -225,7 +241,7 @@
   <div class="scard">
     <div class="ilist-title"><span>ניכויי עובד</span><span style="color:#dc2626">↘</span></div>
     <div class="ilist-row">
-      <div class="ilist-label"><span class="ilist-icon">📄</span> שכר ברוטו</div>
+      <div class="ilist-label"><span class="ilist-icon">📄</span> <span>שכר ברוטו<span id="ilTravelNote" class="hint" style="display:block;margin-top:2px;"></span></span></div>
       <div class="ilist-val" id="ilGross">—</div>
     </div>
     <div class="ilist-row">
@@ -235,6 +251,10 @@
     <div class="ilist-row">
       <div class="ilist-label"><span class="ilist-icon">🏥</span> ביטוח לאומי ובריאות</div>
       <div class="ilist-val" id="ilBituach">—</div>
+    </div>
+    <div class="ilist-row" id="ilPensionRow">
+      <div class="ilist-label"><span class="ilist-icon">🏦</span> הפרשה לפנסיה (עובד)</div>
+      <div class="ilist-val" id="ilPension">—</div>
     </div>
   </div>
 
@@ -325,6 +345,10 @@ const BITUACH_LEUMI_BRACKETS_2026 = [
   {min:7703, max:51910, rate:0.1217},
 ];
 
+/* ═══════════════ זיכוי מס על הפרשת עובד לפנסיה — סעיף 45א ═══════════════ */
+const PENSION_CREDIT_RATE = 0.35;
+const PENSION_CREDIT_CEILING_2026 = 679;
+
 /* ═══════════════ עלות מעסיק — קבועים 2026 ═══════════════ */
 const EMPLOYER_BITUACH_LEUMI_BRACKETS_2026 = [
   {min:0,    max:7703,  rate:0.0451},
@@ -353,22 +377,34 @@ function calcBracketed(amount, brackets){
   return {rows,total};
 }
 
-function calcIncomeTax(gross, creditPoints){
+function calcIncomeTax(gross, creditPoints, pensionCredit){
   const {rows,total}=calcBracketed(gross, TAX_BRACKETS_2026);
   const credit=creditPoints*CREDIT_POINT_VALUE_2026;
-  const payable=Math.max(0,total-credit);
-  return {rows, taxBeforeCredit:total, credit, payable};
+  const totalCredit=credit+(pensionCredit||0);
+  const payable=Math.max(0,total-totalCredit);
+  return {rows, taxBeforeCredit:total, credit, pensionCredit:(pensionCredit||0), payable};
+}
+
+function calcPensionCredit(pensionContribution){
+  const base=Math.min(pensionContribution, PENSION_CREDIT_CEILING_2026);
+  return PENSION_CREDIT_RATE*base;
+}
+
+function togglePensionRow(){
+  const enabled=document.getElementById('pensionEnabled').checked;
+  document.getElementById('pensionRateRow').style.display = enabled ? 'block' : 'none';
+  document.getElementById('ilPensionRow').style.display = enabled ? 'flex' : 'none';
 }
 
 function calcBituachLeumi(gross){
   return calcBracketed(gross, BITUACH_LEUMI_BRACKETS_2026);
 }
 
-function calcEmployerCost(gross){
-  const ni = calcBracketed(gross, EMPLOYER_BITUACH_LEUMI_BRACKETS_2026);
-  const tagmulim = gross * EMPLOYER_PENSION_DEFAULTS_2026.tagmulim_rate;
-  const pitzuim = gross * selectedPitzuimRate;
-  const total = gross + ni.total + tagmulim + pitzuim;
+function calcEmployerCost(taxableIncome, pensionBase){
+  const ni = calcBracketed(taxableIncome, EMPLOYER_BITUACH_LEUMI_BRACKETS_2026);
+  const tagmulim = pensionBase * EMPLOYER_PENSION_DEFAULTS_2026.tagmulim_rate;
+  const pitzuim = pensionBase * selectedPitzuimRate;
+  const total = taxableIncome + ni.total + tagmulim + pitzuim;
   return {ni, tagmulim, pitzuim, total};
 }
 
@@ -424,33 +460,47 @@ function renderBracketRows(tbodyId, rows){
 
 function calc(){
   const gross = parseRaw('grossSalary');
+  const travel = parseRaw('travelAllowance');
+  const taxableIncome = gross + travel;
   const creditPoints = parseFloat(document.getElementById('creditPoints').value) || 0;
 
-  const it = calcIncomeTax(gross, creditPoints);
-  const bl = calcBituachLeumi(gross);
+  const pensionEnabled = document.getElementById('pensionEnabled').checked;
+  const pensionRate = pensionEnabled ? (parseFloat(document.getElementById('pensionRate').value)||0)/100 : 0;
+  // Pension is calculated on base gross salary only — "שכר מבוטח" excludes expense reimbursements like travel.
+  const pensionContribution = pensionEnabled ? gross*pensionRate : 0;
+  const pensionCredit = pensionEnabled ? calcPensionCredit(pensionContribution) : 0;
+
+  const it = calcIncomeTax(taxableIncome, creditPoints, pensionCredit);
+  const bl = calcBituachLeumi(taxableIncome);
   const roundedTax = Math.round(it.payable);
   const roundedBituach = Math.round(bl.total);
-  const totalDeductions = roundedTax + roundedBituach;
-  const net = gross - totalDeductions;
-  const ec = calcEmployerCost(gross);
+  const roundedPension = Math.round(pensionContribution);
+  const totalDeductions = roundedTax + roundedBituach + roundedPension;
+  const net = taxableIncome - totalDeductions;
+  const ec = calcEmployerCost(taxableIncome, gross);
 
-  const pctOfGross = n => gross>0 ? Math.round(n/gross*100)+'% מהברוטו' : '';
+  const pctOfIncome = n => taxableIncome>0 ? Math.round(n/taxableIncome*100)+'% מסך ההכנסה' : '';
 
   document.getElementById('resNet').textContent = fmtMoney(net);
-  document.getElementById('resNetPct').textContent = pctOfGross(net);
+  document.getElementById('resNetPct').textContent = pctOfIncome(net);
   document.getElementById('resTotalDeductions').textContent = fmtMoney(totalDeductions);
-  document.getElementById('resDeductionsPct').textContent = pctOfGross(totalDeductions);
+  document.getElementById('resDeductionsPct').textContent = pctOfIncome(totalDeductions);
   document.getElementById('resEmployerCost').textContent = fmtMoney(ec.total);
-  document.getElementById('resEmployerCostPct').textContent = gross>0 ? ('+'+Math.round((ec.total-gross)/gross*100)+'% מעל הברוטו') : '';
+  document.getElementById('resEmployerCostPct').textContent = taxableIncome>0 ? ('+'+Math.round((ec.total-taxableIncome)/taxableIncome*100)+'% מעל סך ההכנסה') : '';
 
   document.getElementById('ilGross').textContent = fmtMoney(gross);
+  document.getElementById('ilTravelNote').textContent = travel>0 ? ('כולל נסיעות: '+fmtMoney(travel)) : '';
   document.getElementById('ilTax').textContent = fmtMoney(roundedTax);
   document.getElementById('ilBituach').textContent = fmtMoney(roundedBituach);
+  document.getElementById('ilPension').textContent = fmtMoney(roundedPension);
 
   renderBracketRows('taxBracketRows', it.rows);
   const taxTbody = document.getElementById('taxBracketRows');
   taxTbody.innerHTML += '<tr><td>סה"כ לפני זיכוי</td><td></td><td class="num">'+fmtMoney(it.taxBeforeCredit)+'</td></tr>';
   taxTbody.innerHTML += '<tr><td>בניכוי נקודות זיכוי ('+creditPoints+' × ₪'+CREDIT_POINT_VALUE_2026+')</td><td></td><td class="num">-'+fmtMoney(it.credit)+'</td></tr>';
+  if(pensionEnabled){
+    taxTbody.innerHTML += '<tr><td>זיכוי הפרשת פנסיה (35%, עד ₪'+PENSION_CREDIT_CEILING_2026+')</td><td></td><td class="num">-'+fmtMoney(it.pensionCredit)+'</td></tr>';
+  }
   taxTbody.innerHTML += '<tr class="summary"><td>מס הכנסה לתשלום</td><td></td><td class="num">'+fmtMoney(it.payable)+'</td></tr>';
 
   renderBracketRows('bituachBracketRows', bl.rows);
@@ -474,6 +524,7 @@ function toggleBreakdown(){
   btn.setAttribute('aria-expanded', open ? 'true' : 'false');
 }
 
+togglePensionRow();
 calc();
 </script>
 
