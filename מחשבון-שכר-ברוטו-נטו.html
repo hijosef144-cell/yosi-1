@@ -203,6 +203,11 @@
       <input type="text" inputmode="numeric" id="travelAllowance" class="ci" placeholder="0" value="0" oninput="fmtLive(this);calc()" onblur="fmtBlur(this)">
     </div>
 
+    <div class="mb-5">
+      <label class="lbl" for="recoveryPay">הבראה (₪ לחודש, אופציונלי) <span class="hint">(חייב במלואו במס הכנסה וביטוח לאומי)</span></label>
+      <input type="text" inputmode="numeric" id="recoveryPay" class="ci" placeholder="0" value="0" oninput="fmtLive(this);calc()" onblur="fmtBlur(this)">
+    </div>
+
     <div>
       <label class="lbl" for="creditPoints">נקודות זיכוי <span class="hint">(ברירת מחדל: 2.25)</span></label>
       <div class="flex gap-2 mb-2 no-print">
@@ -514,7 +519,8 @@ function renderBracketRows(tbodyId, rows){
 function calc(){
   const gross = parseRaw('grossSalary');
   const travel = parseRaw('travelAllowance');
-  const taxableIncome = gross + travel;
+  const recovery = parseRaw('recoveryPay');
+  const taxableIncome = gross + travel + recovery;
   const creditPoints = parseFloat(document.getElementById('creditPoints').value) || 0;
 
   const pensionEnabled = document.getElementById('pensionEnabled').checked;
@@ -542,7 +548,10 @@ function calc(){
   document.getElementById('resEmployerCostPct').textContent = taxableIncome>0 ? ('+'+Math.round((ec.total-taxableIncome)/taxableIncome*100)+'% מעל סך ההכנסה') : '';
 
   document.getElementById('ilGross').textContent = fmtMoney(gross);
-  document.getElementById('ilTravelNote').textContent = travel>0 ? ('כולל נסיעות: '+fmtMoney(travel)) : '';
+  const extrasNote=[];
+  if(travel>0) extrasNote.push('נסיעות: '+fmtMoney(travel));
+  if(recovery>0) extrasNote.push('הבראה: '+fmtMoney(recovery));
+  document.getElementById('ilTravelNote').textContent = extrasNote.length ? ('כולל '+extrasNote.join(', ')) : '';
   document.getElementById('ilTax').textContent = fmtMoney(roundedTax);
   document.getElementById('ilBituach').textContent = fmtMoney(roundedBituach);
   document.getElementById('ilPension').textContent = fmtMoney(roundedPension);
@@ -603,10 +612,12 @@ function collectSalaryResults(){
   const g=function(id){const el=document.getElementById(id);return el?el.textContent.trim():'—';};
   const pensionEnabled=document.getElementById('pensionEnabled').checked;
   const travel=parseRaw('travelAllowance');
+  const recovery=parseRaw('recoveryPay');
   const data={
     'שכר ברוטו חודשי':'₪'+document.getElementById('grossSalary').value
   };
   if(travel>0) data['החזר נסיעות']='₪'+document.getElementById('travelAllowance').value;
+  if(recovery>0) data['הבראה']='₪'+document.getElementById('recoveryPay').value;
   data['נקודות זיכוי']=document.getElementById('creditPoints').value;
   data['הפרשת עובד לפנסיה']=pensionEnabled?(document.getElementById('pensionRate').value+'% (נכלל בחישוב)'):'לא נכלל בחישוב';
   data['שכר נטו']=g('resNet');
