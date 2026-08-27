@@ -90,6 +90,30 @@
   .bt-section-title { font-size:13px; font-weight:700; color:#374151; margin-top:16px; margin-bottom:2px; }
   .bt-section-title:first-child { margin-top:0; }
 
+  .tog { flex:1; padding:9px 4px; border:2px solid #e5e7eb; border-radius:10px; font-weight:600; font-size:12.5px; cursor:pointer; transition:all 0.15s; background:#f9fafb; color:#6b7280; text-align:center; }
+  .tog.on { background:#1e3a8a; color:#fff; border-color:#1e3a8a; }
+
+  .disclaimer-box { background:#fffbeb; border:1px solid #fde68a; border-radius:14px; padding:16px 18px; margin-bottom:18px; font-size:12.5px; color:#78350f; line-height:1.6; text-align:center; }
+
+  .sum3-row { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:18px; }
+  .sum3-card { border-radius:16px; padding:16px 8px; text-align:center; }
+  .sum3-card.light { background:#f1f5f9; }
+  .sum3-card.gold { background:linear-gradient(135deg,#a16207 0%,#ca8a04 100%); }
+  .sum3-card.navy { background:linear-gradient(135deg,#1e3a8a 0%,#0f172a 100%); }
+  .sum3-card .sv { font-size:20px; font-weight:800; }
+  .sum3-card .sl { font-size:12px; margin-bottom:4px; opacity:.85; }
+  .sum3-card .sp { font-size:11px; margin-top:4px; opacity:.75; min-height:14px; }
+  .sum3-card.light .sv, .sum3-card.light .sl, .sum3-card.light .sp { color:#334155; }
+  .sum3-card.gold .sv, .sum3-card.gold .sl, .sum3-card.gold .sp,
+  .sum3-card.navy .sv, .sum3-card.navy .sl, .sum3-card.navy .sp { color:#fff; }
+
+  .ilist-title { font-size:14px; font-weight:700; color:#374151; margin:0 0 10px; display:flex; align-items:center; justify-content:space-between; }
+  .ilist-row { display:flex; justify-content:space-between; align-items:center; padding:12px 2px; border-bottom:1px solid #f1f5f9; }
+  .ilist-row:last-child { border-bottom:none; }
+  .ilist-label { display:flex; align-items:center; gap:9px; font-size:14px; color:#374151; }
+  .ilist-icon { width:30px; height:30px; border-radius:9px; background:#f1f5f9; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; }
+  .ilist-val { font-weight:700; font-size:15px; color:#1a1a2e; }
+
   /* כפתור נגישות צף */
   #a11y-btn { position: fixed; bottom: 80px; right: 24px; z-index: 9996; width: 52px; height: 52px; border-radius: 999px; background: #1e3a8a; color: #fff; border: none; font-size: 22px; cursor: grab; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 16px rgba(30,58,138,0.4); transition: box-shadow 0.2s ease; user-select: none; touch-action: none; }
   #a11y-btn:hover { box-shadow: 0 8px 24px rgba(30,58,138,0.5); }
@@ -164,22 +188,53 @@
       </div>
       <input type="number" id="creditPoints" class="ci" min="0" step="0.25" value="2.25" oninput="calc()">
     </div>
+
+    <div class="mt-5">
+      <label class="lbl">שיעור פיצויים מעסיק <span class="hint">(לחישוב "עלות מעסיק" בלבד — לא משפיע על השכר נטו שלך)</span></label>
+      <div class="flex gap-2">
+        <button type="button" id="pitzuimMin" class="tog" onclick="setPitzuim(0.06)">6% (מינימום חוקי)</button>
+        <button type="button" id="pitzuimFull" class="tog on" onclick="setPitzuim(0.0833)">8.33% (מלא – סעיף 14)</button>
+      </div>
+      <p class="hint mt-2">תגמולים מעסיק: 6.5% (קבוע, לפי צו הרחבה)</p>
+    </div>
   </div>
 
   <!-- RESULTS -->
-  <div class="res-hero">
-    <div class="rl">שכר נטו משוער לחודש</div>
-    <div class="rv" id="resNet">—</div>
+  <div class="disclaimer-box">
+    <b>אינו תחליף לייעוץ משפטי.</b> התוצאה משמשת להערכה בלבד; להחלטה משפטית יש לפנות לעורך דין מתחום דיני העבודה.
   </div>
 
-  <div class="res-box-row">
-    <div class="res-box">
-      <div class="rv" id="resIncomeTax">—</div>
-      <div class="rl">מס הכנסה</div>
+  <div class="sum3-row">
+    <div class="sum3-card light">
+      <div class="sl">עלות מעסיק</div>
+      <div class="sv" id="resEmployerCost">—</div>
+      <div class="sp" id="resEmployerCostPct"></div>
     </div>
-    <div class="res-box">
-      <div class="rv" id="resBituach">—</div>
-      <div class="rl">ביטוח לאומי ובריאות</div>
+    <div class="sum3-card gold">
+      <div class="sl">סה"כ ניכויים</div>
+      <div class="sv" id="resTotalDeductions">—</div>
+      <div class="sp" id="resDeductionsPct"></div>
+    </div>
+    <div class="sum3-card navy">
+      <div class="sl">שכר נטו</div>
+      <div class="sv" id="resNet">—</div>
+      <div class="sp" id="resNetPct"></div>
+    </div>
+  </div>
+
+  <div class="scard">
+    <div class="ilist-title"><span>ניכויי עובד</span><span style="color:#dc2626">↘</span></div>
+    <div class="ilist-row">
+      <div class="ilist-label"><span class="ilist-icon">📄</span> שכר ברוטו</div>
+      <div class="ilist-val" id="ilGross">—</div>
+    </div>
+    <div class="ilist-row">
+      <div class="ilist-label"><span class="ilist-icon">🏛️</span> מס הכנסה</div>
+      <div class="ilist-val" id="ilTax">—</div>
+    </div>
+    <div class="ilist-row">
+      <div class="ilist-label"><span class="ilist-icon">🏥</span> ביטוח לאומי ובריאות</div>
+      <div class="ilist-val" id="ilBituach">—</div>
     </div>
   </div>
 
@@ -198,10 +253,16 @@
         <tbody id="taxBracketRows"></tbody>
       </table>
 
-      <div class="bt-section-title">ביטוח לאומי ובריאות</div>
+      <div class="bt-section-title">ביטוח לאומי ובריאות (עובד)</div>
       <table class="bt">
         <thead><tr><th>מדרגה</th><th>אחוז</th><th>סכום במדרגה</th></tr></thead>
         <tbody id="bituachBracketRows"></tbody>
+      </table>
+
+      <div class="bt-section-title">פירוט עלות מעסיק</div>
+      <table class="bt">
+        <thead><tr><th>מדרגה</th><th>אחוז</th><th>סכום</th></tr></thead>
+        <tbody id="employerBreakdownRows"></tbody>
       </table>
     </div>
   </div>
@@ -264,6 +325,20 @@ const BITUACH_LEUMI_BRACKETS_2026 = [
   {min:7703, max:51910, rate:0.1217},
 ];
 
+/* ═══════════════ עלות מעסיק — קבועים 2026 ═══════════════ */
+const EMPLOYER_BITUACH_LEUMI_BRACKETS_2026 = [
+  {min:0,    max:7703,  rate:0.0451},
+  {min:7703, max:51910, rate:0.076},
+];
+const EMPLOYER_PENSION_DEFAULTS_2026 = {
+  tagmulim_rate: 0.065,
+  pitzuim_options: [
+    {label: "6% (מינימום חוקי - צו הרחבה)", rate: 0.06},
+    {label: "8.33% (מלא - סעיף 14)", rate: 0.0833, default: true}
+  ]
+};
+let selectedPitzuimRate = EMPLOYER_PENSION_DEFAULTS_2026.pitzuim_options.find(o=>o.default).rate;
+
 function calcBracketed(amount, brackets){
   const rows=[]; let total=0;
   for(const b of brackets){
@@ -287,6 +362,21 @@ function calcIncomeTax(gross, creditPoints){
 
 function calcBituachLeumi(gross){
   return calcBracketed(gross, BITUACH_LEUMI_BRACKETS_2026);
+}
+
+function calcEmployerCost(gross){
+  const ni = calcBracketed(gross, EMPLOYER_BITUACH_LEUMI_BRACKETS_2026);
+  const tagmulim = gross * EMPLOYER_PENSION_DEFAULTS_2026.tagmulim_rate;
+  const pitzuim = gross * selectedPitzuimRate;
+  const total = gross + ni.total + tagmulim + pitzuim;
+  return {ni, tagmulim, pitzuim, total};
+}
+
+function setPitzuim(rate){
+  selectedPitzuimRate = rate;
+  document.getElementById('pitzuimMin').classList.toggle('on', rate===0.06);
+  document.getElementById('pitzuimFull').classList.toggle('on', rate===0.0833);
+  calc();
 }
 
 /* ═══════════════ פורמט שדה סכום — עם שמירת מיקום סמן ═══════════════ */
@@ -338,11 +428,24 @@ function calc(){
 
   const it = calcIncomeTax(gross, creditPoints);
   const bl = calcBituachLeumi(gross);
-  const net = gross - it.payable - bl.total;
+  const roundedTax = Math.round(it.payable);
+  const roundedBituach = Math.round(bl.total);
+  const totalDeductions = roundedTax + roundedBituach;
+  const net = gross - totalDeductions;
+  const ec = calcEmployerCost(gross);
+
+  const pctOfGross = n => gross>0 ? Math.round(n/gross*100)+'% מהברוטו' : '';
 
   document.getElementById('resNet').textContent = fmtMoney(net);
-  document.getElementById('resIncomeTax').textContent = fmtMoney(it.payable);
-  document.getElementById('resBituach').textContent = fmtMoney(bl.total);
+  document.getElementById('resNetPct').textContent = pctOfGross(net);
+  document.getElementById('resTotalDeductions').textContent = fmtMoney(totalDeductions);
+  document.getElementById('resDeductionsPct').textContent = pctOfGross(totalDeductions);
+  document.getElementById('resEmployerCost').textContent = fmtMoney(ec.total);
+  document.getElementById('resEmployerCostPct').textContent = gross>0 ? ('+'+Math.round((ec.total-gross)/gross*100)+'% מעל הברוטו') : '';
+
+  document.getElementById('ilGross').textContent = fmtMoney(gross);
+  document.getElementById('ilTax').textContent = fmtMoney(roundedTax);
+  document.getElementById('ilBituach').textContent = fmtMoney(roundedBituach);
 
   renderBracketRows('taxBracketRows', it.rows);
   const taxTbody = document.getElementById('taxBracketRows');
@@ -352,6 +455,13 @@ function calc(){
 
   renderBracketRows('bituachBracketRows', bl.rows);
   document.getElementById('bituachBracketRows').innerHTML += '<tr class="summary"><td>סה"כ ביטוח לאומי ובריאות</td><td></td><td class="num">'+fmtMoney(bl.total)+'</td></tr>';
+
+  renderBracketRows('employerBreakdownRows', ec.ni.rows);
+  const empTbody = document.getElementById('employerBreakdownRows');
+  empTbody.innerHTML += '<tr><td>סה"כ ביטוח לאומי מעסיק</td><td></td><td class="num">'+fmtMoney(ec.ni.total)+'</td></tr>';
+  empTbody.innerHTML += '<tr><td>תגמולים מעסיק (6.5%, קבוע)</td><td></td><td class="num">'+fmtMoney(ec.tagmulim)+'</td></tr>';
+  empTbody.innerHTML += '<tr><td>פיצויים מעסיק ('+(selectedPitzuimRate*100).toLocaleString('he-IL')+'%)</td><td></td><td class="num">'+fmtMoney(ec.pitzuim)+'</td></tr>';
+  empTbody.innerHTML += '<tr class="summary"><td>סה"כ עלות מעסיק (כולל שכר ברוטו)</td><td></td><td class="num">'+fmtMoney(ec.total)+'</td></tr>';
 }
 
 function toggleBreakdown(){
