@@ -2969,6 +2969,10 @@ window.addEventListener('DOMContentLoaded', () => {
         <input type="email" name="email" placeholder="אימייל" class="calculator-input w-full px-3 py-2 rounded-md" required>
         <input type="tel" name="phone" placeholder="טלפון" class="calculator-input w-full px-3 py-2 rounded-md">
         <textarea name="message" placeholder="איך אפשר לעזור?" class="calculator-input w-full px-3 py-2 rounded-md" rows="4" required></textarea>
+        <div class="flex items-start gap-2 text-sm">
+          <input id="contactPrivacyConsent" type="checkbox" name="privacyConsent" required class="mt-1 w-4 h-4 text-blue-900 border-gray-300 rounded focus:ring-blue-500 cursor-pointer">
+          <label for="contactPrivacyConsent" class="text-gray-700 cursor-pointer">אני מסכים/ה ל<a href="/privacy" target="_blank" style="text-decoration:underline;">מדיניות הפרטיות</a></label>
+        </div>
         <button type="submit" class="w-full bg-blue-900 text-white py-2 rounded-md hover:bg-blue-800 transition duration-300">שליחה</button>
       </form>
 
@@ -2985,7 +2989,7 @@ window.addEventListener('DOMContentLoaded', () => {
                    value="אני מסכים לקבל דיוור ויצירת קשר ממצפן כלכלי"
                    class="mt-1 w-5 h-5 text-blue-900 border-gray-300 rounded focus:ring-blue-500 cursor-pointer" required>
             <label for="newsletterConsent" class="text-gray-700 leading-relaxed cursor-pointer">
-              אני מסכים/ה לקבל דיוור, עדכונים ויצירת קשר ממצפן כלכלי בהתאם למדיניות הפרטיות.
+              אני מסכים/ה לקבל דיוור, עדכונים ויצירת קשר ממצפן כלכלי בהתאם ל<a href="/privacy" target="_blank" style="text-decoration:underline;">מדיניות הפרטיות</a>.
             </label>
           </div>
 
@@ -3106,6 +3110,10 @@ window.addEventListener('DOMContentLoaded', () => {
                  oninvalid="this.style.borderColor='#991b1b';document.getElementById('popupEmailError').style.display='block'"
                  oninput="this.style.borderColor='#e2e8f0';document.getElementById('popupEmailError').style.display='none';this.setCustomValidity('')">
           <div id="popupEmailError" style="font-size:12px;color:#991b1b;display:none;margin-bottom:4px;">נא להזין כתובת מייל תקינה</div>
+          <div style="display:flex;align-items:flex-start;gap:6px;margin-bottom:6px;">
+            <input id="popupPrivacyConsent" type="checkbox" name="privacyConsent" required style="margin-top:3px;width:14px;height:14px;cursor:pointer;flex-shrink:0;">
+            <label for="popupPrivacyConsent" style="font-size:11.5px;color:#4a5568;cursor:pointer;line-height:1.4;">אני מסכים/ה ל<a href="/privacy" target="_blank" style="text-decoration:underline;">מדיניות הפרטיות</a></label>
+          </div>
           <button type="submit"
                   style="background:#1e3a5f;color:#fff;width:100%;padding:11px;border-radius:10px;font-size:15px;font-weight:700;border:none;cursor:pointer;font-family:'Heebo',sans-serif;transition:background 0.2s;display:block;margin-top:8px;"
                   onmouseover="this.style.background='#152d4a'"
@@ -7265,6 +7273,31 @@ if(e.key === 'Escape' && !overlay.hidden) closeModal();
   const el=document.getElementById('view-counter');
   if(el)el.textContent='👁 '+total.toLocaleString('he-IL')+' צפיות';
 })();
+</script>
+
+<!-- ===== COOKIE BANNER ===== -->
+<div id="cookie-banner" style="display:none; position:fixed; bottom:0; left:0; right:0; z-index:9995; background:#1e3a8a; color:#fff; padding:14px 20px; box-shadow:0 -4px 16px rgba(0,0,0,0.2); font-family:'Heebo',sans-serif; direction:rtl;">
+  <div style="max-width:1100px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
+    <div style="font-size:13px; line-height:1.6; flex:1; min-width:240px;">
+      האתר משתמש בעוגיות (כולל Google Analytics) לצורך תפעול ושיפור חוויית המשתמש. המשך גלישה מהווה הסכמה, או <a href="/privacy" style="color:#fbbf24; text-decoration:underline;">קרא עוד במדיניות הפרטיות שלנו</a>.
+    </div>
+    <button onclick="acceptCookieBanner()" style="background:#fbbf24; color:#1e3a8a; border:none; border-radius:8px; padding:9px 22px; font-size:13px; font-weight:700; cursor:pointer; white-space:nowrap; flex-shrink:0;">הבנתי</button>
+  </div>
+</div>
+<script>
+(function(){
+  try {
+    if (!localStorage.getItem('cookieConsentAccepted')) {
+      var b = document.getElementById('cookie-banner');
+      if (b) b.style.display = 'block';
+    }
+  } catch(e) {}
+})();
+function acceptCookieBanner(){
+  try { localStorage.setItem('cookieConsentAccepted', '1'); } catch(e) {}
+  var b = document.getElementById('cookie-banner');
+  if (b) b.style.display = 'none';
+}
 </script>
 </body>
 </html>

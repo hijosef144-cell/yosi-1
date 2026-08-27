@@ -342,6 +342,11 @@
            onfocus="this.style.borderColor='#2563eb';this.style.boxShadow='0 0 0 3px rgba(37,99,235,0.1)'"
            onblur="this.style.borderColor='#e2e8f0';this.style.boxShadow='none'">
     <div id="emailError" style="font-size:12px;color:#991b1b;margin-top:4px;min-height:16px"></div>
+    <div style="display:flex;align-items:flex-start;gap:6px;margin-top:6px">
+      <input id="emailPrivacyConsent" type="checkbox" style="margin-top:3px;width:15px;height:15px;cursor:pointer;flex-shrink:0"
+             onchange="document.getElementById('emailError').textContent=''">
+      <label for="emailPrivacyConsent" style="font-size:12px;color:#4a5568;cursor:pointer;line-height:1.4">אני מסכים/ה ל<a href="/privacy" target="_blank" style="text-decoration:underline">מדיניות הפרטיות</a></label>
+    </div>
     <button id="emailSendBtn" onclick="sendEmailResults()"
             style="width:100%;background:#1e3a5f;color:#fff;border:none;border-radius:8px;padding:12px;font-size:15px;font-weight:600;cursor:pointer;margin-top:12px;transition:background .2s"
             onmouseover="if(!this.disabled)this.style.background='#152d4a'"
@@ -584,6 +589,7 @@ function openEmailModal(){
   document.getElementById('emailInput').value='';
   document.getElementById('emailError').textContent='';
   document.getElementById('emailStatus').textContent='';
+  document.getElementById('emailPrivacyConsent').checked=false;
   const btn=document.getElementById('emailSendBtn');
   btn.disabled=false;btn.textContent='שלח';btn.style.background='#1e3a5f';
   setTimeout(function(){document.getElementById('emailInput').focus();},80);
@@ -624,6 +630,10 @@ function sendEmailResults(){
   const email=document.getElementById('emailInput').value.trim();
   if(!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
     document.getElementById('emailError').textContent='נא להזין כתובת מייל תקינה';
+    return;
+  }
+  if(!document.getElementById('emailPrivacyConsent').checked){
+    document.getElementById('emailError').textContent='יש לאשר את מדיניות הפרטיות כדי לשלוח';
     return;
   }
   const btn=document.getElementById('emailSendBtn');
@@ -823,6 +833,31 @@ function sendEmailResults(){
   window.toggleA11yPanel = function() { origToggle(); positionPanel(); };
   if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', initPos); } else { initPos(); }
 })();
+</script>
+
+<!-- ===== COOKIE BANNER ===== -->
+<div id="cookie-banner" style="display:none; position:fixed; bottom:0; left:0; right:0; z-index:9995; background:#1e3a8a; color:#fff; padding:14px 20px; box-shadow:0 -4px 16px rgba(0,0,0,0.2); font-family:'Heebo',sans-serif; direction:rtl;">
+  <div style="max-width:1100px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
+    <div style="font-size:13px; line-height:1.6; flex:1; min-width:240px;">
+      האתר משתמש בעוגיות (כולל Google Analytics) לצורך תפעול ושיפור חוויית המשתמש. המשך גלישה מהווה הסכמה, או <a href="/privacy" style="color:#fbbf24; text-decoration:underline;">קרא עוד במדיניות הפרטיות שלנו</a>.
+    </div>
+    <button onclick="acceptCookieBanner()" style="background:#fbbf24; color:#1e3a8a; border:none; border-radius:8px; padding:9px 22px; font-size:13px; font-weight:700; cursor:pointer; white-space:nowrap; flex-shrink:0;">הבנתי</button>
+  </div>
+</div>
+<script>
+(function(){
+  try {
+    if (!localStorage.getItem('cookieConsentAccepted')) {
+      var b = document.getElementById('cookie-banner');
+      if (b) b.style.display = 'block';
+    }
+  } catch(e) {}
+})();
+function acceptCookieBanner(){
+  try { localStorage.setItem('cookieConsentAccepted', '1'); } catch(e) {}
+  var b = document.getElementById('cookie-banner');
+  if (b) b.style.display = 'none';
+}
 </script>
 
 </body>

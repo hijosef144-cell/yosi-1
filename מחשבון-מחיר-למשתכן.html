@@ -2959,5 +2959,30 @@ document.addEventListener('DOMContentLoaded', function(){
 });
 </script>
 
+<!-- ===== COOKIE BANNER ===== -->
+<div id="cookie-banner" style="display:none; position:fixed; bottom:0; left:0; right:0; z-index:9995; background:#1e3a8a; color:#fff; padding:14px 20px; box-shadow:0 -4px 16px rgba(0,0,0,0.2); font-family:'Heebo',sans-serif; direction:rtl;">
+  <div style="max-width:1100px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
+    <div style="font-size:13px; line-height:1.6; flex:1; min-width:240px;">
+      האתר משתמש בעוגיות (כולל Google Analytics) לצורך תפעול ושיפור חוויית המשתמש. המשך גלישה מהווה הסכמה, או <a href="/privacy" style="color:#fbbf24; text-decoration:underline;">קרא עוד במדיניות הפרטיות שלנו</a>.
+    </div>
+    <button onclick="acceptCookieBanner()" style="background:#fbbf24; color:#1e3a8a; border:none; border-radius:8px; padding:9px 22px; font-size:13px; font-weight:700; cursor:pointer; white-space:nowrap; flex-shrink:0;">הבנתי</button>
+  </div>
+</div>
+<script>
+(function(){
+  try {
+    if (!localStorage.getItem('cookieConsentAccepted')) {
+      var b = document.getElementById('cookie-banner');
+      if (b) b.style.display = 'block';
+    }
+  } catch(e) {}
+})();
+function acceptCookieBanner(){
+  try { localStorage.setItem('cookieConsentAccepted', '1'); } catch(e) {}
+  var b = document.getElementById('cookie-banner');
+  if (b) b.style.display = 'none';
+}
+</script>
+
 </body>
 </html>
