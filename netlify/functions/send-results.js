@@ -35,9 +35,14 @@ exports.handler = async (event) => {
     return { statusCode: 400, headers: CORS, body: JSON.stringify({ ok: false, error: 'Missing required fields' }) };
   }
 
-  const calcName = calculatorType === 'pension'
-    ? 'מחשבון פרישה מתקדם'
-    : 'מחשבון נדל"ן מקצועי';
+  const CALC_NAMES = {
+    pension: 'מחשבון פרישה מתקדם',
+    realestate: 'מחשבון נדל"ן מקצועי',
+    annuity: 'מחשבון אנונה',
+    'price-target': 'כמה תעלה לי הדירה בפועל?',
+    salary: 'מחשבון שכר ברוטו נטו'
+  };
+  const calcName = CALC_NAMES[calculatorType] || 'מחשבון נדל"ן מקצועי';
 
   const transporter = nodemailer.createTransport({
     service: 'gmail',
