@@ -264,20 +264,11 @@
         <span id="advancedArrow">▾</span>
       </div>
       <div id="advancedPanel" style="display:none" class="mt-2">
-        <label class="flex items-center gap-2 cursor-pointer mb-3">
-          <input type="checkbox" id="grossUpEnabled" onchange="toggleGrossUpFields();runCalc()" style="width:18px;height:18px;accent-color:#1e3a8a;">
-          <span class="lbl" style="margin-bottom:0">כלול רכיב מגולם (גילום)</span>
-        </label>
-        <div id="grossUpFields" style="display:none">
-          <div class="mb-3">
-            <label class="lbl" for="grossUpDescription">תיאור הרכיב</label>
-            <input type="text" id="grossUpDescription" class="ci" placeholder="למשל: הבראה" value="" oninput="runCalc()">
-          </div>
-          <div>
-            <label class="lbl" for="grossUpTargetNet">יעד נטו לרכיב (₪)</label>
-            <input type="text" inputmode="numeric" id="grossUpTargetNet" class="ci" placeholder="0" value="0" oninput="fmtLive(this);runCalc()" onblur="fmtBlur(this)">
-          </div>
+        <div class="mb-2" style="display:flex;align-items:center;justify-content:space-between;">
+          <span class="lbl" style="margin-bottom:0">רכיבים מגולמים (גילום)</span>
+          <button type="button" onclick="addGrossUpComponent()" class="quick-btn" style="flex:none;padding:6px 14px;">+ הוסף רכיב</button>
         </div>
+        <div id="grossUpComponentsList"></div>
       </div>
     </div>
   </div>
@@ -657,9 +648,125 @@ function toggleAdvanced(){
   btn.setAttribute('aria-expanded', open ? 'true' : 'false');
 }
 
-function toggleGrossUpFields(){
-  const enabled = document.getElementById('grossUpEnabled').checked;
-  document.getElementById('grossUpFields').style.display = enabled ? 'block' : 'none';
+/* ═══════════════ רכיבים מגולמים — רשימה תומכת-ריבוי ═══════════════
+   כל רכיב: {id, description, targetNet, insured}. רינדור מלא של הרשימה
+   קורה רק בהוספה/הסרה (שינוי מבני) — לא בכל הקלדה, כדי לא להרוס פוקוס
+   באמצע הקלדה (אותו לקח בדיוק כמו renderLoans() במחשבון הנדל"ן). */
+let grossUpComponents = [];
+let grossUpNextId = 1;
+
+function addGrossUpComponent(){
+  grossUpComponents.push({id: grossUpNextId++, description:'', targetNet:0, insured:false});
+  renderGrossUpComponentsList();
+  runCalc();
+}
+
+function removeGrossUpComponent(id){
+  grossUpComponents = grossUpComponents.filter(c => c.id !== id);
+  renderGrossUpComponentsList();
+  runCalc();
+}
+
+function renderGrossUpComponentsList(){
+  const container = document.getElementById('grossUpComponentsList');
+  if(!grossUpComponents.length){
+    container.innerHTML = '<p class="hint">אין רכיבים מגולמים. לחץ "+ הוסף רכיב" כדי להתחיל.</p>';
+    return;
+  }
+  container.innerHTML = grossUpComponents.map(c => (
+    '<div class="mb-3" style="border:1px solid #e5e7eb;border-radius:10px;padding:12px;">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
+        '<span class="hint">רכיב מגולם</span>' +
+        '<button type="button" onclick="removeGrossUpComponent('+c.id+')" style="color:#dc2626;border:none;background:none;cursor:pointer;font-size:16px;line-height:1;" aria-label="הסר רכיב">✕</button>' +
+      '</div>' +
+      '<div class="mb-2">' +
+        '<label class="lbl">תיאור הרכיב</label>' +
+        '<input type="text" class="ci" placeholder="למשל: הבראה" value="'+(c.description||'').replace(/"/g,'&quot;')+'" oninput="updateGrossUpDescription('+c.id+',this.value)">' +
+      '</div>' +
+      '<div class="mb-2">' +
+        '<label class="lbl">יעד נטו לרכיב (₪)</label>' +
+        '<input type="text" inputmode="numeric" class="ci" placeholder="0" value="'+(c.targetNet>0?c.targetNet.toLocaleString('he-IL'):'')+'" oninput="fmtLive(this);updateGrossUpTarget('+c.id+',this)" onblur="fmtBlur(this)">' +
+      '</div>' +
+      '<div>' +
+        '<label class="lbl">מבוטח לפנסיה? <span class="hint">(משפיע רק על בסיס הפנסיה, לא על המס)</span></label>' +
+        '<div class="flex gap-2">' +
+          '<button type="button" id="gu-uninsured-'+c.id+'" class="tog'+(!c.insured?' on':'')+'" onclick="setGrossUpInsured('+c.id+',false)">לא (כמו הבראה/נסיעות)</button>' +
+          '<button type="button" id="gu-insured-'+c.id+'" class="tog'+(c.insured?' on':'')+'" onclick="setGrossUpInsured('+c.id+',true)">כן (כמו שכר יסוד)</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>'
+  )).join('');
+}
+
+function updateGrossUpDescription(id, val){
+  const c = grossUpComponents.find(x=>x.id===id);
+  if(c) c.description = val;
+  runCalc();
+}
+
+function updateGrossUpTarget(id, el){
+  const c = grossUpComponents.find(x=>x.id===id);
+  if(c) c.targetNet = parseFloat((el.value||'0').replace(/[^0-9.]/g,''))||0;
+  runCalc();
+}
+
+function setGrossUpInsured(id, insured){
+  const c = grossUpComponents.find(x=>x.id===id);
+  if(c) c.insured = insured;
+  const uEl=document.getElementById('gu-uninsured-'+id), iEl=document.getElementById('gu-insured-'+id);
+  if(uEl) uEl.classList.toggle('on', !insured);
+  if(iEl) iEl.classList.toggle('on', insured);
+  runCalc();
+}
+
+/* ═══════════════ שיעורי נטו שוליים מדויקים (ללא עיגול DOM) ═══════════════
+   שתי גרסאות: "מבוטח" — תוספת הברוטו נכנסת גם לבסיס הפנסיה (כמו שכר
+   יסוד); "לא מבוטח" — רק להכנסה לצורכי מס, בסיס הפנסיה נשאר קבוע
+   (כמו נסיעות/הבראה). קוראות לפונקציות הטהורות הקיימות בלבד. */
+function marginalRateInsuredAt(taxableAtPoint, pensionBaseAtPoint, creditPoints, pensionEnabled, pensionRate){
+  const eps=1;
+  function netAt(taxable, pensionBase){
+    const pensionContribution=pensionEnabled?pensionBase*pensionRate:0;
+    const pensionCredit=pensionEnabled?calcPensionCredit(pensionContribution):0;
+    const it=calcIncomeTax(taxable, creditPoints, pensionCredit);
+    const bl=calcBituachLeumi(taxable);
+    return taxable - it.payable - bl.total - pensionContribution;
+  }
+  return (netAt(taxableAtPoint+eps, pensionBaseAtPoint+eps) - netAt(taxableAtPoint, pensionBaseAtPoint)) / eps;
+}
+function marginalRateUninsuredAt(taxableAtPoint, pensionBaseAtPoint, creditPoints, pensionEnabled, pensionRate){
+  const eps=1;
+  function netAt(taxable){
+    const pensionContribution=pensionEnabled?pensionBaseAtPoint*pensionRate:0;
+    const pensionCredit=pensionEnabled?calcPensionCredit(pensionContribution):0;
+    const it=calcIncomeTax(taxable, creditPoints, pensionCredit);
+    const bl=calcBituachLeumi(taxable);
+    return taxable - it.payable - bl.total - pensionContribution;
+  }
+  return (netAt(taxableAtPoint+eps) - netAt(taxableAtPoint)) / eps;
+}
+
+/* ═══════════════ מצטבר על כל הרכיבים המגולמים, ברצף ═══════════════
+   כל רכיב מתווסף להכנסה לצורכי מס תמיד; לבסיס הפנסיה רק אם מבוטח.
+   הרכיב הבא בתור מחושב על בסיס המצב שכבר כולל את הרכיבים הקודמים. */
+function computeGrossUpTotals(baseGross, travel, recovery, creditPoints, pensionEnabled, pensionRate, components){
+  let taxableSoFar = baseGross + travel + recovery;
+  let pensionBaseSoFar = baseGross;
+  const results = [];
+  for(const c of components){
+    if(!(c.targetNet>0)){ results.push(Object.assign({}, c, {totalGrossUp:0, premium:0})); continue; }
+    const rate = c.insured
+      ? marginalRateInsuredAt(taxableSoFar, pensionBaseSoFar, creditPoints, pensionEnabled, pensionRate)
+      : marginalRateUninsuredAt(taxableSoFar, pensionBaseSoFar, creditPoints, pensionEnabled, pensionRate);
+    if(!(rate>0)){ results.push(Object.assign({}, c, {totalGrossUp:0, premium:0})); continue; }
+    const totalGrossUp = c.targetNet / rate;
+    const premium = totalGrossUp - c.targetNet;
+    results.push(Object.assign({}, c, {totalGrossUp, premium}));
+    taxableSoFar += totalGrossUp;
+    if(c.insured) pensionBaseSoFar += totalGrossUp;
+  }
+  const uninsuredExtra = results.filter(r=>!r.insured).reduce((s,r)=>s+r.totalGrossUp,0);
+  return {results, finalPensionBase: pensionBaseSoFar, uninsuredExtra};
 }
 
 /* ═══════════════ מצב חישוב — קדימה / יעד נטו / יעד עלות מעסיק ═══════════════ */
@@ -693,7 +800,7 @@ function updateGrossFieldMode(){
 /* ═══════════════ Solver כללי — net/עלות מעסיק ⇽ ברוטו, חיפוש בינארי ═══════════════
    קורא ל-calc() הקיימת שוב ושוב עם ברוטו מועמד שונה בכל פעם, וקורא את
    התוצאה (נטו/עלות מעסיק) מה-DOM. לא נוגע בפנימיות calc(). */
-function solveGrossForTargetNet(targetValue, creditPoints, pensionRatePercent, travelAllowance, recoveryPay, includePension, mode, grossUpParams){
+function solveGrossForTargetNet(targetValue, creditPoints, pensionRatePercent, travelAllowance, recoveryPay, includePension, mode, grossUpComponentsSnapshot){
   mode = mode || 'net';
   document.getElementById('creditPoints').value = creditPoints;
   document.getElementById('travelAllowance').value = String(travelAllowance);
@@ -703,21 +810,26 @@ function solveGrossForTargetNet(targetValue, creditPoints, pensionRatePercent, t
   togglePensionRow();
 
   // Only "יעד עלות מעסיק" needs to be gross-up-aware during the search itself: the total
-  // cost to the employer includes the grossed-up component, so each candidate base gross
+  // cost to the employer includes the grossed-up components, so each candidate base gross
   // must have its own gross-up added *before* checking against the target. "יעד נטו" does
   // NOT need this — gross-up already adds its target net on top additively by construction,
   // so leaving that path untouched keeps the already-verified net+gross-up behavior intact.
   const pensionRateFraction = includePension ? (pensionRatePercent/100) : 0;
-  const grossUpActive = mode==='employerCost' && grossUpParams && grossUpParams.enabled && grossUpParams.targetNet>0;
+  const grossUpActive = mode==='employerCost' && grossUpComponentsSnapshot && grossUpComponentsSnapshot.some(c=>c.targetNet>0);
 
   function evalGross(g){
-    let totalGross = g;
+    let pensionBaseForG = g;
+    let extraNonPensionable = 0;
     if(grossUpActive){
-      const marginalRate = computeMarginalNetRate(g, travelAllowance, recoveryPay, creditPoints, includePension, pensionRateFraction);
-      if(marginalRate>0) totalGross = g + (grossUpParams.targetNet / marginalRate);
+      const gu = computeGrossUpTotals(g, travelAllowance, recoveryPay, creditPoints, includePension, pensionRateFraction, grossUpComponentsSnapshot);
+      pensionBaseForG = gu.finalPensionBase;
+      extraNonPensionable = gu.uninsuredExtra;
     }
-    document.getElementById('grossSalary').value = String(Math.max(0, Math.round(totalGross)));
+    document.getElementById('grossSalary').value = String(Math.max(0, Math.round(pensionBaseForG)));
+    const trueRecoveryDuringProbe = document.getElementById('recoveryPay').value;
+    if(extraNonPensionable>0) document.getElementById('recoveryPay').value = String(recoveryPay + extraNonPensionable);
     calc();
+    if(extraNonPensionable>0) document.getElementById('recoveryPay').value = trueRecoveryDuringProbe;
     const text = mode==='employerCost'
       ? document.getElementById('resEmployerCost').textContent
       : document.getElementById('resNet').textContent;
@@ -743,22 +855,6 @@ function solveGrossForTargetNet(targetValue, creditPoints, pensionRatePercent, t
   return mid;
 }
 
-/* ═══════════════ שיעור נטו שולי מדויק (ללא עיגול DOM) — לחישוב גילום ═══════════════
-   קורא ישירות לפונקציות הטהורות הקיימות (calcIncomeTax/calcBituachLeumi),
-   לא ל-calc() עצמה, כדי להימנע מרעש עיגול של תצוגת ה-DOM (ראה תיעוד למעלה). */
-function computeMarginalNetRate(baseGross, travel, recovery, creditPoints, pensionEnabled, pensionRate){
-  const eps=1;
-  function netAt(g){
-    const taxable=g+travel+recovery;
-    const pensionContribution=pensionEnabled ? g*pensionRate : 0;
-    const pensionCredit=pensionEnabled ? calcPensionCredit(pensionContribution) : 0;
-    const it=calcIncomeTax(taxable, creditPoints, pensionCredit);
-    const bl=calcBituachLeumi(taxable);
-    return taxable - it.payable - bl.total - pensionContribution;
-  }
-  return (netAt(baseGross+eps) - netAt(baseGross)) / eps;
-}
-
 /* ═══════════════ runCalc — עוטף calc(): מצב חישוב הפוך + גילום + תקרת שווי ═══════════════
    calc() עצמה לא משתנה - הפונקציה הזו רק קוראת לה, לפעמים כמה פעמים ברצף. */
 function runCalc(){
@@ -770,10 +866,9 @@ function runCalc(){
     const pensionRatePercent = parseFloat(document.getElementById('pensionRate').value) || 0;
     const travel = parseRaw('travelAllowance');
     const recovery = parseRaw('recoveryPay');
-    const grossUpParamsForSolver = calcMode==='targetCost'
-      ? {enabled: document.getElementById('grossUpEnabled').checked, targetNet: parseRaw('grossUpTargetNet')}
-      : null; // net-mode solver stays exactly as before — gross-up already stacks additively on net
-    baseGross = solveGrossForTargetNet(targetValue, creditPoints, pensionRatePercent, travel, recovery, pensionEnabled, calcMode==='targetCost'?'employerCost':'net', grossUpParamsForSolver);
+    const grossUpSnapshotForSolver = calcMode==='targetCost' ? grossUpComponents.slice() : null;
+      // net-mode solver stays exactly as before — gross-up already stacks additively on net
+    baseGross = solveGrossForTargetNet(targetValue, creditPoints, pensionRatePercent, travel, recovery, pensionEnabled, calcMode==='targetCost'?'employerCost':'net', grossUpSnapshotForSolver);
   } else {
     baseGross = currentBaseGross;
   }
@@ -781,42 +876,32 @@ function runCalc(){
 
   document.getElementById('grossSalary').value = String(Math.round(baseGross));
 
-  // ── רכיב מגולם (גילום) ──
-  const grossUpEnabled = document.getElementById('grossUpEnabled').checked;
-  let grossUpAmount=0, grossUpInfo=null;
-  if(grossUpEnabled){
-    const grossUpTargetNet = parseRaw('grossUpTargetNet');
-    if(grossUpTargetNet>0){
-      const creditPoints = parseFloat(document.getElementById('creditPoints').value) || 0;
-      const pensionEnabled = document.getElementById('pensionEnabled').checked;
-      const pensionRate = pensionEnabled ? (parseFloat(document.getElementById('pensionRate').value)||0)/100 : 0;
-      const travel = parseRaw('travelAllowance');
-      const recovery = parseRaw('recoveryPay');
-      const marginalRate = computeMarginalNetRate(baseGross, travel, recovery, creditPoints, pensionEnabled, pensionRate);
-      if(marginalRate>0){
-        grossUpAmount = grossUpTargetNet / marginalRate; // total added to gross so the net increases by exactly grossUpTargetNet
-        const grossUpPremium = grossUpAmount - grossUpTargetNet; // "גילום נדרש" — the tax/NI cost on top of the net target itself
-        const description = document.getElementById('grossUpDescription').value.trim() || 'רכיב מגולם';
-        grossUpInfo = {description, targetNet: grossUpTargetNet, grossUpPremium, totalGross: baseGross+grossUpAmount};
-      }
-    }
-  }
+  // ── רכיבים מגולמים (גילום) — כל רכיב יורש "מבוטח/לא מבוטח" מהמשתמש ──
+  const creditPointsForGu = parseFloat(document.getElementById('creditPoints').value) || 0;
+  const pensionEnabledForGu = document.getElementById('pensionEnabled').checked;
+  const pensionRateForGu = pensionEnabledForGu ? (parseFloat(document.getElementById('pensionRate').value)||0)/100 : 0;
+  const travelForGu = parseRaw('travelAllowance');
+  const recoveryForGu = parseRaw('recoveryPay');
 
-  const finalGross = baseGross + grossUpAmount;
-  document.getElementById('grossSalary').value = String(Math.round(finalGross));
+  const grossUpCalc = computeGrossUpTotals(baseGross, travelForGu, recoveryForGu, creditPointsForGu, pensionEnabledForGu, pensionRateForGu, grossUpComponents);
+  const finalPensionBase = grossUpCalc.finalPensionBase;
+
+  document.getElementById('grossSalary').value = String(Math.round(finalPensionBase));
 
   // ── תקרת שווי הפרשות מעסיק — משפיע על ההכנסה לצורכי מס האמיתית ──
-  const pitzuimDeposit = selectedPitzuimRate * finalGross;
-  const pitzuimExempt = Math.min(finalGross, PITZUIM_EXEMPT_CEILING_MONTHLY_2026);
+  const pitzuimDeposit = selectedPitzuimRate * finalPensionBase;
+  const pitzuimExempt = Math.min(finalPensionBase, PITZUIM_EXEMPT_CEILING_MONTHLY_2026);
   const pitzuimExcess = Math.max(0, pitzuimDeposit - pitzuimExempt);
-  const tagmulimDeposit = EMPLOYER_PENSION_DEFAULTS_2026.tagmulim_rate * finalGross;
+  const tagmulimDeposit = EMPLOYER_PENSION_DEFAULTS_2026.tagmulim_rate * finalPensionBase;
   const tagmulimExcess = Math.max(0, tagmulimDeposit - TAGMULIM_EXEMPT_RATE_CEILING_2026);
   const ceilingExcess = pitzuimExcess + tagmulimExcess;
 
+  const extraNonPensionable = grossUpCalc.uninsuredExtra + ceilingExcess;
+
   const trueRecoveryStr = document.getElementById('recoveryPay').value;
-  if(ceilingExcess>0){
+  if(extraNonPensionable>0){
     const trueRecoveryNum = parseRaw('recoveryPay');
-    document.getElementById('recoveryPay').value = String(trueRecoveryNum + ceilingExcess);
+    document.getElementById('recoveryPay').value = String(trueRecoveryNum + extraNonPensionable);
     calc();
     document.getElementById('recoveryPay').value = trueRecoveryStr;
     const travelNum = parseRaw('travelAllowance');
@@ -829,8 +914,12 @@ function runCalc(){
   }
 
   const grossUpInfoEl = document.getElementById('grossUpInfo');
-  if(grossUpInfo){
-    grossUpInfoEl.innerHTML = 'רכיב מגולם: '+grossUpInfo.description+' - יעד נטו '+fmtMoney(grossUpInfo.targetNet)+', גילום נדרש '+fmtMoney2(grossUpInfo.grossUpPremium)+' (סה"כ ברוטו כולל: '+fmtMoney(grossUpInfo.totalGross)+')';
+  const activeGuComponents = grossUpCalc.results.filter(r=>r.targetNet>0);
+  if(activeGuComponents.length){
+    const totalGrossAll = baseGross + activeGuComponents.reduce((s,r)=>s+r.totalGrossUp,0);
+    grossUpInfoEl.innerHTML = activeGuComponents.map(r =>
+      'רכיב מגולם: '+(r.description||'רכיב מגולם')+' ('+(r.insured?'מבוטח לפנסיה':'לא מבוטח לפנסיה')+') - יעד נטו '+fmtMoney(r.targetNet)+', גילום נדרש '+fmtMoney2(r.premium)+' (סה"כ נוסף: '+fmtMoney(r.totalGrossUp)+')'
+    ).join('<br>') + '<br><b>סה"כ ברוטו כולל: '+fmtMoney(totalGrossAll)+'</b>';
     grossUpInfoEl.style.display='';
   } else {
     grossUpInfoEl.style.display='none';
