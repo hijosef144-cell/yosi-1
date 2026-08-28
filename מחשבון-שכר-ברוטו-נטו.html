@@ -693,7 +693,7 @@ function updateGrossFieldMode(){
 /* ═══════════════ Solver כללי — net/עלות מעסיק ⇽ ברוטו, חיפוש בינארי ═══════════════
    קורא ל-calc() הקיימת שוב ושוב עם ברוטו מועמד שונה בכל פעם, וקורא את
    התוצאה (נטו/עלות מעסיק) מה-DOM. לא נוגע בפנימיות calc(). */
-function solveGrossForTargetNet(targetValue, creditPoints, pensionRatePercent, travelAllowance, recoveryPay, includePension, mode){
+function solveGrossForTargetNet(targetValue, creditPoints, pensionRatePercent, travelAllowance, recoveryPay, includePension, mode, grossUpParams){
   mode = mode || 'net';
   document.getElementById('creditPoints').value = creditPoints;
   document.getElementById('travelAllowance').value = String(travelAllowance);
@@ -702,8 +702,21 @@ function solveGrossForTargetNet(targetValue, creditPoints, pensionRatePercent, t
   document.getElementById('pensionRate').value = pensionRatePercent;
   togglePensionRow();
 
+  // Only "יעד עלות מעסיק" needs to be gross-up-aware during the search itself: the total
+  // cost to the employer includes the grossed-up component, so each candidate base gross
+  // must have its own gross-up added *before* checking against the target. "יעד נטו" does
+  // NOT need this — gross-up already adds its target net on top additively by construction,
+  // so leaving that path untouched keeps the already-verified net+gross-up behavior intact.
+  const pensionRateFraction = includePension ? (pensionRatePercent/100) : 0;
+  const grossUpActive = mode==='employerCost' && grossUpParams && grossUpParams.enabled && grossUpParams.targetNet>0;
+
   function evalGross(g){
-    document.getElementById('grossSalary').value = String(Math.max(0, Math.round(g)));
+    let totalGross = g;
+    if(grossUpActive){
+      const marginalRate = computeMarginalNetRate(g, travelAllowance, recoveryPay, creditPoints, includePension, pensionRateFraction);
+      if(marginalRate>0) totalGross = g + (grossUpParams.targetNet / marginalRate);
+    }
+    document.getElementById('grossSalary').value = String(Math.max(0, Math.round(totalGross)));
     calc();
     const text = mode==='employerCost'
       ? document.getElementById('resEmployerCost').textContent
@@ -757,7 +770,10 @@ function runCalc(){
     const pensionRatePercent = parseFloat(document.getElementById('pensionRate').value) || 0;
     const travel = parseRaw('travelAllowance');
     const recovery = parseRaw('recoveryPay');
-    baseGross = solveGrossForTargetNet(targetValue, creditPoints, pensionRatePercent, travel, recovery, pensionEnabled, calcMode==='targetCost'?'employerCost':'net');
+    const grossUpParamsForSolver = calcMode==='targetCost'
+      ? {enabled: document.getElementById('grossUpEnabled').checked, targetNet: parseRaw('grossUpTargetNet')}
+      : null; // net-mode solver stays exactly as before — gross-up already stacks additively on net
+    baseGross = solveGrossForTargetNet(targetValue, creditPoints, pensionRatePercent, travel, recovery, pensionEnabled, calcMode==='targetCost'?'employerCost':'net', grossUpParamsForSolver);
   } else {
     baseGross = currentBaseGross;
   }
