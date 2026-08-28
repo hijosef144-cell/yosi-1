@@ -193,19 +193,38 @@
   <div class="scard">
     <div class="scard-title">👤 הנתונים שלך</div>
 
+    <div class="mb-3">
+      <label class="lbl">כיוון החישוב</label>
+      <div class="flex gap-2 no-print" style="flex-wrap:wrap">
+        <button type="button" id="modeForwardBtn" class="tog on" onclick="setCalcMode('forward')" style="flex:1 1 auto;min-width:100px">מברוטו לנטו</button>
+        <button type="button" id="modeNetBtn" class="tog" onclick="setCalcMode('targetNet')" style="flex:1 1 auto;min-width:100px">יעד נטו לברוטו</button>
+        <button type="button" id="modeCostBtn" class="tog" onclick="setCalcMode('targetCost')" style="flex:1 1 auto;min-width:100px">יעד עלות מעסיק לברוטו</button>
+      </div>
+    </div>
+
     <div class="mb-5">
-      <label class="lbl" for="grossSalary">שכר ברוטו חודשי (₪)</label>
-      <input type="text" inputmode="numeric" id="grossSalary" class="ci" placeholder="לדוגמה: 12,000" value="12,000" oninput="fmtLive(this);calc()" onblur="fmtBlur(this)">
+      <label class="lbl" id="grossSalaryLabel" for="grossSalary">שכר ברוטו חודשי (₪)</label>
+      <input type="text" inputmode="numeric" id="grossSalary" class="ci" placeholder="לדוגמה: 12,000" value="12,000" oninput="fmtLive(this);currentBaseGross=parseRaw('grossSalary');runCalc()" onblur="fmtBlur(this)">
+    </div>
+
+    <div class="mb-5" id="targetNetRow" style="display:none">
+      <label class="lbl" for="targetNetInput">כמה נטו אני רוצה לקבל? (₪ לחודש)</label>
+      <input type="text" inputmode="numeric" id="targetNetInput" class="ci" placeholder="לדוגמה: 10,000" value="10,000" oninput="fmtLive(this);runCalc()" onblur="fmtBlur(this)">
+    </div>
+
+    <div class="mb-5" id="targetCostRow" style="display:none">
+      <label class="lbl" for="targetCostInput">כמה עלות מעסיק מוכנים לשלם עליי? (₪ לחודש)</label>
+      <input type="text" inputmode="numeric" id="targetCostInput" class="ci" placeholder="לדוגמה: 15,000" value="15,000" oninput="fmtLive(this);runCalc()" onblur="fmtBlur(this)">
     </div>
 
     <div class="mb-5">
       <label class="lbl" for="travelAllowance">החזר נסיעות (₪ לחודש) <span class="hint">(אופציונלי, חייב במלואו במס הכנסה וביטוח לאומי)</span></label>
-      <input type="text" inputmode="numeric" id="travelAllowance" class="ci" placeholder="0" value="0" oninput="fmtLive(this);calc()" onblur="fmtBlur(this)">
+      <input type="text" inputmode="numeric" id="travelAllowance" class="ci" placeholder="0" value="0" oninput="fmtLive(this);runCalc()" onblur="fmtBlur(this)">
     </div>
 
     <div class="mb-5">
       <label class="lbl" for="recoveryPay">הבראה (₪ לחודש, אופציונלי) <span class="hint">(חייב במלואו במס הכנסה וביטוח לאומי)</span></label>
-      <input type="text" inputmode="numeric" id="recoveryPay" class="ci" placeholder="0" value="0" oninput="fmtLive(this);calc()" onblur="fmtBlur(this)">
+      <input type="text" inputmode="numeric" id="recoveryPay" class="ci" placeholder="0" value="0" oninput="fmtLive(this);runCalc()" onblur="fmtBlur(this)">
     </div>
 
     <div>
@@ -214,17 +233,17 @@
         <button type="button" class="quick-btn" onclick="setCreditPoints(2.25)">גבר (2.25)</button>
         <button type="button" class="quick-btn" onclick="setCreditPoints(2.75)">אישה (2.75)</button>
       </div>
-      <input type="number" id="creditPoints" class="ci" min="0" step="0.25" value="2.25" oninput="calc()">
+      <input type="number" id="creditPoints" class="ci" min="0" step="0.25" value="2.25" oninput="runCalc()">
     </div>
 
     <div class="mt-5">
       <label class="flex items-center gap-2 cursor-pointer">
-        <input type="checkbox" id="pensionEnabled" checked onchange="togglePensionRow();calc()" style="width:16px;height:16px;accent-color:#1e3a8a;">
+        <input type="checkbox" id="pensionEnabled" checked onchange="togglePensionRow();runCalc()" style="width:16px;height:16px;accent-color:#1e3a8a;">
         <span class="lbl" style="margin-bottom:0">כלול הפרשת עובד לפנסיה בחישוב</span>
       </label>
       <div id="pensionRateRow" class="mt-2">
         <label class="lbl" for="pensionRate">שיעור הפרשת עובד לפנסיה (%) <span class="hint">(ברירת מחדל: 6%)</span></label>
-        <input type="number" id="pensionRate" class="ci" min="0" max="20" step="0.5" value="6" oninput="calc()">
+        <input type="number" id="pensionRate" class="ci" min="0" max="20" step="0.5" value="6" oninput="runCalc()">
       </div>
     </div>
 
@@ -235,6 +254,31 @@
         <button type="button" id="pitzuimFull" class="tog on" onclick="setPitzuim(0.0833)">8.33% (מלא – סעיף 14)</button>
       </div>
       <p class="hint mt-2">תגמולים מעסיק: 6.5% (קבוע, לפי צו הרחבה)</p>
+    </div>
+
+    <div class="mt-5">
+      <div class="adv-toggle" id="advancedToggle" onclick="toggleAdvanced()" role="button" tabindex="0"
+           aria-expanded="false" aria-controls="advancedPanel"
+           onkeydown="if(event.key==='Enter'||event.key===' '){toggleAdvanced();}">
+        <span>⚙️ הגדרות מתקדמות</span>
+        <span id="advancedArrow">▾</span>
+      </div>
+      <div id="advancedPanel" style="display:none" class="mt-2">
+        <label class="flex items-center gap-2 cursor-pointer mb-3">
+          <input type="checkbox" id="grossUpEnabled" onchange="toggleGrossUpFields();runCalc()" style="width:18px;height:18px;accent-color:#1e3a8a;">
+          <span class="lbl" style="margin-bottom:0">כלול רכיב מגולם (גילום)</span>
+        </label>
+        <div id="grossUpFields" style="display:none">
+          <div class="mb-3">
+            <label class="lbl" for="grossUpDescription">תיאור הרכיב</label>
+            <input type="text" id="grossUpDescription" class="ci" placeholder="למשל: הבראה" value="" oninput="runCalc()">
+          </div>
+          <div>
+            <label class="lbl" for="grossUpTargetNet">יעד נטו לרכיב (₪)</label>
+            <input type="text" inputmode="numeric" id="grossUpTargetNet" class="ci" placeholder="0" value="0" oninput="fmtLive(this);runCalc()" onblur="fmtBlur(this)">
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -247,6 +291,10 @@
   <div class="disclaimer-box">
     <b>אינו תחליף לייעוץ משפטי.</b> התוצאה משמשת להערכה בלבד; להחלטה משפטית יש לפנות לעורך דין מתחום דיני העבודה.
   </div>
+
+  <div id="grossUpInfo" class="disclaimer-box" style="display:none; background:#eff6ff; border-color:#bfdbfe; color:#1e3a8a;"></div>
+
+  <div id="ceilingWarning" class="disclaimer-box" style="display:none; background:#fef2f2; border-color:#fecaca; color:#991b1b;"></div>
 
   <div class="sum3-row">
     <div class="sum3-card light">
@@ -421,6 +469,16 @@ const EMPLOYER_PENSION_DEFAULTS_2026 = {
 };
 let selectedPitzuimRate = EMPLOYER_PENSION_DEFAULTS_2026.pitzuim_options.find(o=>o.default).rate;
 
+/* ═══════════════ תקרת שווי הפרשות מעסיק — קבועים 2026 ═══════════════ */
+const PITZUIM_EXEMPT_CEILING_MONTHLY_2026 = 3800;
+const TAGMULIM_EXEMPT_RATE_CEILING_2026 = 2582; // 7.5% מ-34,425
+
+let calcMode = 'forward'; // 'forward' | 'targetNet' | 'targetCost'
+let currentBaseGross = 12000; // the true base gross in forward mode — kept separate from the
+                               // grossSalary field's displayed value, which runCalc() overwrites
+                               // with the post-gross-up total; without this, re-reading the field
+                               // as the next call's base would compound the gross-up every render.
+
 function calcBracketed(amount, brackets){
   const rows=[]; let total=0;
   for(const b of brackets){
@@ -470,7 +528,7 @@ function setPitzuim(rate){
   selectedPitzuimRate = rate;
   document.getElementById('pitzuimMin').classList.toggle('on', rate===0.06);
   document.getElementById('pitzuimFull').classList.toggle('on', rate===0.0833);
-  calc();
+  runCalc();
 }
 
 /* ═══════════════ פורמט שדה סכום — עם שמירת מיקום סמן ═══════════════ */
@@ -497,11 +555,14 @@ function parseRaw(id){
 
 function setCreditPoints(v){
   document.getElementById('creditPoints').value=v;
-  calc();
+  runCalc();
 }
 
 function fmtMoney(n){
   return '₪'+Math.round(n).toLocaleString('he-IL');
+}
+function fmtMoney2(n){
+  return '₪'+n.toLocaleString('he-IL', {minimumFractionDigits:2, maximumFractionDigits:2});
 }
 
 function bracketLabel(b){
@@ -586,8 +647,192 @@ function toggleBreakdown(){
   btn.setAttribute('aria-expanded', open ? 'true' : 'false');
 }
 
+function toggleAdvanced(){
+  const panel=document.getElementById('advancedPanel');
+  const arrow=document.getElementById('advancedArrow');
+  const btn=document.getElementById('advancedToggle');
+  const open = panel.style.display==='none';
+  panel.style.display = open ? 'block' : 'none';
+  arrow.textContent = open ? '▴' : '▾';
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+function toggleGrossUpFields(){
+  const enabled = document.getElementById('grossUpEnabled').checked;
+  document.getElementById('grossUpFields').style.display = enabled ? 'block' : 'none';
+}
+
+/* ═══════════════ מצב חישוב — קדימה / יעד נטו / יעד עלות מעסיק ═══════════════ */
+function setCalcMode(mode){
+  calcMode = mode;
+  document.getElementById('modeForwardBtn').classList.toggle('on', mode==='forward');
+  document.getElementById('modeNetBtn').classList.toggle('on', mode==='targetNet');
+  document.getElementById('modeCostBtn').classList.toggle('on', mode==='targetCost');
+  document.getElementById('targetNetRow').style.display = mode==='targetNet' ? '' : 'none';
+  document.getElementById('targetCostRow').style.display = mode==='targetCost' ? '' : 'none';
+  updateGrossFieldMode();
+  runCalc();
+}
+
+function updateGrossFieldMode(){
+  const el=document.getElementById('grossSalary');
+  const label=document.getElementById('grossSalaryLabel');
+  if(calcMode==='forward'){
+    el.readOnly=false;
+    el.style.background='';
+    el.style.color='';
+    label.textContent='שכר ברוטו חודשי (₪)';
+  } else {
+    el.readOnly=true;
+    el.style.background='#f3f4f6';
+    el.style.color='#6b7280';
+    label.textContent='הברוטו הנדרש (מחושב אוטומטית)';
+  }
+}
+
+/* ═══════════════ Solver כללי — net/עלות מעסיק ⇽ ברוטו, חיפוש בינארי ═══════════════
+   קורא ל-calc() הקיימת שוב ושוב עם ברוטו מועמד שונה בכל פעם, וקורא את
+   התוצאה (נטו/עלות מעסיק) מה-DOM. לא נוגע בפנימיות calc(). */
+function solveGrossForTargetNet(targetValue, creditPoints, pensionRatePercent, travelAllowance, recoveryPay, includePension, mode){
+  mode = mode || 'net';
+  document.getElementById('creditPoints').value = creditPoints;
+  document.getElementById('travelAllowance').value = String(travelAllowance);
+  document.getElementById('recoveryPay').value = String(recoveryPay);
+  document.getElementById('pensionEnabled').checked = includePension;
+  document.getElementById('pensionRate').value = pensionRatePercent;
+  togglePensionRow();
+
+  function evalGross(g){
+    document.getElementById('grossSalary').value = String(Math.max(0, Math.round(g)));
+    calc();
+    const text = mode==='employerCost'
+      ? document.getElementById('resEmployerCost').textContent
+      : document.getElementById('resNet').textContent;
+    return parseFloat((text||'0').replace(/[^0-9.]/g,'')) || 0;
+  }
+
+  let lo=0, hi=200000;
+  let hiVal=evalGross(hi);
+  let guard=0;
+  while(hiVal<targetValue && guard<20){
+    hi*=2;
+    hiVal=evalGross(hi);
+    guard++;
+  }
+
+  let mid=hi;
+  for(let i=0;i<50;i++){
+    mid=(lo+hi)/2;
+    const val=evalGross(mid);
+    if(Math.abs(val-targetValue)<=1) break;
+    if(val<targetValue) lo=mid; else hi=mid;
+  }
+  return mid;
+}
+
+/* ═══════════════ שיעור נטו שולי מדויק (ללא עיגול DOM) — לחישוב גילום ═══════════════
+   קורא ישירות לפונקציות הטהורות הקיימות (calcIncomeTax/calcBituachLeumi),
+   לא ל-calc() עצמה, כדי להימנע מרעש עיגול של תצוגת ה-DOM (ראה תיעוד למעלה). */
+function computeMarginalNetRate(baseGross, travel, recovery, creditPoints, pensionEnabled, pensionRate){
+  const eps=1;
+  function netAt(g){
+    const taxable=g+travel+recovery;
+    const pensionContribution=pensionEnabled ? g*pensionRate : 0;
+    const pensionCredit=pensionEnabled ? calcPensionCredit(pensionContribution) : 0;
+    const it=calcIncomeTax(taxable, creditPoints, pensionCredit);
+    const bl=calcBituachLeumi(taxable);
+    return taxable - it.payable - bl.total - pensionContribution;
+  }
+  return (netAt(baseGross+eps) - netAt(baseGross)) / eps;
+}
+
+/* ═══════════════ runCalc — עוטף calc(): מצב חישוב הפוך + גילום + תקרת שווי ═══════════════
+   calc() עצמה לא משתנה - הפונקציה הזו רק קוראת לה, לפעמים כמה פעמים ברצף. */
+function runCalc(){
+  let baseGross;
+  if(calcMode==='targetNet' || calcMode==='targetCost'){
+    const targetValue = calcMode==='targetNet' ? parseRaw('targetNetInput') : parseRaw('targetCostInput');
+    const creditPoints = parseFloat(document.getElementById('creditPoints').value) || 0;
+    const pensionEnabled = document.getElementById('pensionEnabled').checked;
+    const pensionRatePercent = parseFloat(document.getElementById('pensionRate').value) || 0;
+    const travel = parseRaw('travelAllowance');
+    const recovery = parseRaw('recoveryPay');
+    baseGross = solveGrossForTargetNet(targetValue, creditPoints, pensionRatePercent, travel, recovery, pensionEnabled, calcMode==='targetCost'?'employerCost':'net');
+  } else {
+    baseGross = currentBaseGross;
+  }
+  currentBaseGross = baseGross; // keep in sync so switching modes / re-renders never compound
+
+  document.getElementById('grossSalary').value = String(Math.round(baseGross));
+
+  // ── רכיב מגולם (גילום) ──
+  const grossUpEnabled = document.getElementById('grossUpEnabled').checked;
+  let grossUpAmount=0, grossUpInfo=null;
+  if(grossUpEnabled){
+    const grossUpTargetNet = parseRaw('grossUpTargetNet');
+    if(grossUpTargetNet>0){
+      const creditPoints = parseFloat(document.getElementById('creditPoints').value) || 0;
+      const pensionEnabled = document.getElementById('pensionEnabled').checked;
+      const pensionRate = pensionEnabled ? (parseFloat(document.getElementById('pensionRate').value)||0)/100 : 0;
+      const travel = parseRaw('travelAllowance');
+      const recovery = parseRaw('recoveryPay');
+      const marginalRate = computeMarginalNetRate(baseGross, travel, recovery, creditPoints, pensionEnabled, pensionRate);
+      if(marginalRate>0){
+        grossUpAmount = grossUpTargetNet / marginalRate; // total added to gross so the net increases by exactly grossUpTargetNet
+        const grossUpPremium = grossUpAmount - grossUpTargetNet; // "גילום נדרש" — the tax/NI cost on top of the net target itself
+        const description = document.getElementById('grossUpDescription').value.trim() || 'רכיב מגולם';
+        grossUpInfo = {description, targetNet: grossUpTargetNet, grossUpPremium, totalGross: baseGross+grossUpAmount};
+      }
+    }
+  }
+
+  const finalGross = baseGross + grossUpAmount;
+  document.getElementById('grossSalary').value = String(Math.round(finalGross));
+
+  // ── תקרת שווי הפרשות מעסיק — משפיע על ההכנסה לצורכי מס האמיתית ──
+  const pitzuimDeposit = selectedPitzuimRate * finalGross;
+  const pitzuimExempt = Math.min(finalGross, PITZUIM_EXEMPT_CEILING_MONTHLY_2026);
+  const pitzuimExcess = Math.max(0, pitzuimDeposit - pitzuimExempt);
+  const tagmulimDeposit = EMPLOYER_PENSION_DEFAULTS_2026.tagmulim_rate * finalGross;
+  const tagmulimExcess = Math.max(0, tagmulimDeposit - TAGMULIM_EXEMPT_RATE_CEILING_2026);
+  const ceilingExcess = pitzuimExcess + tagmulimExcess;
+
+  const trueRecoveryStr = document.getElementById('recoveryPay').value;
+  if(ceilingExcess>0){
+    const trueRecoveryNum = parseRaw('recoveryPay');
+    document.getElementById('recoveryPay').value = String(trueRecoveryNum + ceilingExcess);
+    calc();
+    document.getElementById('recoveryPay').value = trueRecoveryStr;
+    const travelNum = parseRaw('travelAllowance');
+    const extrasNote=[];
+    if(travelNum>0) extrasNote.push('נסיעות: '+fmtMoney(travelNum));
+    if(trueRecoveryNum>0) extrasNote.push('הבראה: '+fmtMoney(trueRecoveryNum));
+    document.getElementById('ilTravelNote').textContent = extrasNote.length ? ('כולל '+extrasNote.join(', ')) : '';
+  } else {
+    calc();
+  }
+
+  const grossUpInfoEl = document.getElementById('grossUpInfo');
+  if(grossUpInfo){
+    grossUpInfoEl.innerHTML = 'רכיב מגולם: '+grossUpInfo.description+' - יעד נטו '+fmtMoney(grossUpInfo.targetNet)+', גילום נדרש '+fmtMoney2(grossUpInfo.grossUpPremium)+' (סה"כ ברוטו כולל: '+fmtMoney(grossUpInfo.totalGross)+')';
+    grossUpInfoEl.style.display='';
+  } else {
+    grossUpInfoEl.style.display='none';
+  }
+
+  const ceilingWarningEl = document.getElementById('ceilingWarning');
+  if(ceilingExcess>0){
+    ceilingWarningEl.innerHTML = '⚠️ הפרשות המעסיק חורגות מתקרת הפטור — נוסף '+fmtMoney(ceilingExcess)+' כהכנסה חייבת (משפיע על מס הכנסה וביטוח לאומי בפועל). ההפרשה הפנסיונית עצמה לא משתנה, רק החבות במס עליה.';
+    ceilingWarningEl.style.display='';
+  } else {
+    ceilingWarningEl.style.display='none';
+  }
+
+  updateGrossFieldMode();
+}
+
 togglePensionRow();
-calc();
+setCalcMode('forward');
 </script>
 
 <!-- ===== EMAIL RESULTS — salary ===== -->
