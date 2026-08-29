@@ -233,7 +233,7 @@
         <button type="button" class="quick-btn" onclick="setCreditPoints(2.25)">גבר (2.25)</button>
         <button type="button" class="quick-btn" onclick="setCreditPoints(2.75)">אישה (2.75)</button>
       </div>
-      <input type="number" id="creditPoints" class="ci" min="0" step="0.25" value="2.25" oninput="runCalc()">
+      <input type="text" inputmode="decimal" id="creditPoints" class="ci" value="2.25" oninput="fmtDecimalLive(this);runCalc()">
     </div>
 
     <div class="mt-5">
@@ -243,7 +243,7 @@
       </label>
       <div id="pensionRateRow" class="mt-2">
         <label class="lbl" for="pensionRate">שיעור הפרשת עובד לפנסיה (%) <span class="hint">(ברירת מחדל: 6%)</span></label>
-        <input type="number" id="pensionRate" class="ci" min="0" max="20" step="0.5" value="6" oninput="runCalc()">
+        <input type="text" inputmode="decimal" id="pensionRate" class="ci" value="6" oninput="fmtDecimalLive(this);runCalc()">
       </div>
     </div>
 
@@ -538,6 +538,22 @@ function fmtBlur(el){
   const n=parseRaw(el.id);
   if(n>0) el.value=n.toLocaleString('he-IL');
 }
+/* ═══════════════ פורמט שדה עשרוני (נקודות זיכוי, אחוזים) — עם שמירת סמן ═══════════════
+   בכוונה type="text" ולא type="number": type="number" מאפס .value למחרוזת ריקה
+   באופן זמני תוך כדי הקלדת הנקודה העשרונית (למשל "17." לפני שהספרה הבאה
+   מוקלדת), ומכיוון שיש חישוב מחדש על כל הקלדה זה גרם להבזק רגעי של "0". */
+function fmtDecimalLive(el){
+  const before=el.value;
+  const distFromEnd=before.length-el.selectionStart;
+  let raw=before.replace(/[^0-9.]/g,'');
+  const firstDot=raw.indexOf('.');
+  if(firstDot!==-1){
+    raw=raw.slice(0,firstDot+1)+raw.slice(firstDot+1).replace(/\./g,'');
+  }
+  el.value=raw;
+  const newPos=Math.max(0,raw.length-distFromEnd);
+  try{el.setSelectionRange(newPos,newPos);}catch(e){}
+}
 function parseRaw(id){
   const el=document.getElementById(id);
   if(!el) return 0;
@@ -803,8 +819,8 @@ function updateGrossFieldMode(){
 function solveGrossForTargetNet(targetValue, creditPoints, pensionRatePercent, travelAllowance, recoveryPay, includePension, mode, grossUpComponentsSnapshot){
   mode = mode || 'net';
   document.getElementById('creditPoints').value = creditPoints;
-  document.getElementById('travelAllowance').value = String(travelAllowance);
-  document.getElementById('recoveryPay').value = String(recoveryPay);
+  document.getElementById('travelAllowance').value = Math.round(travelAllowance).toLocaleString('he-IL');
+  document.getElementById('recoveryPay').value = Math.round(recoveryPay).toLocaleString('he-IL');
   document.getElementById('pensionEnabled').checked = includePension;
   document.getElementById('pensionRate').value = pensionRatePercent;
   togglePensionRow();
@@ -825,9 +841,9 @@ function solveGrossForTargetNet(targetValue, creditPoints, pensionRatePercent, t
       pensionBaseForG = gu.finalPensionBase;
       extraNonPensionable = gu.uninsuredExtra;
     }
-    document.getElementById('grossSalary').value = String(Math.max(0, Math.round(pensionBaseForG)));
+    document.getElementById('grossSalary').value = Math.max(0, Math.round(pensionBaseForG)).toLocaleString('he-IL');
     const trueRecoveryDuringProbe = document.getElementById('recoveryPay').value;
-    if(extraNonPensionable>0) document.getElementById('recoveryPay').value = String(recoveryPay + extraNonPensionable);
+    if(extraNonPensionable>0) document.getElementById('recoveryPay').value = Math.round(recoveryPay + extraNonPensionable).toLocaleString('he-IL');
     calc();
     if(extraNonPensionable>0) document.getElementById('recoveryPay').value = trueRecoveryDuringProbe;
     const text = mode==='employerCost'
@@ -874,7 +890,7 @@ function runCalc(){
   }
   currentBaseGross = baseGross; // keep in sync so switching modes / re-renders never compound
 
-  document.getElementById('grossSalary').value = String(Math.round(baseGross));
+  document.getElementById('grossSalary').value = Math.round(baseGross).toLocaleString('he-IL');
 
   // ── רכיבים מגולמים (גילום) — כל רכיב יורש "מבוטח/לא מבוטח" מהמשתמש ──
   const creditPointsForGu = parseFloat(document.getElementById('creditPoints').value) || 0;
@@ -886,7 +902,7 @@ function runCalc(){
   const grossUpCalc = computeGrossUpTotals(baseGross, travelForGu, recoveryForGu, creditPointsForGu, pensionEnabledForGu, pensionRateForGu, grossUpComponents);
   const finalPensionBase = grossUpCalc.finalPensionBase;
 
-  document.getElementById('grossSalary').value = String(Math.round(finalPensionBase));
+  document.getElementById('grossSalary').value = Math.round(finalPensionBase).toLocaleString('he-IL');
 
   // ── תקרת שווי הפרשות מעסיק — משפיע על ההכנסה לצורכי מס האמיתית ──
   const pitzuimDeposit = selectedPitzuimRate * finalPensionBase;
@@ -901,7 +917,7 @@ function runCalc(){
   const trueRecoveryStr = document.getElementById('recoveryPay').value;
   if(extraNonPensionable>0){
     const trueRecoveryNum = parseRaw('recoveryPay');
-    document.getElementById('recoveryPay').value = String(trueRecoveryNum + extraNonPensionable);
+    document.getElementById('recoveryPay').value = Math.round(trueRecoveryNum + extraNonPensionable).toLocaleString('he-IL');
     calc();
     document.getElementById('recoveryPay').value = trueRecoveryStr;
     const travelNum = parseRaw('travelAllowance');
