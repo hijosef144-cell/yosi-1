@@ -309,14 +309,6 @@
         <button type="button" onclick="addWizardChild()" class="quick-btn no-print" style="flex:none;padding:6px 14px;">+ הוסף ילדים</button>
       </div>
       <div id="wizardChildrenList"></div>
-      <label class="flex items-center gap-2 cursor-pointer mt-2">
-        <input type="checkbox" id="wizardIncludeChildren" onchange="onWizardToggle()" style="width:16px;height:16px;accent-color:#1e3a8a;">
-        <span class="lbl" style="margin-bottom:0">כלול נקודות ילדים בחישוב</span>
-      </label>
-      <div id="wizardResultBox" style="display:none;" class="mt-2">
-        <p class="hint">סה"כ מחושב: <b id="wizardTotalDisplay">0</b> נקודות</p>
-        <button type="button" onclick="applyWizardToField()" class="quick-btn no-print" style="flex:none;padding:6px 14px;">החל על שדה נקודות הזיכוי</button>
-      </div>
       <p class="hint mt-2">מיועד למצב משמורת רגיל (ההורה מקבל קצבת ילדים מביטוח לאומי על הילד). במקרים מיוחדים — משמורת משותפת, הורות שאינה ביולוגית, נכות — יש לפנות לרואה חשבון או להשתמש בסימולטור הרשמי של רשות המסים.</p>
     </div>
 
@@ -1239,14 +1231,13 @@ function parseRaw(id){
 
 function setCreditPoints(v, gender){
   document.getElementById('creditPoints').value=v;
-  if(gender){ wizardGender = gender; updateWizardComputation(); }
+  if(gender){ wizardGender = gender; }
   runCalc();
 }
 
-/* ═══════════════ אשף נקודות זיכוי — בונה ערך הצעה בלבד, לעולם לא כותב אוטומטית
-   לשדה נקודות זיכוי (רק כפתור "החל על השדה למעלה" עושה זאת). כל שינוי במבנה
-   הרשימה (הוספה/הסרה) עושה רינדור מלא; עריכת גיל ילד בודד מעדכנת state בלבד,
-   בלי לבנות מחדש ילדים אחרים — כדי לא להרוס פוקוס באמצע הקלדה. ═══════════════ */
+/* ═══════════════ אשף נקודות זיכוי — כפתור "עדכן" בחלונית כותב ישירות לשדה
+   נקודות זיכוי (בסיס גבר/אישה + סכום קבוצות הגיל) וסוגר את החלונית. השדה
+   נשאר תמיד ניתן לעריכה ידנית אחרי כן — זו רק עוד דרך למלא אותו. ═══════════════ */
 let wizardGender = 'father';
 let familyStatus = 'married';
 /* קבוצות גיל שבהן נקודות הזיכוי לילד זהות פנימית (ראה CHILD_CREDIT_POINTS_2026) —
@@ -1258,7 +1249,6 @@ function setFamilyStatus(status){
   familyStatus = status;
   document.getElementById('famStatusMarried').classList.toggle('on', status==='married');
   document.getElementById('famStatusSingle').classList.toggle('on', status==='single');
-  updateWizardComputation();
 }
 
 function updateChildModalLabels(){
@@ -1295,7 +1285,8 @@ function confirmUpdateChildren(){
   wizardChildCounts.age4to5 = readCount('childCountAge4to5');
   wizardChildCounts.age6to17 = readCount('childCountAge6to17');
   renderWizardChildrenSummary();
-  updateWizardComputation();
+  document.getElementById('creditPoints').value = computeWizardTotal();
+  runCalc();
   closeChildModal();
 }
 
@@ -1318,10 +1309,6 @@ function renderWizardChildrenSummary(){
   container.innerHTML = '<p class="hint" style="color:#1e3a8a;font-weight:600;">'+totalLabel+': '+parts.join(', ')+'</p>';
 }
 
-function onWizardToggle(){
-  updateWizardComputation();
-}
-
 function computeWizardChildPoints(age, isSingleParent, gender){
   const shared0to5 = {0:CHILD_CREDIT_POINTS_2026.age0, 1:CHILD_CREDIT_POINTS_2026.age1, 2:CHILD_CREDIT_POINTS_2026.age2, 3:CHILD_CREDIT_POINTS_2026.age3, 4:CHILD_CREDIT_POINTS_2026.age4, 5:CHILD_CREDIT_POINTS_2026.age5};
   if(age<=5) return isSingleParent ? shared0to5[age]*2 : shared0to5[age];
@@ -1340,20 +1327,6 @@ function computeWizardTotal(){
   });
   const singleBonus = (isSingle && totalChildren>0) ? SINGLE_PARENT_BONUS_2026 : 0;
   return base + childrenTotal + singleBonus;
-}
-
-function updateWizardComputation(){
-  const box = document.getElementById('wizardResultBox');
-  const checked = document.getElementById('wizardIncludeChildren').checked;
-  box.style.display = checked ? 'block' : 'none';
-  if(checked){
-    document.getElementById('wizardTotalDisplay').textContent = computeWizardTotal().toLocaleString('he-IL');
-  }
-}
-
-function applyWizardToField(){
-  document.getElementById('creditPoints').value = computeWizardTotal();
-  runCalc();
 }
 
 function fmtMoney(n){
