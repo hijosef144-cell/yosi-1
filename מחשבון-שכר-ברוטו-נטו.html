@@ -1424,14 +1424,18 @@ function toggleAdvanced(){
 }
 
 /* ═══════════════ רכיבים מגולמים — רשימה תומכת-ריבוי ═══════════════
-   כל רכיב: {id, description, targetNet, insured}. רינדור מלא של הרשימה
-   קורה רק בהוספה/הסרה (שינוי מבני) — לא בכל הקלדה, כדי לא להרוס פוקוס
-   באמצע הקלדה (אותו לקח בדיוק כמו renderLoans() במחשבון הנדל"ן). */
+   כל רכיב: {id, description, targetNet, insured, inputMode, directAmount}.
+   inputMode='targetNet' (ברירת מחדל): הגילום מחושב אוטומטית מיעד נטו,
+   דרך שיעורי הנטו השוליים (ללא שינוי). inputMode='direct': סכום הגילום
+   כבר ידוע למשתמש ומוזן ישירות, בלי שום פתרון הפוך. רינדור מלא של הרשימה
+   קורה רק בהוספה/הסרה/שינוי מצב קלט (שינוי מבני) — לא בכל הקלדה, כדי
+   לא להרוס פוקוס באמצע הקלדה (אותו לקח בדיוק כמו renderLoans() במחשבון
+   הנדל"ן). */
 let grossUpComponents = [];
 let grossUpNextId = 1;
 
 function addGrossUpComponent(){
-  grossUpComponents.push({id: grossUpNextId++, description:'', targetNet:0, insured:false});
+  grossUpComponents.push({id: grossUpNextId++, description:'', targetNet:0, insured:false, inputMode:'targetNet', directAmount:0});
   renderGrossUpComponentsList();
   runCalc();
 }
@@ -1448,14 +1452,26 @@ function renderGrossUpComponentsList(){
     container.innerHTML = '<p class="hint">אין רכיבים מגולמים. לחץ "+ הוסף רכיב" כדי להתחיל.</p>';
     return;
   }
-  container.innerHTML = grossUpComponents.map(c => (
+  container.innerHTML = grossUpComponents.map(c => {
+    const isDirect = c.inputMode === 'direct';
+    const valuePlaceholderText = isDirect ? 'סכום הגילום כפי שמופיע בתלוש' : 'יעד נטו לרכיב — גילום מחושב אוטומטית';
+    const valueForField = isDirect ? c.directAmount : c.targetNet;
+    const valueOninput = isDirect
+      ? 'fmtDecimalLive(this);updateGrossUpDirectAmount('+c.id+',this)'
+      : 'fmtLive(this);updateGrossUpTarget('+c.id+',this)';
+    const valueInputMode = isDirect ? 'decimal' : 'numeric';
+    return (
     '<div class="prow gross-item" style="display:block;">' +
+      '<div class="flex gap-2 mb-2 no-print">' +
+        '<button type="button" id="gu-mode-targetnet-'+c.id+'" class="tog'+(!isDirect?' on':'')+'" style="font-size:10.5px;padding:5px 4px;" onclick="setGrossUpInputMode('+c.id+',\'targetNet\')">יעד נטו לרכיב</button>' +
+        '<button type="button" id="gu-mode-direct-'+c.id+'" class="tog'+(isDirect?' on':'')+'" style="font-size:10.5px;padding:5px 4px;" onclick="setGrossUpInputMode('+c.id+',\'direct\')">יש לי כבר את הגילום</button>' +
+      '</div>' +
       '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">' +
         '<div class="prlabel">' +
           '<input type="text" class="gu-desc-input" placeholder="תיאור הרכיב (למשל: הבראה)" value="'+(c.description||'').replace(/"/g,'&quot;')+'" oninput="updateGrossUpDescription('+c.id+',this.value)">' +
-          '<small>יעד נטו לרכיב — גילום מחושב אוטומטית</small>' +
+          '<small>'+valuePlaceholderText+'</small>' +
         '</div>' +
-        '<input type="text" inputmode="numeric" class="pval-input" placeholder="0" value="'+(c.targetNet>0?c.targetNet.toLocaleString('he-IL'):'')+'" oninput="fmtLive(this);updateGrossUpTarget('+c.id+',this)" onblur="fmtBlur(this)">' +
+        '<input type="text" inputmode="'+valueInputMode+'" class="pval-input" placeholder="0" value="'+(valueForField>0?valueForField.toLocaleString('he-IL'):'')+'" oninput="'+valueOninput+'" onblur="fmtBlur(this)">' +
         '<button type="button" class="gu-remove no-print" onclick="removeGrossUpComponent('+c.id+')" aria-label="הסר רכיב">✕</button>' +
       '</div>' +
       '<div class="flex gap-2 mt-2 no-print">' +
@@ -1463,7 +1479,8 @@ function renderGrossUpComponentsList(){
         '<button type="button" id="gu-insured-'+c.id+'" class="tog'+(c.insured?' on':'')+'" style="font-size:10.5px;padding:5px 4px;" onclick="setGrossUpInsured('+c.id+',true)">מבוטח (כמו שכר יסוד)</button>' +
       '</div>' +
     '</div>'
-  )).join('');
+    );
+  }).join('');
 }
 
 function updateGrossUpDescription(id, val){
@@ -1475,6 +1492,19 @@ function updateGrossUpDescription(id, val){
 function updateGrossUpTarget(id, el){
   const c = grossUpComponents.find(x=>x.id===id);
   if(c) c.targetNet = parseFloat((el.value||'0').replace(/[^0-9.]/g,''))||0;
+  runCalc();
+}
+
+function updateGrossUpDirectAmount(id, el){
+  const c = grossUpComponents.find(x=>x.id===id);
+  if(c) c.directAmount = parseFloat((el.value||'0').replace(/[^0-9.]/g,''))||0;
+  runCalc();
+}
+
+function setGrossUpInputMode(id, mode){
+  const c = grossUpComponents.find(x=>x.id===id);
+  if(c) c.inputMode = mode;
+  renderGrossUpComponentsList();
   runCalc();
 }
 
@@ -1522,6 +1552,13 @@ function computeGrossUpTotals(baseGross, travel, recovery, creditPoints, pension
   let pensionBaseSoFar = baseGross;
   const results = [];
   for(const c of components){
+    if(c.inputMode==='direct'){
+      const totalGrossUp = c.directAmount>0 ? c.directAmount : 0;
+      results.push(Object.assign({}, c, {totalGrossUp, premium:0}));
+      taxableSoFar += totalGrossUp;
+      if(c.insured) pensionBaseSoFar += totalGrossUp;
+      continue;
+    }
     if(!(c.targetNet>0)){ results.push(Object.assign({}, c, {totalGrossUp:0, premium:0})); continue; }
     const rate = c.insured
       ? marginalRateInsuredAt(taxableSoFar, pensionBaseSoFar, creditPoints, pensionEnabled, pensionRate)
@@ -1600,7 +1637,7 @@ function solveGrossForTargetNet(targetValue, creditPoints, pensionRatePercent, t
   // NOT need this — gross-up already adds its target net on top additively by construction,
   // so leaving that path untouched keeps the already-verified net+gross-up behavior intact.
   const pensionRateFraction = includePension ? (pensionRatePercent/100) : 0;
-  const grossUpActive = mode==='employerCost' && grossUpComponentsSnapshot && grossUpComponentsSnapshot.some(c=>c.targetNet>0);
+  const grossUpActive = mode==='employerCost' && grossUpComponentsSnapshot && grossUpComponentsSnapshot.some(c=>c.targetNet>0 || (c.inputMode==='direct' && c.directAmount>0));
 
   function evalGross(g){
     let pensionBaseForG = g;
@@ -1701,11 +1738,13 @@ function runCalc(){
   applyYishuvMutavCredit(finalPensionBase + travelForGu + recoveryForGu + extraNonPensionable);
 
   const grossUpInfoEl = document.getElementById('grossUpInfo');
-  const activeGuComponents = grossUpCalc.results.filter(r=>r.targetNet>0);
+  const activeGuComponents = grossUpCalc.results.filter(r=>r.targetNet>0 || (r.inputMode==='direct' && r.directAmount>0));
   if(activeGuComponents.length){
     const totalGrossAll = baseGross + activeGuComponents.reduce((s,r)=>s+r.totalGrossUp,0);
     grossUpInfoEl.innerHTML = activeGuComponents.map(r =>
-      'רכיב מגולם: '+(r.description||'רכיב מגולם')+' ('+(r.insured?'מבוטח לפנסיה':'לא מבוטח לפנסיה')+') - יעד נטו '+fmtMoney(r.targetNet)+', גילום נדרש '+fmtMoney2(r.premium)+' (סה"כ נוסף: '+fmtMoney(r.totalGrossUp)+')'
+      r.inputMode==='direct'
+        ? 'רכיב מגולם: '+(r.description||'רכיב מגולם')+' ('+(r.insured?'מבוטח לפנסיה':'לא מבוטח לפנסיה')+') - גילום שהוזן ישירות: '+fmtMoney2(r.directAmount)+' (מתווסף לברוטו במלואו)'
+        : 'רכיב מגולם: '+(r.description||'רכיב מגולם')+' ('+(r.insured?'מבוטח לפנסיה':'לא מבוטח לפנסיה')+') - יעד נטו '+fmtMoney(r.targetNet)+', גילום נדרש '+fmtMoney2(r.premium)+' (סה"כ נוסף: '+fmtMoney(r.totalGrossUp)+')'
     ).join('<br>') + '<br><b>סה"כ ברוטו כולל: '+fmtMoney(totalGrossAll)+'</b>';
     grossUpInfoEl.style.display='';
   } else {
