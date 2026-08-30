@@ -145,8 +145,79 @@
     header, nav[aria-label="ניווט ארגוני"], footer, #a11y-btn, #a11y-panel, .no-print { display: none !important; }
     #breakdownPanel { display: block !important; }
     body { background: #fff; }
-    .scard { border: 1px solid #d1d5db; box-shadow: none; }
+    .scard, .payslip-doc { border: 1px solid #d1d5db; box-shadow: none; }
     @page { margin: 15mm; }
+  }
+
+  /* ═══════════════ תלוש — מבנה תשלומים/ניכויים ═══════════════ */
+  .payslip-watermark{ text-align:center; background:#f2e3c6; color:#8a6318; font-size:11px; font-weight:700; padding:6px; border-bottom:1px solid #c9973d; }
+  .payslip-doc{ background:#fff; border:1.5px solid #0f1f4d; border-radius:16px; box-shadow:0 8px 30px -10px rgba(15,31,77,.25); overflow:hidden; margin-bottom:18px; }
+  .payslip-head{ display:flex; justify-content:space-between; align-items:flex-start; padding:14px 18px; border-bottom:2px solid #0f1f4d; background:#fbfbfd; flex-wrap:wrap; gap:10px; }
+  .payslip-co{ font-weight:700; color:#0f1f4d; font-size:15px; }
+  .payslip-sub{ font-size:11.5px; color:#6b7280; margin-top:2px; }
+  .mode-mini{ display:flex; gap:4px; flex-wrap:wrap; }
+
+  .payslip-personal{ display:flex; flex-wrap:wrap; border-bottom:1px solid #dfe3ec; background:#fff; }
+  .pf{ flex:1; min-width:150px; padding:9px 14px; border-left:1px solid #dfe3ec; }
+  .pf:last-child{ border-left:none; }
+  .pf label{ display:block; font-size:10.5px; color:#6b7280; font-weight:600; margin-bottom:3px; }
+  .pf .mini-btns{ display:flex; gap:4px; margin-top:6px; flex-wrap:wrap; }
+  .pf .mini-btns button{ flex:1; padding:4px 6px; font-size:10px; white-space:nowrap; }
+  .pf-flat-input{ width:100%; border:none; border-bottom:1.5px dashed #dfe3ec; padding:3px 0; font-size:14px; font-weight:600; color:#0f1f4d; background:transparent; font-family:inherit; }
+  .pf-flat-input:focus{ outline:none; border-bottom-color:#1e3a8a; }
+
+  .children-panel{ border-bottom:1px solid #dfe3ec; background:#fbfbfd; padding:14px 18px; }
+
+  .payslip-cols{ display:grid; grid-template-columns:1fr 1fr; }
+  .pcol.pay{ border-left:1px solid #dfe3ec; }
+  .pcol-head{ display:flex; justify-content:space-between; align-items:center; padding:8px 16px; font-weight:700; font-size:12.5px; }
+  .pcol.pay .pcol-head{ background:#eafaf0; color:#0f5132; }
+  .pcol.ded .pcol-head{ background:#fdf2f2; color:#7a1f1f; }
+  .pcol-head .tag{ font-size:9.5px; font-weight:600; background:rgba(255,255,255,.6); padding:2px 7px; border-radius:8px; }
+
+  .prow{ display:flex; align-items:center; justify-content:space-between; padding:9px 16px; border-bottom:1px dotted #dfe3ec; font-size:13px; gap:8px; }
+  .prow .prlabel{ color:#1e2536; flex:1; }
+  .prow .prlabel small{ display:block; color:#6b7280; font-size:10px; font-weight:400; }
+  .prow input.pval-input{ width:110px; text-align:left; border:1px solid #dfe3ec; border-radius:6px; padding:6px 8px; font-weight:600; font-size:13px; color:#0f1f4d; background:#fbfbfd; font-family:inherit; box-sizing:border-box; }
+  .prow input.pval-input:focus{ outline:none; border-color:#1e3a8a; background:#fff; }
+  .prow .prval{ font-weight:700; font-size:13.5px; color:#7a1f1f; min-width:80px; text-align:left; }
+  .prow.editable-ded{ background:#fffaf5; align-items:flex-start; }
+  .prow.as-deduction{ background:#f4f5f8; }
+  .prow.as-deduction input.pval-input{ background:#f3f4f6 !important; color:#6b7280 !important; border-color:#e5e7eb !important; }
+  .prow.gross-item{ background:#f4faf6; }
+  .prow.gross-item .prlabel{ display:flex; flex-direction:column; gap:2px; flex:1; }
+  .gu-desc-input{ border:none!important; border-bottom:1.5px dashed #dfe3ec!important; background:transparent!important; padding:1px 0!important; font-weight:600!important; font-size:13px!important; color:#1e2536!important; width:auto!important; text-align:right!important; font-family:inherit!important; }
+  .prow.gross-item small{ color:#6b7280; font-size:9.5px; }
+  .gu-remove{ color:#c0322a; cursor:pointer; font-size:14px; margin-right:4px; background:none; border:none; padding:0; }
+  .prow.open-yishuv{ display:block; }
+  .prow.open-yishuv .prlabel{ width:100%; }
+  .yishuv-input{ width:100%!important; border:1.5px solid #c9973d!important; border-radius:6px!important; padding:6px 8px!important; font-size:12.5px!important; background:#fff!important; color:#1e2536!important; box-sizing:border-box; font-family:inherit; }
+
+  .padd-row{ padding:8px 16px; font-size:12px; color:#0f5132; cursor:pointer; border-bottom:1px dotted #dfe3ec; font-weight:600; }
+
+  .pcol-total{ display:flex; justify-content:space-between; padding:10px 16px; font-weight:700; font-size:13.5px; border-top:1.5px solid #0f1f4d; }
+  .pcol.pay .pcol-total{ color:#0f5132; }
+  .pcol.ded .pcol-total{ color:#7a1f1f; }
+
+  .payslip-net{ display:flex; justify-content:space-between; align-items:center; background:#0f1f4d; color:#fff; padding:14px 18px; flex-wrap:wrap; gap:8px; }
+  .payslip-net > span:first-child{ font-weight:600; font-size:13.5px; }
+  .payslip-net b{ font-weight:800; font-size:23px; }
+  .payslip-net.as-input .net-input-wrap label{ color:#c9d3ea; font-size:11px; font-weight:600; display:block; margin-bottom:4px; }
+  .payslip-net.as-input input{ border:1.5px solid #c9973d; border-radius:8px; padding:8px 10px; font-weight:800; font-size:19px; color:#0f1f4d; background:#fffaf0; text-align:left; font-family:inherit; box-sizing:border-box; }
+
+  .payslip-employer{ padding:10px 16px; background:#f5f6fb; border-top:1px solid #dfe3ec; display:flex; justify-content:space-between; align-items:center; font-size:11.5px; color:#6b7280; flex-wrap:wrap; gap:8px; }
+  .payslip-employer b{ color:#1e3a8a; font-size:15px; }
+  .payslip-employer.as-input{ background:#fffaf5; }
+  .payslip-employer.as-input .emp-input-wrap label{ color:#92400e; font-size:11px; font-weight:600; display:block; margin-bottom:4px; }
+  .payslip-employer.as-input input{ border:1.5px solid #c9973d; border-radius:8px; padding:7px 10px; font-weight:800; font-size:15px; color:#0f1f4d; background:#fff; text-align:left; font-family:inherit; box-sizing:border-box; }
+  .emp-toggle-row{ display:flex; align-items:center; gap:6px; margin-top:5px; flex-wrap:wrap; }
+  .emp-toggle-lbl{ font-size:10.5px; color:#6b7280; }
+
+  @media(max-width:600px){
+    .payslip-cols{ grid-template-columns:1fr; }
+    .pcol.pay{ border-left:none; border-bottom:2px solid #0f1f4d; }
+    .payslip-personal{ flex-direction:column; }
+    .pf{ border-left:none; border-bottom:1px solid #dfe3ec; }
   }
 </style>
 </head>
@@ -189,146 +260,173 @@
     <div class="cb-text">החישוב עדיין לא מדויק במלואו. אנחנו עובדים על שיפור הדיוק, ונעדכן כאן ברגע שהוא יהיה מלא — בעזרת השם.</div>
   </div>
 
-  <!-- FORM -->
-  <div class="scard">
-    <div class="scard-title">👤 הנתונים שלך</div>
+  <!-- FORM — payslip document -->
+  <div class="payslip-doc">
+    <div class="payslip-watermark">📋 הדמיה לצורך הערכה בלבד — אינו תלוש רשמי ואינו תחליף לייעוץ מקצועי</div>
 
-    <div class="mb-3">
-      <label class="lbl">כיוון החישוב</label>
-      <div class="flex gap-2 no-print" style="flex-wrap:wrap">
-        <button type="button" id="modeForwardBtn" class="tog on" onclick="setCalcMode('forward')" style="flex:1 1 auto;min-width:100px">מברוטו לנטו</button>
-        <button type="button" id="modeNetBtn" class="tog" onclick="setCalcMode('targetNet')" style="flex:1 1 auto;min-width:100px">יעד נטו לברוטו</button>
-        <button type="button" id="modeCostBtn" class="tog" onclick="setCalcMode('targetCost')" style="flex:1 1 auto;min-width:100px">יעד עלות מעסיק לברוטו</button>
+    <div class="payslip-head">
+      <div>
+        <div class="payslip-co">💵 מחשבון שכר נטו</div>
+        <div class="payslip-sub">מלא את "התשלומים" — ה"ניכויים" מתעדכנים לבד</div>
+      </div>
+      <div class="mode-mini no-print">
+        <button type="button" id="modeForwardBtn" class="tog on" onclick="setCalcMode('forward')">מברוטו לנטו</button>
+        <button type="button" id="modeNetBtn" class="tog" onclick="setCalcMode('targetNet')">יעד נטו לברוטו</button>
+        <button type="button" id="modeCostBtn" class="tog" onclick="setCalcMode('targetCost')">יעד עלות מעסיק לברוטו</button>
       </div>
     </div>
 
-    <div class="mb-5">
-      <label class="lbl" id="grossSalaryLabel" for="grossSalary">שכר ברוטו חודשי (₪)</label>
-      <input type="text" inputmode="numeric" id="grossSalary" class="ci" placeholder="לדוגמה: 12,000" value="12,000" oninput="fmtLive(this);currentBaseGross=parseRaw('grossSalary');runCalc()" onblur="fmtBlur(this)">
-    </div>
-
-    <div class="mb-5" id="targetNetRow" style="display:none">
-      <label class="lbl" for="targetNetInput">כמה נטו אני רוצה לקבל? (₪ לחודש)</label>
-      <input type="text" inputmode="numeric" id="targetNetInput" class="ci" placeholder="לדוגמה: 10,000" value="10,000" oninput="fmtLive(this);runCalc()" onblur="fmtBlur(this)">
-    </div>
-
-    <div class="mb-5" id="targetCostRow" style="display:none">
-      <label class="lbl" for="targetCostInput">כמה עלות מעסיק מוכנים לשלם עליי? (₪ לחודש)</label>
-      <input type="text" inputmode="numeric" id="targetCostInput" class="ci" placeholder="לדוגמה: 15,000" value="15,000" oninput="fmtLive(this);runCalc()" onblur="fmtBlur(this)">
-    </div>
-
-    <div class="mb-5">
-      <label class="lbl" for="travelAllowance">החזר נסיעות (₪ לחודש) <span class="hint">(אופציונלי, חייב במלואו במס הכנסה וביטוח לאומי)</span></label>
-      <input type="text" inputmode="numeric" id="travelAllowance" class="ci" placeholder="0" value="0" oninput="fmtLive(this);runCalc()" onblur="fmtBlur(this)">
-    </div>
-
-    <div class="mb-5">
-      <label class="lbl" for="recoveryPay">הבראה (₪ לחודש, אופציונלי) <span class="hint">(חייב במלואו במס הכנסה וביטוח לאומי)</span></label>
-      <input type="text" inputmode="numeric" id="recoveryPay" class="ci" placeholder="0" value="0" oninput="fmtLive(this);runCalc()" onblur="fmtBlur(this)">
-    </div>
-
-    <div class="mb-5">
-      <label class="lbl">אשף נקודות זיכוי <span class="hint">(אופציונלי — בונה עבורך את הניקוד לפי מצב משפחתי וילדים)</span></label>
-
-      <div class="mb-2">
-        <label class="lbl" style="margin-bottom:4px;">מצב משפחתי</label>
-        <div class="flex gap-2 no-print">
+    <div class="payslip-personal">
+      <div class="pf">
+        <label>מצב משפחתי</label>
+        <div class="mini-btns no-print">
           <button type="button" id="famStatusMarried" class="tog on" onclick="setFamilyStatus('married')">נשוי/אה</button>
-          <button type="button" id="famStatusSingle" class="tog" onclick="setFamilyStatus('single')">הורה יחיד (רווק/גרוש/אלמן/פרוד עם משמורת)</button>
+          <button type="button" id="famStatusSingle" class="tog" onclick="setFamilyStatus('single')">הורה יחיד</button>
         </div>
       </div>
+      <div class="pf">
+        <label for="creditPoints">נקודות זיכוי</label>
+        <input type="text" inputmode="decimal" id="creditPoints" class="pf-flat-input" value="2.25" oninput="fmtDecimalLive(this);runCalc()">
+        <div class="mini-btns no-print">
+          <button type="button" class="tog" onclick="setCreditPoints(2.25,'father')">גבר</button>
+          <button type="button" class="tog" onclick="setCreditPoints(2.75,'mother')">אישה</button>
+          <button type="button" class="tog" id="childrenPanelToggleBtn" onclick="toggleChildrenPanel()" aria-expanded="false" aria-controls="childrenWizardPanel">👨‍👩‍👧 ילדים</button>
+        </div>
+      </div>
+      <div class="pf">
+        <label>הפרשת פנסיה</label>
+        <label class="flex items-center gap-2 cursor-pointer" style="margin-bottom:4px;">
+          <input type="checkbox" id="pensionEnabled" checked onchange="togglePensionRow();runCalc()" style="width:14px;height:14px;accent-color:#1e3a8a;">
+          <span style="font-size:10.5px;color:#6b7280;">כלול בחישוב</span>
+        </label>
+        <div id="pensionRateRow">
+          <input type="text" inputmode="decimal" id="pensionRate" class="pf-flat-input" style="display:inline-block;width:auto;min-width:40px;" value="6" oninput="fmtDecimalLive(this);runCalc()">
+          <span class="hint">% (ברירת מחדל: 6%)</span>
+        </div>
+      </div>
+    </div>
 
-      <div class="mb-2" style="display:flex;align-items:center;justify-content:space-between;">
-        <span class="lbl" style="margin-bottom:0">ילדים</span>
-        <button type="button" onclick="addWizardChild()" class="quick-btn" style="flex:none;padding:6px 14px;">+ הוסף ילד</button>
+    <div id="childrenWizardPanel" class="children-panel" style="display:none">
+      <div class="mb-2" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+        <span class="lbl" style="margin-bottom:0">👨‍👩‍👧 אשף נקודות זיכוי — ילדים <span class="hint">(אופציונלי — בונה עבורך את הניקוד לפי מצב משפחתי וילדים)</span></span>
+        <button type="button" onclick="addWizardChild()" class="quick-btn no-print" style="flex:none;padding:6px 14px;">+ הוסף ילד</button>
       </div>
       <div id="wizardChildrenList"></div>
-
       <label class="flex items-center gap-2 cursor-pointer mt-2">
         <input type="checkbox" id="wizardIncludeChildren" onchange="onWizardToggle()" style="width:16px;height:16px;accent-color:#1e3a8a;">
         <span class="lbl" style="margin-bottom:0">כלול נקודות ילדים בחישוב</span>
       </label>
-
       <div id="wizardResultBox" style="display:none;" class="mt-2">
         <p class="hint">סה"כ מחושב: <b id="wizardTotalDisplay">0</b> נקודות</p>
-        <button type="button" onclick="applyWizardToField()" class="quick-btn" style="flex:none;padding:6px 14px;">החל על השדה למעלה</button>
+        <button type="button" onclick="applyWizardToField()" class="quick-btn no-print" style="flex:none;padding:6px 14px;">החל על שדה נקודות הזיכוי</button>
       </div>
-
       <p class="hint mt-2">מיועד למצב משמורת רגיל (ההורה מקבל קצבת ילדים מביטוח לאומי על הילד). במקרים מיוחדים — משמורת משותפת, הורות שאינה ביולוגית, נכות — יש לפנות לרואה חשבון או להשתמש בסימולטור הרשמי של רשות המסים.</p>
     </div>
 
-    <div>
-      <label class="lbl" for="creditPoints">נקודות זיכוי <span class="hint">(ברירת מחדל: 2.25 — ניתן למלא ידנית או דרך האשף למעלה)</span></label>
-      <div class="flex gap-2 mb-2 no-print">
-        <button type="button" class="quick-btn" onclick="setCreditPoints(2.25,'father')">גבר (2.25)</button>
-        <button type="button" class="quick-btn" onclick="setCreditPoints(2.75,'mother')">אישה (2.75)</button>
-      </div>
-      <input type="text" inputmode="decimal" id="creditPoints" class="ci" value="2.25" oninput="fmtDecimalLive(this);runCalc()">
-    </div>
+    <div class="payslip-cols">
+      <!-- PAYMENTS = INPUT SIDE -->
+      <div class="pcol pay">
+        <div class="pcol-head"><span>💰 תשלומים</span><span class="tag">אתה ממלא</span></div>
 
-    <div class="mt-5">
-      <label class="flex items-center gap-2 cursor-pointer">
-        <input type="checkbox" id="pensionEnabled" checked onchange="togglePensionRow();runCalc()" style="width:16px;height:16px;accent-color:#1e3a8a;">
-        <span class="lbl" style="margin-bottom:0">כלול הפרשת עובד לפנסיה בחישוב</span>
-      </label>
-      <div id="pensionRateRow" class="mt-2">
-        <label class="lbl" for="pensionRate">שיעור הפרשת עובד לפנסיה (%) <span class="hint">(ברירת מחדל: 6%)</span></label>
-        <input type="text" inputmode="decimal" id="pensionRate" class="ci" value="6" oninput="fmtDecimalLive(this);runCalc()">
-      </div>
-    </div>
-
-    <div class="mt-5">
-      <label class="lbl">שיעור פיצויים מעסיק <span class="hint">(לחישוב "עלות מעסיק" בלבד — לא משפיע על השכר נטו שלך)</span></label>
-      <div class="flex gap-2 no-print">
-        <button type="button" id="pitzuimMin" class="tog" onclick="setPitzuim(0.06)">6% (מינימום חוקי)</button>
-        <button type="button" id="pitzuimFull" class="tog on" onclick="setPitzuim(0.0833)">8.33% (מלא – סעיף 14)</button>
-      </div>
-      <p class="hint mt-2">תגמולים מעסיק: 6.5% (קבוע, לפי צו הרחבה)</p>
-    </div>
-
-    <div class="mt-5">
-      <div class="adv-toggle" id="advancedToggle" onclick="toggleAdvanced()" role="button" tabindex="0"
-           aria-expanded="false" aria-controls="advancedPanel"
-           onkeydown="if(event.key==='Enter'||event.key===' '){toggleAdvanced();}">
-        <span>⚙️ הגדרות מתקדמות</span>
-        <span id="advancedArrow">▾</span>
-      </div>
-      <div id="advancedPanel" style="display:none" class="mt-2">
-        <div class="mb-2" style="display:flex;align-items:center;justify-content:space-between;">
-          <span class="lbl" style="margin-bottom:0">רכיבים מגולמים (גילום)</span>
-          <button type="button" onclick="addGrossUpComponent()" class="quick-btn" style="flex:none;padding:6px 14px;">+ הוסף רכיב</button>
+        <div class="prow" id="grossRow">
+          <div class="prlabel"><span id="grossSalaryLabel">שכר ברוטו חודשי (₪)</span></div>
+          <input type="text" inputmode="numeric" id="grossSalary" class="pval-input" placeholder="לדוגמה: 12,000" value="12,000" oninput="fmtLive(this);currentBaseGross=parseRaw('grossSalary');runCalc()" onblur="fmtBlur(this)">
         </div>
+
+        <div class="prow">
+          <div class="prlabel">נסיעות <small>אופציונלי, חייב במלואו במס ובביטוח לאומי</small></div>
+          <input type="text" inputmode="numeric" id="travelAllowance" class="pval-input" placeholder="0" value="0" oninput="fmtLive(this);runCalc()" onblur="fmtBlur(this)">
+        </div>
+
+        <div class="prow">
+          <div class="prlabel">הבראה <small>אופציונלי, חייב במלואו במס ובביטוח לאומי</small></div>
+          <input type="text" inputmode="numeric" id="recoveryPay" class="pval-input" placeholder="0" value="0" oninput="fmtLive(this);runCalc()" onblur="fmtBlur(this)">
+        </div>
+
+        <div class="padd-row no-print" onclick="addGrossUpComponent()">+ הוסף רכיב מגולם (גילום)</div>
         <div id="grossUpComponentsList"></div>
 
-        <div class="mt-5">
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" id="yishuvEnabled" onchange="toggleYishuvSection();runCalc()" style="width:16px;height:16px;accent-color:#1e3a8a;">
-            <span class="lbl" style="margin-bottom:0">כלול הנחת יישוב מזכה/מוטב</span>
-          </label>
-          <div id="yishuvSection" style="display:none;" class="mt-2">
-            <label class="lbl" for="yishuvLocalityInput">יישוב <span class="hint">(בחר מהרשימה — הבחירה רק ממלאת את השדות למטה, הם תמיד ניתנים לעריכה ידנית)</span></label>
-            <input type="text" id="yishuvLocalityInput" class="ci" list="yishuvLocalityList" placeholder="הקלד שם יישוב..." oninput="onYishuvLocalitySelected(this.value)">
-            <datalist id="yishuvLocalityList"></datalist>
-            <p class="hint mt-2" id="yishuvSelectedInfo"></p>
-            <div class="mt-2">
-              <label class="lbl" for="yishuvPct">אחוז הנחה (%)</label>
-              <input type="text" inputmode="decimal" id="yishuvPct" class="ci" value="0" oninput="fmtDecimalLive(this);runCalc()">
+        <div class="pcol-total"><span>שכר ברוטו<span id="ilTravelNote" class="hint" style="display:block;font-weight:400;margin-top:2px;"></span></span><span id="ilGross">—</span></div>
+      </div>
+
+      <!-- DEDUCTIONS = LIVE OUTPUT SIDE -->
+      <div class="pcol ded">
+        <div class="pcol-head"><span>📉 ניכויים</span><span class="tag">מחושב אוטומטית</span></div>
+
+        <div class="prow">
+          <div class="prlabel">מס הכנסה</div>
+          <div class="prval" id="ilTax">—</div>
+        </div>
+        <div class="prow">
+          <div class="prlabel">ביטוח לאומי ובריאות</div>
+          <div class="prval" id="ilBituach">—</div>
+        </div>
+        <div class="prow" id="ilPensionRow">
+          <div class="prlabel">הפרשה לפנסיה (עובד)</div>
+          <div class="prval" id="ilPension">—</div>
+        </div>
+
+        <div class="prow editable-ded open-yishuv">
+          <div class="prlabel">
+            <label class="flex items-center gap-2 cursor-pointer" style="margin-bottom:4px;">
+              <input type="checkbox" id="yishuvEnabled" onchange="toggleYishuvSection();runCalc()" style="width:14px;height:14px;accent-color:#1e3a8a;">
+              <span>הנחת יישוב מזכה/מוטב</span>
+            </label>
+            <div id="yishuvSection" style="display:none;">
+              <input type="text" id="yishuvLocalityInput" class="yishuv-input" list="yishuvLocalityList" placeholder="🔍 הקלד שם יישוב..." oninput="onYishuvLocalitySelected(this.value)">
+              <datalist id="yishuvLocalityList"></datalist>
+              <p class="hint" id="yishuvSelectedInfo" style="margin:4px 0;"></p>
+              <div style="display:flex;gap:6px;margin-top:4px;">
+                <div style="flex:1;">
+                  <label class="hint" for="yishuvPct">אחוז %</label>
+                  <input type="text" inputmode="decimal" id="yishuvPct" class="pf-flat-input" value="0" oninput="fmtDecimalLive(this);runCalc()">
+                </div>
+                <div style="flex:1;">
+                  <label class="hint" for="yishuvCeiling">תקרה שנתית ₪</label>
+                  <input type="text" inputmode="numeric" id="yishuvCeiling" class="pf-flat-input" placeholder="0" value="0" oninput="fmtLive(this);runCalc()" onblur="fmtBlur(this)">
+                </div>
+              </div>
+              <p class="hint" style="margin-top:6px;">12 חודשי מגורים רצופים; חל רק על מס הכנסה. יישוב לא ברשימה או נתונים שונים? מלא ידנית לפי התלוש/הודעת רשות המסים.</p>
             </div>
-            <div class="mt-2">
-              <label class="lbl" for="yishuvCeiling">תקרת הכנסה שנתית (₪)</label>
-              <input type="text" inputmode="numeric" id="yishuvCeiling" class="ci" placeholder="0" value="0" oninput="fmtLive(this);runCalc()" onblur="fmtBlur(this)">
-            </div>
-            <p class="hint mt-2">ההנחה מזכה רק ב-12 חודשי מגורים רצופים ביישוב, וחלה רק על מס הכנסה (לא על ביטוח לאומי/בריאות). אם היישוב שלך לא ברשימה או שהנתונים שונים אצלך — מלא ידנית לפי מה שכתוב בתלוש שלך או בהודעת רשות המסים.</p>
           </div>
         </div>
+
+        <div class="pcol-total"><span>סה"כ ניכויים <span id="resDeductionsPct" class="hint" style="font-weight:400;"></span></span><span id="resTotalDeductions">—</span></div>
       </div>
     </div>
-  </div>
 
-  <!-- RESULTS -->
-  <div class="flex items-center justify-end gap-2 mb-4 no-print">
-    <button onclick="openEmailModal()" class="flex items-center gap-2 bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-blue-600 transition">📧 שלח לי את התוצאות</button>
-    <button onclick="window.print()" class="flex items-center gap-2 bg-gray-800 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-gray-700 transition">🖨️ הדפסה</button>
+    <div class="payslip-net" id="netBar">
+      <span>שכר נטו</span>
+      <span id="resNetPct" style="color:#c9d3ea;font-size:11px;font-weight:400;"></span>
+      <b id="resNet">—</b>
+      <div class="net-input-wrap" id="targetNetRow" style="display:none">
+        <label for="targetNetInput">כמה נטו אני רוצה לקבל? (₪ לחודש)</label>
+        <input type="text" inputmode="numeric" id="targetNetInput" placeholder="לדוגמה: 10,000" value="10,000" oninput="fmtLive(this);runCalc()" onblur="fmtBlur(this)">
+      </div>
+    </div>
+
+    <div class="payslip-employer" id="employerBar">
+      <div>
+        <span>עלות מעסיק כוללת (לא משפיע על הנטו שלך) <span id="resEmployerCostPct"></span></span>
+        <div class="emp-toggle-row no-print">
+          <span class="emp-toggle-lbl">מסלול פיצויים:</span>
+          <button type="button" id="pitzuimFull" class="tog on" onclick="setPitzuim(0.0833)">8.33% מלא</button>
+          <button type="button" id="pitzuimMin" class="tog" onclick="setPitzuim(0.06)">6% מינימום</button>
+        </div>
+      </div>
+      <b id="resEmployerCost">—</b>
+      <div class="emp-input-wrap" id="targetCostRow" style="display:none">
+        <label for="targetCostInput">כמה עלות מעסיק מוכנים לשלם עליי? (₪ לחודש)</label>
+        <input type="text" inputmode="numeric" id="targetCostInput" placeholder="לדוגמה: 15,000" value="15,000" oninput="fmtLive(this);runCalc()" onblur="fmtBlur(this)">
+      </div>
+    </div>
+
+    <div style="padding:12px 16px;" class="no-print">
+      <div class="flex items-center justify-end gap-2">
+        <button onclick="openEmailModal()" class="flex items-center gap-2 bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-blue-600 transition">📧 שלח לי את התוצאות</button>
+        <button onclick="window.print()" class="flex items-center gap-2 bg-gray-800 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-gray-700 transition">🖨️ הדפסה</button>
+      </div>
+    </div>
   </div>
 
   <div class="disclaimer-box">
@@ -338,44 +436,6 @@
   <div id="grossUpInfo" class="disclaimer-box" style="display:none; background:#eff6ff; border-color:#bfdbfe; color:#1e3a8a;"></div>
 
   <div id="ceilingWarning" class="disclaimer-box" style="display:none; background:#fef2f2; border-color:#fecaca; color:#991b1b;"></div>
-
-  <div class="sum3-row">
-    <div class="sum3-card light">
-      <div class="sl">עלות מעסיק</div>
-      <div class="sv" id="resEmployerCost">—</div>
-      <div class="sp" id="resEmployerCostPct"></div>
-    </div>
-    <div class="sum3-card gold">
-      <div class="sl">סה"כ ניכויים</div>
-      <div class="sv" id="resTotalDeductions">—</div>
-      <div class="sp" id="resDeductionsPct"></div>
-    </div>
-    <div class="sum3-card navy">
-      <div class="sl">שכר נטו</div>
-      <div class="sv" id="resNet">—</div>
-      <div class="sp" id="resNetPct"></div>
-    </div>
-  </div>
-
-  <div class="scard">
-    <div class="ilist-title"><span>ניכויי עובד</span><span style="color:#dc2626">↘</span></div>
-    <div class="ilist-row">
-      <div class="ilist-label"><span class="ilist-icon">📄</span> <span>שכר ברוטו<span id="ilTravelNote" class="hint" style="display:block;margin-top:2px;"></span></span></div>
-      <div class="ilist-val" id="ilGross">—</div>
-    </div>
-    <div class="ilist-row">
-      <div class="ilist-label"><span class="ilist-icon">🏛️</span> מס הכנסה</div>
-      <div class="ilist-val" id="ilTax">—</div>
-    </div>
-    <div class="ilist-row">
-      <div class="ilist-label"><span class="ilist-icon">🏥</span> ביטוח לאומי ובריאות</div>
-      <div class="ilist-val" id="ilBituach">—</div>
-    </div>
-    <div class="ilist-row" id="ilPensionRow">
-      <div class="ilist-label"><span class="ilist-icon">🏦</span> הפרשה לפנסיה (עובד)</div>
-      <div class="ilist-val" id="ilPension">—</div>
-    </div>
-  </div>
 
   <!-- Breakdown accordion -->
   <div class="mb-10">
@@ -1163,10 +1223,10 @@ function renderWizardChildrenList(){
     return;
   }
   container.innerHTML = wizardChildren.map(c => (
-    '<div class="mb-2" style="border:1px solid #e5e7eb;border-radius:10px;padding:10px;display:flex;align-items:center;gap:8px;">' +
+    '<div class="mb-2" style="border:1px solid #e5e7eb;border-radius:10px;padding:10px;display:flex;align-items:center;gap:8px;background:#fff;">' +
       '<label class="lbl" style="margin-bottom:0;flex:none;">גיל הילד בשנת המס</label>' +
       '<input type="number" min="0" max="17" step="1" value="'+c.age+'" style="width:70px;" class="ci" oninput="updateWizardChildAge('+c.id+',this.value)">' +
-      '<button type="button" onclick="removeWizardChild('+c.id+')" style="color:#dc2626;border:none;background:none;cursor:pointer;font-size:16px;line-height:1;margin-inline-start:auto;" aria-label="הסר ילד">✕</button>' +
+      '<button type="button" class="no-print" onclick="removeWizardChild('+c.id+')" style="color:#dc2626;border:none;background:none;cursor:pointer;font-size:16px;line-height:1;margin-inline-start:auto;" aria-label="הסר ילד">✕</button>' +
     '</div>'
   )).join('');
 }
@@ -1338,25 +1398,18 @@ function renderGrossUpComponentsList(){
     return;
   }
   container.innerHTML = grossUpComponents.map(c => (
-    '<div class="mb-3" style="border:1px solid #e5e7eb;border-radius:10px;padding:12px;">' +
-      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
-        '<span class="hint">רכיב מגולם</span>' +
-        '<button type="button" onclick="removeGrossUpComponent('+c.id+')" style="color:#dc2626;border:none;background:none;cursor:pointer;font-size:16px;line-height:1;" aria-label="הסר רכיב">✕</button>' +
-      '</div>' +
-      '<div class="mb-2">' +
-        '<label class="lbl">תיאור הרכיב</label>' +
-        '<input type="text" class="ci" placeholder="למשל: הבראה" value="'+(c.description||'').replace(/"/g,'&quot;')+'" oninput="updateGrossUpDescription('+c.id+',this.value)">' +
-      '</div>' +
-      '<div class="mb-2">' +
-        '<label class="lbl">יעד נטו לרכיב (₪)</label>' +
-        '<input type="text" inputmode="numeric" class="ci" placeholder="0" value="'+(c.targetNet>0?c.targetNet.toLocaleString('he-IL'):'')+'" oninput="fmtLive(this);updateGrossUpTarget('+c.id+',this)" onblur="fmtBlur(this)">' +
-      '</div>' +
-      '<div>' +
-        '<label class="lbl">מבוטח לפנסיה? <span class="hint">(משפיע רק על בסיס הפנסיה, לא על המס)</span></label>' +
-        '<div class="flex gap-2">' +
-          '<button type="button" id="gu-uninsured-'+c.id+'" class="tog'+(!c.insured?' on':'')+'" onclick="setGrossUpInsured('+c.id+',false)">לא (כמו הבראה/נסיעות)</button>' +
-          '<button type="button" id="gu-insured-'+c.id+'" class="tog'+(c.insured?' on':'')+'" onclick="setGrossUpInsured('+c.id+',true)">כן (כמו שכר יסוד)</button>' +
+    '<div class="prow gross-item" style="display:block;">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">' +
+        '<div class="prlabel">' +
+          '<input type="text" class="gu-desc-input" placeholder="תיאור הרכיב (למשל: הבראה)" value="'+(c.description||'').replace(/"/g,'&quot;')+'" oninput="updateGrossUpDescription('+c.id+',this.value)">' +
+          '<small>יעד נטו לרכיב — גילום מחושב אוטומטית</small>' +
         '</div>' +
+        '<input type="text" inputmode="numeric" class="pval-input" placeholder="0" value="'+(c.targetNet>0?c.targetNet.toLocaleString('he-IL'):'')+'" oninput="fmtLive(this);updateGrossUpTarget('+c.id+',this)" onblur="fmtBlur(this)">' +
+        '<button type="button" class="gu-remove no-print" onclick="removeGrossUpComponent('+c.id+')" aria-label="הסר רכיב">✕</button>' +
+      '</div>' +
+      '<div class="flex gap-2 mt-2 no-print">' +
+        '<button type="button" id="gu-uninsured-'+c.id+'" class="tog'+(!c.insured?' on':'')+'" style="font-size:10.5px;padding:5px 4px;" onclick="setGrossUpInsured('+c.id+',false)">לא מבוטח (כמו הבראה/נסיעות)</button>' +
+        '<button type="button" id="gu-insured-'+c.id+'" class="tog'+(c.insured?' on':'')+'" style="font-size:10.5px;padding:5px 4px;" onclick="setGrossUpInsured('+c.id+',true)">מבוטח (כמו שכר יסוד)</button>' +
       '</div>' +
     '</div>'
   )).join('');
@@ -1448,17 +1501,43 @@ function setCalcMode(mode){
 function updateGrossFieldMode(){
   const el=document.getElementById('grossSalary');
   const label=document.getElementById('grossSalaryLabel');
+  const grossRow=document.getElementById('grossRow');
   if(calcMode==='forward'){
     el.readOnly=false;
-    el.style.background='';
-    el.style.color='';
+    grossRow.classList.remove('as-deduction');
     label.textContent='שכר ברוטו חודשי (₪)';
   } else {
     el.readOnly=true;
-    el.style.background='#f3f4f6';
-    el.style.color='#6b7280';
+    grossRow.classList.add('as-deduction');
     label.textContent='הברוטו הנדרש (מחושב אוטומטית)';
   }
+
+  // ── היפוך ויזואלי: במצב "יעד נטו"/"יעד עלות מעסיק" השדה המתאים הופך
+  //    לקלט בפועל בתוך הפס התחתון, והתצוגה המחושבת המקבילה מוסתרת ──
+  const netBar=document.getElementById('netBar');
+  const resNet=document.getElementById('resNet');
+  const resNetPct=document.getElementById('resNetPct');
+  const isTargetNet = calcMode==='targetNet';
+  netBar.classList.toggle('as-input', isTargetNet);
+  resNet.style.display = isTargetNet ? 'none' : '';
+  resNetPct.style.display = isTargetNet ? 'none' : '';
+
+  const employerBar=document.getElementById('employerBar');
+  const resEmployerCost=document.getElementById('resEmployerCost');
+  const resEmployerCostPct=document.getElementById('resEmployerCostPct');
+  const isTargetCost = calcMode==='targetCost';
+  employerBar.classList.toggle('as-input', isTargetCost);
+  resEmployerCost.style.display = isTargetCost ? 'none' : '';
+  resEmployerCostPct.style.display = isTargetCost ? 'none' : '';
+}
+
+function toggleChildrenPanel(){
+  const panel=document.getElementById('childrenWizardPanel');
+  const btn=document.getElementById('childrenPanelToggleBtn');
+  const open = panel.style.display==='none';
+  panel.style.display = open ? 'block' : 'none';
+  btn.classList.toggle('on', open);
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
 }
 
 /* ═══════════════ Solver כללי — net/עלות מעסיק ⇽ ברוטו, חיפוש בינארי ═══════════════
