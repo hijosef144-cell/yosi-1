@@ -1736,9 +1736,10 @@ function runCalc(){
   }
 
   // ── תיקון תצוגת "שכר ברוטו" הכוללת: calc() כתבה שם רק את gross(=finalPensionBase),
-  //    שמפספס רכיבי גילום לא-מבוטחים (שלא נכנסים לבסיס הפנסיה, למשל הבראה). הסכום
-  //    האמיתי שהמשתמש רואה כ"שכר ברוטו" חייב לכלול את כל הרכיבים, מבוטחים ולא. ──
-  const trueTotalGross = baseGross + grossUpCalc.results.reduce((s,r)=>s+(r.totalGrossUp||0), 0);
+  //    שמפספס גם רכיבי גילום לא-מבוטחים וגם את שדות נסיעות/הבראה הרגילים. מקור
+  //    אמת יחיד ל"סה"כ תשלומים" — משמש גם את ilGross וגם את תיבת המידע של הגילום
+  //    למטה, כדי שלא נמצא "עוד מקום" שלא התעדכן בפעם הבאה שמתווסף רכיב. ──
+  const trueTotalGross = baseGross + travelForGu + recoveryForGu + grossUpCalc.results.reduce((s,r)=>s+(r.totalGrossUp||0), 0);
   document.getElementById('ilGross').textContent = fmtMoney(trueTotalGross);
 
   applyYishuvMutavCredit(finalPensionBase + travelForGu + recoveryForGu + extraNonPensionable);
@@ -1746,7 +1747,7 @@ function runCalc(){
   const grossUpInfoEl = document.getElementById('grossUpInfo');
   const activeGuComponents = grossUpCalc.results.filter(r=>r.targetNet>0 || (r.inputMode==='direct' && r.directAmount>0));
   if(activeGuComponents.length){
-    const totalGrossAll = baseGross + activeGuComponents.reduce((s,r)=>s+r.totalGrossUp,0);
+    const totalGrossAll = trueTotalGross;
     grossUpInfoEl.innerHTML = activeGuComponents.map(r =>
       r.inputMode==='direct'
         ? 'רכיב מגולם: '+(r.description||'רכיב מגולם')+' ('+(r.insured?'מבוטח לפנסיה':'לא מבוטח לפנסיה')+') - גילום שהוזן ישירות: '+fmtMoney2(r.directAmount)+' (מתווסף לברוטו במלואו)'
