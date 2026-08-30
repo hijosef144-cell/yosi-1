@@ -287,7 +287,7 @@
         <div class="mini-btns no-print">
           <button type="button" class="tog" onclick="setCreditPoints(2.25,'father')">גבר</button>
           <button type="button" class="tog" onclick="setCreditPoints(2.75,'mother')">אישה</button>
-          <button type="button" class="tog" id="childrenPanelToggleBtn" onclick="toggleChildrenPanel()" aria-expanded="false" aria-controls="childrenWizardPanel">👨‍👩‍👧 ילדים</button>
+          <button type="button" class="tog" id="childrenPanelToggleBtn" onclick="addWizardChild()">👨‍👩‍👧 ילדים</button>
         </div>
       </div>
       <div class="pf">
@@ -303,13 +303,8 @@
       </div>
     </div>
 
-    <div id="childrenWizardPanel" class="children-panel" style="display:none">
-      <div class="mb-2" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
-        <span class="lbl" style="margin-bottom:0">👨‍👩‍👧 אשף נקודות זיכוי — ילדים <span class="hint">(אופציונלי — בונה עבורך את הניקוד לפי מצב משפחתי וילדים)</span></span>
-        <button type="button" onclick="addWizardChild()" class="quick-btn no-print" style="flex:none;padding:6px 14px;">+ הוסף ילדים</button>
-      </div>
+    <div id="childrenWizardPanel" class="children-panel">
       <div id="wizardChildrenList"></div>
-      <p class="hint mt-2">מיועד למצב משמורת רגיל (ההורה מקבל קצבת ילדים מביטוח לאומי על הילד). במקרים מיוחדים — משמורת משותפת, הורות שאינה ביולוגית, נכות — יש לפנות לרואה חשבון או להשתמש בסימולטור הרשמי של רשות המסים.</p>
     </div>
 
     <div class="payslip-cols">
@@ -1301,7 +1296,7 @@ function renderWizardChildrenSummary(){
   ];
   const total = groups.reduce((s,g)=>s+wizardChildCounts[g.key],0);
   if(total===0){
-    container.innerHTML = '<p class="hint">אין ילדים. לחץ "+ הוסף ילדים" כדי להתחיל.</p>';
+    container.innerHTML = '<p class="hint">אין ילדים. לחץ "👨‍👩‍👧 ילדים" למעלה כדי להתחיל.</p>';
     return;
   }
   const parts = groups.filter(g=>wizardChildCounts[g.key]>0).map(g=>wizardChildCounts[g.key]+' '+g.label);
@@ -1587,15 +1582,6 @@ function updateGrossFieldMode(){
   resEmployerCostPct.style.display = isTargetCost ? 'none' : '';
 }
 
-function toggleChildrenPanel(){
-  const panel=document.getElementById('childrenWizardPanel');
-  const btn=document.getElementById('childrenPanelToggleBtn');
-  const open = panel.style.display==='none';
-  panel.style.display = open ? 'block' : 'none';
-  btn.classList.toggle('on', open);
-  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-}
-
 /* ═══════════════ Solver כללי — net/עלות מעסיק ⇽ ברוטו, חיפוש בינארי ═══════════════
    קורא ל-calc() הקיימת שוב ושוב עם ברוטו מועמד שונה בכל פעם, וקורא את
    התוצאה (נטו/עלות מעסיק) מה-DOM. לא נוגע בפנימיות calc(). */
@@ -1803,6 +1789,7 @@ function populateYishuvDatalist(){
 }
 
 populateYishuvDatalist();
+renderWizardChildrenSummary();
 togglePensionRow();
 setCalcMode('forward');
 </script>
