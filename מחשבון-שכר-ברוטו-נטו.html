@@ -1735,6 +1735,12 @@ function runCalc(){
     calc();
   }
 
+  // ── תיקון תצוגת "שכר ברוטו" הכוללת: calc() כתבה שם רק את gross(=finalPensionBase),
+  //    שמפספס רכיבי גילום לא-מבוטחים (שלא נכנסים לבסיס הפנסיה, למשל הבראה). הסכום
+  //    האמיתי שהמשתמש רואה כ"שכר ברוטו" חייב לכלול את כל הרכיבים, מבוטחים ולא. ──
+  const trueTotalGross = baseGross + grossUpCalc.results.reduce((s,r)=>s+(r.totalGrossUp||0), 0);
+  document.getElementById('ilGross').textContent = fmtMoney(trueTotalGross);
+
   applyYishuvMutavCredit(finalPensionBase + travelForGu + recoveryForGu + extraNonPensionable);
 
   const grossUpInfoEl = document.getElementById('grossUpInfo');
