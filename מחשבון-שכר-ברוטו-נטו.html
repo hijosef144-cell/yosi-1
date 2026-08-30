@@ -227,11 +227,41 @@
       <input type="text" inputmode="numeric" id="recoveryPay" class="ci" placeholder="0" value="0" oninput="fmtLive(this);runCalc()" onblur="fmtBlur(this)">
     </div>
 
+    <div class="mb-5">
+      <label class="lbl">אשף נקודות זיכוי <span class="hint">(אופציונלי — בונה עבורך את הניקוד לפי מצב משפחתי וילדים)</span></label>
+
+      <div class="mb-2">
+        <label class="lbl" style="margin-bottom:4px;">מצב משפחתי</label>
+        <div class="flex gap-2 no-print">
+          <button type="button" id="famStatusMarried" class="tog on" onclick="setFamilyStatus('married')">נשוי/אה</button>
+          <button type="button" id="famStatusSingle" class="tog" onclick="setFamilyStatus('single')">הורה יחיד (רווק/גרוש/אלמן/פרוד עם משמורת)</button>
+        </div>
+      </div>
+
+      <div class="mb-2" style="display:flex;align-items:center;justify-content:space-between;">
+        <span class="lbl" style="margin-bottom:0">ילדים</span>
+        <button type="button" onclick="addWizardChild()" class="quick-btn" style="flex:none;padding:6px 14px;">+ הוסף ילד</button>
+      </div>
+      <div id="wizardChildrenList"></div>
+
+      <label class="flex items-center gap-2 cursor-pointer mt-2">
+        <input type="checkbox" id="wizardIncludeChildren" onchange="onWizardToggle()" style="width:16px;height:16px;accent-color:#1e3a8a;">
+        <span class="lbl" style="margin-bottom:0">כלול נקודות ילדים בחישוב</span>
+      </label>
+
+      <div id="wizardResultBox" style="display:none;" class="mt-2">
+        <p class="hint">סה"כ מחושב: <b id="wizardTotalDisplay">0</b> נקודות</p>
+        <button type="button" onclick="applyWizardToField()" class="quick-btn" style="flex:none;padding:6px 14px;">החל על השדה למעלה</button>
+      </div>
+
+      <p class="hint mt-2">מיועד למצב משמורת רגיל (ההורה מקבל קצבת ילדים מביטוח לאומי על הילד). במקרים מיוחדים — משמורת משותפת, הורות שאינה ביולוגית, נכות — יש לפנות לרואה חשבון או להשתמש בסימולטור הרשמי של רשות המסים.</p>
+    </div>
+
     <div>
-      <label class="lbl" for="creditPoints">נקודות זיכוי <span class="hint">(ברירת מחדל: 2.25)</span></label>
+      <label class="lbl" for="creditPoints">נקודות זיכוי <span class="hint">(ברירת מחדל: 2.25 — ניתן למלא ידנית או דרך האשף למעלה)</span></label>
       <div class="flex gap-2 mb-2 no-print">
-        <button type="button" class="quick-btn" onclick="setCreditPoints(2.25)">גבר (2.25)</button>
-        <button type="button" class="quick-btn" onclick="setCreditPoints(2.75)">אישה (2.75)</button>
+        <button type="button" class="quick-btn" onclick="setCreditPoints(2.25,'father')">גבר (2.25)</button>
+        <button type="button" class="quick-btn" onclick="setCreditPoints(2.75,'mother')">אישה (2.75)</button>
       </div>
       <input type="text" inputmode="decimal" id="creditPoints" class="ci" value="2.25" oninput="fmtDecimalLive(this);runCalc()">
     </div>
@@ -437,6 +467,17 @@ const TAX_BRACKETS_2026 = [
   {min:46690, max:Infinity, rate:0.47},
 ];
 const CREDIT_POINT_VALUE_2026 = 242;
+
+/* ═══════════════ נקודות זיכוי לילדים — סעיף 40/66 לפקודה, טבלת 2024+ ═══════════════
+   גילאים 0-5: זהה לאב ולאם (מקור: נבו — לשון החוק, "2.5 נקודות זיכוי בשל כל ילד
+   בשנת לידתו"; אומת גם מול כל-זכות: "בגילאים 0-5 ההתפלגות זהה לשני ההורים").
+   רק מגיל 6 הטבלה מתפצלת לפי מגדר ההורה. */
+const CHILD_CREDIT_POINTS_2026 = {
+  age0: 2.5, age1: 4.5, age2: 4.5, age3: 3.5, age4: 2.5, age5: 2.5,
+  age6to17_mother: 2, age6to17_father: 1,
+};
+const SINGLE_PARENT_BONUS_2026 = 1; // נקודה נוספת קבועה (סעיף 40(ב)(1ב)), לא תלויית מספר ילדים
+
 const BITUACH_LEUMI_BRACKETS_2026 = [
   {min:0,    max:7703,  rate:0.0427},
   {min:7703, max:51910, rate:0.1217},
@@ -560,8 +601,94 @@ function parseRaw(id){
   return parseFloat((el.value||'0').replace(/[^0-9.]/g,''))||0;
 }
 
-function setCreditPoints(v){
+function setCreditPoints(v, gender){
   document.getElementById('creditPoints').value=v;
+  if(gender){ wizardGender = gender; updateWizardComputation(); }
+  runCalc();
+}
+
+/* ═══════════════ אשף נקודות זיכוי — בונה ערך הצעה בלבד, לעולם לא כותב אוטומטית
+   לשדה נקודות זיכוי (רק כפתור "החל על השדה למעלה" עושה זאת). כל שינוי במבנה
+   הרשימה (הוספה/הסרה) עושה רינדור מלא; עריכת גיל ילד בודד מעדכנת state בלבד,
+   בלי לבנות מחדש ילדים אחרים — כדי לא להרוס פוקוס באמצע הקלדה. ═══════════════ */
+let wizardGender = 'father';
+let familyStatus = 'married';
+let wizardChildren = [];
+let wizardNextChildId = 1;
+
+function setFamilyStatus(status){
+  familyStatus = status;
+  document.getElementById('famStatusMarried').classList.toggle('on', status==='married');
+  document.getElementById('famStatusSingle').classList.toggle('on', status==='single');
+  updateWizardComputation();
+}
+
+function addWizardChild(){
+  wizardChildren.push({id: wizardNextChildId++, age: 0});
+  renderWizardChildrenList();
+  updateWizardComputation();
+}
+
+function removeWizardChild(id){
+  wizardChildren = wizardChildren.filter(c => c.id !== id);
+  renderWizardChildrenList();
+  updateWizardComputation();
+}
+
+function renderWizardChildrenList(){
+  const container = document.getElementById('wizardChildrenList');
+  if(!wizardChildren.length){
+    container.innerHTML = '<p class="hint">אין ילדים ברשימה. לחץ "+ הוסף ילד" כדי להתחיל.</p>';
+    return;
+  }
+  container.innerHTML = wizardChildren.map(c => (
+    '<div class="mb-2" style="border:1px solid #e5e7eb;border-radius:10px;padding:10px;display:flex;align-items:center;gap:8px;">' +
+      '<label class="lbl" style="margin-bottom:0;flex:none;">גיל הילד בשנת המס</label>' +
+      '<input type="number" min="0" max="17" step="1" value="'+c.age+'" style="width:70px;" class="ci" oninput="updateWizardChildAge('+c.id+',this.value)">' +
+      '<button type="button" onclick="removeWizardChild('+c.id+')" style="color:#dc2626;border:none;background:none;cursor:pointer;font-size:16px;line-height:1;margin-inline-start:auto;" aria-label="הסר ילד">✕</button>' +
+    '</div>'
+  )).join('');
+}
+
+function updateWizardChildAge(id, val){
+  const c = wizardChildren.find(x=>x.id===id);
+  if(c){
+    let age = parseInt(val,10);
+    if(isNaN(age)) age=0;
+    c.age = Math.max(0, Math.min(17, age));
+  }
+  updateWizardComputation();
+}
+
+function onWizardToggle(){
+  updateWizardComputation();
+}
+
+function computeWizardChildPoints(age, isSingleParent, gender){
+  const shared0to5 = {0:CHILD_CREDIT_POINTS_2026.age0, 1:CHILD_CREDIT_POINTS_2026.age1, 2:CHILD_CREDIT_POINTS_2026.age2, 3:CHILD_CREDIT_POINTS_2026.age3, 4:CHILD_CREDIT_POINTS_2026.age4, 5:CHILD_CREDIT_POINTS_2026.age5};
+  if(age<=5) return isSingleParent ? shared0to5[age]*2 : shared0to5[age];
+  return isSingleParent ? (CHILD_CREDIT_POINTS_2026.age6to17_mother + CHILD_CREDIT_POINTS_2026.age6to17_father) : (gender==='mother' ? CHILD_CREDIT_POINTS_2026.age6to17_mother : CHILD_CREDIT_POINTS_2026.age6to17_father);
+}
+
+function computeWizardTotal(){
+  const base = wizardGender==='mother' ? 2.75 : 2.25;
+  const isSingle = familyStatus==='single';
+  const childrenTotal = wizardChildren.reduce((sum,c)=> sum + computeWizardChildPoints(c.age, isSingle, wizardGender), 0);
+  const singleBonus = (isSingle && wizardChildren.length>0) ? SINGLE_PARENT_BONUS_2026 : 0;
+  return base + childrenTotal + singleBonus;
+}
+
+function updateWizardComputation(){
+  const box = document.getElementById('wizardResultBox');
+  const checked = document.getElementById('wizardIncludeChildren').checked;
+  box.style.display = checked ? 'block' : 'none';
+  if(checked){
+    document.getElementById('wizardTotalDisplay').textContent = computeWizardTotal().toLocaleString('he-IL');
+  }
+}
+
+function applyWizardToField(){
+  document.getElementById('creditPoints').value = computeWizardTotal();
   runCalc();
 }
 
