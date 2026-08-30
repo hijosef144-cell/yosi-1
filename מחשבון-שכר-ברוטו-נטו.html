@@ -1325,7 +1325,7 @@ function computeWizardTotal(){
 }
 
 function fmtMoney(n){
-  return '₪'+Math.round(n).toLocaleString('he-IL');
+  return '₪'+n.toLocaleString('he-IL', {minimumFractionDigits:2, maximumFractionDigits:2});
 }
 function fmtMoney2(n){
   return '₪'+n.toLocaleString('he-IL', {minimumFractionDigits:2, maximumFractionDigits:2});
@@ -1358,10 +1358,7 @@ function calc(){
 
   const it = calcIncomeTax(taxableIncome, creditPoints, pensionCredit);
   const bl = calcBituachLeumi(taxableIncome);
-  const roundedTax = Math.round(it.payable);
-  const roundedBituach = Math.round(bl.total);
-  const roundedPension = Math.round(pensionContribution);
-  const totalDeductions = roundedTax + roundedBituach + roundedPension;
+  const totalDeductions = it.payable + bl.total + pensionContribution;
   const net = taxableIncome - totalDeductions;
   const ec = calcEmployerCost(taxableIncome, gross);
 
@@ -1379,9 +1376,9 @@ function calc(){
   if(travel>0) extrasNote.push('נסיעות: '+fmtMoney(travel));
   if(recovery>0) extrasNote.push('הבראה: '+fmtMoney(recovery));
   document.getElementById('ilTravelNote').textContent = extrasNote.length ? ('כולל '+extrasNote.join(', ')) : '';
-  document.getElementById('ilTax').textContent = fmtMoney(roundedTax);
-  document.getElementById('ilBituach').textContent = fmtMoney(roundedBituach);
-  document.getElementById('ilPension').textContent = fmtMoney(roundedPension);
+  document.getElementById('ilTax').textContent = fmtMoney(it.payable);
+  document.getElementById('ilBituach').textContent = fmtMoney(bl.total);
+  document.getElementById('ilPension').textContent = fmtMoney(pensionContribution);
 
   renderBracketRows('taxBracketRows', it.rows);
   const taxTbody = document.getElementById('taxBracketRows');
@@ -1696,7 +1693,7 @@ function runCalc(){
   }
   currentBaseGross = baseGross; // keep in sync so switching modes / re-renders never compound
 
-  document.getElementById('grossSalary').value = Math.round(baseGross).toLocaleString('he-IL');
+  document.getElementById('grossSalary').value = String(baseGross);
 
   // ── רכיבים מגולמים (גילום) — כל רכיב יורש "מבוטח/לא מבוטח" מהמשתמש ──
   const creditPointsForGu = parseFloat(document.getElementById('creditPoints').value) || 0;
@@ -1708,7 +1705,7 @@ function runCalc(){
   const grossUpCalc = computeGrossUpTotals(baseGross, travelForGu, recoveryForGu, creditPointsForGu, pensionEnabledForGu, pensionRateForGu, grossUpComponents);
   const finalPensionBase = grossUpCalc.finalPensionBase;
 
-  document.getElementById('grossSalary').value = Math.round(finalPensionBase).toLocaleString('he-IL');
+  document.getElementById('grossSalary').value = finalPensionBase.toLocaleString('he-IL', {minimumFractionDigits:2, maximumFractionDigits:2});
 
   // ── תקרת שווי הפרשות מעסיק — משפיע על ההכנסה לצורכי מס האמיתית ──
   const pitzuimDeposit = selectedPitzuimRate * finalPensionBase;
@@ -1723,7 +1720,7 @@ function runCalc(){
   const trueRecoveryStr = document.getElementById('recoveryPay').value;
   if(extraNonPensionable>0){
     const trueRecoveryNum = parseRaw('recoveryPay');
-    document.getElementById('recoveryPay').value = Math.round(trueRecoveryNum + extraNonPensionable).toLocaleString('he-IL');
+    document.getElementById('recoveryPay').value = String(trueRecoveryNum + extraNonPensionable);
     calc();
     document.getElementById('recoveryPay').value = trueRecoveryStr;
     const travelNum = parseRaw('travelAllowance');
@@ -1738,8 +1735,12 @@ function runCalc(){
   // ── תיקון תצוגת "שכר ברוטו" הכוללת: calc() כתבה שם רק את gross(=finalPensionBase),
   //    שמפספס גם רכיבי גילום לא-מבוטחים וגם את שדות נסיעות/הבראה הרגילים. מקור
   //    אמת יחיד ל"סה"כ תשלומים" — משמש גם את ilGross וגם את תיבת המידע של הגילום
-  //    למטה, כדי שלא נמצא "עוד מקום" שלא התעדכן בפעם הבאה שמתווסף רכיב. ──
-  const trueTotalGross = baseGross + travelForGu + recoveryForGu + grossUpCalc.results.reduce((s,r)=>s+(r.totalGrossUp||0), 0);
+  //    למטה, כדי שלא נמצא "עוד מקום" שלא התעדכן בפעם הבאה שמתווסף רכיב.
+  //    שימוש ב-finalPensionBase המעוגל לאגורה (בדיוק כפי ש-calc() קראה אותו משדה
+  //    שכר ברוטו) ולא בגרסה המדויקת-לגמרי — כדי שהסכימה תתאזן עד האגורה בדיוק
+  //    מול סה"כ ניכויים+נטו, ולא תישאר סטייה שיורית של אגורה בודדת. ──
+  const roundedFinalPensionBase = Math.round(finalPensionBase*100)/100;
+  const trueTotalGross = roundedFinalPensionBase + travelForGu + recoveryForGu + grossUpCalc.uninsuredExtra;
   document.getElementById('ilGross').textContent = fmtMoney(trueTotalGross);
 
   applyYishuvMutavCredit(finalPensionBase + travelForGu + recoveryForGu + extraNonPensionable);
