@@ -306,7 +306,7 @@
     <div id="childrenWizardPanel" class="children-panel" style="display:none">
       <div class="mb-2" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
         <span class="lbl" style="margin-bottom:0">👨‍👩‍👧 אשף נקודות זיכוי — ילדים <span class="hint">(אופציונלי — בונה עבורך את הניקוד לפי מצב משפחתי וילדים)</span></span>
-        <button type="button" onclick="addWizardChild()" class="quick-btn no-print" style="flex:none;padding:6px 14px;">+ הוסף ילד</button>
+        <button type="button" onclick="addWizardChild()" class="quick-btn no-print" style="flex:none;padding:6px 14px;">+ הוסף ילדים</button>
       </div>
       <div id="wizardChildrenList"></div>
       <label class="flex items-center gap-2 cursor-pointer mt-2">
@@ -508,26 +508,61 @@
   </div>
 </div>
 
-<!-- ===== ADD CHILD MODAL ===== -->
+<!-- ===== ADD CHILDREN MODAL ===== -->
 <div id="childModal" class="no-print"
-     style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);align-items:center;justify-content:center"
+     style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:16px;"
      onclick="if(event.target===this)closeChildModal()">
-  <div style="background:#fff;border-radius:12px;padding:28px 24px;width:min(340px,92vw);box-shadow:0 20px 60px rgba(0,0,0,0.25);position:relative;direction:rtl;font-family:'Heebo',sans-serif">
+  <div style="background:#fff;border-radius:12px;padding:28px 24px;width:min(440px,92vw);max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.25);position:relative;direction:rtl;font-family:'Heebo',sans-serif;box-sizing:border-box;">
     <button onclick="closeChildModal()"
             style="position:absolute;top:12px;left:14px;background:none;border:none;font-size:18px;cursor:pointer;color:#718096;line-height:1;padding:4px 6px;border-radius:4px"
             title="סגור">✕</button>
-    <h3 style="font-size:18px;font-weight:600;color:#1e3a5f;margin:0 0 4px 0">👶 הוסף ילד</h3>
-    <p style="font-size:13px;color:#718096;margin:0 0 20px 0">הזן את גיל הילד בשנת המס הנוכחית</p>
-    <label style="display:block;font-size:13px;color:#4a5568;font-weight:500;margin-bottom:6px">גיל הילד בשנת המס</label>
-    <input type="number" id="childAgeInput" min="0" max="17" step="1" placeholder="0-17"
-           style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;font-size:15px;color:#1a1a2e;outline:none;box-sizing:border-box;text-align:center;transition:border-color .2s,box-shadow .2s"
-           onfocus="this.style.borderColor='#2563eb';this.style.boxShadow='0 0 0 3px rgba(37,99,235,0.1)'"
-           onblur="this.style.borderColor='#e2e8f0';this.style.boxShadow='none'"
-           onkeydown="if(event.key==='Enter')confirmAddChild()">
-    <button onclick="confirmAddChild()"
+    <h3 style="font-size:18px;font-weight:600;color:#1e3a5f;margin:0 0 4px 0">👶 הוסף ילדים</h3>
+    <p style="font-size:13px;color:#718096;margin:0 0 16px 0">כמה ילדים יש לך בכל קבוצת גיל? (בשנת המס הנוכחית)</p>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid #f1f5f9;">
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:600;color:#1a1a2e;">ילד/ה בגיל 0 (נולד/ה בשנת המס)</div>
+        <div id="childLabel_age0" style="font-size:11px;color:#9ca3af;">× 2.5 נק' לילד</div>
+      </div>
+      <input type="number" id="childCountAge0" min="0" step="1" value="0" style="width:64px;text-align:center;border:1px solid #e2e8f0;border-radius:8px;padding:8px 4px;font-size:15px;color:#1a1a2e;">
+    </div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid #f1f5f9;">
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:600;color:#1a1a2e;">ילדים בגילאי 1-2</div>
+        <div id="childLabel_age1to2" style="font-size:11px;color:#9ca3af;">× 4.5 נק' לילד</div>
+      </div>
+      <input type="number" id="childCountAge1to2" min="0" step="1" value="0" style="width:64px;text-align:center;border:1px solid #e2e8f0;border-radius:8px;padding:8px 4px;font-size:15px;color:#1a1a2e;">
+    </div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid #f1f5f9;">
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:600;color:#1a1a2e;">ילד/ה בגיל 3</div>
+        <div id="childLabel_age3" style="font-size:11px;color:#9ca3af;">× 3.5 נק' לילד</div>
+      </div>
+      <input type="number" id="childCountAge3" min="0" step="1" value="0" style="width:64px;text-align:center;border:1px solid #e2e8f0;border-radius:8px;padding:8px 4px;font-size:15px;color:#1a1a2e;">
+    </div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid #f1f5f9;">
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:600;color:#1a1a2e;">ילדים בגילאי 4-5</div>
+        <div id="childLabel_age4to5" style="font-size:11px;color:#9ca3af;">× 2.5 נק' לילד</div>
+      </div>
+      <input type="number" id="childCountAge4to5" min="0" step="1" value="0" style="width:64px;text-align:center;border:1px solid #e2e8f0;border-radius:8px;padding:8px 4px;font-size:15px;color:#1a1a2e;">
+    </div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;">
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:600;color:#1a1a2e;">ילדים בגילאי 6-17</div>
+        <div id="childLabel_age6to17" style="font-size:11px;color:#9ca3af;">× 2 נק' לילד (אם) / 1 נק' לילד (אב)</div>
+      </div>
+      <input type="number" id="childCountAge6to17" min="0" step="1" value="0" style="width:64px;text-align:center;border:1px solid #e2e8f0;border-radius:8px;padding:8px 4px;font-size:15px;color:#1a1a2e;">
+    </div>
+
+    <button onclick="confirmUpdateChildren()"
             style="width:100%;background:#1e3a5f;color:#fff;border:none;border-radius:8px;padding:12px;font-size:15px;font-weight:600;cursor:pointer;margin-top:16px;transition:background .2s"
             onmouseover="this.style.background='#152d4a'"
-            onmouseout="this.style.background='#1e3a5f'">הוסף</button>
+            onmouseout="this.style.background='#1e3a5f'">עדכן</button>
   </div>
 </div>
 
@@ -1214,8 +1249,10 @@ function setCreditPoints(v, gender){
    בלי לבנות מחדש ילדים אחרים — כדי לא להרוס פוקוס באמצע הקלדה. ═══════════════ */
 let wizardGender = 'father';
 let familyStatus = 'married';
-let wizardChildren = [];
-let wizardNextChildId = 1;
+/* קבוצות גיל שבהן נקודות הזיכוי לילד זהות פנימית (ראה CHILD_CREDIT_POINTS_2026) —
+   מונה אחד לכל קבוצה במקום רשימת ילדים בודדים, בלי לאבד דיוק. */
+let wizardChildCounts = { age0:0, age1to2:0, age3:0, age4to5:0, age6to17:0 };
+const WIZARD_GROUP_REP_AGE = { age0:0, age1to2:1, age3:3, age4to5:4, age6to17:6 };
 
 function setFamilyStatus(status){
   familyStatus = status;
@@ -1224,54 +1261,61 @@ function setFamilyStatus(status){
   updateWizardComputation();
 }
 
+function updateChildModalLabels(){
+  const isSingle = familyStatus==='single';
+  Object.keys(WIZARD_GROUP_REP_AGE).forEach(key=>{
+    const pts = computeWizardChildPoints(WIZARD_GROUP_REP_AGE[key], isSingle, wizardGender);
+    const el = document.getElementById('childLabel_'+key);
+    if(el) el.textContent = '× '+pts+' נק\' לילד'+(isSingle?' (הורה יחיד)':'');
+  });
+}
+
 function addWizardChild(){
-  document.getElementById('childAgeInput').value = '';
+  Object.keys(wizardChildCounts).forEach(key=>{
+    document.getElementById('childCount'+key.charAt(0).toUpperCase()+key.slice(1)).value = wizardChildCounts[key];
+  });
+  updateChildModalLabels();
   document.getElementById('childModal').style.display='flex';
-  document.getElementById('childAgeInput').focus();
+  document.getElementById('childCountAge0').focus();
 }
 
 function closeChildModal(){
   document.getElementById('childModal').style.display='none';
 }
 
-function confirmAddChild(){
-  let age = parseInt(document.getElementById('childAgeInput').value, 10);
-  if(isNaN(age)) age = 0;
-  age = Math.max(0, Math.min(17, age));
-  wizardChildren.push({id: wizardNextChildId++, age: age});
-  renderWizardChildrenList();
+function confirmUpdateChildren(){
+  function readCount(id){
+    let v = parseInt(document.getElementById(id).value, 10);
+    if(isNaN(v) || v<0) v = 0;
+    return v;
+  }
+  wizardChildCounts.age0 = readCount('childCountAge0');
+  wizardChildCounts.age1to2 = readCount('childCountAge1to2');
+  wizardChildCounts.age3 = readCount('childCountAge3');
+  wizardChildCounts.age4to5 = readCount('childCountAge4to5');
+  wizardChildCounts.age6to17 = readCount('childCountAge6to17');
+  renderWizardChildrenSummary();
   updateWizardComputation();
   closeChildModal();
 }
 
-function removeWizardChild(id){
-  wizardChildren = wizardChildren.filter(c => c.id !== id);
-  renderWizardChildrenList();
-  updateWizardComputation();
-}
-
-function renderWizardChildrenList(){
+function renderWizardChildrenSummary(){
   const container = document.getElementById('wizardChildrenList');
-  if(!wizardChildren.length){
-    container.innerHTML = '<p class="hint">אין ילדים ברשימה. לחץ "+ הוסף ילד" כדי להתחיל.</p>';
+  const groups = [
+    {key:'age0', label:'בגיל 0'},
+    {key:'age1to2', label:'בגיל 1-2'},
+    {key:'age3', label:'בגיל 3'},
+    {key:'age4to5', label:'בגיל 4-5'},
+    {key:'age6to17', label:'בגיל 6-17'},
+  ];
+  const total = groups.reduce((s,g)=>s+wizardChildCounts[g.key],0);
+  if(total===0){
+    container.innerHTML = '<p class="hint">אין ילדים. לחץ "+ הוסף ילדים" כדי להתחיל.</p>';
     return;
   }
-  container.innerHTML = '<div style="display:flex;flex-wrap:wrap;gap:6px;">' + wizardChildren.map(c => (
-    '<span style="display:inline-flex;align-items:center;gap:6px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:14px;padding:5px 6px 5px 12px;font-size:12.5px;color:#1e3a8a;font-weight:600;white-space:nowrap;">' +
-      'ילד — גיל '+c.age+
-      '<button type="button" class="no-print" onclick="removeWizardChild('+c.id+')" style="color:#dc2626;border:none;background:none;cursor:pointer;font-size:13px;line-height:1;padding:2px;" aria-label="הסר ילד">✕</button>' +
-    '</span>'
-  )).join('') + '</div>';
-}
-
-function updateWizardChildAge(id, val){
-  const c = wizardChildren.find(x=>x.id===id);
-  if(c){
-    let age = parseInt(val,10);
-    if(isNaN(age)) age=0;
-    c.age = Math.max(0, Math.min(17, age));
-  }
-  updateWizardComputation();
+  const parts = groups.filter(g=>wizardChildCounts[g.key]>0).map(g=>wizardChildCounts[g.key]+' '+g.label);
+  const totalLabel = total===1 ? 'ילד אחד' : total+' ילדים';
+  container.innerHTML = '<p class="hint" style="color:#1e3a8a;font-weight:600;">'+totalLabel+': '+parts.join(', ')+'</p>';
 }
 
 function onWizardToggle(){
@@ -1287,8 +1331,14 @@ function computeWizardChildPoints(age, isSingleParent, gender){
 function computeWizardTotal(){
   const base = wizardGender==='mother' ? 2.75 : 2.25;
   const isSingle = familyStatus==='single';
-  const childrenTotal = wizardChildren.reduce((sum,c)=> sum + computeWizardChildPoints(c.age, isSingle, wizardGender), 0);
-  const singleBonus = (isSingle && wizardChildren.length>0) ? SINGLE_PARENT_BONUS_2026 : 0;
+  let childrenTotal = 0;
+  let totalChildren = 0;
+  Object.keys(WIZARD_GROUP_REP_AGE).forEach(key=>{
+    const count = wizardChildCounts[key] || 0;
+    totalChildren += count;
+    childrenTotal += count * computeWizardChildPoints(WIZARD_GROUP_REP_AGE[key], isSingle, wizardGender);
+  });
+  const singleBonus = (isSingle && totalChildren>0) ? SINGLE_PARENT_BONUS_2026 : 0;
   return base + childrenTotal + singleBonus;
 }
 
