@@ -327,6 +327,21 @@
           <input type="text" inputmode="numeric" id="recoveryPay" class="pval-input" placeholder="0" value="0" oninput="fmtLive(this);runCalc()" onblur="fmtBlur(this)">
         </div>
 
+        <div class="prow">
+          <div class="prlabel">שעות נוספות ב-125% <small>שעות בחודש (ימי חול בלבד)</small></div>
+          <input type="text" inputmode="decimal" id="overtimeHours125" class="pval-input" placeholder="0" value="0" oninput="fmtDecimalLive(this);runCalc()">
+        </div>
+
+        <div class="prow">
+          <div class="prlabel">שעות נוספות ב-150% <small>שעות בחודש (ימי חול בלבד)</small></div>
+          <input type="text" inputmode="decimal" id="overtimeHours150" class="pval-input" placeholder="0" value="0" oninput="fmtDecimalLive(this);runCalc()">
+        </div>
+
+        <div class="prow" id="overtimePayRow" style="display:none;">
+          <div class="prlabel">שעות נוספות <small id="overtimeHourlyRateNote"></small></div>
+          <div class="prval" style="color:#0f5132;" id="overtimePayDisplay">—</div>
+        </div>
+
         <div class="padd-row no-print" onclick="addGrossUpComponent()">+ הוסף רכיב מגולם (גילום)</div>
         <div id="grossUpComponentsList"></div>
 
@@ -591,6 +606,12 @@ const TAX_BRACKETS_2026 = [
   {min:46690, max:Infinity, rate:0.47},
 ];
 const CREDIT_POINT_VALUE_2026 = 242;
+
+/* ═══════════════ שעות נוספות — סעיף 16 לחוק שעות עבודה ומנוחה ═══════════════
+   ימי חול בלבד בגרסה זו (לא שבת/חג/משמרת לילה). שכר שעה = ברוטו יסוד/182,
+   מגזר פרטי, בתוקף מאפריל 2018. שעות נוספות הן חלק מהשכר המבוטח לכל דבר
+   (מס הכנסה + ביטוח לאומי עובד/מעסיק + בסיס פנסיה עובד/מעסיק). */
+const STANDARD_MONTHLY_HOURS_2026 = 182;
 
 /* ═══════════════ נקודות זיכוי לילדים — סעיף 40/66 לפקודה, טבלת 2024+ ═══════════════
    גילאים 0-5: זהה לאב ולאם (מקור: נבו — לשון החוק, "2.5 נקודות זיכוי בשל כל ילד
@@ -1698,6 +1719,23 @@ function runCalc(){
   //    בטעות סכום שכבר כולל גילום כאילו היה הבסיס עצמו (compounding). ──
   document.getElementById('grossSalary').value = Math.round(baseGross).toLocaleString('he-IL');
 
+  // ── שעות נוספות (סעיף 16, ימי חול בלבד) — חלק מהשכר המבוטח לכל דבר, לכן
+  //    מתווספות ל-baseGross עצמו לפני שרכיבי הגילום מחושבים על גביו, כדי
+  //    שגם מס הכנסה/ביטוח לאומי וגם בסיס הפנסיה (עובד+מעסיק) יכללו אותן. ──
+  const overtimeHours125 = parseFloat(document.getElementById('overtimeHours125').value) || 0;
+  const overtimeHours150 = parseFloat(document.getElementById('overtimeHours150').value) || 0;
+  const hourlyRate = baseGross / STANDARD_MONTHLY_HOURS_2026;
+  const overtimePay = overtimeHours125*hourlyRate*1.25 + overtimeHours150*hourlyRate*1.5;
+
+  const overtimePayRowEl = document.getElementById('overtimePayRow');
+  if(overtimeHours125>0 || overtimeHours150>0){
+    document.getElementById('overtimeHourlyRateNote').textContent = 'שכר שעה: '+fmtMoney(hourlyRate)+' (=ברוטו÷'+STANDARD_MONTHLY_HOURS_2026+')';
+    document.getElementById('overtimePayDisplay').textContent = fmtMoney(overtimePay);
+    overtimePayRowEl.style.display = '';
+  } else {
+    overtimePayRowEl.style.display = 'none';
+  }
+
   // ── רכיבים מגולמים (גילום) — כל רכיב יורש "מבוטח/לא מבוטח" מהמשתמש ──
   const creditPointsForGu = parseFloat(document.getElementById('creditPoints').value) || 0;
   const pensionEnabledForGu = document.getElementById('pensionEnabled').checked;
@@ -1705,7 +1743,7 @@ function runCalc(){
   const travelForGu = parseRaw('travelAllowance');
   const recoveryForGu = parseRaw('recoveryPay');
 
-  const grossUpCalc = computeGrossUpTotals(baseGross, travelForGu, recoveryForGu, creditPointsForGu, pensionEnabledForGu, pensionRateForGu, grossUpComponents);
+  const grossUpCalc = computeGrossUpTotals(baseGross + overtimePay, travelForGu, recoveryForGu, creditPointsForGu, pensionEnabledForGu, pensionRateForGu, grossUpComponents);
   const finalPensionBase = grossUpCalc.finalPensionBase;
   const roundedFinalPensionBase = Math.round(finalPensionBase*100)/100;
 
