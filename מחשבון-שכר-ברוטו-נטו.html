@@ -1818,26 +1818,36 @@ function runCalc(){
   const finalPensionBase = grossUpCalc.finalPensionBase;
   const roundedFinalPensionBase = Math.round(finalPensionBase*100)/100;
 
-  // ── תקרת שווי הפרשות מעסיק — משפיע על ההכנסה לצורכי מס האמיתית ──
-  const pitzuimDeposit = selectedPitzuimRate * finalPensionBase;
-  const pitzuimExempt = Math.min(finalPensionBase, PITZUIM_EXEMPT_CEILING_MONTHLY_2026);
+  // ── שעות נוספות אינן חלק מ"שכר קובע" (תקנה 1 לתקנות פיצויי פיטורים;
+  //    אינן נכללות בבסיס הפנסיוני) — לכן מוצאות כאן מבסיס הפנסיה עצמו,
+  //    לאחר ש-computeGrossUpTotals כבר חישבה איתן (כדי ששיעורי הנטו
+  //    השוליים של רכיבי גילום ימשיכו לשקף נכון את מדרגת המס האמיתית). ──
+  const pensionBaseExcludingOvertime = finalPensionBase - overtimePay;
+  const roundedPensionBaseExcludingOvertime = Math.round(pensionBaseExcludingOvertime*100)/100;
+
+  // ── תקרת שווי הפרשות מעסיק — משפיע על ההכנסה לצורכי מס האמיתית.
+  //    תגמולים/פיצויים מחושבים על בסיס הפנסיה בלי שעות נוספות. ──
+  const pitzuimDeposit = selectedPitzuimRate * pensionBaseExcludingOvertime;
+  const pitzuimExempt = Math.min(pensionBaseExcludingOvertime, PITZUIM_EXEMPT_CEILING_MONTHLY_2026);
   const pitzuimExcess = Math.max(0, pitzuimDeposit - pitzuimExempt);
-  const tagmulimDeposit = EMPLOYER_PENSION_DEFAULTS_2026.tagmulim_rate * finalPensionBase;
+  const tagmulimDeposit = EMPLOYER_PENSION_DEFAULTS_2026.tagmulim_rate * pensionBaseExcludingOvertime;
   const tagmulimExcess = Math.max(0, tagmulimDeposit - TAGMULIM_EXEMPT_RATE_CEILING_2026);
   const ceilingExcess = pitzuimExcess + tagmulimExcess;
 
   const extraNonPensionable = grossUpCalc.uninsuredExtra + ceilingExcess;
+  // שעות נוספות חייבות במלואן במס/ביטוח לאומי — מוזרקות כאן (לא לבסיס הפנסיה).
+  const recoveryInjectionExtra = extraNonPensionable + overtimePay;
 
-  // ── הזרקה זמנית של הבסיס-לפנסיה (כולל גילום מבוטח) ל-calc(), משוחזר מיד
-  //    אחרי כן — בדיוק כמו הזרקת ה"הבראה הזמנית" למטה — כדי שהשדה עצמו
-  //    לעולם לא "יזכור" ערך מוגדל. ──
+  // ── הזרקה זמנית של הבסיס-לפנסיה (כולל גילום מבוטח, בלי שעות נוספות)
+  //    ל-calc(), משוחזר מיד אחרי כן — בדיוק כמו הזרקת ה"הבראה הזמנית"
+  //    למטה — כדי שהשדה עצמו לעולם לא "יזכור" ערך מוגדל. ──
   const trueGrossStr = document.getElementById('grossSalary').value;
-  document.getElementById('grossSalary').value = roundedFinalPensionBase.toLocaleString('he-IL', {minimumFractionDigits:2, maximumFractionDigits:2});
+  document.getElementById('grossSalary').value = roundedPensionBaseExcludingOvertime.toLocaleString('he-IL', {minimumFractionDigits:2, maximumFractionDigits:2});
 
   const trueRecoveryStr = document.getElementById('recoveryPay').value;
-  if(extraNonPensionable>0){
+  if(recoveryInjectionExtra>0){
     const trueRecoveryNum = parseRaw('recoveryPay');
-    document.getElementById('recoveryPay').value = String(trueRecoveryNum + extraNonPensionable);
+    document.getElementById('recoveryPay').value = String(trueRecoveryNum + recoveryInjectionExtra);
     calc();
     document.getElementById('recoveryPay').value = trueRecoveryStr;
     const travelNum = parseRaw('travelAllowance');
