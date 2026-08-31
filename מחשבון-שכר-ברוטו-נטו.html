@@ -312,9 +312,35 @@
       <div class="pcol pay">
         <div class="pcol-head"><span>💰 תשלומים</span><span class="tag">אתה ממלא</span></div>
 
-        <div class="prow" id="grossRow">
-          <div class="prlabel"><span id="grossSalaryLabel">שכר ברוטו חודשי (₪)</span></div>
-          <input type="text" inputmode="numeric" id="grossSalary" class="pval-input" placeholder="לדוגמה: 12,000" value="12,000" oninput="fmtLive(this);currentBaseGross=parseRaw('grossSalary');runCalc()" onblur="fmtBlur(this)">
+        <div class="mini-btns no-print" style="margin:0 0 8px;padding:0 16px;">
+          <button type="button" id="empTypeMonthlyBtn" class="tog on" onclick="setEmployeeType('monthly')">עובד חודשי (משכורת קבועה)</button>
+          <button type="button" id="empTypeHourlyBtn" class="tog" onclick="setEmployeeType('hourly')">עובד שעתי (תעריף שעה)</button>
+        </div>
+
+        <div id="monthlyGrossWrap">
+          <div class="prow" id="grossRow">
+            <div class="prlabel"><span id="grossSalaryLabel">שכר ברוטו חודשי (₪)</span></div>
+            <input type="text" inputmode="numeric" id="grossSalary" class="pval-input" placeholder="לדוגמה: 12,000" value="12,000" oninput="fmtLive(this);currentBaseGross=parseRaw('grossSalary');runCalc()" onblur="fmtBlur(this)">
+          </div>
+        </div>
+
+        <div id="hourlyGrossWrap" style="display:none;">
+          <div class="prow">
+            <div class="prlabel">תעריף שעה (₪)</div>
+            <input type="text" inputmode="decimal" id="hourlyRateInput" class="pval-input" placeholder="לדוגמה: 60" value="" oninput="fmtDecimalLive(this);runCalc()">
+          </div>
+          <div class="prow">
+            <div class="prlabel">שעות עבודה בפועל החודש</div>
+            <input type="text" inputmode="decimal" id="actualHoursWorked" class="pval-input" placeholder="182" value="182" oninput="fmtDecimalLive(this);runCalc()">
+          </div>
+          <div class="prow">
+            <div class="prlabel">שכר ברוטו בסיס <small>מחושב: תעריף × שעות</small></div>
+            <div class="prval" style="color:#0f5132;" id="hourlyBaseGrossDisplay">—</div>
+          </div>
+          <div id="minWageWarning" class="disclaimer-box" style="display:none;margin:0 16px 10px;padding:10px 14px;font-size:12px;">
+            ⚠️ התעריף שהוזן נמוך משכר המינימום לשעה (₪35.4)
+          </div>
+          <div id="hourlyReverseModeNote" class="hint" style="display:none;padding:0 16px 8px;"></div>
         </div>
 
         <div class="prow">
@@ -612,6 +638,7 @@ const CREDIT_POINT_VALUE_2026 = 242;
    מגזר פרטי, בתוקף מאפריל 2018. שעות נוספות הן חלק מהשכר המבוטח לכל דבר
    (מס הכנסה + ביטוח לאומי עובד/מעסיק + בסיס פנסיה עובד/מעסיק). */
 const STANDARD_MONTHLY_HOURS_2026 = 182;
+const MIN_WAGE_HOURLY_2026 = 35.4;
 
 /* ═══════════════ נקודות זיכוי לילדים — סעיף 40/66 לפקודה, טבלת 2024+ ═══════════════
    גילאים 0-5: זהה לאב ולאם (מקור: נבו — לשון החוק, "2.5 נקודות זיכוי בשל כל ילד
@@ -1150,6 +1177,7 @@ const PITZUIM_EXEMPT_CEILING_MONTHLY_2026 = 3800;
 const TAGMULIM_EXEMPT_RATE_CEILING_2026 = 2582; // 7.5% מ-34,425
 
 let calcMode = 'forward'; // 'forward' | 'targetNet' | 'targetCost'
+let employeeType = 'monthly'; // 'monthly' | 'hourly' — orthogonal to calcMode
 let currentBaseGross = 12000; // the true base gross in forward mode — kept separate from the
                                // grossSalary field's displayed value, which runCalc() overwrites
                                // with the post-gross-up total; without this, re-reading the field
@@ -1637,6 +1665,19 @@ function updateGrossFieldMode(){
   resEmployerCostPct.style.display = isTargetCost ? 'none' : '';
 }
 
+/* ═══════════════ מצב עובד: חודשי (ברירת מחדל) / שעתי ═══════════════
+   שדה grossSalary ממשיך להתקיים ולקבל את הערך המחושב בדיוק כמו היום —
+   רק מוסתר ויזואלית במצב שעתי — כדי ש-calc() תמשיך לקרוא ממנו בלי
+   שום שינוי. במצב שעתי, הבסיס נגזר מ-תעריף×שעות במקום מהשדה עצמו. ══ */
+function setEmployeeType(type){
+  employeeType = type;
+  document.getElementById('empTypeMonthlyBtn').classList.toggle('on', type==='monthly');
+  document.getElementById('empTypeHourlyBtn').classList.toggle('on', type==='hourly');
+  document.getElementById('monthlyGrossWrap').style.display = type==='monthly' ? '' : 'none';
+  document.getElementById('hourlyGrossWrap').style.display = type==='hourly' ? '' : 'none';
+  runCalc();
+}
+
 /* ═══════════════ Solver כללי — net/עלות מעסיק ⇽ ברוטו, חיפוש בינארי ═══════════════
    קורא ל-calc() הקיימת שוב ושוב עם ברוטו מועמד שונה בכל פעם, וקורא את
    התוצאה (נטו/עלות מעסיק) מה-DOM. לא נוגע בפנימיות calc(). */
@@ -1698,6 +1739,19 @@ function solveGrossForTargetNet(targetValue, creditPoints, pensionRatePercent, t
 /* ═══════════════ runCalc — עוטף calc(): מצב חישוב הפוך + גילום + תקרת שווי ═══════════════
    calc() עצמה לא משתנה - הפונקציה הזו רק קוראת לה, לפעמים כמה פעמים ברצף. */
 function runCalc(){
+  // ── מצב עובד שעתי: הבסיס נגזר מתעריף×שעות בפועל, לא משדה grossSalary
+  //    (שממשיך להתקיים מוסתר, ולקבל את הערך המחושב בדיוק כמו במצב חודשי,
+  //    כדי ש-calc() תמשיך לקרוא ממנו בלי שום שינוי). ──
+  let hourlyRateForOvertime = null;
+  if(employeeType==='hourly'){
+    const hourlyRateInput = parseFloat(document.getElementById('hourlyRateInput').value) || 0;
+    const actualHoursWorked = parseFloat(document.getElementById('actualHoursWorked').value) || 0;
+    document.getElementById('hourlyBaseGrossDisplay').textContent = fmtMoney(hourlyRateInput*actualHoursWorked);
+    document.getElementById('minWageWarning').style.display = (hourlyRateInput>0 && hourlyRateInput<MIN_WAGE_HOURLY_2026) ? '' : 'none';
+    hourlyRateForOvertime = hourlyRateInput;
+    if(calcMode==='forward') currentBaseGross = hourlyRateInput*actualHoursWorked;
+  }
+
   let baseGross;
   if(calcMode==='targetNet' || calcMode==='targetCost'){
     const targetValue = calcMode==='targetNet' ? parseRaw('targetNetInput') : parseRaw('targetCostInput');
@@ -1709,8 +1763,21 @@ function runCalc(){
     const grossUpSnapshotForSolver = calcMode==='targetCost' ? grossUpComponents.slice() : null;
       // net-mode solver stays exactly as before — gross-up already stacks additively on net
     baseGross = solveGrossForTargetNet(targetValue, creditPoints, pensionRatePercent, travel, recovery, pensionEnabled, calcMode==='targetCost'?'employerCost':'net', grossUpSnapshotForSolver);
+
+    // ── שכבת תצוגה בלבד (הסולבר הבינארי הקיים לא משתנה כלל): במצב שעתי,
+    //    מתרגמים את הבסיס שהסולבר החזיר למספר שעות לפי התעריף שהוזן. ──
+    const hourlyNoteEl = document.getElementById('hourlyReverseModeNote');
+    if(employeeType==='hourly' && hourlyRateForOvertime>0){
+      const requiredHours = baseGross / hourlyRateForOvertime;
+      hourlyNoteEl.textContent = 'בתעריף השעה הנוכחי שלך ('+fmtMoney(hourlyRateForOvertime)+'), נדרשות כ-'+requiredHours.toLocaleString('he-IL',{minimumFractionDigits:1,maximumFractionDigits:1})+' שעות עבודה';
+      hourlyNoteEl.style.display = '';
+    } else {
+      hourlyNoteEl.style.display = 'none';
+    }
   } else {
     baseGross = currentBaseGross;
+    const hourlyNoteEl = document.getElementById('hourlyReverseModeNote');
+    if(hourlyNoteEl) hourlyNoteEl.style.display = 'none';
   }
   currentBaseGross = baseGross; // keep in sync so switching modes / re-renders never compound
 
@@ -1721,15 +1788,19 @@ function runCalc(){
 
   // ── שעות נוספות (סעיף 16, ימי חול בלבד) — חלק מהשכר המבוטח לכל דבר, לכן
   //    מתווספות ל-baseGross עצמו לפני שרכיבי הגילום מחושבים על גביו, כדי
-  //    שגם מס הכנסה/ביטוח לאומי וגם בסיס הפנסיה (עובד+מעסיק) יכללו אותן. ──
+  //    שגם מס הכנסה/ביטוח לאומי וגם בסיס הפנסיה (עובד+מעסיק) יכללו אותן.
+  //    במצב שעתי, שכר השעה לשעות נוספות הוא התעריף שהוזן ישירות — לא
+  //    נגזר מ-182, כי כבר יש תעריף ידוע ומפורש. ──
   const overtimeHours125 = parseFloat(document.getElementById('overtimeHours125').value) || 0;
   const overtimeHours150 = parseFloat(document.getElementById('overtimeHours150').value) || 0;
-  const hourlyRate = baseGross / STANDARD_MONTHLY_HOURS_2026;
+  const hourlyRate = employeeType==='hourly' ? (hourlyRateForOvertime||0) : (baseGross / STANDARD_MONTHLY_HOURS_2026);
   const overtimePay = overtimeHours125*hourlyRate*1.25 + overtimeHours150*hourlyRate*1.5;
 
   const overtimePayRowEl = document.getElementById('overtimePayRow');
   if(overtimeHours125>0 || overtimeHours150>0){
-    document.getElementById('overtimeHourlyRateNote').textContent = 'שכר שעה: '+fmtMoney(hourlyRate)+' (=ברוטו÷'+STANDARD_MONTHLY_HOURS_2026+')';
+    document.getElementById('overtimeHourlyRateNote').textContent = employeeType==='hourly'
+      ? 'שכר שעה: '+fmtMoney(hourlyRate)+' (התעריף שהוזן)'
+      : 'שכר שעה: '+fmtMoney(hourlyRate)+' (=ברוטו÷'+STANDARD_MONTHLY_HOURS_2026+')';
     document.getElementById('overtimePayDisplay').textContent = fmtMoney(overtimePay);
     overtimePayRowEl.style.display = '';
   } else {
