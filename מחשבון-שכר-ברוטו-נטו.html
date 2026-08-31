@@ -1693,7 +1693,10 @@ function runCalc(){
   }
   currentBaseGross = baseGross; // keep in sync so switching modes / re-renders never compound
 
-  document.getElementById('grossSalary').value = String(baseGross);
+  // ── שדה "שכר ברוטו" מציג תמיד ורק את הבסיס הנקי — לעולם לא נכתב לתוכו
+  //    סכום מחושב/מוגדל (בסיס+גילום), כדי שעריכה חוזרת של השדה לא "תאמץ"
+  //    בטעות סכום שכבר כולל גילום כאילו היה הבסיס עצמו (compounding). ──
+  document.getElementById('grossSalary').value = Math.round(baseGross).toLocaleString('he-IL');
 
   // ── רכיבים מגולמים (גילום) — כל רכיב יורש "מבוטח/לא מבוטח" מהמשתמש ──
   const creditPointsForGu = parseFloat(document.getElementById('creditPoints').value) || 0;
@@ -1704,8 +1707,7 @@ function runCalc(){
 
   const grossUpCalc = computeGrossUpTotals(baseGross, travelForGu, recoveryForGu, creditPointsForGu, pensionEnabledForGu, pensionRateForGu, grossUpComponents);
   const finalPensionBase = grossUpCalc.finalPensionBase;
-
-  document.getElementById('grossSalary').value = finalPensionBase.toLocaleString('he-IL', {minimumFractionDigits:2, maximumFractionDigits:2});
+  const roundedFinalPensionBase = Math.round(finalPensionBase*100)/100;
 
   // ── תקרת שווי הפרשות מעסיק — משפיע על ההכנסה לצורכי מס האמיתית ──
   const pitzuimDeposit = selectedPitzuimRate * finalPensionBase;
@@ -1716,6 +1718,12 @@ function runCalc(){
   const ceilingExcess = pitzuimExcess + tagmulimExcess;
 
   const extraNonPensionable = grossUpCalc.uninsuredExtra + ceilingExcess;
+
+  // ── הזרקה זמנית של הבסיס-לפנסיה (כולל גילום מבוטח) ל-calc(), משוחזר מיד
+  //    אחרי כן — בדיוק כמו הזרקת ה"הבראה הזמנית" למטה — כדי שהשדה עצמו
+  //    לעולם לא "יזכור" ערך מוגדל. ──
+  const trueGrossStr = document.getElementById('grossSalary').value;
+  document.getElementById('grossSalary').value = roundedFinalPensionBase.toLocaleString('he-IL', {minimumFractionDigits:2, maximumFractionDigits:2});
 
   const trueRecoveryStr = document.getElementById('recoveryPay').value;
   if(extraNonPensionable>0){
@@ -1731,15 +1739,15 @@ function runCalc(){
   } else {
     calc();
   }
+  document.getElementById('grossSalary').value = trueGrossStr;
 
   // ── תיקון תצוגת "שכר ברוטו" הכוללת: calc() כתבה שם רק את gross(=finalPensionBase),
   //    שמפספס גם רכיבי גילום לא-מבוטחים וגם את שדות נסיעות/הבראה הרגילים. מקור
   //    אמת יחיד ל"סה"כ תשלומים" — משמש גם את ilGross וגם את תיבת המידע של הגילום
   //    למטה, כדי שלא נמצא "עוד מקום" שלא התעדכן בפעם הבאה שמתווסף רכיב.
-  //    שימוש ב-finalPensionBase המעוגל לאגורה (בדיוק כפי ש-calc() קראה אותו משדה
-  //    שכר ברוטו) ולא בגרסה המדויקת-לגמרי — כדי שהסכימה תתאזן עד האגורה בדיוק
-  //    מול סה"כ ניכויים+נטו, ולא תישאר סטייה שיורית של אגורה בודדת. ──
-  const roundedFinalPensionBase = Math.round(finalPensionBase*100)/100;
+  //    שימוש ב-finalPensionBase המעוגל לאגורה (roundedFinalPensionBase, בדיוק כפי
+  //    ש-calc() קראה אותו בהזרקה הזמנית למעלה) ולא בגרסה המדויקת-לגמרי — כדי
+  //    שהסכימה תתאזן עד האגורה בדיוק מול סה"כ ניכויים+נטו, בלי סטייה שיורית. ──
   const trueTotalGross = roundedFinalPensionBase + travelForGu + recoveryForGu + grossUpCalc.uninsuredExtra;
   document.getElementById('ilGross').textContent = fmtMoney(trueTotalGross);
 
