@@ -330,6 +330,10 @@
             <input type="text" inputmode="decimal" id="hourlyRateInput" class="pval-input" placeholder="לדוגמה: 60" value="" oninput="fmtDecimalLive(this);runCalc()">
           </div>
           <div class="prow">
+            <div class="prlabel">מתוך התעריף, רכיב לא-פנסיוני (₪ לשעה) <small>אם חלק מהתעריף השעתי הוא תוספת שאינה נכללת בבסיס הפנסיה (למשל תוספת נפרדת בתלוש), הזן אותו כאן.</small></div>
+            <input type="text" inputmode="decimal" id="hourlyNonPensionableComponent" class="pval-input" placeholder="0" value="0" oninput="fmtDecimalLive(this);runCalc()">
+          </div>
+          <div class="prow">
             <div class="prlabel">שעות עבודה בפועל החודש</div>
             <input type="text" inputmode="decimal" id="actualHoursWorked" class="pval-input" placeholder="182" value="182" oninput="fmtDecimalLive(this);runCalc()">
           </div>
@@ -1743,6 +1747,7 @@ function runCalc(){
   //    (שממשיך להתקיים מוסתר, ולקבל את הערך המחושב בדיוק כמו במצב חודשי,
   //    כדי ש-calc() תמשיך לקרוא ממנו בלי שום שינוי). ──
   let hourlyRateForOvertime = null;
+  let hourlyNonPensionableTotal = 0; // ₪ לחודש, מרכיב לא-פנסיוני בתעריף השעתי — 0 במצב חודשי, ללא שינוי התנהגות
   if(employeeType==='hourly'){
     const hourlyRateInput = parseFloat(document.getElementById('hourlyRateInput').value) || 0;
     const actualHoursWorked = parseFloat(document.getElementById('actualHoursWorked').value) || 0;
@@ -1750,6 +1755,12 @@ function runCalc(){
     document.getElementById('minWageWarning').style.display = (hourlyRateInput>0 && hourlyRateInput<MIN_WAGE_HOURLY_2026) ? '' : 'none';
     hourlyRateForOvertime = hourlyRateInput;
     if(calcMode==='forward') currentBaseGross = hourlyRateInput*actualHoursWorked;
+
+    // ── רכיב לא-פנסיוני בתוך התעריף השעתי — משפיע רק על בסיס הפנסיה,
+    //    לא על מס הכנסה/ביטוח לאומי/ברוטו כולל (אלה ממשיכים על התעריף המלא). ──
+    const nonPensionableComponent = parseFloat(document.getElementById('hourlyNonPensionableComponent').value) || 0;
+    const pensionableRate = Math.max(0, hourlyRateInput - nonPensionableComponent);
+    hourlyNonPensionableTotal = (hourlyRateInput - pensionableRate) * actualHoursWorked;
   }
 
   let baseGross;
@@ -1819,10 +1830,11 @@ function runCalc(){
   const roundedFinalPensionBase = Math.round(finalPensionBase*100)/100;
 
   // ── שעות נוספות אינן חלק מ"שכר קובע" (תקנה 1 לתקנות פיצויי פיטורים;
-  //    אינן נכללות בבסיס הפנסיוני) — לכן מוצאות כאן מבסיס הפנסיה עצמו,
-  //    לאחר ש-computeGrossUpTotals כבר חישבה איתן (כדי ששיעורי הנטו
-  //    השוליים של רכיבי גילום ימשיכו לשקף נכון את מדרגת המס האמיתית). ──
-  const pensionBaseExcludingOvertime = finalPensionBase - overtimePay;
+  //    אינן נכללות בבסיס הפנסיוני), וכך גם רכיב לא-פנסיוני בתוך התעריף
+  //    השעתי (מצב שעתי בלבד) — לכן מוצאים את שניהם כאן מבסיס הפנסיה
+  //    עצמו, לאחר ש-computeGrossUpTotals כבר חישבה איתם (כדי ששיעורי
+  //    הנטו השוליים של רכיבי גילום ימשיכו לשקף נכון את מדרגת המס). ──
+  const pensionBaseExcludingOvertime = finalPensionBase - overtimePay - hourlyNonPensionableTotal;
   const roundedPensionBaseExcludingOvertime = Math.round(pensionBaseExcludingOvertime*100)/100;
 
   // ── תקרת שווי הפרשות מעסיק — משפיע על ההכנסה לצורכי מס האמיתית.
@@ -1835,8 +1847,9 @@ function runCalc(){
   const ceilingExcess = pitzuimExcess + tagmulimExcess;
 
   const extraNonPensionable = grossUpCalc.uninsuredExtra + ceilingExcess;
-  // שעות נוספות חייבות במלואן במס/ביטוח לאומי — מוזרקות כאן (לא לבסיס הפנסיה).
-  const recoveryInjectionExtra = extraNonPensionable + overtimePay;
+  // שעות נוספות ורכיב לא-פנסיוני שעתי חייבים במלואם במס/ביטוח לאומי (מחושבים
+  // על התעריף המלא) — מוזרקים כאן, לא לבסיס הפנסיה.
+  const recoveryInjectionExtra = extraNonPensionable + overtimePay + hourlyNonPensionableTotal;
 
   // ── הזרקה זמנית של הבסיס-לפנסיה (כולל גילום מבוטח, בלי שעות נוספות)
   //    ל-calc(), משוחזר מיד אחרי כן — בדיוק כמו הזרקת ה"הבראה הזמנית"
