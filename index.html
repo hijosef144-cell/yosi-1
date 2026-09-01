@@ -2963,9 +2963,7 @@ window.addEventListener('DOMContentLoaded', () => {
         <h3 class="text-2xl font-bold text-center text-blue-900 mb-2">השוואת ברוקרים בשוק ההון</h3>
         <p class="text-center text-gray-600 text-sm mb-6">השוואת עמלות ותנאי פתיחת חשבון למסחר במניות בישראל ובארה"ב</p>
 
-        <div id="brokerAffiliateDisclosure" class="bg-amber-50 border border-amber-200 text-amber-900 text-sm rounded-xl p-4 mb-6 leading-relaxed" style="display:none;">
-          <strong>גילוי נאות:</strong> הקישורים לפתיחת חשבון בטבלה זו הם קישורי הפניה — בעל האתר עשוי לקבל תגמול כספי מבתי ההשקעות בגין הצטרפותכם דרכם. אין בכך משום ייעוץ השקעות או שיווק השקעות, וההחלטה על בחירת ברוקר היא שלכם בלבד.
-        </div>
+        <div id="brokerAffiliateDisclosure" class="bg-amber-50 border border-amber-200 text-amber-900 text-sm rounded-xl p-4 mb-6 leading-relaxed" style="display:none;"></div>
 
         <!-- דסקטופ: טבלה מלאה -->
         <div class="hidden md:block overflow-x-auto bg-white rounded-2xl border border-gray-100 shadow-md">
@@ -3014,10 +3012,15 @@ window.addEventListener('DOMContentLoaded', () => {
     { name:'IBI טרייד', feeIsrael:'0.08% (מינ׳ 2.35₪)', feeUS:'1¢/מניה (מינ׳ $5-7.5)', managementFee:'15₪/חודש, מתקזז מול עמלות מסחר', minDeposit:'15,000₪', regulatedInIsrael:true, hebrewSupport:'כן', smsFreeOpening:'בודקים את זה', note:null, affiliateUrl:null },
     { name:'אלטשולר שחם טרייד', feeIsrael:'0.07% (מינ׳ 2.9₪)', feeUS:'1¢/מניה (מינ׳ $6)', managementFee:'פטור מלא, לתמיד', minDeposit:'5,000₪', regulatedInIsrael:true, hebrewSupport:'כן (6 שפות)', smsFreeOpening:'בודקים את זה', note:'לא זמין לאזרחי ארה"ב', affiliateUrl:null },
     { name:'אינטראקטיב ישראל', feeIsrael:'אין מסחר בישראל', feeUS:'1¢/מניה (מינ׳ $2.5)', managementFee:'פטור מלא', minDeposit:'אין מינימום', regulatedInIsrael:false, hebrewSupport:'כן, כולל וואטסאפ', smsFreeOpening:'לא — נדרש קוד SMS לפתיחת חשבון', note:null, affiliateUrl:null },
-    { name:'FAIR (פייר)', feeIsrael:'לא מפורט', feeUS:'לא מפורט', managementFee:'פטור', minDeposit:'ללא מינימום', regulatedInIsrael:true, hebrewSupport:'כן (משוער)', smsFreeOpening:'כן, ניתן לפתוח בלי SMS', note:null, affiliateUrl:null },
+    { name:'FAIR (פייר)', feeIsrael:'לא מפורט', feeUS:'לא מפורט', managementFee:'פטור', minDeposit:'ללא מינימום', regulatedInIsrael:true, hebrewSupport:'כן (משוער)', smsFreeOpening:'כן, ניתן לפתוח בלי SMS', note:null, affiliateUrl:'https://join.fair.co.il?ref=tq7doen5a7uq' },
     { name:'בלינק', feeIsrael:'אין מסחר בישראל', feeUS:'10 עסקאות חינם בחודש, לאחר מכן 1¢/מניה', managementFee:'0', minDeposit:'$1', regulatedInIsrael:true, hebrewSupport:'כן (משוער)', smsFreeOpening:'רק למי שיש סמארטפון', note:null, affiliateUrl:null },
     { name:'קולמקס פרו', feeIsrael:'אין מסחר בישראל', feeUS:'$0.005-0.0035/מניה (מינ׳ $1.75-2.5)', managementFee:'$0', minDeposit:'$1,000', regulatedInIsrael:false, hebrewSupport:'לא ברור', smsFreeOpening:'בודקים את זה', note:null, affiliateUrl:null }
   ];
+
+  /* טקסט הגילוי הנאות — משתנה נפרד כדי שיהיה קל להחליף כשיתווספו ברוקרים
+     נוספים עם תנאי הפניה שונים. הניסוח הנוכחי מדויק ל-FAIR בלבד (זיכוי
+     בעמלות מסחר, לא תגמול כספי ישיר, מותנה בהפקדה של 250 ₪ ומעלה). */
+  const AFFILIATE_DISCLOSURE_TEXT = 'קישור פתיחת החשבון ל-FAIR הוא קישור הפניה — בעל האתר מקבל זיכוי בעמלות מסחר (לא תשלום כספי ישיר) בגין הצטרפותכם דרכו, לאחר הפקדה של 250 ₪ ומעלה בחשבונכם. אין בכך משום ייעוץ השקעות או שיווק השקעות, וההחלטה על בחירת ברוקר היא שלכם בלבד.';
 
   function isAnyAffiliateLinkActive(){
     return BROKERS_DATA.some(b => b.affiliateUrl !== null);
@@ -3025,7 +3028,10 @@ window.addEventListener('DOMContentLoaded', () => {
 
   function renderBrokersSection(){
     const disclosureEl = document.getElementById('brokerAffiliateDisclosure');
-    if(disclosureEl) disclosureEl.style.display = isAnyAffiliateLinkActive() ? '' : 'none';
+    if(disclosureEl){
+      disclosureEl.style.display = isAnyAffiliateLinkActive() ? '' : 'none';
+      disclosureEl.innerHTML = '<strong>גילוי נאות:</strong> ' + AFFILIATE_DISCLOSURE_TEXT;
+    }
 
     const openAccountBtn = (b, extraClass) => b.affiliateUrl
       ? '<a href="'+b.affiliateUrl+'" target="_blank" rel="noopener noreferrer sponsored" class="'+extraClass+' inline-block bg-blue-900 text-white font-semibold rounded-full hover:bg-blue-800 transition">פתיחת חשבון</a>'
