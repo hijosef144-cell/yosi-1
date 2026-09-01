@@ -2960,7 +2960,13 @@ window.addEventListener('DOMContentLoaded', () => {
 
       <!-- ===== השוואת ברוקרים בשוק ההון ===== -->
       <div class="mt-16">
-        <h3 class="text-2xl font-bold text-center text-blue-900 mb-2">השוואת ברוקרים בשוק ההון</h3>
+        <style>
+          /* scroll-margin-top לפי הגובה האמיתי הנמדד של ה-header הקבוע (sticky),
+             כדי שקישור עוגן ל-#broker-comparison לא יחתוך את הכותרת מתחתיו */
+          #broker-comparison{ scroll-margin-top:76px; }
+          @media(min-width:768px){ #broker-comparison{ scroll-margin-top:84px; } }
+        </style>
+        <h3 id="broker-comparison" class="text-2xl font-bold text-center text-blue-900 mb-2">השוואת ברוקרים בשוק ההון</h3>
         <p class="text-center text-gray-600 text-sm mb-6">השוואת עמלות ותנאי פתיחת חשבון למסחר במניות בישראל ובארה"ב</p>
 
         <!-- דסקטופ: טבלה מלאה -->
@@ -7488,6 +7494,24 @@ function acceptCookieBanner(){
   var b = document.getElementById('cookie-banner');
   if (b) b.style.display = 'none';
 }
+</script>
+
+<script>
+/* תמיכה בקישור ישיר לטבלת השוואת הברוקרים (#broker-comparison) — קוד נפרד
+   בלבד, לא נוגע ב-showSection/באתחול הקיימים. ה-routing הקיים מתייחס לכל
+   hash כשם section שלם; #broker-comparison הוא כותרת פנימית בתוך #links,
+   לא section — בלי הטיפול הזה הטעינה הישירה הייתה מציגה עמוד ריק. */
+window.addEventListener('DOMContentLoaded', function(){
+  if(location.hash === '#broker-comparison'){
+    if(typeof window.showSection === 'function'){
+      window.showSection('links');
+    }
+    setTimeout(function(){
+      const el = document.getElementById('broker-comparison');
+      if(el) el.scrollIntoView({behavior:'smooth', block:'start'});
+    }, 200);
+  }
+});
 </script>
 </body>
 </html>
