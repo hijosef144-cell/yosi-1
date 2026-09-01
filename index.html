@@ -2957,9 +2957,125 @@ window.addEventListener('DOMContentLoaded', () => {
   
         <!-- הוסף פה עוד כרטיסים כרצונך -->
       </div>
+
+      <!-- ===== השוואת ברוקרים בשוק ההון ===== -->
+      <div class="mt-16">
+        <h3 class="text-2xl font-bold text-center text-blue-900 mb-2">השוואת ברוקרים בשוק ההון</h3>
+        <p class="text-center text-gray-600 text-sm mb-6">השוואת עמלות ותנאי פתיחת חשבון למסחר במניות בישראל ובארה"ב</p>
+
+        <div id="brokerAffiliateDisclosure" class="bg-amber-50 border border-amber-200 text-amber-900 text-sm rounded-xl p-4 mb-6 leading-relaxed" style="display:none;">
+          <strong>גילוי נאות:</strong> הקישורים לפתיחת חשבון בטבלה זו הם קישורי הפניה — בעל האתר עשוי לקבל תגמול כספי מבתי ההשקעות בגין הצטרפותכם דרכם. אין בכך משום ייעוץ השקעות או שיווק השקעות, וההחלטה על בחירת ברוקר היא שלכם בלבד.
+        </div>
+
+        <!-- דסקטופ: טבלה מלאה -->
+        <div class="hidden md:block overflow-x-auto bg-white rounded-2xl border border-gray-100 shadow-md">
+          <table class="w-full text-right border-collapse">
+            <thead>
+              <tr class="bg-blue-50 text-blue-900 text-sm">
+                <th class="px-4 py-3 font-semibold">ברוקר</th>
+                <th class="px-4 py-3 font-semibold">עמלה ישראל</th>
+                <th class="px-4 py-3 font-semibold">עמלה ארה"ב</th>
+                <th class="px-4 py-3 font-semibold">דמי ניהול</th>
+                <th class="px-4 py-3 font-semibold">מינימום פתיחה</th>
+                <th class="px-4 py-3 font-semibold text-center">מפוקח בישראל</th>
+                <th class="px-4 py-3 font-semibold">תמיכה בעברית</th>
+                <th class="px-4 py-3 font-semibold">פתיחה בלי SMS</th>
+                <th class="px-4 py-3 font-semibold"></th>
+              </tr>
+            </thead>
+            <tbody id="brokersTableBody" class="text-sm text-gray-700"></tbody>
+          </table>
+        </div>
+
+        <!-- מובייל: כרטיסים מתקפלים במקום טבלה גוללת -->
+        <style>
+          /* בטוח מפני התנגשות עם ‎.grid‎ המותאם-אישית שכבר מוגדר במקום אחר באתר —
+             סלקטור מבוסס-ID עם !important, לא תלוי בסדר עומק/מקור של Tailwind. */
+          #brokersCardsList{ display:grid; gap:1rem; }
+          @media(min-width:768px){ #brokersCardsList{ display:none !important; } }
+        </style>
+        <div id="brokersCardsList"></div>
+
+        <p class="text-xs text-gray-500 text-center mt-6 leading-relaxed max-w-2xl mx-auto">
+          הנתונים מבוססים על מידע פומבי ועשויים להשתנות בכל עת ללא הודעה מוקדמת (מבצעי הצטרפות, שינויי עמלות). מומלץ לוודא תנאים מעודכנים ישירות מול הברוקר לפני קבלת החלטה.
+        </p>
+      </div>
     </div>
   </section>
-  
+
+  <script>
+  /* ═══════════════ נתוני השוואת ברוקרים — data-driven, לא hardcoded ═══════════════
+     כדי להוסיף קישור הפניה בעתיד: למלא affiliateUrl ברשומה המתאימה. שום שינוי
+     ב-HTML לא נדרש — הטבלה/הכרטיסים והבאנר גילוי הנאות נגזרים מהמערך הזה. */
+  const BROKERS_DATA = [
+    { name:'פסגות טרייד', feeIsrael:'0.06% (מינ׳ 2₪)', feeUS:'1¢/מניה (מינ׳ $6)', managementFee:'פטור מלא, לתמיד', minDeposit:'10,000₪', regulatedInIsrael:true, hebrewSupport:'כן', smsFreeOpening:'בודקים את זה', note:null, affiliateUrl:null },
+    { name:'מיטב טרייד', feeIsrael:'0.08% (מינ׳ 4.65₪)', feeUS:'1¢/מניה (מינ׳ $5-7.5)', managementFee:'15₪/חודש, מתקזז מול עמלות מסחר', minDeposit:'5,000₪', regulatedInIsrael:true, hebrewSupport:'כן', smsFreeOpening:'בודקים את זה', note:null, affiliateUrl:null },
+    { name:'אקסלנס טרייד', feeIsrael:'0.07% (מינ׳ 3₪)', feeUS:'1¢/מניה (מינ׳ $5-6)', managementFee:'15₪/חודש, מתקזז מול עמלות מסחר', minDeposit:'4,500₪', regulatedInIsrael:true, hebrewSupport:'כן', smsFreeOpening:'בודקים את זה', note:null, affiliateUrl:null },
+    { name:'IBI טרייד', feeIsrael:'0.08% (מינ׳ 2.35₪)', feeUS:'1¢/מניה (מינ׳ $5-7.5)', managementFee:'15₪/חודש, מתקזז מול עמלות מסחר', minDeposit:'15,000₪', regulatedInIsrael:true, hebrewSupport:'כן', smsFreeOpening:'בודקים את זה', note:null, affiliateUrl:null },
+    { name:'אלטשולר שחם טרייד', feeIsrael:'0.07% (מינ׳ 2.9₪)', feeUS:'1¢/מניה (מינ׳ $6)', managementFee:'פטור מלא, לתמיד', minDeposit:'5,000₪', regulatedInIsrael:true, hebrewSupport:'כן (6 שפות)', smsFreeOpening:'בודקים את זה', note:'לא זמין לאזרחי ארה"ב', affiliateUrl:null },
+    { name:'אינטראקטיב ישראל', feeIsrael:'אין מסחר בישראל', feeUS:'1¢/מניה (מינ׳ $2.5)', managementFee:'פטור מלא', minDeposit:'אין מינימום', regulatedInIsrael:false, hebrewSupport:'כן, כולל וואטסאפ', smsFreeOpening:'לא — נדרש קוד SMS לפתיחת חשבון', note:null, affiliateUrl:null },
+    { name:'FAIR (פייר)', feeIsrael:'לא מפורט', feeUS:'לא מפורט', managementFee:'פטור', minDeposit:'ללא מינימום', regulatedInIsrael:true, hebrewSupport:'כן (משוער)', smsFreeOpening:'כן, ניתן לפתוח בלי SMS', note:null, affiliateUrl:null },
+    { name:'בלינק', feeIsrael:'אין מסחר בישראל', feeUS:'10 עסקאות חינם בחודש, לאחר מכן 1¢/מניה', managementFee:'0', minDeposit:'$1', regulatedInIsrael:true, hebrewSupport:'כן (משוער)', smsFreeOpening:'רק למי שיש סמארטפון', note:null, affiliateUrl:null },
+    { name:'קולמקס פרו', feeIsrael:'אין מסחר בישראל', feeUS:'$0.005-0.0035/מניה (מינ׳ $1.75-2.5)', managementFee:'$0', minDeposit:'$1,000', regulatedInIsrael:false, hebrewSupport:'לא ברור', smsFreeOpening:'בודקים את זה', note:null, affiliateUrl:null }
+  ];
+
+  function isAnyAffiliateLinkActive(){
+    return BROKERS_DATA.some(b => b.affiliateUrl !== null);
+  }
+
+  function renderBrokersSection(){
+    const disclosureEl = document.getElementById('brokerAffiliateDisclosure');
+    if(disclosureEl) disclosureEl.style.display = isAnyAffiliateLinkActive() ? '' : 'none';
+
+    const openAccountBtn = (b, extraClass) => b.affiliateUrl
+      ? '<a href="'+b.affiliateUrl+'" target="_blank" rel="noopener noreferrer sponsored" class="'+extraClass+' inline-block bg-blue-900 text-white font-semibold rounded-full hover:bg-blue-800 transition">פתיחת חשבון</a>'
+      : '';
+
+    const tbody = document.getElementById('brokersTableBody');
+    if(tbody){
+      tbody.innerHTML = BROKERS_DATA.map(b => (
+        '<tr class="border-b border-gray-100 last:border-0">' +
+          '<td class="px-4 py-3 font-semibold text-blue-900 align-top">'+b.name+(b.note ? '<div class="text-xs text-gray-500 font-normal mt-1">'+b.note+'</div>' : '')+'</td>' +
+          '<td class="px-4 py-3 align-top">'+b.feeIsrael+'</td>' +
+          '<td class="px-4 py-3 align-top">'+b.feeUS+'</td>' +
+          '<td class="px-4 py-3 align-top">'+b.managementFee+'</td>' +
+          '<td class="px-4 py-3 align-top">'+b.minDeposit+'</td>' +
+          '<td class="px-4 py-3 text-center align-top">'+(b.regulatedInIsrael ? '<span class="text-green-600 font-bold">✓</span>' : '<span class="text-red-600 font-bold">✗</span>')+'</td>' +
+          '<td class="px-4 py-3 align-top">'+b.hebrewSupport+'</td>' +
+          '<td class="px-4 py-3 align-top">'+b.smsFreeOpening+'</td>' +
+          '<td class="px-4 py-3 align-top">'+openAccountBtn(b,'text-xs px-3 py-1.5')+'</td>' +
+        '</tr>'
+      )).join('');
+    }
+
+    const cardsList = document.getElementById('brokersCardsList');
+    if(cardsList){
+      cardsList.innerHTML = BROKERS_DATA.map(b => (
+        '<div class="credential-card bg-white rounded-2xl border border-blue-100 shadow-md p-5 flex flex-col gap-2">' +
+          '<div class="flex items-center justify-between gap-2">' +
+            '<div class="text-gray-800 font-bold text-base">'+b.name+'</div>' +
+            (b.regulatedInIsrael
+              ? '<span class="text-xs text-green-700 bg-green-50 px-2 py-0.5 rounded-full whitespace-nowrap">✓ מפוקח בישראל</span>'
+              : '<span class="text-xs text-red-700 bg-red-50 px-2 py-0.5 rounded-full whitespace-nowrap">✗ לא מפוקח בישראל</span>') +
+          '</div>' +
+          (b.note ? '<div class="text-xs text-gray-500">'+b.note+'</div>' : '') +
+          '<div class="text-sm text-gray-700 grid grid-cols-2 gap-x-3 gap-y-1.5 mt-1">' +
+            '<div><span class="text-gray-400">עמלה ישראל:</span> '+b.feeIsrael+'</div>' +
+            '<div><span class="text-gray-400">עמלה ארה"ב:</span> '+b.feeUS+'</div>' +
+            '<div><span class="text-gray-400">דמי ניהול:</span> '+b.managementFee+'</div>' +
+            '<div><span class="text-gray-400">מינימום:</span> '+b.minDeposit+'</div>' +
+            '<div><span class="text-gray-400">עברית:</span> '+b.hebrewSupport+'</div>' +
+            '<div><span class="text-gray-400">בלי SMS:</span> '+b.smsFreeOpening+'</div>' +
+          '</div>' +
+          openAccountBtn(b,'mt-2 text-center text-sm px-4 py-2') +
+        '</div>'
+      )).join('');
+    }
+  }
+
+  renderBrokersSection();
+  </script>
+
   <!-- Contact -->
   <section id="contact" class="app-section hidden py-16 bg-gray-50">
     <div class="container mx-auto px-6 max-w-3xl">
