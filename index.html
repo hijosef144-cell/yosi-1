@@ -2976,15 +2976,15 @@ window.addEventListener('DOMContentLoaded', () => {
           <table class="w-full text-right border-collapse">
             <thead>
               <tr class="bg-blue-50 text-blue-900 text-sm">
-                <th class="px-4 py-3 font-semibold">ברוקר</th>
-                <th class="px-4 py-3 font-semibold">עמלה ישראל</th>
-                <th class="px-4 py-3 font-semibold">עמלה ארה"ב</th>
-                <th class="px-4 py-3 font-semibold">דמי ניהול</th>
-                <th class="px-4 py-3 font-semibold">מינימום פתיחה</th>
-                <th class="px-4 py-3 font-semibold text-center">מפוקח בישראל</th>
-                <th class="px-4 py-3 font-semibold">תמיכה בעברית</th>
-                <th class="px-4 py-3 font-semibold">פתיחה בלי SMS</th>
-                <th class="px-4 py-3 font-semibold"></th>
+                <th class="px-4 py-3 font-semibold border border-gray-200 cursor-pointer select-none hover:bg-blue-100" onclick="handleBrokerSort('name')">ברוקר <span id="brokerSortArrow-name" class="text-xs"></span></th>
+                <th class="px-4 py-3 font-semibold border border-gray-200 cursor-pointer select-none hover:bg-blue-100" onclick="handleBrokerSort('feeIsrael')">עמלה ישראל <span id="brokerSortArrow-feeIsrael" class="text-xs"></span></th>
+                <th class="px-4 py-3 font-semibold border border-gray-200 cursor-pointer select-none hover:bg-blue-100" onclick="handleBrokerSort('feeUS')">עמלה ארה"ב <span id="brokerSortArrow-feeUS" class="text-xs"></span></th>
+                <th class="px-4 py-3 font-semibold border border-gray-200 cursor-pointer select-none hover:bg-blue-100" onclick="handleBrokerSort('managementFee')">דמי ניהול <span id="brokerSortArrow-managementFee" class="text-xs"></span></th>
+                <th class="px-4 py-3 font-semibold border border-gray-200 cursor-pointer select-none hover:bg-blue-100" onclick="handleBrokerSort('minDeposit')">מינימום פתיחה <span id="brokerSortArrow-minDeposit" class="text-xs"></span></th>
+                <th class="px-4 py-3 font-semibold text-center border border-gray-200 cursor-pointer select-none hover:bg-blue-100" onclick="handleBrokerSort('regulatedInIsrael')">מפוקח בישראל <span id="brokerSortArrow-regulatedInIsrael" class="text-xs"></span></th>
+                <th class="px-4 py-3 font-semibold border border-gray-200 cursor-pointer select-none hover:bg-blue-100" onclick="handleBrokerSort('hebrewSupport')">תמיכה בעברית <span id="brokerSortArrow-hebrewSupport" class="text-xs"></span></th>
+                <th class="px-4 py-3 font-semibold border border-gray-200 cursor-pointer select-none hover:bg-blue-100" onclick="handleBrokerSort('smsFreeOpening')">פתיחה בלי SMS <span id="brokerSortArrow-smsFreeOpening" class="text-xs"></span></th>
+                <th class="px-4 py-3 font-semibold border border-gray-200"></th>
               </tr>
             </thead>
             <tbody id="brokersTableBody" class="text-sm text-gray-700"></tbody>
@@ -3011,6 +3011,11 @@ window.addEventListener('DOMContentLoaded', () => {
         <p class="text-xs text-gray-500 text-center mt-6 leading-relaxed max-w-2xl mx-auto">
           הנתונים מבוססים על מידע פומבי ועשויים להשתנות בכל עת ללא הודעה מוקדמת (מבצעי הצטרפות, שינויי עמלות). מומלץ לוודא תנאים מעודכנים ישירות מול הברוקר לפני קבלת החלטה.
         </p>
+
+        <a href="/knowledge/" class="block mt-6 max-w-2xl mx-auto bg-gray-50 border border-gray-200 rounded-xl p-4 text-center hover:bg-gray-100 transition">
+          <div class="font-semibold text-blue-900">כולם מסביבך מדברים על מושגים שאתה לא מבין?</div>
+          <div class="text-sm text-gray-600 mt-1">בדיוק בשביל זה יש את <span class="underline">מרכז הידע שלנו</span> בחינם</div>
+        </a>
       </div>
     </div>
 
@@ -3043,47 +3048,122 @@ window.addEventListener('DOMContentLoaded', () => {
      הטקסט העובדתי המלא); אם null, שורת ההדגשה במודל פשוט לא מוצגת.
      feeOverrideNote (per-broker, ברירת מחדל null): לברוקר שלא עובד לפי מודל
      עמלה-ישראל/עמלה-ארה"ב הרגיל (כמו FAIR שהוא קרנות נאמנות ולא מסחר ישיר) -
-     כשהשדה קיים הוא מוחלף בתא ממוזג יחיד במקום שתי העמודות feeIsrael/feeUS. שום
+     כשהשדה קיים הוא מוחלף בתא ממוזג יחיד במקום שתי העמודות feeIsrael/feeUS.
+     buttonTeaser (per-broker, ברירת מחדל null): שורה שנייה קצרה בתוך כפתור
+     "פתיחת חשבון" עצמו (לא ה-modal — שם משמש customerBenefit בניסוח אחר,
+     מפורט יותר). מטרתו שהתועלת תיראה כבר בסריקה ראשונה של הטבלה. שום
      שינוי ב-HTML לא נדרש — הטבלה/הכרטיסים/המודל נגזרים מהמערך הזה. */
   const BROKERS_DATA = [
-    { name:'פסגות טרייד', feeIsrael:'0.06% (מינ׳ 2₪)', feeUS:'1¢/מניה (מינ׳ $6)', managementFee:'פטור מלא, לתמיד', minDeposit:'10,000₪', regulatedInIsrael:true, hebrewSupport:'כן', smsFreeOpening:'בודקים את זה', note:null, affiliateUrl:null, disclosureNote:null, customerBenefit:null, feeOverrideNote:null },
-    { name:'מיטב טרייד', feeIsrael:'0.08% (מינ׳ 4.65₪)', feeUS:'1¢/מניה (מינ׳ $5-7.5)', managementFee:'15₪/חודש, מתקזז מול עמלות מסחר', minDeposit:'5,000₪', regulatedInIsrael:true, hebrewSupport:'כן', smsFreeOpening:'בודקים את זה', note:null, affiliateUrl:null, disclosureNote:null, customerBenefit:null, feeOverrideNote:null },
-    { name:'אקסלנס טרייד', feeIsrael:'0.07% (מינ׳ 3₪)', feeUS:'1¢/מניה (מינ׳ $5-6)', managementFee:'15₪/חודש, מתקזז מול עמלות מסחר', minDeposit:'4,500₪', regulatedInIsrael:true, hebrewSupport:'כן', smsFreeOpening:'בודקים את זה', note:null, affiliateUrl:null, disclosureNote:null, customerBenefit:null, feeOverrideNote:null },
-    { name:'IBI טרייד', feeIsrael:'0.08% (מינ׳ 2.35₪)', feeUS:'1¢/מניה (מינ׳ $5-7.5)', managementFee:'15₪/חודש, מתקזז מול עמלות מסחר', minDeposit:'15,000₪', regulatedInIsrael:true, hebrewSupport:'כן', smsFreeOpening:'בודקים את זה', note:null, affiliateUrl:null, disclosureNote:null, customerBenefit:null, feeOverrideNote:null },
-    { name:'אלטשולר שחם טרייד', feeIsrael:'0.07% (מינ׳ 2.9₪)', feeUS:'1¢/מניה (מינ׳ $6)', managementFee:'פטור מלא, לתמיד', minDeposit:'5,000₪', regulatedInIsrael:true, hebrewSupport:'כן (6 שפות)', smsFreeOpening:'בודקים את זה', note:'לא זמין לאזרחי ארה"ב', affiliateUrl:null, disclosureNote:null, customerBenefit:null, feeOverrideNote:null },
-    { name:'אינטראקטיב ישראל', feeIsrael:'אין מסחר בישראל', feeUS:'1¢/מניה (מינ׳ $2.5)', managementFee:'פטור מלא', minDeposit:'אין מינימום', regulatedInIsrael:false, hebrewSupport:'כן, כולל וואטסאפ', smsFreeOpening:'לא — נדרש קוד SMS לפתיחת חשבון', note:null, affiliateUrl:null, disclosureNote:null, customerBenefit:null, feeOverrideNote:null },
-    { name:'FAIR (פייר)', feeIsrael:null, feeUS:null, managementFee:'פטור', minDeposit:'ללא מינימום', regulatedInIsrael:true, hebrewSupport:'כן (משוער)', smsFreeOpening:'כן, ניתן לפתוח בלי SMS', note:null, affiliateUrl:'https://join.fair.co.il?ref=tq7doen5a7uq', disclosureNote:'כשתפתחו חשבון ב-FAIR ותפקידו 250 ₪ ומעלה, גם אתם מקבלים 50 ₪ בצורת קרדיט (Coins) לשימוש בעמלות מסחר בחשבון שלכם — וגם מצפן כלכלי מקבל קרדיט דומה מ-FAIR. שני הצדדים נהנים, וזו בדיוק הסיבה שאנחנו משתפים את זה בשקיפות מלאה.', customerBenefit:'50 ₪ קרדיט למסחר', feeOverrideNote:'עסקה בקרן נאמנות רגילה: 0₪ לעסקה · קניה/מכירה של קרן מחקה: 0.08% (מינ\' 3₪)' },
-    { name:'בלינק', feeIsrael:'אין מסחר בישראל', feeUS:'10 עסקאות חינם בחודש, לאחר מכן 1¢/מניה', managementFee:'0', minDeposit:'$1', regulatedInIsrael:true, hebrewSupport:'כן (משוער)', smsFreeOpening:'רק למי שיש סמארטפון', note:null, affiliateUrl:null, disclosureNote:null, customerBenefit:null, feeOverrideNote:null },
-    { name:'קולמקס פרו', feeIsrael:'אין מסחר בישראל', feeUS:'$0.005-0.0035/מניה (מינ׳ $1.75-2.5)', managementFee:'$0', minDeposit:'$1,000', regulatedInIsrael:false, hebrewSupport:'לא ברור', smsFreeOpening:'בודקים את זה', note:null, affiliateUrl:null, disclosureNote:null, customerBenefit:null, feeOverrideNote:null }
+    { name:'פסגות טרייד', feeIsrael:'0.06% (מינ׳ 2₪)', feeUS:'1¢/מניה (מינ׳ $6)', managementFee:'פטור מלא, לתמיד', minDeposit:'10,000₪', regulatedInIsrael:true, hebrewSupport:'כן', smsFreeOpening:'בודקים את זה', note:null, affiliateUrl:null, disclosureNote:null, customerBenefit:null, feeOverrideNote:null, buttonTeaser:null },
+    { name:'מיטב טרייד', feeIsrael:'0.08% (מינ׳ 4.65₪)', feeUS:'1¢/מניה (מינ׳ $5-7.5)', managementFee:'15₪/חודש, מתקזז מול עמלות מסחר', minDeposit:'5,000₪', regulatedInIsrael:true, hebrewSupport:'כן', smsFreeOpening:'בודקים את זה', note:null, affiliateUrl:null, disclosureNote:null, customerBenefit:null, feeOverrideNote:null, buttonTeaser:null },
+    { name:'אקסלנס טרייד', feeIsrael:'0.07% (מינ׳ 3₪)', feeUS:'1¢/מניה (מינ׳ $5-6)', managementFee:'15₪/חודש, מתקזז מול עמלות מסחר', minDeposit:'4,500₪', regulatedInIsrael:true, hebrewSupport:'כן', smsFreeOpening:'בודקים את זה', note:null, affiliateUrl:null, disclosureNote:null, customerBenefit:null, feeOverrideNote:null, buttonTeaser:null },
+    { name:'IBI טרייד', feeIsrael:'0.08% (מינ׳ 2.35₪)', feeUS:'1¢/מניה (מינ׳ $5-7.5)', managementFee:'15₪/חודש, מתקזז מול עמלות מסחר', minDeposit:'15,000₪', regulatedInIsrael:true, hebrewSupport:'כן', smsFreeOpening:'בודקים את זה', note:null, affiliateUrl:null, disclosureNote:null, customerBenefit:null, feeOverrideNote:null, buttonTeaser:null },
+    { name:'אלטשולר שחם טרייד', feeIsrael:'0.07% (מינ׳ 2.9₪)', feeUS:'1¢/מניה (מינ׳ $6)', managementFee:'פטור מלא, לתמיד', minDeposit:'5,000₪', regulatedInIsrael:true, hebrewSupport:'כן (6 שפות)', smsFreeOpening:'בודקים את זה', note:'לא זמין לאזרחי ארה"ב', affiliateUrl:null, disclosureNote:null, customerBenefit:null, feeOverrideNote:null, buttonTeaser:null },
+    { name:'אינטראקטיב ישראל', feeIsrael:'אין מסחר בישראל', feeUS:'1¢/מניה (מינ׳ $2.5)', managementFee:'פטור מלא', minDeposit:'אין מינימום', regulatedInIsrael:false, hebrewSupport:'כן, כולל וואטסאפ', smsFreeOpening:'לא — נדרש קוד SMS לפתיחת חשבון', note:null, affiliateUrl:null, disclosureNote:null, customerBenefit:null, feeOverrideNote:null, buttonTeaser:null },
+    { name:'FAIR (פייר)', feeIsrael:null, feeUS:null, managementFee:'פטור', minDeposit:'ללא מינימום', regulatedInIsrael:true, hebrewSupport:'כן (משוער)', smsFreeOpening:'כן, ניתן לפתוח בלי SMS', note:null, affiliateUrl:'https://join.fair.co.il?ref=tq7doen5a7uq', disclosureNote:'כשתפתחו חשבון ב-FAIR ותפקידו 250 ₪ ומעלה, גם אתם מקבלים 50 ₪ בצורת קרדיט (Coins) לשימוש בעמלות מסחר בחשבון שלכם — וגם מצפן כלכלי מקבל קרדיט דומה מ-FAIR. שני הצדדים נהנים, וזו בדיוק הסיבה שאנחנו משתפים את זה בשקיפות מלאה.', customerBenefit:'50 ₪ קרדיט למסחר', feeOverrideNote:'עסקה בקרן נאמנות רגילה: 0₪ לעסקה · קניה/מכירה של קרן מחקה: 0.08% (מינ\' 3₪)', buttonTeaser:'מקבלים 50 ₪ מתנה 🎁' },
+    { name:'בלינק', feeIsrael:'אין מסחר בישראל', feeUS:'10 עסקאות חינם בחודש, לאחר מכן 1¢/מניה', managementFee:'0', minDeposit:'$1', regulatedInIsrael:true, hebrewSupport:'כן (משוער)', smsFreeOpening:'רק למי שיש סמארטפון', note:null, affiliateUrl:null, disclosureNote:null, customerBenefit:null, feeOverrideNote:null, buttonTeaser:null },
+    { name:'קולמקס פרו', feeIsrael:'אין מסחר בישראל', feeUS:'$0.005-0.0035/מניה (מינ׳ $1.75-2.5)', managementFee:'$0', minDeposit:'$1,000', regulatedInIsrael:false, hebrewSupport:'לא ברור', smsFreeOpening:'בודקים את זה', note:null, affiliateUrl:null, disclosureNote:null, customerBenefit:null, feeOverrideNote:null, buttonTeaser:null }
   ];
+
+  /* ═══════════════ מיון לחיץ לפי כותרת עמודה ═══════════════ */
+  let brokerSortColumn = null;   // key of BROKER_COLUMNS, or null = סדר מקורי
+  let brokerSortDirection = null; // 'asc' | 'desc' | null
+
+  const BROKER_COLUMNS = [
+    { key:'name', type:'text' },
+    { key:'feeIsrael', type:'text' },
+    { key:'feeUS', type:'text' },
+    { key:'managementFee', type:'text' },
+    { key:'minDeposit', type:'minDeposit' },
+    { key:'regulatedInIsrael', type:'boolean' },
+    { key:'hebrewSupport', type:'text' },
+    { key:'smsFreeOpening', type:'text' }
+  ];
+
+  /* מיון "מינימום פתיחה" הוא השוואה גולמית של הספרות בלבד — אין המרת מטבע
+     בין ₪ ל-$ (למשל "$1,000"=1000 יוצא "קטן" מ-"₪10,000"=10000 גם אם
+     1,000$ שווים יותר בפועל בשער חליפין אמיתי). זו מגבלה מכוונת, לא שכחה -
+     אין באתר שער חליפין חי להמרה מדויקת. */
+  function parseMinDepositValue(str){
+    if(!str) return 0;
+    if(str.includes('אין מינימום') || str.includes('ללא מינימום')) return 0;
+    const digits = str.replace(/[^\d.]/g, '');
+    return digits ? parseFloat(digits) : 0;
+  }
+
+  function getBrokerSortValue(b, col){
+    if(col.type === 'minDeposit') return parseMinDepositValue(b.minDeposit);
+    if(col.type === 'boolean') return b.regulatedInIsrael ? 0 : 1; // "כן" קודם כשעולה
+    return b[col.key] || '';
+  }
+
+  function compareBrokers(a, b, col){
+    const va = getBrokerSortValue(a, col), vb = getBrokerSortValue(b, col);
+    if(typeof va === 'number' && typeof vb === 'number') return va - vb;
+    return String(va).localeCompare(String(vb), 'he');
+  }
+
+  function handleBrokerSort(key){
+    if(brokerSortColumn !== key){
+      brokerSortColumn = key; brokerSortDirection = 'asc';
+    } else if(brokerSortDirection === 'asc'){
+      brokerSortDirection = 'desc';
+    } else {
+      brokerSortColumn = null; brokerSortDirection = null;
+    }
+    renderBrokersSection();
+  }
+
+  function updateBrokerSortArrows(){
+    BROKER_COLUMNS.forEach(col => {
+      const el = document.getElementById('brokerSortArrow-'+col.key);
+      if(!el) return;
+      el.textContent = (brokerSortColumn === col.key) ? (brokerSortDirection === 'asc' ? '▲' : '▼') : '';
+    });
+  }
 
   function renderBrokersSection(){
     const openAccountBtn = (b, extraClass, idx) => b.affiliateUrl
-      ? '<button type="button" onclick="openBrokerModal('+idx+')" class="'+extraClass+' broker-cta-btn inline-block bg-gradient-to-r from-blue-900 to-blue-700 text-white font-bold rounded-full hover:from-blue-800 hover:to-blue-600 shadow-md hover:shadow-lg transition-all duration-300 border-0 cursor-pointer">פתיחת חשבון</button>'
+      ? '<button type="button" onclick="openBrokerModal('+idx+')" class="'+extraClass+' broker-cta-btn inline-block bg-gradient-to-r from-blue-900 to-blue-700 text-white font-bold rounded-full hover:from-blue-800 hover:to-blue-600 shadow-md hover:shadow-lg transition-all duration-300 border-0 cursor-pointer leading-tight">פתיחת חשבון'+(b.buttonTeaser ? '<span class="block text-[11px] font-normal opacity-90 mt-0.5">'+b.buttonTeaser+'</span>' : '')+'</button>'
       : '';
+
+    let displayList = BROKERS_DATA.map((b, idx) => ({ b, idx }));
+    if(brokerSortColumn){
+      const col = BROKER_COLUMNS.find(c => c.key === brokerSortColumn);
+      displayList = displayList.slice().sort((x, y) => compareBrokers(x.b, y.b, col) * (brokerSortDirection === 'desc' ? -1 : 1));
+    }
 
     const tbody = document.getElementById('brokersTableBody');
     if(tbody){
-      tbody.innerHTML = BROKERS_DATA.map((b, idx) => (
-        '<tr class="border-b border-gray-100 last:border-0">' +
-          '<td class="px-4 py-3 font-semibold text-blue-900 align-top">'+b.name+(b.note ? '<div class="text-xs text-gray-500 font-normal mt-1">'+b.note+'</div>' : '')+'</td>' +
+      tbody.innerHTML = displayList.map(({b, idx}, pos) => {
+        const highlighted = !!b.affiliateUrl;
+        const rowBg = highlighted ? 'bg-blue-50 border-r-4 border-r-blue-900' : (pos % 2 === 0 ? 'bg-white' : 'bg-gray-50');
+        return (
+        '<tr class="'+rowBg+' border-b border-gray-200">' +
+          '<td class="px-4 py-3 font-semibold text-blue-900 align-top border border-gray-200">'+b.name+(b.note ? '<div class="text-xs text-gray-500 font-normal mt-1">'+b.note+'</div>' : '')+'</td>' +
           (b.feeOverrideNote
-            ? '<td class="px-4 py-3 align-top" colspan="2">'+b.feeOverrideNote+'<div class="text-xs text-gray-400 font-normal mt-1">(FAIR מתמחה בקרנות נאמנות - לא מסחר ישיר במניות/ETF כמו שאר הברוקרים בטבלה)</div></td>'
-            : '<td class="px-4 py-3 align-top">'+b.feeIsrael+'</td><td class="px-4 py-3 align-top">'+b.feeUS+'</td>') +
-          '<td class="px-4 py-3 align-top">'+b.managementFee+'</td>' +
-          '<td class="px-4 py-3 align-top">'+b.minDeposit+'</td>' +
-          '<td class="px-4 py-3 text-center align-top">'+(b.regulatedInIsrael ? '<span class="text-green-600 font-bold">✓</span>' : '<span class="text-red-600 font-bold">✗</span>')+'</td>' +
-          '<td class="px-4 py-3 align-top">'+b.hebrewSupport+'</td>' +
-          '<td class="px-4 py-3 align-top">'+b.smsFreeOpening+'</td>' +
-          '<td class="px-4 py-3 align-top">'+openAccountBtn(b,'text-xs px-3 py-1.5', idx)+'</td>' +
+            ? '<td class="px-4 py-3 align-top border border-gray-200" colspan="2">'+b.feeOverrideNote+'<div class="text-xs text-gray-400 font-normal mt-1">(FAIR מתמחה בקרנות נאמנות - לא מסחר ישיר במניות/ETF כמו שאר הברוקרים בטבלה)</div></td>'
+            : '<td class="px-4 py-3 align-top border border-gray-200">'+b.feeIsrael+'</td><td class="px-4 py-3 align-top border border-gray-200">'+b.feeUS+'</td>') +
+          '<td class="px-4 py-3 align-top border border-gray-200">'+b.managementFee+'</td>' +
+          '<td class="px-4 py-3 align-top border border-gray-200">'+b.minDeposit+'</td>' +
+          '<td class="px-4 py-3 text-center align-top border border-gray-200">'+(b.regulatedInIsrael ? '<span class="text-green-600 font-bold">✓</span>' : '<span class="text-red-600 font-bold">✗</span>')+'</td>' +
+          '<td class="px-4 py-3 align-top border border-gray-200">'+b.hebrewSupport+'</td>' +
+          '<td class="px-4 py-3 align-top border border-gray-200">'+b.smsFreeOpening+'</td>' +
+          '<td class="px-4 py-3 align-top border border-gray-200">'+openAccountBtn(b,'text-sm px-4 py-2.5', idx)+'</td>' +
         '</tr>'
-      )).join('');
+        );
+      }).join('');
     }
 
     const cardsList = document.getElementById('brokersCardsList');
     if(cardsList){
-      cardsList.innerHTML = BROKERS_DATA.map((b, idx) => (
-        '<div class="credential-card bg-white rounded-2xl border border-blue-100 shadow-md p-5 flex flex-col gap-2">' +
+      cardsList.innerHTML = displayList.map(({b, idx}) => {
+        const highlighted = !!b.affiliateUrl;
+        const cardClass = highlighted
+          ? 'credential-card bg-blue-50 rounded-2xl border-2 border-blue-900 shadow-md p-5 flex flex-col gap-2'
+          : 'credential-card bg-white rounded-2xl border border-blue-100 shadow-md p-5 flex flex-col gap-2';
+        return (
+        '<div class="'+cardClass+'">' +
           '<div class="flex items-center justify-between gap-2">' +
             '<div class="text-gray-800 font-bold text-base">'+b.name+'</div>' +
             (b.regulatedInIsrael
@@ -3100,10 +3180,13 @@ window.addEventListener('DOMContentLoaded', () => {
             '<div><span class="text-gray-400">עברית:</span> '+b.hebrewSupport+'</div>' +
             '<div><span class="text-gray-400">בלי SMS:</span> '+b.smsFreeOpening+'</div>' +
           '</div>' +
-          openAccountBtn(b,'mt-2 text-center text-sm px-4 py-2', idx) +
+          openAccountBtn(b,'mt-2 text-center text-base px-5 py-3', idx) +
         '</div>'
-      )).join('');
+        );
+      }).join('');
     }
+
+    updateBrokerSortArrows();
   }
 
   renderBrokersSection();
