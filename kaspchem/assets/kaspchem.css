@@ -206,3 +206,5 @@ p { margin: 0 0 1rem; }
 .duo .section { padding: 0; }
 .duo .disclosure, .faq .narrow > * { max-width: none; }
 @media (min-width: 1000px) { .duo { grid-template-columns: 1fr 1fr; gap: 3rem; align-items: start; } }
+
+[tabindex="-1"]:focus, [tabindex="-1"]:focus-visible { outline: none; }
