@@ -33,6 +33,18 @@
   /* ---------- question screen ---------- */
   function crumb() { return '<div class="crumb">' + KaspIcon(topic.icon, 28) + '<span>' + esc(topic.name) + '</span></div>'; }
 
+  function sparks() {
+    var h = '';
+    for (var i = 0; i < 10; i++) h += '<i style="--a:' + (i * 36) + 'deg;--d:' + (3.2 + (i % 3) * 0.9) + 'rem"></i>';
+    return h;
+  }
+
+  function segs(p) {
+    var h = '';
+    for (var i = 0; i < p.total; i++) h += '<span class="' + (i < p.done ? 'done' : i === p.done ? 'cur' : '') + '"></span>';
+    return h;
+  }
+
   function step() {
     busy = false;
     var q = E.nextQuestion(topic, answers);
@@ -42,7 +54,7 @@
     var intro = p.done === 0 ? '<p class="help" style="margin-bottom:1rem">' + esc(topic.intro) + '</p>' : '';
     app.innerHTML =
       crumb() +
-      '<div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="' + p.total + '" aria-valuenow="' + p.done + '" aria-label="התקדמות בשאלון"><i style="width:' + pct + '%"></i></div>' +
+      '<div class="progress segs" role="progressbar" aria-valuemin="0" aria-valuemax="' + p.total + '" aria-valuenow="' + p.done + '" aria-label="התקדמות בשאלון">' + segs(p) + '</div>' +
       '<div class="pmeta"><span>שאלה ' + (p.done + 1) + ' מתוך ' + p.total + '</span><span class="enc" aria-live="polite">' + esc(enc) + '</span></div>' +
       '<section class="q ' + (reduce ? '' : 'slide-in') + '" aria-labelledby="qt">' + intro +
       '<h1 id="qt">' + esc(q.text) + '</h1>' + (q.help ? '<p class="help">' + esc(q.help) + '</p>' : '') +
@@ -50,7 +62,7 @@
       q.options.map(function (o) {
         return '<button type="button" class="opt" role="radio" aria-checked="' + (answers[q.id] === o.id) + '" data-q="' + q.id + '" data-o="' + o.id + '"><span class="dot"></span><span>' + esc(o.label) + '</span></button>';
       }).join('') + '</div>' +
-      '<div class="nav-row">' + (order.length ? '<button type="button" class="btn link" id="back">חזרה לשאלה הקודמת</button>' : '<span></span>') + '</div></section>';
+      (order.length ? '<div class="nav-row"><button type="button" class="btn link" id="back">חזרה לשאלה הקודמת</button></div>' : '') + '</section>';
     app.querySelector('.opts').addEventListener('click', onPick);
     var b = document.getElementById('back'); if (b) b.addEventListener('click', function () { history.back(); });
     focusMain();
@@ -82,7 +94,7 @@
   function result() {
     res = E.evaluate(topic, answers);
     enc = '';
-    app.innerHTML = crumb() + '<div class="progress" aria-hidden="true"><i style="width:100%"></i></div><div style="height:1.2rem"></div>' +
+    app.innerHTML = crumb() + '<div class="progress segs" aria-hidden="true">' + segs({ done: E.progress(topic, answers).total, total: E.progress(topic, answers).total }) + '</div><div style="height:1.2rem"></div>' +
       '<section class="result" id="result" aria-labelledby="rt"><div class="scan" id="scan"><div class="coin" aria-hidden="true">₪</div><p>מסכמים את התשובות שלכם…</p></div></section>';
     focusMain();
     setTimeout(reveal, reduce ? 0 : 1300);
@@ -92,11 +104,11 @@
     var box = document.getElementById('result'); if (!box) return;
     var m = topic.messages, n = res.count, html = '';
     if (res.outcome === 'found') {
-      html += '<div class="head"><div class="big" id="num" aria-hidden="true">' + (reduce ? n : 0) + '</div>' +
+      html += '<div class="head"><div class="burst" aria-hidden="true">' + sparks() + '<div class="big" id="num">' + (reduce ? n : 0) + '</div></div>' +
         '<h1 id="rt">' + esc(n === 1 ? 'זיהינו נושא אחד שכדאי לבדוק' : m.found.replace('{n}', n)) + ' ב' + esc(topic.name) + '</h1>' +
         '<p class="sub">אלה נושאים שכדאי לבדוק, לפי התשובות שלכם בלבד. זו אינה זכאות מאומתת ואינה הבטחה לכסף.</p></div>' +
         '<ul class="finds">' + res.findings.map(function (f, i) {
-          return '<li class="find" style="animation-delay:' + (reduce ? 0 : 500 + i * 220) + 'ms"><b>' + esc(f.title) + '</b><span>' + esc(f.why) + '</span></li>';
+          return '<li class="find" style="animation-delay:' + (reduce ? 0 : 500 + i * 220) + 'ms"><i class="mk" aria-hidden="true"></i><div><b>' + esc(f.title) + '</b><span>' + esc(f.why) + '</span></div></li>';
         }).join('') + '</ul>' +
         '<div class="cta-row"><button type="button" class="btn" id="cta">אני רוצה עזרה בבדיקה</button><a class="btn link" href="/kaspchem">לבדוק תחום אחר</a></div>';
     } else if (res.outcome === 'insufficient') {

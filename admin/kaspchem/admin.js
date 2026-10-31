@@ -101,7 +101,7 @@
       var qs = Object.keys(rq).filter(function (k) { return rq[k]; }).map(function (k) { return k + '=' + encodeURIComponent(rq[k]); }).join('&');
       api('GET', '/requests' + (qs ? '?' + qs : '')).then(function (r) {
         document.getElementById('rlist').innerHTML = r.requests.length ?
-          '<table class="tbl"><thead><tr><th>#</th><th>שם</th><th>טלפון</th><th>תחום</th><th>תוצאה</th><th>סטטוס</th><th>אחראי</th><th>תאריך</th></tr></thead><tbody>' + r.requests.map(function (x) {
+          '<table class="tbl req"><thead><tr><th>#</th><th>שם</th><th>טלפון</th><th>תחום</th><th>תוצאה</th><th>סטטוס</th><th>אחראי</th><th>תאריך</th></tr></thead><tbody>' + r.requests.map(function (x) {
             return '<tr class="click" tabindex="0" data-id="' + x.id + '"><td>' + x.id + '</td><td>' + esc(x.name) + (x.applicant_requests > 1 ? ' <span class="pill">' + x.applicant_requests + ' בקשות</span>' : '') + '</td><td dir="ltr">' + esc(x.phone) + '</td><td>' + esc(topicNames[x.topic] || x.topic) + '</td><td>' + ({ found: 'זוהה נושא', insufficient: 'חסר מידע', none: 'לא זוהה' }[x.outcome]) + '</td><td><span class="pill ' + x.status + '">' + STATUS[x.status] + '</span></td><td>' + esc(x.assignee || '') + '</td><td>' + fdate(x.created_at) + '</td></tr>';
           }).join('') + '</tbody></table>' : '<p class="panel">אין בקשות שמתאימות לסינון.</p>';
         [].forEach.call(document.querySelectorAll('tr.click'), function (tr) { tr.onclick = function () { detail(tr.dataset.id, load); }; tr.onkeydown = function (e) { if (e.key === 'Enter') detail(tr.dataset.id, load); }; });
