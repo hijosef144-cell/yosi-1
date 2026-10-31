@@ -56,8 +56,9 @@ exports.handler = async (event) => {
 
     const hash = ipHash(clientIp(event));
     if (db.configured()) {
-      const recent = await db.query("SELECT count(*)::int AS n FROM rate_limits WHERE bucket = 'lead' AND ip_hash = $1 AND hit_at > now() - interval '1 hour'", [hash]);
-      if (recent[0].n >= MAX_PER_HOUR()) throw new HttpError(429, 'rate_limited', 'בוצעו יותר מדי ניסיונות. נסו שוב מאוחר יותר.');
+      const recent = await db.query("SELECT count(*) FILTER (WHERE ip_hash = $1)::int AS n, count(*)::int AS total FROM rate_limits WHERE bucket = 'lead' AND hit_at > now() - interval '1 hour'", [hash]);
+      // per-IP cap, plus a global cap so a botnet can't flood the inbox from many addresses
+      if (recent[0].n >= MAX_PER_HOUR() || recent[0].total >= (Number(process.env.KASPCHEM_RATE_GLOBAL) || 60)) throw new HttpError(429, 'rate_limited', 'בוצעו יותר מדי ניסיונות. נסו שוב מאוחר יותר.');
     }
     await db.query("INSERT INTO rate_limits (bucket, ip_hash) VALUES ('lead', $1)", [hash]);
     await db.query("DELETE FROM rate_limits WHERE hit_at < now() - interval '1 day'");
