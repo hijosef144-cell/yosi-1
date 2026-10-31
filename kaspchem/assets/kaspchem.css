@@ -200,3 +200,9 @@ p { margin: 0 0 1rem; }
 .q { background: #fff; border: 1px solid var(--line); border-radius: 24px; padding: 1.4rem 1.15rem 1rem; box-shadow: 0 6px 0 #cfe0de, 0 20px 32px rgba(10, 42, 47, .08); }
 @media (min-width: 640px) { .q { padding: 2rem 2rem 1.25rem; } }
 .err:empty { min-height: 0; margin: 0; }
+
+/* about + FAQ sit side by side on wide screens instead of leaving one half of the page empty */
+.duo { display: grid; gap: 2.5rem; padding-bottom: 3.25rem; }
+.duo .section { padding: 0; }
+.duo .disclosure, .faq .narrow > * { max-width: none; }
+@media (min-width: 1000px) { .duo { grid-template-columns: 1fr 1fr; gap: 3rem; align-items: start; } }
