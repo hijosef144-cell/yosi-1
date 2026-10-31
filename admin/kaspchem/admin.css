@@ -65,3 +65,7 @@
   .tbl td::before { content: attr(data-label); font-weight: 700; color: #4a6a6e; flex: none; text-align: start; }
   .tbl td:empty { display: none; }
 }
+
+.adm #tabs { scrollbar-color: #3f6f73 transparent; }
+.adm #tabs::-webkit-scrollbar { height: 4px; }
+.adm #tabs::-webkit-scrollbar-thumb { background: #3f6f73; border-radius: 4px; }
