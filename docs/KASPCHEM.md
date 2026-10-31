@@ -22,7 +22,9 @@ Standalone product inside matzpenkalkali.com. Static pages + Netlify Functions +
 2. Netlify Identity: registration = **Invite only**; invite two users; set each user's role `admin` (Identity → user → app_metadata roles).
 3. Node 24 is set in `netlify.toml` (Neon driver needs >=19, Node 18) — verify the existing site still deploys on a deploy preview first.
 4. Have a lawyer finalize `privacy.html` / `terms.html` (marked DRAFT) and the consent wording; if the wording changes, bump `CONSENT_VERSION` in `kaspchem-lead.js`.
-5. Settings → charity name (only with the organization's approval).
+5. Settings → legal-entity details (optional free text, shown on the public page only if filled; enter only after the legal structure and who receives payments are confirmed).
+
+Branding: Kaspchem is a charity organization (ארגון חסד) working in partnership with מצפן כלכלי, its professional body. Do not describe it as a commercial venture or as a registered nonprofit until that is confirmed. Pricing/revenue tooling stays: a charity may charge for follow-up services.
 6. Deploy preview → test → production. Rollback: Netlify "Publish deploy" on the previous deploy; questionnaires roll back from the admin (versions list).
 
 ## Rules baked in

@@ -51,8 +51,9 @@
     .then(function (r) { return r.ok ? r.json() : null; })
     .then(function (c) {
       if (!c) return;
-      var el = document.getElementById('charity');
-      if (c.settings && c.settings.charity_name) el.textContent = 'בשיתוף ' + c.settings.charity_name;
+      // Legal-entity details are shown only if an admin entered them (nothing is assumed about registration or who receives payments).
+      var d = c.settings && c.settings.org_details;
+      if (d) ['org-details', 'org-details-foot'].forEach(function (id) { var el = document.getElementById(id); if (el) { el.textContent = d; el.hidden = false; } });
     })
     .catch(function () { if (!list.children.length) list.innerHTML = '<li>לא הצלחנו לטעון את התחומים. נסו לרענן את הדף.</li>'; });
 })();

@@ -46,7 +46,6 @@
 .warn { background: #fff6dc; border: 1px solid var(--gold); border-radius: 10px; padding: .6rem .9rem; margin-bottom: 1rem; }
 .pv .opt { min-height: 2.6rem; font-size: .95rem; padding: .4rem .8rem; margin-bottom: .3rem; width: auto; display: inline-flex; }
 .pv-res { background: var(--deep); color: #fff; border-radius: 12px; padding: .8rem 1rem; margin-top: .8rem; }
-@media (max-width: 700px) { .tbl th:nth-child(n+5), .tbl td:nth-child(n+5) { display: none; } }
 
 /* header: brand + user on one row, tabs on their own scrollable row */
 .adm .top .wrap { gap: .25rem 1rem; }
@@ -55,3 +54,14 @@
 .adm .who { order: 2; margin-inline-start: auto; }
 .tbl td:last-child, .tbl td.nw { white-space: nowrap; }
 @media (min-width: 1100px) { .adm #tabs { order: 2; flex: 1; justify-content: center; padding: 0; } .adm .who { order: 3; margin: 0; } }
+
+/* phones: tables become stacked cards so no column (and no action button) is ever hidden */
+@media (max-width: 700px) {
+  .tbl, .tbl tbody, .tbl tr, .tbl td { display: block; }
+  .tbl thead { display: none; }
+  .tbl { border: 0; background: none; }
+  .tbl tr { background: #fff; border: 1px solid var(--line); border-radius: 12px; margin-bottom: .7rem; padding: .35rem 0; }
+  .tbl td { border: 0; display: flex; gap: .8rem; justify-content: space-between; align-items: baseline; padding: .3rem .8rem; white-space: normal !important; text-align: end; }
+  .tbl td::before { content: attr(data-label); font-weight: 700; color: #4a6a6e; flex: none; text-align: start; }
+  .tbl td:empty { display: none; }
+}

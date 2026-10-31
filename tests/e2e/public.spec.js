@@ -121,3 +121,17 @@ test('unknown topic shows a clear message', async ({ page }) => {
   await page.goto('/kaspchem/check/does-not-exist');
   await expect(page.locator('#app h1')).toContainText('לא נמצא');
 });
+
+test('branding: Kaspchem is a charity organization with Matzpen Kalkali as the professional partner; free first check, paid follow-up possible', async ({ page }) => {
+  for (const url of ['/kaspchem', '/kaspchem/privacy.html', '/kaspchem/terms.html']) {
+    await page.goto(url);
+    const text = await page.locator('body').innerText();
+    expect(text, url).not.toContain('מיזם מסחרי');
+    expect(text, url).toContain('ארגון חסד');
+    expect(text, url).toContain('מצפן כלכלי');
+  }
+  await page.goto('/kaspchem');
+  await expect(page.locator('#about')).toContainText('הבדיקה הראשונית חינמית');
+  await expect(page.locator('#about')).toContainText('עשויים להיות בתשלום');
+  await expect(page.locator('#org-details')).toBeHidden(); // nothing about legal form is asserted until an admin fills it
+});

@@ -59,6 +59,15 @@
     return KaspAuth.getUser().then(function (u) { if (u) boot(); else gate(''); });
   }).catch(function () { gate(''); });
 
+  // Copy column headers onto cells so the phone layout can show "label: value" rows.
+  function labelCells() {
+    [].forEach.call(view.querySelectorAll('table.tbl'), function (t) {
+      var heads = [].map.call(t.querySelectorAll('thead th'), function (th) { return th.textContent.trim(); });
+      [].forEach.call(t.querySelectorAll('tbody tr'), function (tr) { [].forEach.call(tr.children, function (td, i) { if (!td.dataset.label && heads[i]) td.dataset.label = heads[i]; }); });
+    });
+  }
+  new MutationObserver(labelCells).observe(view, { childList: true, subtree: true });
+
   function go(t) {
     [].forEach.call(tabsEl.querySelectorAll('button'), function (b) { b.setAttribute('aria-current', b.dataset.t === t ? 'page' : 'false'); });
     ({ dash: dash, requests: requests, forms: forms, services: services, pricing: pricing, pros: pros, settings: settings, audit: audit })[t]();
@@ -173,9 +182,12 @@
   function settings() {
     api('GET', '/settings').then(function (r) {
       var cur = {}; r.settings.forEach(function (s) { cur[s.key] = s.value; });
-      view.innerHTML = H('הגדרות') + '<div class="panel"><h2 style="margin-bottom:.6rem">פתיחה לציבור</h2><p class="warn">כל עוד זה כבוי, האתר מציג שאלונים ותוצאות אך אינו מקבל פניות. הפעילו רק לאחר שעורך דין אישר את מדיניות הפרטיות, תנאי השימוש ונוסח ההסכמות, והחלפתם את הטיוטות בדפים.</p><label style="display:flex;gap:.6rem;font-weight:700"><input type="checkbox" id="la"' + (cur['public.legal_approved'] === true ? ' checked' : '') + '> הנוסחים המשפטיים אושרו, אפשר לקבל פניות</label></div><div class="panel"><h2 style="margin-bottom:.6rem">שם ארגון החסד המשתף פעולה</h2><p>יוצג בעמוד הציבורי: ״בשיתוף …״. השאירו ריק כדי להציג ״ארגון חסד״ בלבד. יש להזין שם רק לאחר אישור הארגון.</p><div class="row"><div><label for="ch">שם הארגון</label><input id="ch" type="text" value="' + esc(cur['public.charity_name'] || '') + '"></div><div><button class="btn" id="chs">שמירה</button></div></div></div>';
+      view.innerHTML = H('הגדרות') +
+        '<div class="panel"><h2 style="margin-bottom:.6rem">מיתוג ומבנה</h2><p><strong>כספכם</strong> מוצג לציבור כארגון חסד, בשיתוף <strong>מצפן כלכלי</strong> כגוף המקצועי. הבדיקה הראשונית חינמית, ושירותי המשך עשויים להיות בתשלום לפי מחיר ותנאים שמוצגים מראש. לא נקבע באתר אם כספכם עמותה רשומה ומי הגוף שמקבל את התשלום, ולכן אין לציין זאת עד שיוכרע.</p></div>' +
+        '<div class="panel"><h2 style="margin-bottom:.6rem">פתיחה לציבור</h2><p class="warn">כל עוד זה כבוי, האתר מציג שאלונים ותוצאות אך אינו מקבל פניות. הפעילו רק לאחר שעורך דין אישר את מדיניות הפרטיות, תנאי השימוש ונוסח ההסכמות, והחלפתם את הטיוטות בדפים.</p><label style="display:flex;gap:.6rem;font-weight:700"><input type="checkbox" id="la"' + (cur['public.legal_approved'] === true ? ' checked' : '') + '> הנוסחים המשפטיים אושרו, אפשר לקבל פניות</label></div>' +
+        '<div class="panel"><h2 style="margin-bottom:.6rem">פרטי הגוף המשפטי (רשות)</h2><p>טקסט חופשי שיוצג בעמוד הציבורי ובתחתיתו, למשל שם הגוף ומספר רישום. מלאו רק לאחר שהמבנה המשפטי אושר. ריק = לא מוצג דבר.</p><div class="row"><div><label for="od">פרטים להצגה</label><textarea id="od" maxlength="300">' + esc(cur['public.org_details'] || '') + '</textarea></div><div><button class="btn" id="ods">שמירה</button></div></div></div>';
       document.getElementById('la').onchange = function (e) { if (e.target.checked && !confirm('לאשר שהנוסחים המשפטיים אושרו ולפתוח לקבלת פניות?')) { e.target.checked = false; return; } api('PUT', '/settings', { key: 'public.legal_approved', value: e.target.checked }).then(function () { toast(e.target.checked ? 'האתר מקבל פניות' : 'קבלת פניות כבויה'); }).catch(fail); };
-      document.getElementById('chs').onclick = function () { api('PUT', '/settings', { key: 'public.charity_name', value: ch.value.trim() }).then(function () { toast('נשמר'); }).catch(fail); };
+      document.getElementById('ods').onclick = function () { api('PUT', '/settings', { key: 'public.org_details', value: od.value.trim() }).then(function () { toast('נשמר'); }).catch(fail); };
     }).catch(fail);
   }
 
