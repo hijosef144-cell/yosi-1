@@ -47,3 +47,11 @@
 .pv .opt { min-height: 2.6rem; font-size: .95rem; padding: .4rem .8rem; margin-bottom: .3rem; width: auto; display: inline-flex; }
 .pv-res { background: var(--deep); color: #fff; border-radius: 12px; padding: .8rem 1rem; margin-top: .8rem; }
 @media (max-width: 700px) { .tbl th:nth-child(n+5), .tbl td:nth-child(n+5) { display: none; } }
+
+/* header: brand + user on one row, tabs on their own scrollable row */
+.adm .top .wrap { gap: .25rem 1rem; }
+.adm #tabs { order: 3; flex: 1 0 100%; justify-content: flex-start; flex-wrap: nowrap; overflow-x: auto; padding-bottom: .5rem; scrollbar-width: thin; }
+.adm #tabs button { white-space: nowrap; flex: none; }
+.adm .who { order: 2; margin-inline-start: auto; }
+.tbl td:last-child, .tbl td.nw { white-space: nowrap; }
+@media (min-width: 1100px) { .adm #tabs { order: 2; flex: 1; justify-content: center; padding: 0; } .adm .who { order: 3; margin: 0; } }
