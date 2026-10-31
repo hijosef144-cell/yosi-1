@@ -161,7 +161,7 @@ p { margin: 0 0 1rem; }
 .field { margin-top: 1rem; }
 .field label { display: block; font-weight: 700; margin-bottom: .3rem; }
 .field label small { font-weight: 400; color: #5a7a7e; }
-.field input[type=text], .field input[type=tel], .field input[type=email] { width: 100%; min-height: 3.25rem; padding: .6rem .9rem; font: inherit; font-size: 1.1rem; color: var(--ink); border: 2px solid #b6cecb; border-radius: 12px; background: #fff; }
+.field input[type=text], .field input[type=tel], .field input[type=email], .field input[type=password] { width: 100%; min-height: 3.25rem; padding: .6rem .9rem; font: inherit; font-size: 1.1rem; color: var(--ink); border: 2px solid #b6cecb; border-radius: 12px; background: #fff; }
 .field input:focus { border-color: var(--teal-d); outline: 3px solid rgba(23,117,108,.25); outline-offset: 0; }
 .field input[aria-invalid="true"] { border-color: var(--coral); }
 .err { color: var(--coral); font-size: .92rem; min-height: 1.3rem; margin: .25rem 0 0; font-weight: 500; }
