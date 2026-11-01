@@ -104,13 +104,13 @@
     var box = document.getElementById('result'); if (!box) return;
     var m = topic.messages, n = res.count, html = '';
     if (res.outcome === 'found') {
-      html += '<div class="head"><div class="big" id="num">' + (reduce ? n : 0) + '</div><div class="bigcap">נושאים לבדיקה, לא סכום שנמצא</div>' +
+      html += '<div class="head"><div class="big" id="num">' + (reduce ? n : 0) + '</div><div class="bigcap">נושאים לבדיקה, לא סכום שנמצא</div><div class="goldline" aria-hidden="true"></div>' +
         '<h1 id="rt">' + esc(n === 1 ? 'זיהינו נושא אחד שכדאי לבדוק' : m.found.replace('{n}', n)) + ' ב' + esc(topic.name) + '</h1>' +
-        '<p class="sub">אלה נושאים שכדאי לבדוק, לפי התשובות שלכם בלבד. זו אינה זכאות מאומתת ואינה הבטחה לכסף.</p></div>' +
+        '<p class="sub">יש כאן נקודות התחלה ברורות, וכדאי לברר בכל אחת מהן מה המצב בפועל. זו בדיקה ראשונית לפי התשובות שלכם בלבד, ולא זכאות מאומתת או הבטחה לכסף.</p></div>' +
         '<ul class="finds">' + res.findings.map(function (f, i) {
           return '<li class="find" style="animation-delay:' + (reduce ? 0 : 500 + i * 220) + 'ms"><i class="mk" aria-hidden="true"></i><div><b>' + esc(f.title) + '</b><span>' + esc(f.why) + '</span></div></li>';
         }).join('') + '</ul>' +
-        '<div class="cta-row"><button type="button" class="btn" id="cta">אני רוצה עזרה בבדיקה</button><a class="btn link" href="/kaspchem">לבדוק תחום אחר</a></div>';
+        '<div class="cta-row"><button type="button" class="btn" id="cta">אני רוצה עזרה בבדיקה</button><p class="reassure">הבדיקה הראשונית חינמית, והשארת פרטים אינה התחייבות.</p><a class="btn link" href="/kaspchem">לבדוק תחום אחר</a></div>';
     } else if (res.outcome === 'insufficient') {
       html += '<div class="head"><h1 id="rt">' + esc(m.insufficient) + '</h1><p class="sub">' + esc(m.insufficientBody) + '</p></div>' +
         '<div class="cta-row" style="margin-top:1.6rem"><button type="button" class="btn ghost" id="fix" style="color:#fff">לחזור ולתקן תשובות</button><button type="button" class="btn" id="cta">אשמח לעזרה בהשלמת התמונה</button><a class="btn link" href="/kaspchem">לבדוק תחום אחר</a></div>';
@@ -120,6 +120,7 @@
     }
     html += '<p class="note">הבדיקה כללית ומבוססת על התשובות שלכם בלבד. היא אינה ייעוץ מקצועי.</p><div id="lead-slot"></div>';
     box.innerHTML = html;
+    if (res.outcome === 'found' && n > 0) box.classList.add('found');
     if (res.outcome === 'found' && !reduce && n > 0) countUp(document.getElementById('num'), n);
     document.getElementById('rt').setAttribute('tabindex', '-1'); document.getElementById('rt').focus({ preventScroll: true });
     var cta = document.getElementById('cta');

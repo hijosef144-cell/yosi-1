@@ -135,3 +135,21 @@ test('branding: Kaspchem is a charity organization with Matzpen Kalkali as the p
   await expect(page.locator('#about')).toContainText('עשויים להיות בתשלום');
   await expect(page.locator('#org-details')).toBeHidden(); // nothing about legal form is asserted until an admin fills it
 });
+
+test('result: never a big zero; gold moment only when something was identified; no scattering effects', async ({ page }) => {
+  const pick = async (label) => { const prev = await page.locator('.q h1').first().textContent(); await page.getByRole('radio', { name: label, exact: true }).first().click(); await page.waitForFunction((x) => { const h = document.querySelector('.q h1'); return !h || h.textContent !== x; }, prev); };
+  await page.goto('/kaspchem/check/lost-funds');
+  await pick('מקום אחד'); await pick('לא'); await pick('לא'); await pick('לא');
+  await expect(page.locator('#result h1')).toContainText('לא זיהינו', { timeout: 8000 });
+  await expect(page.locator('#num')).toHaveCount(0);
+  await expect(page.locator('#result.found')).toHaveCount(0);
+  await expect(page.locator('#result')).not.toContainText(/(^|s)0(s|$)/);
+  await page.evaluate(() => sessionStorage.clear());
+  await page.goto('/kaspchem/check/mortgage');
+  await pick('כן, יש לי משכנתה'); await pick('לפני יותר מחמש שנים'); await pick('לא'); await pick('כן');
+  await expect(page.locator('#result.found')).toHaveCount(1, { timeout: 8000 });
+  await expect(page.locator('#result .goldline')).toHaveCount(1);
+  await expect(page.locator('#result .burst, #result .coin')).toHaveCount(0);
+  await expect(page.locator('#result')).toContainText('לא זכאות מאומתת');
+  await expect(page.locator('#result')).toContainText('חינמית');
+});
