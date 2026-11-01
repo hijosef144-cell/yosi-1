@@ -95,7 +95,7 @@
     res = E.evaluate(topic, answers);
     enc = '';
     app.innerHTML = crumb() + '<div class="progress segs" aria-hidden="true">' + segs({ done: E.progress(topic, answers).total, total: E.progress(topic, answers).total }) + '</div><div style="height:1.2rem"></div>' +
-      '<section class="result" id="result" aria-labelledby="rt"><div class="scan" id="scan"><div class="coin" aria-hidden="true">₪</div><p>מסכמים את התשובות שלכם…</p></div></section>';
+      '<section class="result" id="result" aria-labelledby="rt"><div class="scan" id="scan"><div class="ring" aria-hidden="true"></div><p>מסכמים את התשובות שלכם…</p></div></section>';
     focusMain();
     setTimeout(reveal, reduce ? 0 : 1300);
   }
@@ -104,7 +104,7 @@
     var box = document.getElementById('result'); if (!box) return;
     var m = topic.messages, n = res.count, html = '';
     if (res.outcome === 'found') {
-      html += '<div class="head"><div class="burst" aria-hidden="true">' + sparks() + '<div class="big" id="num">' + (reduce ? n : 0) + '</div></div>' +
+      html += '<div class="head"><div class="big" id="num">' + (reduce ? n : 0) + '</div><div class="bigcap">נושאים לבדיקה, לא סכום שנמצא</div>' +
         '<h1 id="rt">' + esc(n === 1 ? 'זיהינו נושא אחד שכדאי לבדוק' : m.found.replace('{n}', n)) + ' ב' + esc(topic.name) + '</h1>' +
         '<p class="sub">אלה נושאים שכדאי לבדוק, לפי התשובות שלכם בלבד. זו אינה זכאות מאומתת ואינה הבטחה לכסף.</p></div>' +
         '<ul class="finds">' + res.findings.map(function (f, i) {

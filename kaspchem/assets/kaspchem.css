@@ -230,3 +230,14 @@ p { margin: 0 0 1rem; }
 .find > div { min-width: 0; }
 .find .mk { flex: none; width: 1.55rem; height: 1.55rem; margin-top: .1rem; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff1c2, var(--gold) 60%, #b98417); box-shadow: 0 0 0 4px rgba(227,176,75,.18); }
 @media (prefers-reduced-motion: reduce) { .burst > i, .progress.segs span.cur::after { animation: none; opacity: 0; } }
+
+/* ---- restraint pass: calm, credible, no "treasure" cues ---- */
+.big { font-size: clamp(3.2rem, 14vw, 4.6rem); text-shadow: none; color: #f2dca0; }
+.bigcap { font-size: .95rem; color: #a9c7c3; margin-top: .2rem; }
+.ring { width: 2.6rem; height: 2.6rem; border-radius: 50%; border: 3px solid rgba(255,255,255,.18); border-top-color: var(--gold-l); animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.find .mk { width: 1.15rem; height: 1.15rem; margin-top: .25rem; border-radius: 50%; background: transparent; border: 2px solid var(--gold-l); box-shadow: none; position: relative; }
+.find .mk::after { content: ''; position: absolute; inset: 3px; border-radius: 50%; background: var(--gold-l); opacity: .75; }
+.progress.segs span.cur::after { animation: none; box-shadow: none; }
+.result .scan { min-height: 12rem; }
+@media (prefers-reduced-motion: reduce) { .ring { animation: none; } }
