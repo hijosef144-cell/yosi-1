@@ -19,19 +19,21 @@ test.beforeEach(({}, ti) => { test.skip(!/desktop|mobile-390/.test(ti.project.na
 const pick = (page, name) => page.getByRole('checkbox', { name, exact: false }).first().click();
 const noOverflow = async (page) => { const w = await page.evaluate(() => [document.documentElement.scrollWidth, window.innerWidth]); expect(w[0]).toBeLessThanOrEqual(w[1] + 1); };
 
-test('work grant: one parent of a 2023 toddler gets one finding per tax year, each with its own deadline', async ({ page }, ti) => {
+test('work grant: one parent of a 2023 toddler gets ONE card with a section per tax year, each with its own deadline', async ({ page }, ti) => {
   await page.goto(base + '/kaspchem/check/tax-refunds');
   await pick(page, 'כשכיר/ה'); await page.locator('#mgo').click();
   await pick(page, 'אף אחד מאלה'); await page.locator('#mgo').click();
   await pick(page, 'יש לי ילד/ה אחד/ת או שניים'); await page.locator('#mgo').click();
   await expect(page.locator('.q h1')).toContainText('באילו משנות המס');
   await pick(page, 'בשנת 2024'); await pick(page, 'בשנת 2025'); await noOverflow(page); await page.locator('#mgo').click();
-  await expect(page.locator('.q h1')).toContainText('באילו שנים נולדו');
-  await pick(page, 'ב-2023'); await page.locator('#mgo').click();
   await expect(page.locator('.q h1')).toContainText('שכר החודשי');
-  await expect(page.locator('.q')).not.toContainText('בן/בת הזוג כמה'); // no spouse-income question
+  await expect(page.locator('.q')).not.toContainText('הכנסת בן/בת הזוג כמה'); // no spouse-income question
   await page.getByRole('radio', { name: 'בערך 7,500 עד 9,500', exact: false }).click();
-  await expect(page.locator('#result h1')).toContainText('2 נושאים', { timeout: 8000 });
+  await expect(page.locator('.q h1')).toContainText('באילו שנים נולדו'); // asked only for the middle income band
+  await pick(page, 'ב-2023'); await page.locator('#mgo').click();
+  await expect(page.locator('#result h1')).toContainText('נושא אחד', { timeout: 8000 }); // one card, two year sections
+  await expect(page.locator('.find')).toHaveCount(1);
+  await expect(page.locator('.find .part')).toHaveCount(2);
   const r = page.locator('#result');
   await expect(r).toContainText('שנת המס 2024'); await expect(r).toContainText('31.12.2026');
   await expect(r).toContainText('שנת המס 2025'); await expect(r).toContainText('31.12.2027');
@@ -49,9 +51,10 @@ test('work grant: a child born in 2022 gives only the 2024 finding', async ({ pa
   await pick(page, 'אף אחד מאלה'); await page.locator('#mgo').click();
   await pick(page, 'יש לי ילד/ה אחד/ת או שניים'); await page.locator('#mgo').click();
   await pick(page, 'בשנת 2024'); await pick(page, 'בשנת 2025'); await page.locator('#mgo').click();
-  await pick(page, 'ב-2022'); await page.locator('#mgo').click();
   await page.getByRole('radio', { name: 'בערך 7,500 עד 9,500', exact: false }).click();
+  await pick(page, 'ב-2022'); await page.locator('#mgo').click();
   await expect(page.locator('#result h1')).toContainText('נושא אחד', { timeout: 8000 });
+  await expect(page.locator('.find .part')).toHaveCount(1);
   await expect(page.locator('#result')).toContainText('שנת המס 2024');
   await expect(page.locator('#result')).not.toContainText('שנת המס 2025');
 });

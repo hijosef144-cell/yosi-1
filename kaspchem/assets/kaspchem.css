@@ -267,3 +267,6 @@ p { margin: 0 0 1rem; }
 
 .find .fxd summary { cursor: pointer; font-weight: 700; color: #fff; min-height: 2rem; display: list-item; }
 .find .fxd[open] summary { margin-bottom: .3rem; }
+
+/* ---- grouped result card: one card, a section per item (e.g. per tax year) ---- */
+.find .fx.part { padding-top: .6rem; margin-top: .6rem; border-top: 1px solid rgba(255,255,255,.14); }

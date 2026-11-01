@@ -51,7 +51,7 @@ const G24 = 'https://taxes2024.mag.calltext.co.il/pages/65', G25 = 'https://taxe
     id: 'todyr', multi: true,
     text: 'באילו שנים נולדו ילדיכם הקטנים?',
     help: 'סמנו שנת לידה אם נולד לכם ילד באחת מהשנים האלה. לפי מדריכי רשות המסים יש מענק נוסף להורה לפעוט (ילד שטרם מלאו לו 3), בשנת הלידה, בשנה שבה מלאה לו שנה ובשנה שבה מלאו לו שנתיים.',
-    showIf: { all: [{ q: 'grantyrs', in: ['y24', 'y25'] }, { q: 'grantfam', in: ['kids12', 'kids3', 'single'] }] },
+    showIf: { all: [{ q: 'inc', in: ['i2'] }, { q: 'grantfam', in: ['kids12', 'kids3', 'single'] }] }, // asked only where it can change the result (a middle income band)
     options: [
       { id: 'b22', label: 'ב-2022' },
       { id: 'b23', label: 'ב-2023' },
@@ -74,8 +74,8 @@ const G24 = 'https://taxes2024.mag.calltext.co.il/pages/65', G25 = 'https://taxe
     { id: 'i5', label: 'מעל 14,000 ₪' },
     { id: 'unk', label: 'לא יודע/ת', unknown: true }
   ];
-  // order: ... grantfam, grantyrs, todyr, inc
-  const ii = qi('inc'); t.questions.splice(ii, 0, grantyrs, todyr);
+  // order: ... grantfam, grantyrs, inc, todyr (todyr only for the middle income band)
+  const ii = qi('inc'); t.questions.splice(ii, 0, grantyrs); t.questions.splice(qi('inc') + 1, 0, todyr);
 
   // two year-specific rules instead of the single tx-grant
   const old = t.rules.find((r) => r.id === 'tx-grant');
@@ -110,8 +110,11 @@ const G24 = 'https://taxes2024.mag.calltext.co.il/pages/65', G25 = 'https://taxe
       when: { all: base('y' + String(y).slice(2)).concat([incomeScreen(toddlerYears)]) },
       finding: {
         title: 'כדאי לבדוק זכאות למענק עבודה לשנת המס ' + y,
-        why: 'מענק עבודה הוא תוספת הכנסה מרשות המסים לשכירים ולעצמאים בהכנסה נמוכה עד בינונית, והוא מבוקש לכל שנת מס בנפרד. לפי העובדות שמסרתם (גיל וילדים, חודשי עבודה והערכה גסה של השכר) ייתכן שכדאי לבדוק את שנת ' + y + '. ' + toddlerText + ' הזכאות תלויה גם בפרטים שאינם נשאלים כאן (הכנסות נוספות במשפחה, נכסי מקרקעין, קרבה למעסיק), והסכומים משתנים בין שנות המס. אין כאן קביעת זכאות או סכום: ההכרעה היא של רשות המסים בלבד.',
-        step: 'פתחו את בודק הזכאות הרשמי של רשות המסים (חינם, בלי כניסה לחשבון; מותר לבדוק רק מספר מוגבל של פעמים לכל מספר זהות, ולכן הכינו את הפרטים מראש) ובדקו את שנת ' + y + '. אם הוא מצביע על זכאות, הגישו בקשה לשנה הזו באינטרנט או בסניף דואר. ' + deadline,
+        group: 'work-grant', groupTitle: 'כדאי לבדוק זכאות למענק עבודה', section: 'שנת המס ' + y,
+        groupIntro: 'מענק עבודה הוא תוספת הכנסה מרשות המסים לשכירים ולעצמאים בהכנסה נמוכה עד בינונית, והוא מבוקש לכל שנת מס בנפרד. לפי העובדות שמסרתם (גיל וילדים, חודשי עבודה והערכה גסה של השכר) ייתכן שכדאי לבדוק את השנים שלהלן. הזכאות תלויה גם בפרטים שאינם נשאלים כאן (הכנסות נוספות במשפחה, נכסי מקרקעין, קרבה למעסיק), והסכומים משתנים בין שנות המס. אין כאן קביעת זכאות או סכום: ההכרעה היא של רשות המסים בלבד.',
+        groupStep: 'פתחו את בודק הזכאות הרשמי של רשות המסים (חינם, בלי כניסה לחשבון; מותר לבדוק רק מספר מוגבל של פעמים לכל מספר זהות, ולכן הכינו את הפרטים מראש) ובדקו כל שנה בנפרד. אם הוא מצביע על זכאות, הגישו בקשה לכל שנה באינטרנט או בסניף דואר.',
+        why: 'שנת המס ' + y + ': ' + deadline + ' ' + toddlerText,
+        step: 'אם הבודק מצביע על זכאות לשנת ' + y + ', הגישו בקשה לשנה זו בלי לדחות.',
         official: c.official, officialMore: c.officialMore, refer: c.refer
       }
     }, { status: c.status, readiness: c.readiness, basis: c.basis, serviceTag: c.serviceTag,
@@ -119,10 +122,10 @@ const G24 = 'https://taxes2024.mag.calltext.co.il/pages/65', G25 = 'https://taxe
   };
   const note = (y, ceil) => 'v6 (2026-11-01) rebuilt per tax year from the Tax Authority guide for ' + y + ' (page 65 of the annual guide, read in full 2026-11-01). Owner decisions applied: no spouse-income question, no minimum-wage multiples. The income question uses absolute monthly NIS bands as a coarse SCREEN only: a rule fires when the band can overlap the published ceiling of at least one family shape the person ticked (ceilings, avg monthly income over actual working months, ' + y + ': ' + ceil + '). Toddler = child under 3: year of birth, the year the child turns 1, the year the child turns 2 (the guide gives the rule, not birth years; derived: ' + (y === 2024 ? 'born 2022-2024' : 'born 2023-2025') + '). The guide has no direct link to a checker; the checker URL is the one verified in M1 row 10. Residual known errors: the spouse income, assets test and the employer-relative test beyond the ticked option are not asked; 18-20 year old parents not modelled; an unknown income answer fires the finding (the check is free). Held until the manual list-B check (READINESS-V6): the rule is shown ACTIVE in the full draft and INACTIVE in the publishable variant.';
   t.rules.splice(t.rules.indexOf(old), 1,
-    mk(2024, G24, 'המועד האחרון להגשת בקשה לשנת המס 2024 הוא 31.12.2026: אל תדחו.', ['b22', 'b23', 'b24'],
+    mk(2024, G24, 'המועד האחרון להגשת בקשה הוא 31.12.2026.', ['b22', 'b23', 'b24'],
       'לפי המדריך, ילד שנולד ב-2022 עד 2024 נחשב פעוט בשנת המס הזו, וקיימת בגללו תוספת נפרדת, גם להכנסה מעט גבוהה מהרגיל.',
       note(2024, 'couple/55+ 1-2 children 7,220; 3+ children 7,910; toddler worker 8,582 (1-2 children) / 9,243 (3); single parent 10,930 (1-2) / 13,340 (3+); max regular grant 10,080 + up to 490 per toddler; claims 1.1.2025-31.12.2026')),
-    mk(2025, G25, 'המועד האחרון להגשת בקשה לשנת המס 2025 הוא 31.12.2027, אבל כדאי לא לדחות.', ['b23', 'b24', 'b25'],
+    mk(2025, G25, 'המועד האחרון להגשת בקשה הוא 31.12.2027.', ['b23', 'b24', 'b25'],
       'לפי המדריך, ילד שנולד ב-2023 עד 2025 נחשב פעוט בשנת המס הזו, וקיימת בגללו תוספת נפרדת, גם להכנסה מעט גבוהה מהרגיל.',
       note(2025, 'couple/55+ 1-2 children 7,289; 3+ children 8,020; toddler worker 8,781 (1-2) / 9,462 (3); single parent 11,190 (1-2) / 13,660 (3+); toddler single 11,063 / 13,474; max regular grant 10,260 + up to 500 per toddler; claims 1.1.2026-31.12.2027')));
 

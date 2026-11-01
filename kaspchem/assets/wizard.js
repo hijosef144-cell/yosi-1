@@ -133,13 +133,16 @@
 
   function reveal() {
     var box = document.getElementById('result'); if (!box) return;
-    var m = topic.messages, n = res.count, html = '';
+    var m = topic.messages, n = res.cardCount != null ? res.cardCount : res.count, html = '';
     if (res.outcome === 'found') {
       html += '<div class="head"><div class="big" id="num">' + (reduce ? n : 0) + '</div><div class="bigcap">נושאים שכדאי לברר</div><div class="goldline" aria-hidden="true"></div>' +
         '<h1 id="rt">' + esc(n === 1 ? 'זיהינו נושא אחד שכדאי לבדוק' : m.found.replace('{n}', n)) + ' ב' + esc(topic.name) + '</h1>' +
         '<p class="sub">יש כאן נקודות התחלה ברורות, וכדאי לברר בכל אחת מהן מה המצב בפועל. זו בדיקה ראשונית לפי התשובות שלכם בלבד, ולא זכאות מאומתת או הבטחה לכסף.</p></div>' +
-        '<ul class="finds">' + res.findings.map(function (f, i) {
-          return '<li class="find" style="animation-delay:' + (reduce ? 0 : 500 + i * 220) + 'ms"><i class="mk" aria-hidden="true"></i><div><b>' + esc(f.title) + '</b><span>' + esc(f.why) + '</span>' + findingExtras(f) + '</div></li>';
+        '<ul class="finds">' + (res.cards || res.findings).map(function (f, i) {
+          var body = f.parts
+            ? '<span>' + esc(f.intro || '') + '</span>' + f.parts.map(function (p) { return '<span class="fx part"><b>' + esc(p.section || p.title) + '</b> ' + esc(p.why) + (p.step ? ' ' + esc(p.step) : '') + '</span>'; }).join('') + findingExtras({ step: f.step, official: f.official, refer: f.refer })
+            : '<span>' + esc(f.why) + '</span>' + findingExtras(f);
+          return '<li class="find" style="animation-delay:' + (reduce ? 0 : 500 + i * 220) + 'ms"><i class="mk" aria-hidden="true"></i><div><b>' + esc(f.title) + '</b>' + body + '</div></li>';
         }).join('') + '</ul>' +
         '<div class="cta-row"><button type="button" class="btn" id="cta">אני רוצה עזרה בבדיקה</button><p class="reassure">הבדיקה הראשונית חינמית, והשארת פרטים אינה התחייבות.</p><a class="btn link" href="/kaspchem">לבדוק תחום אחר</a></div>';
     } else if (res.outcome === 'insufficient') {
