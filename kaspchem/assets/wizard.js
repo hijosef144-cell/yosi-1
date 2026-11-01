@@ -104,7 +104,7 @@
     var box = document.getElementById('result'); if (!box) return;
     var m = topic.messages, n = res.count, html = '';
     if (res.outcome === 'found') {
-      html += '<div class="head"><div class="big" id="num">' + (reduce ? n : 0) + '</div><div class="bigcap">נושאים לבדיקה, לא סכום שנמצא</div><div class="goldline" aria-hidden="true"></div>' +
+      html += '<div class="head"><div class="big" id="num">' + (reduce ? n : 0) + '</div><div class="bigcap">נושאים שכדאי לברר</div><div class="goldline" aria-hidden="true"></div>' +
         '<h1 id="rt">' + esc(n === 1 ? 'זיהינו נושא אחד שכדאי לבדוק' : m.found.replace('{n}', n)) + ' ב' + esc(topic.name) + '</h1>' +
         '<p class="sub">יש כאן נקודות התחלה ברורות, וכדאי לברר בכל אחת מהן מה המצב בפועל. זו בדיקה ראשונית לפי התשובות שלכם בלבד, ולא זכאות מאומתת או הבטחה לכסף.</p></div>' +
         '<ul class="finds">' + res.findings.map(function (f, i) {

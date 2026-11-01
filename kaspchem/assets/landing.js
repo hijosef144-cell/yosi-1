@@ -2,13 +2,6 @@
   'use strict';
   var list = document.getElementById('tiles');
 
-  function render(topics) {
-    list.innerHTML = topics.map(function (t) {
-      return '<li><a class="tile" href="/kaspchem/check/' + t.id + '"><span class="face">' + KaspIcon(t.icon) + '</span><h3>' + t.name + '</h3><p>' + t.tagline + '</p></a></li>';
-    }).join('');
-    startLight();
-  }
-
   // Clockwise ring of light. Order is derived from the tiles' real on-screen positions (angle around the grid centre),
   // so it stays clockwise whether the grid is 2 columns or 5, and in RTL.
   var timer = null, lastCols = 0;
@@ -46,14 +39,14 @@
     lastCols = getComputedStyle(list).gridTemplateColumns.split(' ').length;
   }
 
-  // Seed content is bundled so the page renders instantly; live config (published edits) replaces it when available.
-  fetch('/kaspchem/content/topics.json').then(function (r) { return r.json(); }).then(function (s) { render(s.topics); return fetch('/api/kaspchem/config'); })
-    .then(function (r) { return r.ok ? r.json() : null; })
+  // Tiles are baked into the HTML (no layout shift, works before JS). Live config only supplies optional legal-entity details.
+  startLight();
+  fetch('/api/kaspchem/config').then(function (r) { return r.ok ? r.json() : null; })
     .then(function (c) {
       if (!c) return;
       // Legal-entity details are shown only if an admin entered them (nothing is assumed about registration or who receives payments).
       var d = c.settings && c.settings.org_details;
       if (d) ['org-details', 'org-details-foot'].forEach(function (id) { var el = document.getElementById(id); if (el) { el.textContent = d; el.hidden = false; } });
     })
-    .catch(function () { if (!list.children.length) list.innerHTML = '<li>לא הצלחנו לטעון את התחומים. נסו לרענן את הדף.</li>'; });
+    .catch(function () {});
 })();
