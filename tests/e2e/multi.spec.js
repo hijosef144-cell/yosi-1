@@ -40,7 +40,7 @@ test('multi-select: explicit continue, exclusive option, several findings with s
   await expect(first).toContainText('צעד מעשי');
   await expect(first.locator('a[href="https://itur.mof.gov.il/"]')).toHaveAttribute('target', '_blank');
   await expect(first).toContainText('הקישור נבדק 01.11.2026');
-  await expect(first).toContainText('להמשך טיפול');
+  await expect(first.locator('details summary')).toContainText('להמשך טיפול');
   await page.waitForTimeout(1500);
   fs.mkdirSync('tests/shots', { recursive: true });
   await page.screenshot({ path: `tests/shots/${ti.project.name}-multi-result.png`, fullPage: true });

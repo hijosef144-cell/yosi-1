@@ -169,7 +169,7 @@
     if (f.step) h += '<span class="fx"><b>צעד מעשי:</b> ' + esc(f.step) + '</span>';
     var url = f.official && safeUrl(f.official.url);
     if (url) h += '<span class="fx"><a href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">' + esc(f.official.label || 'לבדיקה עצמית באתר הרשמי') + '</a>' + (f.official.checked ? ' <small>(הקישור נבדק ' + esc(heDate(f.official.checked)) + ')</small>' : '') + '</span>';
-    if (f.refer) h += '<span class="fx"><b>להמשך טיפול:</b> ' + esc(f.refer) + '</span>';
+    if (f.refer) h += '<details class="fx fxd"><summary>להמשך טיפול ועלויות</summary>' + esc(f.refer) + '</details>';
     return h;
   }
 

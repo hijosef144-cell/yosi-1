@@ -264,3 +264,6 @@ p { margin: 0 0 1rem; }
 .find .fx b { display: inline; font-size: inherit; margin: 0; }
 .find .fx { display: block; }
 .find .fx small { font-size: .8rem; }
+
+.find .fxd summary { cursor: pointer; font-weight: 700; color: #fff; min-height: 2rem; display: list-item; }
+.find .fxd[open] summary { margin-bottom: .3rem; }
