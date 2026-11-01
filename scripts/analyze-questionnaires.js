@@ -53,7 +53,7 @@ const report = data.topics.map((t) => {
   const n = paths.length;
   return {
     topic: t.id, name: t.name, paths: n, multiQuestions: multiQs,
-    qPerPath: { min: Math.min(...lens), avg: +(lens.reduce((s, x) => s + x, 0) / n).toFixed(2), max: Math.max(...lens) },
+    qPerPath: { min: lens.reduce((a, b) => Math.min(a, b), Infinity), avg: +(lens.reduce((s, x) => s + x, 0) / n).toFixed(2), max: lens.reduce((a, b) => Math.max(a, b), 0) },
     outcomePct: Object.fromEntries(Object.entries(outcomes).map(([k, v]) => [k, Math.round((v / n) * 100)])),
     avgFindings: +(findingCounts.reduce((s, x) => s + x, 0) / n).toFixed(2),
     ruleFirePct: Object.fromEntries(Object.entries(ruleHits).map(([k, v]) => [k, Math.round((v / n) * 100)])),
