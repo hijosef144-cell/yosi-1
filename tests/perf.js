@@ -20,7 +20,8 @@ const PAGES = ['/kaspchem/', '/kaspchem/check/mortgage', '/kaspchem/privacy.html
       }
       let bytes = 0, reqs = 0; const errs = [];
       p.on('response', async (r) => { reqs++; const l = r.headers()['content-length']; if (l) bytes += +l; if (r.status() >= 400) errs.push(r.status() + ' ' + r.url().replace(BASE, '')); });
-      p.on('pageerror', (e) => errs.push('JS ' + e.message)); p.on('console', (m) => { if (m.type() === 'error' && !/app.netlify.com/.test(m.text())) errs.push('console ' + m.text().slice(0, 80)); // ignore Netlify's own preview-drawer iframe });
+      p.on('pageerror', (e) => errs.push('JS ' + e.message));
+      p.on('console', (m) => { if (m.type() === 'error' && !/app.netlify.com/.test(m.text())) errs.push('console ' + m.text().slice(0, 80)); }); // Netlify's own preview-drawer iframe is ignored
       await p.addInitScript(() => {
         window.__m = { lcp: 0, cls: 0 };
         new PerformanceObserver((l) => { for (const e of l.getEntries()) window.__m.lcp = e.startTime; }).observe({ type: 'largest-contentful-paint', buffered: true });
