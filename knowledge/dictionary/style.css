@@ -59,6 +59,10 @@
 .kc-scope .nav-link:hover::after { width: 100%; }
 .kc-scope .nav-link:hover { color: #3b82f6; transform: translateY(-1px); }
 
+/* מדיה מוסתרת זמנית בכל מרכז הידע, כולל דפי מיל־הון; העמוד והקישורים נשמרים בקוד. */
+.kc-scope header a[href="/#media"] { display: none !important; }
+
+
 .kc-scope :focus-visible {
   outline: 3px solid var(--brass);
   outline-offset: 2px;
