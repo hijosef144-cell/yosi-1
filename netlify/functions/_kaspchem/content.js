@@ -1,6 +1,7 @@
 'use strict';
 const db = require('./db');
-const seed = require('../../../kaspchem/content/topics.json');
+let seed = require('../../../kaspchem/content/topics.json');
+const setSeed = (s) => { seed = s; module.exports.seed = s; }; // used ONLY by the local test server to preview drafts
 
 const seedTopic = (id) => seed.topics.find((t) => t.id === id);
 
@@ -25,4 +26,4 @@ async function loadTopic(id) {
   return (await loadTopics()).find((t) => t.id === id) || null;
 }
 
-module.exports = { loadTopics, loadTopic, seed, seedTopic };
+module.exports = { loadTopics, loadTopic, seed, seedTopic, setSeed };

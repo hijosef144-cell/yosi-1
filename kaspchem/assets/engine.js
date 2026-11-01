@@ -8,6 +8,11 @@
  *   rules:  [{ id, when, finding: { title, why } }]
  * }
  * Condition: { q, in: [optionIds] } | { all: [cond] } | { any: [cond] } | { not: cond }
+ *
+ * Multi-select question: { multi: true, options: [..., { id, label, exclusive: true }] }. Its answer is an array of option ids
+ * (an "exclusive" option such as "none of these" / "not sure" must be selected alone). A condition { q, in: [...] } on a multi
+ * question is true when ANY selected option is in the list. A family can therefore match several tracks at once.
+ * A rule with status "inactive" is kept as a draft and never fires.
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();
@@ -15,12 +20,19 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
+  function isAnswered(v) { return v != null && !(Array.isArray(v) && v.length === 0); }
+
   function check(cond, answers) {
     if (!cond) return true;
     if (cond.all) return cond.all.every(function (c) { return check(c, answers); });
     if (cond.any) return cond.any.some(function (c) { return check(c, answers); });
     if (cond.not) return !check(cond.not, answers);
-    if (cond.q) return Array.isArray(cond.in) && cond.in.indexOf(answers[cond.q]) !== -1;
+    if (cond.q) {
+      if (!Array.isArray(cond.in)) return false;
+      var v = answers[cond.q];
+      if (Array.isArray(v)) return v.some(function (x) { return cond.in.indexOf(x) !== -1; });
+      return cond.in.indexOf(v) !== -1;
+    }
     return false;
   }
 
@@ -32,13 +44,13 @@
   /** The next unanswered visible question, or null when the flow is complete. */
   function nextQuestion(cfg, answers) {
     var v = visibleQuestions(cfg, answers);
-    for (var i = 0; i < v.length; i++) if (answers[v[i].id] == null) return v[i];
+    for (var i = 0; i < v.length; i++) if (!isAnswered(answers[v[i].id])) return v[i];
     return null;
   }
 
   function progress(cfg, answers) {
     var v = visibleQuestions(cfg, answers);
-    var done = v.filter(function (q) { return answers[q.id] != null; }).length;
+    var done = v.filter(function (q) { return isAnswered(answers[q.id]); }).length;
     return { done: done, total: v.length };
   }
 
@@ -67,9 +79,19 @@
     for (var i = 0; i < keys.length; i++) {
       var q = visIds[keys[i]];
       if (!q) return false;
-      if (!q.options.some(function (o) { return o.id === answers[keys[i]]; })) return false;
+      var val = answers[keys[i]];
+      if (q.multi) {
+        if (!Array.isArray(val) || !val.length || val.length > q.options.length) return false;
+        var seen = {};
+        for (var k = 0; k < val.length; k++) {
+          var opt = q.options.filter(function (o) { return o.id === val[k]; })[0];
+          if (!opt || seen[val[k]]) return false;
+          seen[val[k]] = true;
+          if (opt.exclusive && val.length > 1) return false;
+        }
+      } else if (Array.isArray(val) || !q.options.some(function (o) { return o.id === val; })) return false;
     }
-    return vis.every(function (q) { return answers[q.id] != null; });
+    return vis.every(function (q) { return isAnswered(answers[q.id]); });
   }
 
   /**
@@ -78,13 +100,18 @@
    *  'insufficient' — nothing matched, but at least one answer was "don't know" → not enough information
    *  'none'         — nothing matched and every answer was definite → no focused topic identified
    */
-  function evaluate(cfg, answers) {
-    var findings = (cfg.rules || []).filter(function (r) { return check(r.when, answers); })
-      .map(function (r) { return { id: r.id, title: r.finding.title, why: r.finding.why }; });
+  function evaluate(cfg, answers, opts) {
+    var includeInactive = !!(opts && opts.includeInactive);
+    var findings = (cfg.rules || []).filter(function (r) { return (includeInactive || r.status !== 'inactive') && check(r.when, answers); })
+      .map(function (r) {
+        var f = r.finding || {};
+        return { id: r.id, title: f.title, why: f.why, step: f.step, official: f.official, refer: f.refer, serviceTag: r.serviceTag };
+      });
     var unknownIds = [];
     visibleQuestions(cfg, answers).forEach(function (q) {
-      var opt = q.options.filter(function (o) { return o.id === answers[q.id]; })[0];
-      if (opt && opt.unknown) unknownIds.push(q.id);
+      var picked = [].concat(answers[q.id]);
+      var hit = q.options.some(function (o) { return picked.indexOf(o.id) !== -1 && o.unknown; });
+      if (hit) unknownIds.push(q.id);
     });
     var outcome = findings.length ? 'found' : (unknownIds.length ? 'insufficient' : 'none');
     return { outcome: outcome, findings: findings, count: findings.length, unknown: unknownIds };
@@ -108,6 +135,7 @@
           if (oi[o.id]) errs.push('שאלה ' + (i + 1) + ': מזהה תשובה כפול ' + o.id);
           oi[o.id] = true;
         });
+        if (q.multi && !q.options.some(function (o) { return o.exclusive; })) errs.push('שאלה ' + (i + 1) + ': בחירה מרובה דורשת תשובה בלעדית כמו "אף אחד מאלה"');
       }
     });
     function refs(cond, where) {

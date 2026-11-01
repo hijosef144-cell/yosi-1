@@ -1,0 +1,24 @@
+{
+  "version": 99,
+  "topics": [
+    {
+      "id": "lost-funds", "icon": "lost-funds", "name": "כספים אבודים", "order": 1, "slug": "lost-funds",
+      "tagline": "בדיקת פיקסצ'ר", "intro": "פיקסצ'ר לבדיקות בחירה מרובה.",
+      "questions": [
+        { "id": "sit", "text": "אילו מהמצבים הבאים נכונים אצלכם?", "multi": true, "options": [
+          { "id": "inh", "label": "קרוב משפחה נפטר בשנים האחרונות" },
+          { "id": "jobs", "label": "עבדתי בכמה מקומות עבודה" },
+          { "id": "old", "label": "יש פוליסה ישנה" },
+          { "id": "none", "label": "אף אחד מאלה", "exclusive": true },
+          { "id": "unk", "label": "לא בטוח/ה", "unknown": true, "exclusive": true } ] },
+        { "id": "when", "showIf": { "q": "sit", "in": ["inh"] }, "text": "מתי הייתה הפטירה?", "options": [ { "id": "recent", "label": "בשנתיים האחרונות" }, { "id": "older", "label": "לפני יותר מכך" } ] }
+      ],
+      "rules": [
+        { "id": "f-inh", "when": { "q": "sit", "in": ["inh"] }, "finding": { "title": "בירור ירושה", "why": "הסבר ירושה.", "step": "בדקו בהר הכסף.", "official": { "label": "הר הכסף", "url": "https://itur.mof.gov.il/", "checked": "2026-11-01" }, "refer": "עורך/ת דין לענייני ירושה" } },
+        { "id": "f-jobs", "when": { "q": "sit", "in": ["jobs"] }, "finding": { "title": "חיסכון אצל מעסיקים קודמים", "why": "הסבר מעסיקים." } },
+        { "id": "f-draft", "status": "inactive", "when": { "q": "sit", "in": ["old"] }, "finding": { "title": "כלל טיוטה", "why": "לא פעיל." } }
+      ],
+      "messages": { "found": "זיהינו {n} נושאים שכדאי לבדוק", "insufficient": "חסר לנו מידע כדי להסיק מסקנה", "none": "כרגע לא זיהינו נושא ממוקד לבדיקה", "insufficientBody": "לא בטוח.", "noneBody": "אין." }
+    }
+  ]
+}

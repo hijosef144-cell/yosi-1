@@ -59,10 +59,11 @@ on('GET', '/requests/(\\d+)', async (c, id) => {
   ]);
   // Show the answers with their original wording so staff don't need to decode ids.
   const readable = topic ? engine.visibleQuestions(topic, r.answers).map((q) => ({
-    question: q.text, answer: (q.options.find((o) => o.id === r.answers[q.id]) || {}).label || r.answers[q.id]
+    question: q.text, answer: [].concat(r.answers[q.id]).map((id) => (q.options.find((o) => o.id === id) || {}).label || id).join(' · ')
   })) : [];
   const findings = topic ? (r.findings || []).map((fid) => (topic.rules.find((x) => x.id === fid) || { finding: { title: fid } }).finding.title) : r.findings;
-  return { request: Object.assign({}, r, { readable, findingTitles: findings }), notes, consents, revenues };
+  const findingDetails = topic ? (r.findings || []).map((fid) => { const rule = topic.rules.find((x) => x.id === fid) || {}; return { id: fid, title: (rule.finding || {}).title || fid, refer: (rule.finding || {}).refer || null, serviceTag: rule.serviceTag || null }; }) : [];
+  return { request: Object.assign({}, r, { readable, findingTitles: findings, findingDetails }), notes, consents, revenues };
 });
 
 on('PATCH', '/requests/(\\d+)', async (c, id) => {

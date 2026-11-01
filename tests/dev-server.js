@@ -16,6 +16,7 @@ async function start(port) {
   await pg.exec(fs.readFileSync(path.join(ROOT, 'db', 'kaspchem-schema.sql'), 'utf8'));
   await pg.exec("INSERT INTO settings (key, value, updated_by) VALUES ('public.legal_approved', 'true', 'test') ON CONFLICT DO NOTHING");
   db.setDriver(async (t, p) => (await pg.query(t, p)).rows);
+  if (process.env.TOPICS_FILE) { require('../netlify/functions/_kaspchem/content').setSeed(JSON.parse(fs.readFileSync(process.env.TOPICS_FILE, 'utf8'))); }
   process.env.KASPCHEM_HASH_SALT = 'test-salt';
   if (process.env.PORT) process.env.KASPCHEM_RATE_MAX = '1000'; // e2e shares one IP; backend tests (port 0) keep the real limit
   process.env.KASPCHEM_ADMIN_EMAILS = 'yosi@example.test,avi@example.test';

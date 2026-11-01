@@ -24,6 +24,7 @@
       document.title = topic.name + ' – בדיקה בכספכם';
       load();
       answers = E.pruneAnswers(topic, answers);
+      Object.keys(answers).forEach(function (k) { var qd = topic.questions.filter(function (x) { return x.id === k; })[0]; if (!qd || !!qd.multi !== Array.isArray(answers[k])) delete answers[k]; }); // stale shape after a questionnaire edit
       order = order.filter(function (id) { return answers[id] != null; });
       history.replaceState({ n: order.length }, '');
       step();
@@ -58,12 +59,16 @@
       '<div class="pmeta"><span>שאלה ' + (p.done + 1) + ' מתוך ' + p.total + '</span><span class="enc" aria-live="polite">' + esc(enc) + '</span></div>' +
       '<section class="q ' + (reduce ? '' : 'slide-in') + '" aria-labelledby="qt">' + intro +
       '<h1 id="qt">' + esc(q.text) + '</h1>' + (q.help ? '<p class="help">' + esc(q.help) + '</p>' : '') +
-      '<div class="opts" role="radiogroup" aria-labelledby="qt">' +
+      (q.multi ? '<p class="multihint">אפשר לבחור יותר מתשובה אחת</p>' : '') +
+      '<div class="opts" role="' + (q.multi ? 'group' : 'radiogroup') + '" aria-labelledby="qt">' +
       q.options.map(function (o) {
-        return '<button type="button" class="opt" role="radio" aria-checked="' + (answers[q.id] === o.id) + '" data-q="' + q.id + '" data-o="' + o.id + '"><span class="dot"></span><span>' + esc(o.label) + '</span></button>';
+        var on = q.multi ? [].concat(answers[q.id] || []).indexOf(o.id) !== -1 : answers[q.id] === o.id;
+        return '<button type="button" class="opt' + (q.multi ? ' chk' : '') + '" role="' + (q.multi ? 'checkbox' : 'radio') + '" aria-checked="' + on + '" data-q="' + q.id + '" data-o="' + o.id + '"' + (o.exclusive ? ' data-x="1"' : '') + '><span class="dot"></span><span>' + esc(o.label) + '</span></button>';
       }).join('') + '</div>' +
+      (q.multi ? '<div class="multi-go"><button type="button" class="btn" id="mgo"' + ([].concat(answers[q.id] || []).length ? '' : ' disabled') + '>המשך</button></div>' : '') +
       (order.length ? '<div class="nav-row"><button type="button" class="btn link" id="back">חזרה לשאלה הקודמת</button></div>' : '') + '</section>';
-    app.querySelector('.opts').addEventListener('click', onPick);
+    app.querySelector('.opts').addEventListener('click', q.multi ? onToggle : onPick);
+    var go = document.getElementById('mgo'); if (go) go.addEventListener('click', function () { commitMulti(q); });
     var b = document.getElementById('back'); if (b) b.addEventListener('click', function () { history.back(); });
     focusMain();
   }
@@ -73,7 +78,7 @@
     busy = true; // ignore taps during the short transition so a double-tap can't answer the next question
     var q = btn.dataset.q, o = btn.dataset.o;
     [].forEach.call(app.querySelectorAll('.opt'), function (x) { x.setAttribute('aria-checked', x === btn); });
-    var changed = answers[q] !== o;
+    var changed = JSON.stringify(answers[q]) !== JSON.stringify(o);
     answers[q] = o;
     if (order.indexOf(q) === -1) order.push(q);
     if (changed) { answers = E.pruneAnswers(topic, answers); order = order.filter(function (id) { return answers[id] != null; }); }
@@ -82,6 +87,32 @@
     save();
     history.pushState({ n: order.length }, '');
     setTimeout(step, reduce ? 0 : 180); // brief confirmation of the tap before moving on
+  }
+
+  // Multi-select: toggling never advances; the explicit "continue" button commits. Exclusive options ("none of these", "not sure") clear the rest.
+  function onToggle(ev) {
+    var btn = ev.target.closest('.opt'); if (!btn || busy) return;
+    var wasOn = btn.getAttribute('aria-checked') === 'true';
+    var all = [].slice.call(app.querySelectorAll('.opt'));
+    if (btn.dataset.x) all.forEach(function (x) { x.setAttribute('aria-checked', x === btn ? String(!wasOn) : 'false'); });
+    else { all.forEach(function (x) { if (x.dataset.x) x.setAttribute('aria-checked', 'false'); }); btn.setAttribute('aria-checked', String(!wasOn)); }
+    var any = all.some(function (x) { return x.getAttribute('aria-checked') === 'true'; });
+    var go = document.getElementById('mgo'); if (go) go.disabled = !any;
+  }
+
+  function commitMulti(q) {
+    if (busy) return;
+    var picked = [].slice.call(app.querySelectorAll('.opt')).filter(function (x) { return x.getAttribute('aria-checked') === 'true'; }).map(function (x) { return x.dataset.o; });
+    if (!picked.length) return;
+    busy = true;
+    var changed = JSON.stringify(answers[q.id]) !== JSON.stringify(picked);
+    answers[q.id] = picked;
+    if (order.indexOf(q.id) === -1) order.push(q.id);
+    if (changed) { answers = E.pruneAnswers(topic, answers); order = order.filter(function (id) { return answers[id] != null; }); }
+    enc = q.encourage || GENERIC_ENC[Math.min(order.length - 1, GENERIC_ENC.length - 1)];
+    save();
+    history.pushState({ n: order.length }, '');
+    step();
   }
 
   window.addEventListener('popstate', function () {
@@ -108,7 +139,7 @@
         '<h1 id="rt">' + esc(n === 1 ? 'זיהינו נושא אחד שכדאי לבדוק' : m.found.replace('{n}', n)) + ' ב' + esc(topic.name) + '</h1>' +
         '<p class="sub">יש כאן נקודות התחלה ברורות, וכדאי לברר בכל אחת מהן מה המצב בפועל. זו בדיקה ראשונית לפי התשובות שלכם בלבד, ולא זכאות מאומתת או הבטחה לכסף.</p></div>' +
         '<ul class="finds">' + res.findings.map(function (f, i) {
-          return '<li class="find" style="animation-delay:' + (reduce ? 0 : 500 + i * 220) + 'ms"><i class="mk" aria-hidden="true"></i><div><b>' + esc(f.title) + '</b><span>' + esc(f.why) + '</span></div></li>';
+          return '<li class="find" style="animation-delay:' + (reduce ? 0 : 500 + i * 220) + 'ms"><i class="mk" aria-hidden="true"></i><div><b>' + esc(f.title) + '</b><span>' + esc(f.why) + '</span>' + findingExtras(f) + '</div></li>';
         }).join('') + '</ul>' +
         '<div class="cta-row"><button type="button" class="btn" id="cta">אני רוצה עזרה בבדיקה</button><p class="reassure">הבדיקה הראשונית חינמית, והשארת פרטים אינה התחייבות.</p><a class="btn link" href="/kaspchem">לבדוק תחום אחר</a></div>';
     } else if (res.outcome === 'insufficient') {
@@ -129,6 +160,17 @@
     }
     if (cta) cta.addEventListener('click', openForm);
     var fix = document.getElementById('fix'); if (fix) fix.addEventListener('click', function () { var last = order.pop(); delete answers[last]; save(); step(); });
+  }
+
+  function safeUrl(u) { return /^https:\/\//.test(String(u || '')) ? u : null; }
+  function heDate(d) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d || ''); return m ? m[3] + '.' + m[2] + '.' + m[1] : ''; }
+  function findingExtras(f) {
+    var h = '';
+    if (f.step) h += '<span class="fx"><b>צעד מעשי:</b> ' + esc(f.step) + '</span>';
+    var url = f.official && safeUrl(f.official.url);
+    if (url) h += '<span class="fx"><a href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">' + esc(f.official.label || 'לבדיקה עצמית באתר הרשמי') + '</a>' + (f.official.checked ? ' <small>(הקישור נבדק ' + esc(heDate(f.official.checked)) + ')</small>' : '') + '</span>';
+    if (f.refer) h += '<span class="fx"><b>להמשך טיפול:</b> ' + esc(f.refer) + '</span>';
+    return h;
   }
 
   function countUp(el, n) {
