@@ -154,7 +154,36 @@ const G24 = 'https://taxes2024.mag.calltext.co.il/pages/65', G25 = 'https://taxe
   save(o);
 }
 
+// ---------- list B manual verification (docs/research/raw/L1-listB-v6.md, 2026-11-01): wording fixes supported by the official pages read ----------
+function rule(id) { for (const f of fs.readdirSync(dst).filter((x) => /^R\d.*\.json$/.test(x))) { const j = JSON.parse(fs.readFileSync(path.join(dst, f), 'utf8')); for (const t of j.topics) { const r = t.rules.find((x) => x.id === id); if (r) return { f, j, r }; } } throw new Error('rule ' + id); }
+function fix(id, edits) {
+  const o = rule(id);
+  edits.forEach(([field, from, to]) => {
+    const f = o.r.finding; const src2 = f[field];
+    if (from === null) { f[field] = to; return; }
+    if (typeof src2 !== 'string' || !src2.includes(from)) throw new Error(id + '.' + field + ': text not found: ' + from.slice(0, 40));
+    f[field] = src2.replace(from, to);
+  });
+  o.r.adminNote = (o.r.adminNote || '') + ' v6 (2026-11-01): manual check done (raw/L1-listB-v6.md); wording aligned to what the official page says.';
+  fs.writeFileSync(path.join(dst, o.f), JSON.stringify(o.j, null, 2));
+}
+fix('lf-inherit-open', [['step', 'או לצו קיום צוואה', 'או (למי שזכאי לפי הצוואה) לצו קיום צוואה']]);
+fix('lf-inherit-search', [['why', 'בבנקים הוא מציג חשבונות מכל סוג, ללא יתרה', 'בבנקים הוא מציג באילו בנקים קיימים חשבונות על שם הנפטר/ת (ביתרת זכות או חובה), בלי מספר חשבון, סוג חשבון או יתרה']]);
+fix('hs-empty', [['why', ' ייתכן שרשות מסוימת מקבלת תקופת שיפוץ כנכס ריק, לפי הנוהל שלה.', ''], ['step', 'ראיות שהנכס ריק (למשל חשבונות מים וחשמל)', 'ראיות שהנכס ריק (למשל חשבונות חשמל ומים, כפי שמבקשת עיריית ירושלים)']]);
+{ const o = rule('hs-empty'); o.r.finding.officialMore.forEach((m) => { if (m.url.endsWith("/property/unused/")) { m.url = m.url.replace('/unused/', '/empty/'); m.label = 'דוגמה: עיריית ירושלים, נכס ריק'; } }); fs.writeFileSync(path.join(dst, o.f), JSON.stringify(o.j, null, 2)); }
+fix('hs-damaged', [['step', ' הודיעו לרשות כשהנכס חוזר לשימוש.', ' הפטור תלוי בהוכחת מצב הנכס.'], ['step', 'צרפו ראיות לנזק ולכך שאין מתגוררים בנכס (למשל תמונות, חוות דעת מקצועית, חשבונות מים וחשמל).', 'צרפו ראיות לנזק ולכך שאין מתגוררים בנכס (למשל תמונות).']]);
+fix('hs-daycare', [['why', 'הדרגה תלויה בסוג המסגרת', 'הדרגה תלויה, בין היתר, בסוג המסגרת']]);
+fix('ps-bal', [['why', 'כשהיתרה לא מופיעה קשה לדעת כמה ימים צברתם ומה נותר.', 'כשהיתרה לא מופיעה קשה לדעת כמה ימים צברתם ומה נותר. לפי החוק אין חובה לציין את יתרת המחלה הצבורה כשהמעסיק מבטח את העובד בביטוח מחלה, ולכן ייתכן שיש לכך הסבר.']]);
+{ const o = rule('ps-bal'); o.r.finding.official = { label: 'חוק הגנת השכר (נוסח באתר נבו)', url: 'https://www.nevo.co.il/law_html/law00/71689.htm', checked: CHECKED }; o.r.source = Object.assign({}, o.r.source, { url: 'https://www.nevo.co.il/law_html/law00/71689.htm', checked: CHECKED }); fs.writeFileSync(path.join(dst, o.f), JSON.stringify(o.j, null, 2)); }
+fix('ni-disability', [['why', 'כשמחלה או מגבלה ארוכת טווח מקטינה', 'כשמחלה או מגבלה מקטינה'], ['why', ' חלק מהקצבאות הנוספות (למשל שירותים מיוחדים) בודקים בנפרד.', ' הטבות נוספות בביטוח הלאומי נבדקות בנפרד.']]);
+fix('ni-supplement', [['why', 'שהקצבה היא עיקר הכנסתם', 'בעלי הכנסה נמוכה'], ['why', ' התוספת דורשת תביעה נפרדת ואינה מצורפת אוטומטית לקצבה.', ' התוספת דורשת הגשת תביעה. התנאים כוללים בין היתר מבחני הכנסה ונכסים, ולכן כדאי לעבור עליהם באתר.']]);
+fix('ni-survivors', [['step', 'בדקו בעמוד התביעה אם יש מועד אחרון, ולא כדאי לדחות.', 'לפי עמוד התביעה של הביטוח הלאומי יש להגיש תביעה תוך 12 חודשים מיום הפטירה (עם תשלום רטרואקטיבי של עד 12 חודשים בהגשה מאוחרת), ולכן לא כדאי לדחות.']]);
+fix('hh-ins-two', [['step', 'כדי לראות אילו פוליסות רשומות על שמכם.', 'כדי לראות אילו פוליסות רשומות על שמכם. אם פוליסת הדירה אינה מופיעה שם, בררו מול חברת הביטוח.']]);
+fix('hh-ins-none', [['why', '(למשל מים, אש או גניבה)', '(למשל שיטפון, אש או גניבה)'], ['why', ' אם יש משכנתא או חוזה שכירות, ייתכן שההסכם מתייחס לביטוח; כדאי לבדוק בו.', '']]);
+fix('ed-haredi-employment', [['why', ' יש גם הכשרות מקצועיות הממומנות בחלקן ומיועדות לציבור זה.', ''], ['why', 'ליווי אישי, הכשרות והשמה', 'ליווי אישי והשמה']]);
+
 // ---------- list B for v6 ----------
-const B6 = listB.filter((id) => id !== 'tx-grant').concat(['tx-grant-2024', 'tx-grant-2025']);
+// after the manual check only these stay held: Har HaBituach home-policy coverage and the dira.cma.gov.il result screen (CAPTCHA) need a person
+const B6 = ['hh-ins-two', 'hh-ins-none'];
 fs.writeFileSync(path.join(dst, 'listB.json'), JSON.stringify(B6, null, 2));
 console.log('drafts-v6 built; list B:', B6.length);
