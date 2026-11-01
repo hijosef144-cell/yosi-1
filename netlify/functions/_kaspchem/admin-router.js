@@ -43,6 +43,7 @@ on('GET', '/requests', async (c) => {
             (SELECT count(*)::int FROM treatment_requests x WHERE x.applicant_id = a.id) AS applicant_requests
      FROM treatment_requests r JOIN applicants a ON a.id = r.applicant_id
      ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY r.created_at DESC LIMIT 300`, p);
+  await audit(c.me.email, 'request.list', 'request', '', { rows: rows.length, filtered: where.length > 0 }); // the list shows names and phones
   return { requests: rows };
 });
 
@@ -84,6 +85,7 @@ on('PATCH', '/requests/(\\d+)', async (c, id) => {
 on('POST', '/requests/(\\d+)/notes', async (c, id) => {
   const rid = idOf(id);
   await db.query('INSERT INTO request_notes (request_id, author, body) VALUES ($1,$2,$3)', [rid, c.me.email, text(c.body.body, 2000)]);
+  await audit(c.me.email, 'note.create', 'request', rid, {}); // the note text itself is never copied into the log
   return { ok: true };
 });
 
@@ -271,6 +273,7 @@ on('POST', '/questionnaires/([a-z-]+)/rollback', async (c, topic) => {
 });
 on('POST', '/questionnaires/([a-z-]+)/discard', async (c, topic) => {
   await db.query("DELETE FROM questionnaire_versions WHERE topic = $1 AND status = 'draft'", [topic]);
+  await audit(c.me.email, 'questionnaire.discard', 'topic', topic, {});
   return { ok: true };
 });
 

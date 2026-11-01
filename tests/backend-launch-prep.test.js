@@ -78,3 +78,12 @@ test('correction: validated, refuses a phone that belongs to someone else, and l
   assert.equal((await call('PATCH', `${A}/applicants/${dina}`, { name: 'x' }, { 'x-kaspchem': '1' })).status, 401); // not logged in (and the CSRF header alone is not enough)
   assert.equal((await call('PATCH', `${A}/applicants/${dina}`, { name: 'x' })).status, 403); // no CSRF header
 });
+
+test('audit: listing requests, adding a note and discarding a draft are logged, without personal text', async () => {
+  const id = (await call('GET', A + '/requests', null, ADMIN)).body.requests[0].id;
+  await call('POST', `${A}/requests/${id}/notes`, { body: 'הערה פנימית סודית' }, ADMIN);
+  await call('POST', A + '/questionnaires/household/discard', {}, ADMIN);
+  const acts = (await srv.pg.query("SELECT action, detail FROM audit_log WHERE action IN ('request.list','note.create','questionnaire.discard')")).rows;
+  assert.ok(['request.list', 'note.create', 'questionnaire.discard'].every((a) => acts.some((r) => r.action === a)), 'all three actions are logged');
+  assert.ok(!JSON.stringify(acts).includes('סודית') && !JSON.stringify(acts).includes('0501234567'));
+});
