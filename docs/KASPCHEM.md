@@ -31,3 +31,9 @@ Branding: Kaspchem is a charity organization (ארגון חסד) working in part
 - Outcome is recomputed on the server from stored rules; the browser's claim is ignored.
 - No prices are seeded. A price is public only if approved + public (DB CHECK constraint); editing resets approval.
 - Revenue counts only after approval. Audit log on every admin write.
+
+## Environments & test safety
+- Neon project `kaspchem`: branch `main` = reserved for production (marker `settings['meta.environment'] = "production"`), branch `test` = isolated test database (marker `"test"`), used by Deploy Previews and `tests/real-env.js`.
+- `tests/real-env.js` refuses to run unless BASE is a deploy preview/localhost AND the database is marked `test` AND it holds no foreign data. It deletes only rows it created (phone prefix `0531230`), and restores the launch gate to its original state in a `finally` block / on SIGINT.
+- The publish directory is the repo root, so `netlify.toml` forces 404 for `/tests`, `/scripts`, `/db`, `/docs`, `/node_modules`, `/netlify`, package/config files and the legacy root `.md` files.
+- Before production: create the production env vars (`KASPCHEM_DATABASE_URL` → `main` branch URL, salt, admin emails) — never reuse the test branch URL.

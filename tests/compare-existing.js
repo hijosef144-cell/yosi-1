@@ -2,7 +2,7 @@
 // Usage: PROD=https://matzpenkalkali.com PREVIEW=https://deploy-preview-1--matzpenkalkali.netlify.app node tests/compare-existing.js
 const { chromium } = require('@playwright/test');
 const PROD = process.env.PROD, PREVIEW = process.env.PREVIEW;
-const PAGES = ['/', '/index.html', '/pension-calc.html', '/מחשבון-שכר-ברוטו-נטו.html', '/מחשבון-עלות-דירה.html', '/מחשבון-אנונה.html', '/מחשבון-ריבית-דריבית.html', '/מחשבון-נדלן-מקצועי.html', '/מחשבון-מחיר-למשתכן.html', '/article.html', '/privacy.html', '/terms.html', '/accessibility.html', '/knowledge/', '/admin/', '/robots.txt', '/sitemap.xml'];
+const PAGES = process.env.PAGES ? JSON.parse(process.env.PAGES) : ['/', '/index.html', '/pension-calc.html', '/מחשבון-שכר-ברוטו-נטו.html', '/מחשבון-עלות-דירה.html', '/מחשבון-אנונה.html', '/מחשבון-ריבית-דריבית.html', '/מחשבון-נדלן-מקצועי.html', '/מחשבון-מחיר-למשתכן.html', '/article.html', '/privacy.html', '/terms.html', '/accessibility.html', '/knowledge/', '/admin/', '/robots.txt', '/sitemap.xml'];
 
 async function visit(browser, base, path) {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: 'he-IL' }); const p = await ctx.newPage();
@@ -18,7 +18,9 @@ async function visit(browser, base, path) {
   const browser = await chromium.launch({ channel: 'msedge' }); let bad = 0;
   console.log('page'.padEnd(36) + 'status prod/prev   LCP prod/prev   CLS prod/prev   new console errors');
   for (const path of PAGES) {
-    const a = await visit(browser, PROD, path), b = await visit(browser, PREVIEW, path);
+    const N = +process.env.SAMPLES || 1; const med = (xs) => xs.slice().sort((p, q) => p - q)[Math.floor(xs.length / 2)];
+    const A = [], B = []; for (let i = 0; i < N; i++) { A.push(await visit(browser, PROD, path)); B.push(await visit(browser, PREVIEW, path)); }
+    const a = Object.assign({}, A[0], { lcp: med(A.map((x) => x.lcp || 0)), cls: med(A.map((x) => x.cls || 0)) }), b = Object.assign({}, B[0], { lcp: med(B.map((x) => x.lcp || 0)), cls: med(B.map((x) => x.cls || 0)), errs: [].concat(...B.map((x) => x.errs)) });
     const newErr = b.errs.filter((e) => !a.errs.includes(e));
     const ok = a.status === b.status && !newErr.length && (!b.lcp || !a.lcp || b.lcp <= a.lcp * 1.5 + 400) && (b.cls || 0) <= (a.cls || 0) + 0.05;
     if (!ok) bad++;
