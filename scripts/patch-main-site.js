@@ -13,7 +13,7 @@ for (let i = 0; i < lines.length; i++) {
   if (lines[i].includes('href="/knowledge/"') && lines[i].includes('</a>')) {
     const mobile = lines[i].includes('py-2');
     lines.splice(i + 1, 0, mobile
-      ? '          <a href="/kaspchem" class="nav-link font-bold py-2 px-2 rounded-lg hover:bg-gray-50 transition" style="color:#17756c">כספכם – איתור כסף אבוד</a>'
+      ? '          <a href="/kaspchem" class="nav-link font-bold py-2 px-2 rounded-lg hover:bg-gray-50 transition" style="color:#17756c">כספכם</a>'
       : '          <a href="/kaspchem" class="nav-link font-bold" style="color:#17756c">כספכם</a>');
     i++; linked++;
   }
