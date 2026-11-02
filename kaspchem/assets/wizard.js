@@ -4,7 +4,7 @@
   var app = document.getElementById('app');
   var main = document.getElementById('main');
   var topicId = (location.pathname.match(/\/kaspchem\/check\/([a-z-]+)/) || [])[1];
-  var settings = {}, busy = false, topics = [], topic = null, answers = {}, order = [], enc = '';
+  var settings = {}, busy = false, topics = [], topic = null, answers = {}, order = [], enc = '', goingBack = false;
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var STORE = 'kaspchem:' + topicId;
   var GENERIC_ENC = ['מצוין, ממשיכים.', 'עוד קצת ואנחנו שם.', 'כמעט סיימנו.'];
@@ -32,7 +32,7 @@
     .catch(function () { app.innerHTML = '<h1>לא הצלחנו לטעון את השאלון</h1><p>נסו לרענן את הדף, או <a href="/kaspchem">חזרו לדף הראשי</a>.</p>'; });
 
   /* ---------- question screen ---------- */
-  function crumb() { return '<div class="crumb">' + KaspIcon(topic.icon, 28) + '<span>' + esc(topic.name) + '</span></div>'; }
+  function crumb() { return '<div class="crumb">' + KaspIcon(topic.icon, 28) + '<span>' + esc(topic.name) + '</span><span class="kp-mini" aria-hidden="true">' + KaspProgress.miniHtml() + '</span></div>'; }
 
   function sparks() {
     var h = '';
@@ -70,6 +70,7 @@
     app.querySelector('.opts').addEventListener('click', q.multi ? onToggle : onPick);
     var go = document.getElementById('mgo'); if (go) go.addEventListener('click', function () { commitMulti(q); });
     var b = document.getElementById('back'); if (b) b.addEventListener('click', function () { history.back(); });
+    KaspProgress.set(p.done / p.total, { back: goingBack }); goingBack = false;
     focusMain();
   }
 
@@ -117,16 +118,18 @@
 
   window.addEventListener('popstate', function () {
     if (!topic) return;
-    if (order.length) { var last = order.pop(); delete answers[last]; enc = ''; save(); step(); }
+    if (order.length) { var last = order.pop(); delete answers[last]; enc = ''; save(); goingBack = true; step(); }
   });
 
   /* ---------- result ---------- */
   var res = null;
+  var PRELIM = '<p class="prelim">תוצאות ראשוניות בלבד</p>'; // the only caveat on the result screen; the lead form's consent text and the legal pages are unchanged
   function result() {
     res = E.evaluate(topic, answers);
     enc = '';
     app.innerHTML = crumb() + '<div class="progress segs" aria-hidden="true">' + segs({ done: E.progress(topic, answers).total, total: E.progress(topic, answers).total }) + '</div><div style="height:1.2rem"></div>' +
       '<section class="result" id="result" aria-labelledby="rt"><div class="scan" id="scan"><div class="ring" aria-hidden="true"></div><p>מסכמים את התשובות שלכם…</p></div></section>';
+    KaspProgress.set(1);
     focusMain();
     setTimeout(reveal, reduce ? 0 : 1300);
   }
@@ -137,7 +140,7 @@
     if (res.outcome === 'found') {
       html += '<div class="head"><div class="big" id="num">' + (reduce ? n : 0) + '</div><div class="bigcap">נושאים שכדאי לברר</div><div class="goldline" aria-hidden="true"></div>' +
         '<h1 id="rt">' + esc(n === 1 ? 'זיהינו נושא אחד שכדאי לבדוק' : m.found.replace('{n}', n)) + ' ב' + esc(topic.name) + '</h1>' +
-        '<p class="sub">יש כאן נקודות התחלה ברורות, וכדאי לברר בכל אחת מהן מה המצב בפועל. זו בדיקה ראשונית לפי התשובות שלכם בלבד, ולא זכאות מאומתת או הבטחה לכסף.</p></div>' +
+        PRELIM + '</div>' +
         '<ul class="finds">' + (res.cards || res.findings).map(function (f, i) {
           var body = f.parts
             ? '<span>' + esc(f.intro || '') + '</span>' + f.parts.map(function (p) { return '<span class="fx part"><b>' + esc(p.section || p.title) + '</b> ' + esc(p.why) + (p.step ? ' ' + esc(p.step) : '') + '</span>'; }).join('') + findingExtras({ step: f.step, official: f.official, refer: f.refer })
@@ -146,13 +149,13 @@
         }).join('') + '</ul>' +
         '<div class="cta-row"><button type="button" class="btn" id="cta">אני רוצה עזרה בבדיקה</button><p class="reassure">הבדיקה הראשונית חינמית, והשארת פרטים אינה התחייבות.</p><a class="btn link" href="/kaspchem">לבדוק תחום אחר</a></div>';
     } else if (res.outcome === 'insufficient') {
-      html += '<div class="head"><h1 id="rt">' + esc(m.insufficient) + '</h1><p class="sub">' + esc(m.insufficientBody) + '</p></div>' +
+      html += '<div class="head"><h1 id="rt">' + esc(m.insufficient) + '</h1><p class="sub">' + esc(m.insufficientBody) + '</p>' + PRELIM + '</div>' +
         '<div class="cta-row" style="margin-top:1.6rem"><button type="button" class="btn ghost" id="fix" style="color:#fff">לחזור ולתקן תשובות</button><button type="button" class="btn" id="cta">אשמח לעזרה בהשלמת התמונה</button><a class="btn link" href="/kaspchem">לבדוק תחום אחר</a></div>';
     } else {
-      html += '<div class="head"><h1 id="rt">' + esc(m.none) + '</h1><p class="sub">' + esc(m.noneBody) + '</p></div>' +
+      html += '<div class="head"><h1 id="rt">' + esc(m.none) + '</h1><p class="sub">' + esc(m.noneBody) + '</p>' + PRELIM + '</div>' +
         '<div class="cta-row" style="margin-top:1.6rem"><a class="btn" href="/kaspchem">לבדוק תחום אחר</a><button type="button" class="btn link" id="cta">בכל זאת, אשמח שיסתכלו על זה</button><button type="button" class="btn link" id="fix">לחזור ולתקן תשובות</button></div>';
     }
-    html += '<p class="note">הבדיקה כללית ומבוססת על התשובות שלכם בלבד. היא אינה ייעוץ מקצועי.</p><div id="lead-slot"></div>';
+    html += '<div id="lead-slot"></div>';
     box.innerHTML = html;
     if (res.outcome === 'found' && n > 0) box.classList.add('found');
     if (res.outcome === 'found' && !reduce && n > 0) countUp(document.getElementById('num'), n);
@@ -162,7 +165,7 @@
       var closed = document.createElement('p'); closed.className = 'note'; closed.textContent = 'השארת פרטים תיפתח בקרוב. בינתיים אפשר לבדוק תחומים נוספים.'; cta.replaceWith(closed); cta = null;
     }
     if (cta) cta.addEventListener('click', openForm);
-    var fix = document.getElementById('fix'); if (fix) fix.addEventListener('click', function () { var last = order.pop(); delete answers[last]; save(); step(); });
+    var fix = document.getElementById('fix'); if (fix) fix.addEventListener('click', function () { var last = order.pop(); delete answers[last]; save(); goingBack = true; step(); });
   }
 
   function safeUrl(u) { return /^https:\/\//.test(String(u || '')) ? u : null; }
