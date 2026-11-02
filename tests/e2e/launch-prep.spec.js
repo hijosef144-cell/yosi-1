@@ -7,6 +7,8 @@ test('admin: export an applicant\'s data, correct their details, and a referral 
   const phone = ti.project.name.includes('mobile') ? '0536660001' : '0536660002';
   const lead = await request.post('/api/kaspchem/lead', { data: { topic: 'household', answers: { bills: 'old', subs: 'no', homeins: 'yes', mobile: 'no' }, name: 'בדיקת תיקון ' + ti.project.name, phone, consentContact: true } });
   expect((await lead.json()).ok).toBe(true);
+  const otherPhone = ti.project.name.includes('mobile') ? '0536660003' : '0536660004'; // a second, different applicant
+  expect((await (await request.post('/api/kaspchem/lead', { data: { topic: 'household', answers: { bills: 'old', subs: 'no', homeins: 'yes', mobile: 'no' }, name: 'פונה אחר ' + ti.project.name, phone: otherPhone, consentContact: true } })).json()).ok).toBe(true);
 
   await page.goto(AS_ADMIN);
   await page.getByRole('button', { name: 'בקשות טיפול' }).click();
@@ -27,6 +29,9 @@ test('admin: export an applicant\'s data, correct their details, and a referral 
   await drawer.locator('#ap').fill('123');
   await drawer.locator('#asave').click();
   await expect(page.locator('#toast')).toContainText('מספר טלפון לא תקין');
+  await drawer.locator('#ap').fill(otherPhone); // a phone that belongs to someone else is refused with a readable message
+  await drawer.locator('#asave').click();
+  await expect(page.locator('#toast')).toContainText('כבר רשום אצל פונה אחר');
   await drawer.locator('#an').fill('שם מתוקן ' + ti.project.name);
   await drawer.locator('#ap').fill(phone);
   await drawer.locator('#asave').click();
