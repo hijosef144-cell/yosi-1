@@ -3,6 +3,7 @@ const { json, fail, HttpError, parseBody, logError } = require('./http');
 const { cleanText, normalizePhone, cleanEmail } = require('./validate');
 const content = require('./content');
 const db = require('./db');
+const { opsAlert } = require('./ops-alert');
 const engine = require('../../../kaspchem/assets/engine.js');
 
 const STATUSES = ['new', 'contacted', 'in_progress', 'awaiting_client', 'done', 'closed', 'spam'];
@@ -260,6 +261,7 @@ on('POST', '/questionnaires/([a-z-]+)/publish', async (c, topic) => {
   await db.query("UPDATE questionnaire_versions SET status = 'archived' WHERE topic = $1 AND status = 'published'", [topic]);
   await db.query("UPDATE questionnaire_versions SET status = 'published', published_at = now() WHERE id = $1", [d.id]);
   await audit(c.me.email, 'questionnaire.publish', 'topic', topic, { version: d.version });
+  await opsAlert('פורסם שאלון', 'התחום ' + topic + ', גרסה ' + d.version + ', על ידי ' + c.me.email + '.');
   return { ok: true, version: d.version };
 });
 // Roll back = re-publish an archived version (production-safe undo for content).
@@ -269,6 +271,7 @@ on('POST', '/questionnaires/([a-z-]+)/rollback', async (c, topic) => {
   await db.query("UPDATE questionnaire_versions SET status = 'archived' WHERE topic = $1 AND status = 'published'", [topic]);
   await db.query("UPDATE questionnaire_versions SET status = 'published', published_at = now() WHERE id = $1", [target.id]);
   await audit(c.me.email, 'questionnaire.rollback', 'topic', topic, { version: target.version });
+  await opsAlert('שאלון הוחזר לגרסה קודמת', 'התחום ' + topic + ', גרסה ' + target.version + ', על ידי ' + c.me.email + '.');
   return { ok: true };
 });
 on('POST', '/questionnaires/([a-z-]+)/discard', async (c, topic) => {
@@ -289,6 +292,8 @@ on('PUT', '/settings', async (c) => {
   if (key === 'private.compensation_topics' && !(Array.isArray(c.body.value) && c.body.value.every((t) => typeof t === 'string' && /^[a-z-]{1,40}$/.test(t)))) throw new HttpError(400, 'bad_value');
   await db.query('INSERT INTO settings (key, value, updated_by) VALUES ($1,$2::jsonb,$3) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_by = EXCLUDED.updated_by, updated_at = now()', [key, JSON.stringify(c.body.value), c.me.email]);
   await audit(c.me.email, 'settings.update', 'settings', key, {});
+  if (key === 'public.legal_approved') await opsAlert(c.body.value === true ? 'שער קבלת הפניות נפתח' : 'שער קבלת הפניות נסגר', 'שונה על ידי ' + c.me.email + '.');
+  else if (key === 'private.compensation_topics') await opsAlert('שונתה הפעלת תגמול על הפניות לתחומים', 'שונה על ידי ' + c.me.email + '. תחומים מופעלים כעת: ' + (Array.isArray(c.body.value) && c.body.value.length ? c.body.value.join(', ') : 'אין (הכול חסום)') + '.');
   return { ok: true };
 });
 on('GET', '/audit', async () => ({ audit: await db.query('SELECT actor, action, entity, entity_id, created_at FROM audit_log ORDER BY id DESC LIMIT 200') }));

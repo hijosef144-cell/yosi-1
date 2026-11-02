@@ -8,13 +8,14 @@ const fs = require('fs'); const path = require('path');
 const root = path.join(__dirname, '..');
 const repeat = Math.max(1, Number((process.argv.find((a) => /^--repeat=?/.test(a)) || '').split('=')[1]) || (process.argv.includes('--repeat') ? Number(process.argv[process.argv.indexOf('--repeat') + 1]) : 1));
 const privateDir = path.join(root, 'docs', 'research', 'private-tests');
-const ALLOWED_SKIP = [/checked on desktop and one phone width/, /admin checked on desktop and one phone width/];
+const allWidths = process.argv.includes('--all-widths'); // run the width-restricted specs at all four widths too (no skip is then expected)
+const ALLOWED_SKIP = allWidths ? [] : [/checked on desktop and one phone width/, /admin checked on desktop and one phone width/];
 const sh = (cmd, args, opts) => spawnSync(cmd, args, Object.assign({ cwd: root, encoding: 'utf8', maxBuffer: 200 * 1024 * 1024, shell: process.platform === 'win32' }, opts || {}));
 
 function playwrightRun(label, configArgs) {
   const out = path.join(root, 'test-results', 'json-' + label + '.json');
   fs.mkdirSync(path.dirname(out), { recursive: true });
-  const r = sh('npx', ['--no-install', 'playwright', 'test', ...configArgs, '--workers=1', '--retries=0', '--reporter=json'], { env: Object.assign({}, process.env, { PLAYWRIGHT_JSON_OUTPUT_NAME: out }) });
+  const r = sh('npx', ['--no-install', 'playwright', 'test', ...configArgs, '--workers=1', '--retries=0', '--reporter=json'], { env: Object.assign({}, process.env, { PLAYWRIGHT_JSON_OUTPUT_NAME: out }, allWidths ? { ALL_WIDTHS: '1' } : {}) });
   let j = null; try { j = JSON.parse(fs.readFileSync(out, 'utf8')); } catch (e) { try { j = JSON.parse(r.stdout); } catch (e2) {} }
   const res = { label, passed: 0, failed: [], skipped: {}, crashed: !j };
   if (!j) { res.crashText = (r.stderr || r.stdout || '').slice(-400); return res; }
@@ -30,7 +31,7 @@ function playwrightRun(label, configArgs) {
 let exit = 0;
 for (let n = 1; n <= repeat; n++) {
   console.log(`\n=== run ${n}/${repeat}  ${new Date().toISOString()} ===`);
-  const u = sh('node', ['--test', '--test-concurrency=1', 'tests/backend.test.js', 'tests/backend-launch-prep.test.js', 'tests/engine.test.js']);
+  const u = sh('node', ['--test', '--test-concurrency=1', 'tests/backend.test.js', 'tests/backend-launch-prep.test.js', 'tests/backend-ops-alerts.test.js', 'tests/engine.test.js']);
   const pass = Number((/ℹ pass (\d+)/.exec(u.stdout) || [])[1] || 0), fail = Number((/ℹ fail (\d+)/.exec(u.stdout) || [])[1] || 0);
   console.log(`server + engine tests: ${pass} passed, ${fail} failed`);
   const results = [playwrightRun('public', [])];

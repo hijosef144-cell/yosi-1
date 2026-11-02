@@ -4,6 +4,7 @@ const { json, fail, HttpError, parseBody, sameOrigin, clientIp, header, logError
 const { normalizePhone, cleanText, cleanEmail } = require('./_kaspchem/validate');
 const content = require('./_kaspchem/content');
 const db = require('./_kaspchem/db');
+const { opsAlert } = require('./_kaspchem/ops-alert');
 const engine = require('../../kaspchem/assets/engine.js');
 
 const CONSENT_VERSION = 'consent-2026-10-v1'; // bump whenever the on-screen consent wording changes
@@ -11,19 +12,6 @@ const MAX_PER_HOUR = () => Number(process.env.KASPCHEM_RATE_MAX) || 5;
 
 const ipHash = (ip) => crypto.createHash('sha256').update((process.env.KASPCHEM_HASH_SALT || 'dev-salt') + '|' + ip).digest('hex').slice(0, 32);
 
-async function notify() {
-  // Privacy: the notification contains NO personal details, only that something arrived.
-  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD || !process.env.KASPCHEM_NOTIFY_EMAILS) return;
-  try {
-    const nodemailer = require('nodemailer');
-    const t = nodemailer.createTransport({ service: 'gmail', auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD } });
-    await t.sendMail({
-      from: process.env.GMAIL_USER, to: process.env.KASPCHEM_NOTIFY_EMAILS,
-      subject: 'כספכם: התקבלה פנייה חדשה',
-      text: 'התקבלה פנייה חדשה. הפרטים זמינים בדשבורד: https://matzpenkalkali.com/admin/kaspchem/'
-    });
-  } catch (e) { logError('notify', e); }
-}
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') return fail(405, 'method_not_allowed');
@@ -58,7 +46,13 @@ exports.handler = async (event) => {
     if (db.configured()) {
       const recent = await db.query("SELECT count(*) FILTER (WHERE ip_hash = $1)::int AS n, count(*)::int AS total FROM rate_limits WHERE bucket = 'lead' AND hit_at > now() - interval '1 hour'", [hash]);
       // per-IP cap, plus a global cap so a botnet can't flood the inbox from many addresses
-      if (recent[0].n >= MAX_PER_HOUR() || recent[0].total >= (Number(process.env.KASPCHEM_RATE_GLOBAL) || 60)) throw new HttpError(429, 'rate_limited', 'בוצעו יותר מדי ניסיונות. נסו שוב מאוחר יותר.');
+      const globalCap = Number(process.env.KASPCHEM_RATE_GLOBAL) || 60;
+      if (recent[0].total >= globalCap) {
+        // many different senders at once: possible flood. One alert per hour (a marker row in the same throttle table).
+        const seen = await db.query("SELECT count(*)::int AS n FROM rate_limits WHERE bucket = 'alert-flood' AND hit_at > now() - interval '1 hour'");
+        if (!seen[0].n) { await db.query("INSERT INTO rate_limits (bucket, ip_hash) VALUES ('alert-flood', 'global')"); await opsAlert('חריגה ממגבלת הפניות הכללית (חשד לספאם)', 'מספר הפניות בשעה האחרונה הגיע למגבלה (' + globalCap + '). בדקו את הדשבורד.'); }
+      }
+      if (recent[0].n >= MAX_PER_HOUR() || recent[0].total >= globalCap) throw new HttpError(429, 'rate_limited', 'בוצעו יותר מדי ניסיונות. נסו שוב מאוחר יותר.');
     }
     await db.query("INSERT INTO rate_limits (bucket, ip_hash) VALUES ('lead', $1)", [hash]);
     await db.query("DELETE FROM rate_limits WHERE hit_at < now() - interval '1 day'");
@@ -82,11 +76,13 @@ exports.handler = async (event) => {
       [name, phone, email, topic.id, topic.questionnaireId, topic.versionLabel, JSON.stringify(answers), result.outcome,
         JSON.stringify(result.findings.map((f) => f.id)), b.consentMarketing === true, CONSENT_VERSION, hash]);
 
-    await notify();
+    // Every successfully received lead alerts everyone in KASPCHEM_NOTIFY_EMAILS. Only a request number and the field of the check: no name, phone, e-mail or answers.
+    await opsAlert('התקבלה פנייה חדשה', 'התקבלה פנייה חדשה בתחום "' + topic.name + '" (מספר פנייה ' + rows[0].id + '). הפרטים זמינים בדשבורד בלבד.');
     return json(200, { ok: true, ref: Number(rows[0].id) });
   } catch (e) {
     if (e instanceof HttpError) return fail(e.status, e.code, e.userMessage);
     logError('lead', e);
+    await opsAlert('תקלה בקליטת פנייה', 'אירעה שגיאת שרת בקליטת פנייה (קוד: ' + String((e && (e.code || e.name)) || 'unknown').slice(0, 40) + '). ייתכן שפונה לא הצליח להשאיר פרטים.');
     return fail(500, 'server_error', 'משהו השתבש בקליטת הפנייה. נסו שוב בעוד רגע.');
   }
 };

@@ -3,6 +3,7 @@
 const { authorizeAdmin } = require('./auth');
 const { handle } = require('./admin-router');
 const { HttpError, fail, sameOrigin } = require('./http');
+const { opsAlert } = require('./ops-alert');
 
 async function run(req, getUser) {
   try {
@@ -16,7 +17,9 @@ async function run(req, getUser) {
     }
 
     const user = await getUser();
-    const me = authorizeAdmin(user && { email: user.email, roles: user.roles || [] });
+    let me;
+    try { me = authorizeAdmin(user && { email: user.email, roles: user.roles || [] }); }
+    catch (e) { if (user && e instanceof HttpError && e.status === 403) await opsAlert('ניסיון כניסה של משתמש לא מורשה', 'משתמש מחובר ל־Identity שאינו ברשימת המנהלים ניסה לפתוח את הדשבורד. אם זה לא צפוי, בדקו את רשימת המשתמשים ב־Netlify Identity.'); throw e; }
 
     const event = {
       httpMethod: req.method, path: url.pathname, headers,

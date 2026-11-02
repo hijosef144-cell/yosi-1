@@ -1,13 +1,14 @@
 const { test, expect } = require('@playwright/test');
 
 const AS_ADMIN = '/admin/kaspchem/?test=' + encodeURIComponent('yosi@example.test|admin');
-test.beforeEach(({}, ti) => { test.skip(!/desktop|mobile-390/.test(ti.project.name), 'admin checked on desktop and one phone width'); });
+test.beforeEach(({}, ti) => { test.skip(!process.env.ALL_WIDTHS && !/desktop|mobile-390/.test(ti.project.name), 'admin checked on desktop and one phone width'); });
 
 test('admin: export an applicant\'s data, correct their details, and a referral fee is refused', async ({ page, request }, ti) => {
-  const phone = ti.project.name.includes('mobile') ? '0536660001' : '0536660002';
+  const w = ['mobile-360', 'mobile-390', 'tablet-768', 'desktop-1440'].indexOf(ti.project.name); // own phone numbers per width
+  const phone = '053666' + w + '001';
   const lead = await request.post('/api/kaspchem/lead', { data: { topic: 'household', answers: { bills: 'old', subs: 'no', homeins: 'yes', mobile: 'no' }, name: 'בדיקת תיקון ' + ti.project.name, phone, consentContact: true } });
   expect((await lead.json()).ok).toBe(true);
-  const otherPhone = ti.project.name.includes('mobile') ? '0536660003' : '0536660004'; // a second, different applicant
+  const otherPhone = '053666' + w + '003'; // a second, different applicant
   expect((await (await request.post('/api/kaspchem/lead', { data: { topic: 'household', answers: { bills: 'old', subs: 'no', homeins: 'yes', mobile: 'no' }, name: 'פונה אחר ' + ti.project.name, phone: otherPhone, consentContact: true } })).json()).ok).toBe(true);
 
   await page.goto(AS_ADMIN);

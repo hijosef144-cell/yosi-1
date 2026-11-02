@@ -6,6 +6,10 @@ const db = require('./_kaspchem/db');
 // Public, read-only. Returns only published questionnaires, public settings, and prices that are BOTH approved and public.
 exports.handler = async (event) => {
   if (event.httpMethod !== 'GET') return fail(405, 'method_not_allowed');
+  if ((event.queryStringParameters || {}).health === '1') { // for the uptime monitor: no data in the answer
+    try { if (!db.configured()) return json(503, { ok: false }, { 'Cache-Control': 'no-store' }); await db.query('SELECT 1'); return json(200, { ok: true }, { 'Cache-Control': 'no-store' }); }
+    catch (e) { logError('health', e); return json(503, { ok: false }, { 'Cache-Control': 'no-store' }); } // only ok/not ok: no reason, no configuration state
+  }
   try {
     const topics = await content.loadTopics();
     let settings = {}, prices = [];

@@ -11,7 +11,7 @@ test.beforeAll(async ({}, ti) => {
   base = 'http://localhost:' + srv.server.address().port;
 });
 test.afterAll(async () => { if (srv) srv.server.close(); delete process.env.TOPICS_FILE; });
-test.beforeEach(({}, ti) => { test.skip(!/desktop|mobile-390/.test(ti.project.name), 'checked on desktop and one phone width'); });
+test.beforeEach(({}, ti) => { test.skip(!process.env.ALL_WIDTHS && !/desktop|mobile-390/.test(ti.project.name), 'checked on desktop and one phone width'); });
 
 test('multi-select: explicit continue, exclusive option, several findings with step/official/referral, inactive rule silent', async ({ page }, ti) => {
   await page.goto(base + '/kaspchem/check/lost-funds');

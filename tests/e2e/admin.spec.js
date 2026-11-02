@@ -4,7 +4,7 @@ const fs = require('fs');
 const AS_ADMIN = '/admin/kaspchem/?test=' + encodeURIComponent('yosi@example.test|admin');
 const shot = async (page, ti, n) => { fs.mkdirSync('tests/shots', { recursive: true }); await page.screenshot({ path: `tests/shots/${ti.project.name}-admin-${n}.png`, fullPage: true }); };
 
-test.beforeEach(({}, ti) => { test.skip(!/desktop|mobile-390/.test(ti.project.name), 'admin checked on desktop and one phone width'); });
+test.beforeEach(({}, ti) => { test.skip(!process.env.ALL_WIDTHS && !/desktop|mobile-390/.test(ti.project.name), 'admin checked on desktop and one phone width'); });
 
 test('admin: not logged in sees only the gate', async ({ page }) => {
   await page.goto('/admin/kaspchem/');
