@@ -150,6 +150,6 @@ test('result: never a big zero; gold moment only when something was identified; 
   await expect(page.locator('#result.found')).toHaveCount(1, { timeout: 8000 });
   await expect(page.locator('#result .goldline')).toHaveCount(1);
   await expect(page.locator('#result .burst, #result .coin')).toHaveCount(0);
-  await expect(page.locator('#result')).toContainText('לא זכאות מאומתת');
+  await expect(page.locator('#result')).toContainText('תוצאות ראשוניות בלבד');
   await expect(page.locator('#result')).toContainText('חינמית');
 });

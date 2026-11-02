@@ -270,3 +270,36 @@ p { margin: 0 0 1rem; }
 
 /* ---- grouped result card: one card, a section per item (e.g. per tax year) ---- */
 .find .fx.part { padding-top: .6rem; margin-top: .6rem; border-top: 1px solid rgba(255,255,255,.14); }
+
+/* ---- stage 2a: typed headline ---- */
+.tw { position: relative; }
+.tw .tw-meas { position: absolute; inset-inline: 0; top: 0; visibility: hidden; pointer-events: none; }
+.tw .tw-vis { position: absolute; inset: 0; display: block; }
+.tw .tw-cur { display: inline-block; margin-inline-start: .04em; color: var(--gold); font-weight: 700; animation: twblink .8s steps(1, end) infinite; }
+.tw.done .tw-cur { animation-iteration-count: 4; }
+@keyframes twblink { 50% { opacity: 0; } }
+.tw-static { font-size: clamp(1.9rem, 6.2vw, 3.1rem); }
+.tw-static .tw-line { display: block; }
+.tw-static .tw-line + .tw-line { margin-top: .35em; }
+
+/* ---- stage 2a: progress ring and coin jar around the question card ---- */
+.wz-stage .side { display: none; }
+.kp-mini { display: inline-flex; align-items: center; gap: .55rem; margin-inline-start: auto; }
+.mini-ring { width: 2.1rem; height: 2.1rem; }
+.mini-jar { width: 1.7rem; height: 2.25rem; }
+.kp-fg { transition: stroke-dashoffset .6s cubic-bezier(.3, .8, .3, 1); }
+.kp-pct { font-family: var(--font-display); font-weight: 900; font-size: 30px; fill: var(--ink); }
+.kp-c { opacity: 0; transform: translateY(-46px); transition: transform .55s cubic-bezier(.3, 1.3, .5, 1), opacity .2s ease; }
+.kp-c.on { opacity: 1; transform: none; }
+@media (min-width: 1180px) {
+  .wz-stage { display: grid; grid-template-columns: 1fr minmax(0, 680px) 1fr; gap: 1.5rem; width: min(1280px, 100% - 2rem); margin-inline: auto; align-items: start; }
+  .wz-stage .card { width: auto; margin: 0; }
+  .wz-stage .side { display: flex; flex-direction: column; align-items: center; gap: .7rem; position: sticky; top: 1.5rem; padding-top: 2.6rem; }
+  .side .kp-ring { width: 190px; height: 190px; }
+  .side .kp-jar { width: 150px; height: 200px; }
+  .side .cap { margin: 0; max-width: 11rem; font-size: .9rem; line-height: 1.4; color: #3e5f63; text-align: center; }
+  .kp-mini { display: none; }
+}
+
+/* ---- stage 2a: the single short caveat on the result screen ---- */
+.result .prelim { display: inline-block; margin: .9rem 0 0; padding: .15rem .85rem; border: 1px solid rgba(255,255,255,.28); border-radius: 999px; font-size: .9rem; color: #d6e6e3; }
