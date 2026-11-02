@@ -275,8 +275,8 @@ p { margin: 0 0 1rem; }
 .tw { position: relative; }
 .tw .tw-meas { position: absolute; inset-inline: 0; top: 0; visibility: hidden; pointer-events: none; }
 .tw .tw-vis { position: absolute; inset: 0; display: block; }
-.tw .tw-cur { display: inline-block; margin-inline-start: .04em; color: var(--gold); font-weight: 700; animation: twblink .8s steps(1, end) infinite; }
-.tw.done .tw-cur { animation-iteration-count: 4; }
+.tw .tw-cur { display: inline-block; width: 0; overflow: visible; white-space: nowrap; color: var(--gold); font-weight: 700; animation: twblink .8s steps(1, end) infinite; }
+.tw.tw-done .tw-cur { animation-iteration-count: 4; }
 @keyframes twblink { 50% { opacity: 0; } }
 .tw-static { font-size: clamp(1.9rem, 6.2vw, 3.1rem); }
 .tw-static .tw-line { display: block; }

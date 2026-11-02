@@ -22,9 +22,15 @@ test('headline: types sentence 1, 2, then rests on sentence 1; sentence 3 is not
   await expect(h1.locator('.tw-cur')).toHaveText('_');
   await page.evaluate(() => document.fonts.ready); await page.waitForTimeout(400); // fonts settled: the reserved height is final
   const h0 = (await h1.boundingBox()).height;
-  await expect(h1).toHaveClass(/done/, { timeout: 12000 });
+  await expect(h1).toHaveClass(/tw-done/, { timeout: 12000 });
   await expect(h1.locator('.tw-t')).toHaveText(S1);                                     // rests on the same text the no-JS page shows
   expect(Math.abs((await h1.boundingBox()).height - h0)).toBeLessThanOrEqual(1);       // height reserved: no layout shift while typing
+  const look = await page.evaluate(() => { // no other stylesheet rule may restyle the headline (a state class once collided with the existing .done box), and the cursor must stay on the text line
+    const h = document.getElementById('h'), cs = getComputedStyle(h), cur = h.querySelector('.tw-cur').getBoundingClientRect(), txt = h.querySelector('.tw-t').getBoundingClientRect();
+    return { align: cs.textAlign, pad: cs.paddingTop + cs.paddingLeft, curTop: cur.top, txtBottom: txt.bottom };
+  });
+  expect(look.align).not.toBe('center'); expect(look.pad).toBe('0px0px');
+  expect(look.curTop).toBeLessThan(look.txtBottom - 4);                                // the cursor is on a text line, never alone on a line of its own
   expect(await page.evaluate(() => document.body.innerText)).not.toContain('ברגע זה');  // sentence 3 stays off until stage 3
   expect(await page.evaluate(() => /\d/.test(document.getElementById('h').innerText))).toBe(false); // no number anywhere in the headline
   await expect(page.locator('.tile')).toHaveCount(10);
@@ -40,7 +46,7 @@ test('headline: any interaction stops the animation and shows the resting senten
   await page.goto('/kaspchem');
   await page.waitForTimeout(700);
   await page.keyboard.press('Shift');
-  await expect(page.locator('#h')).toHaveClass(/done/);
+  await expect(page.locator('#h')).toHaveClass(/tw-done/);
   await expect(page.locator('#h .tw-t')).toHaveText(S1);
 });
 

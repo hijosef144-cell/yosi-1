@@ -48,7 +48,7 @@
   function finish(text) {
     finished = true; clearTimeout(timer);
     if (txt) txt.textContent = text;
-    h.classList.add('done');
+    h.classList.add('tw-done');
   }
 
   function run() {
