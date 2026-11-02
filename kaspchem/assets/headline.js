@@ -1,7 +1,11 @@
 /*
  * Home headline, typed one sentence after another. The h1 keeps plain text for no-JS, search engines and screen readers (one stable
- * sr-only copy of every enabled sentence); the typed layer is aria-hidden. Sentence 3 needs a real number and stays OFF here: it is switched
- * on only through KaspHeadline.setThird(n) with a measured, integer n (stage 3 will do that). Nothing in this file contains a count.
+ * sr-only copy of every enabled sentence); the typed layer is aria-hidden. Sentence 3 needs a real number and stays OFF unless the impact
+ * counter (impact.js) reports a measured integer n >= 1 through KaspHeadline.impact(n) / setThird(n). Nothing in this file contains a count.
+ *
+ * Timing: the h1 is always painted at once with sentence 1 (the same text as without JS). Typing starts 300 ms after load, as before. If the page
+ * carries impact.js, typing waits for its answer but never longer than 700 ms after load; an answer that comes later is ignored, so sentence 3
+ * never appears mid-animation and the reserved height never changes while typing.
  */
 (function () {
   'use strict';
@@ -10,6 +14,13 @@
   var S1 = 'אתם משלמים יותר מדי...', S2 = 'המשכנתא? הביטוח?הבנק?';
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var third = null, started = false, finished = false, timer = null, vis, txt, meas;
+  var minPassed = false, capPassed = false, settled = false;
+  function expectsImpact() { return !!document.querySelector('script[src*="/kaspchem/assets/impact.js"]'); }
+  // Start (or, with reduced motion, close the window for sentence 3) once the minimum time has passed and impact.js answered or the cap ran out.
+  function maybeRun() {
+    if (started || !minPassed) return;
+    if (settled || capPassed || !expectsImpact()) { if (reduce) started = true; else run(); }
+  }
 
   function thirdSentence(n) {
     if (typeof n !== 'number' || !isFinite(n) || n < 1 || Math.floor(n) !== n) return null;
@@ -84,11 +95,14 @@
   build();
   var rt; window.addEventListener('resize', function () { clearTimeout(rt); rt = setTimeout(measure, 150); });
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(measure);
-  setTimeout(run, 300); // a late KaspHeadline.setThird(n) is accepted until the animation starts
+  setTimeout(function () { minPassed = true; maybeRun(); }, 300); // a late KaspHeadline.setThird(n) is accepted until the animation starts
+  setTimeout(function () { capPassed = true; maybeRun(); }, 700);   // the longest we wait for the impact answer
 
   window.KaspHeadline = {
     thirdSentence: thirdSentence,
     // Allowed only before the animation starts; a non-integer or n < 1 keeps sentence 3 off.
-    setThird: function (n) { var s = thirdSentence(n); if (!s || started) return false; third = s; build(); return true; }
+    setThird: function (n) { var s = thirdSentence(n); if (!s || started) return false; third = s; build(); return true; },
+    // Called once by impact.js with active_now (or null when the counter is off, empty or failed). Never throws, never blocks.
+    impact: function (n) { if (settled) return; settled = true; if (n != null) this.setThird(n); maybeRun(); }
   };
 })();

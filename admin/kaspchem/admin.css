@@ -82,3 +82,16 @@
   .tbl.req td:nth-child(4) { grid-column: 1; grid-row: 3; color: #4a6a6e; }
   .tbl.req td:nth-child(8) { grid-column: 2; grid-row: 2 / span 2; align-self: end; justify-self: end; color: #4a6a6e; font-size: .85rem; text-align: end; }
 }
+
+/* ---- stage 3: impact tab and outcome dialog (classes start with ia-) ---- */
+.adm input[type=date] { width: 100%; font: inherit; padding: .5rem .65rem; border: 1.5px solid #b6cecb; border-radius: 10px; background: #fff; color: var(--ink); min-height: 2.6rem; }
+.ia-small { color: #3e5f63; font-size: .92rem; margin: .4rem 0 0; }
+.ia-prev { list-style: none; margin: .4rem 0 .2rem; padding: 0; display: grid; gap: .5rem; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+.ia-prev li { background: var(--deep); color: #fff; border-radius: 12px; padding: .7rem .9rem; display: flex; flex-direction: column; }
+.ia-prev b { font-family: var(--font-display); font-size: 1.5rem; color: var(--gold-l); font-variant-numeric: tabular-nums; }
+.ia-prev span { font-size: .9rem; color: #cfe3e0; }
+.ia-modal { position: fixed; inset: 0; z-index: 60; background: rgba(8,38,43,.55); display: flex; align-items: center; justify-content: center; padding: 1rem; }
+.ia-modal > form { background: #fff; width: min(600px, 100%); max-height: 100%; overflow: auto; border-radius: 16px; padding: 1.25rem; }
+.ia-modal h2 { font-size: 1.35rem; margin-bottom: .3rem; }
+.ia-actions { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: .8rem; }
+.ia-modal .row { margin-top: .7rem; }

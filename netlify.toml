@@ -45,6 +45,11 @@
   status = 200
 
 [[redirects]]
+  from = "/api/kaspchem/impact"
+  to = "/.netlify/functions/kaspchem-impact"
+  status = 200
+
+[[redirects]]
   from = "/kaspchem/check/*"
   to = "/kaspchem/check.html"
   status = 200

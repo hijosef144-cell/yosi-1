@@ -144,3 +144,38 @@ CREATE TABLE IF NOT EXISTS rate_limits (
   hit_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS rl_idx ON rate_limits (bucket, ip_hash, hit_at DESC);
+
+-- Impact outcomes (stage 3). Money and families the public counter may be built from. Idempotent, additive only.
+-- source 'system'  = a treatment request marked done in the dashboard (request_id required, completed_on required).
+-- source 'baseline' = historical opening data entered by the owners (family_count required, no request). Not public until the owners approve it.
+-- Only rows with amount_basis = 'documented', amount > 0, not voided (and a request still in status done) are ever counted; the totals are
+-- computed when read, never stored. 'ongoing_saving' amounts are per year. evidence_note is internal and never leaves the dashboard.
+CREATE TABLE IF NOT EXISTS outcomes (
+  id                BIGSERIAL PRIMARY KEY,
+  source            TEXT NOT NULL CHECK (source IN ('system','baseline')),
+  kind              TEXT NOT NULL CHECK (kind IN ('ongoing_saving','one_time_refund','located_funds')),
+  amount            NUMERIC(12,2) NOT NULL CHECK (amount >= 0),
+  amount_basis      TEXT NOT NULL CHECK (amount_basis IN ('documented','estimate')),
+  request_id        BIGINT REFERENCES treatment_requests(id) ON DELETE CASCADE,
+  family_count      INT CHECK (family_count IS NULL OR family_count >= 0),
+  completed_on      DATE,
+  starts_on         DATE,
+  ends_on           DATE,
+  last_verified_at  DATE,
+  evidence_note     TEXT,
+  entered_by        TEXT NOT NULL,
+  voided_at         TIMESTAMPTZ,
+  voided_by         TEXT,
+  void_reason       TEXT,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CHECK (
+    (source = 'system'   AND request_id IS NOT NULL AND family_count IS NULL AND completed_on IS NOT NULL) OR
+    (source = 'baseline' AND request_id IS NULL     AND family_count IS NOT NULL)
+  ),
+  CHECK (starts_on IS NULL OR ends_on IS NULL OR ends_on >= starts_on),
+  CHECK (voided_at IS NULL OR voided_by IS NOT NULL)
+);
+-- A treatment is never counted twice for the same kind. A voided row gives up its place, so a wrong entry can be voided and entered again.
+CREATE UNIQUE INDEX IF NOT EXISTS outcomes_request_kind_uq
+  ON outcomes (request_id, kind) WHERE request_id IS NOT NULL AND voided_at IS NULL;

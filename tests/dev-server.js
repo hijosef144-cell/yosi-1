@@ -9,7 +9,7 @@ const db = require('../netlify/functions/_kaspchem/db');
 
 const ROOT = path.join(__dirname, '..');
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.woff2': 'font/woff2' };
-const FUNCS = { config: 'kaspchem-config', lead: 'kaspchem-lead' };
+const FUNCS = { config: 'kaspchem-config', lead: 'kaspchem-lead', impact: 'kaspchem-impact' };
 
 async function start(port) {
   const pg = new PGlite();
@@ -18,14 +18,14 @@ async function start(port) {
   db.setDriver(async (t, p) => (await pg.query(t, p)).rows);
   if (process.env.TOPICS_FILE) { require('../netlify/functions/_kaspchem/content').setSeed(JSON.parse(fs.readFileSync(process.env.TOPICS_FILE, 'utf8'))); }
   process.env.KASPCHEM_HASH_SALT = 'test-salt';
-  if (process.env.PORT) process.env.KASPCHEM_RATE_MAX = '1000'; // e2e shares one IP; backend tests (port 0) keep the real limit
+  if (process.env.PORT) { process.env.KASPCHEM_RATE_MAX = '1000'; process.env.KASPCHEM_RATE_GLOBAL = '100000'; } // e2e shares one IP and creates many test leads (the global flood cap would refuse them); backend tests (port 0) keep the real limits
   process.env.KASPCHEM_ADMIN_EMAILS = 'yosi@example.test,avi@example.test';
 
   const server = http.createServer(async (req, res) => {
     try {
       const url = new URL(req.url, 'http://localhost');
       let p = decodeURIComponent(url.pathname);
-      const m = p.match(/^\/api\/kaspchem\/(config|lead|admin)(\/.*)?$/);
+      const m = p.match(/^\/api\/kaspchem\/(config|lead|impact|admin)(\/.*)?$/);
       if (m) {
         const chunks = []; for await (const c of req) chunks.push(c);
         const user = req.headers['x-test-user'];

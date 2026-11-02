@@ -303,3 +303,26 @@ p { margin: 0 0 1rem; }
 
 /* ---- stage 2a: the single short caveat on the result screen ---- */
 .result .prelim { display: inline-block; margin: .9rem 0 0; padding: .15rem .85rem; border: 1px solid rgba(255,255,255,.28); border-radius: 999px; font-size: .9rem; color: #d6e6e3; }
+
+/* ---- stage 3: impact counter (every class here starts with imp-) ---- */
+.imp { background: var(--deep-2); color: #fff; padding: 2.5rem 0 2.75rem; border-top: 1px solid rgba(255,255,255,.08); border-bottom: 1px solid rgba(0,0,0,.35); background-image: radial-gradient(800px 260px at 15% 0%, rgba(42,167,155,.16), transparent 70%); }
+.imp h2 { font-size: clamp(1.7rem, 5vw, 2.4rem); margin-bottom: .5rem; }
+.imp-sub { color: #bcd6d2; max-width: 40em; margin: 0 0 1.5rem; font-size: 1rem; }
+.imp-grid { display: grid; gap: 1.25rem; align-items: stretch; }
+.imp-stack { display: grid; }
+.imp-stack > * { grid-area: 1 / 1; min-width: 0; }
+.imp-stack .imp-fin { opacity: 0; user-select: none; } /* the real text: sets the width, read once by screen readers */
+.imp-stack .imp-v { pointer-events: none; }
+.imp-fam { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; margin: 0; padding: 1.1rem 1.25rem; border-radius: var(--r-lg); border: 1px solid rgba(255,255,255,.12); border-inline-start: 6px solid var(--gold); background: rgba(255,255,255,.05); }
+.imp-num { font-family: var(--font-display); font-weight: 900; font-size: clamp(3.4rem, 15vw, 5rem); line-height: 1; color: var(--gold-l); font-variant-numeric: tabular-nums; }
+.imp-cap { font-size: 1.15rem; color: #e6f1ef; font-weight: 500; margin-top: .25rem; }
+.imp-kinds { list-style: none; margin: 0; padding: 0; display: grid; gap: .85rem; grid-template-columns: 1fr; }
+.imp-kind { min-width: 0; padding: 1.1rem 1.15rem; border-radius: var(--r-lg); background: linear-gradient(155deg, #17535a 0%, #0f3b41 70%); border: 1px solid rgba(255,255,255,.12); box-shadow: 0 6px 0 #061d21, 0 14px 20px rgba(0,0,0,.25); }
+.imp-amt { font-family: var(--font-display); font-weight: 900; font-size: clamp(1.7rem, 7.2vw, 2.3rem); line-height: 1.15; color: #fff; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.imp-lab { font-family: var(--font-body); font-size: 1.05rem; font-weight: 700; line-height: 1.3; margin: .45rem 0 .15rem; color: var(--gold-l); }
+.imp-note { margin: 0; font-size: .88rem; line-height: 1.45; color: #a9c7c3; }
+.imp-upd { margin: 1.25rem 0 0; font-size: .95rem; color: #cfe3e0; }
+.imp-fine { margin: .15rem 0 0; font-size: .85rem; color: #9fc0bc; }
+@media (min-width: 640px) { .imp { padding: 3rem 0 3.25rem; } .imp-kinds { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; } .imp-amt { font-size: clamp(1.45rem, 3.3vw, 2.3rem); } }
+@media (min-width: 1000px) { .imp-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 2.4fr); gap: 1.5rem; } .imp-fam { padding: 1.5rem; } }
+@media (forced-colors: active) { .imp-kind, .imp-fam { border: 1px solid CanvasText; } }
