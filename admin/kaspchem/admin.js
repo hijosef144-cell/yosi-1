@@ -301,7 +301,7 @@
       '<p class="warn">המונה בדף הבית נבנה מרשומות בלבד. סכום נספר רק אם הוא מתועד, חיובי, לא בוטל והבקשה בסטטוס ״הושלם״. הערכות נשמרות ואינן נספרות ואינן מוצגות. שלושת הסוגים מוצגים בנפרד ולא נחברים.</p>' +
       '<div id="ia-root">' +
       '<div class="panel"><h2 style="margin-bottom:.6rem">מתג המונה בדף הבית</h2><label style="display:flex;gap:.6rem;font-weight:700;align-items:center"><input type="checkbox" id="ia-on"' + (c.counter_enabled ? ' checked' : '') + '> הצגת המונה לציבור</label>' +
-      '<p class="ia-small" id="ia-state">' + (c.counter_enabled ? (r.blocked_reason ? 'המתג דלוק, אך הציבור לא רואה דבר: ' + BLOCK[r.blocked_reason] + '.' : 'המונה מוצג לציבור.') : 'המתג כבוי: הציבור לא רואה מונה, והמשפט השלישי בכותרת כבוי.') + ' הדף הציבורי מתעדכן אחת לשעה, ולכן שינוי יופיע בו (או ייעלם ממנו) תוך עד שעה.</p></div>' +
+      '<p class="ia-small" id="ia-state">' + (c.counter_enabled ? (r.blocked_reason ? 'המתג דלוק, אך הציבור לא רואה דבר: ' + BLOCK[r.blocked_reason] + '.' : 'המונה מוצג לציבור.') : 'המתג כבוי: הציבור לא רואה מונה, והמשפט השלישי בכותרת כבוי.') + ' השינוי נכנס לתוקף מיד: הדף הציבורי קורא את המצב בכל טעינה, בלי מטמון.</p></div>' +
       '<div class="panel"><h2 style="margin-bottom:.6rem">תצוגה מקדימה: מה יראה הציבור</h2>' +
       (pn.enabled ? '<p><strong>כרגע מוצג לציבור:</strong></p>' + prevBox(pn) : '<p><strong>כרגע הציבור לא רואה מונה.</strong> סיבה: ' + (BLOCK[pn.reason] || '') + '.</p>') +
       (pn.enabled ? '' : '<p style="margin-top:.8rem"><strong>טיוטה: כך ייראה אחרי שיופעל המתג ויאושרו נתוני הפתיחה:</strong></p>' + prevBox(dr)) +
@@ -330,7 +330,7 @@
     var again = function () { impact(); };
     document.getElementById('ia-on').onchange = function (e) {
       var on = e.target.checked;
-      if (!confirm(on ? 'להציג את המונה לציבור בדף הבית? הנתונים יופיעו תוך עד שעה.' : 'להסיר את המונה מהדף הציבורי? ההסרה תיכנס לתוקף תוך עד שעה.')) { e.target.checked = !on; return; }
+      if (!confirm(on ? 'להציג את המונה לציבור בדף הבית? הנתונים יופיעו מיד.' : 'להסיר את המונה מהדף הציבורי? ההסרה תיכנס לתוקף מיד.')) { e.target.checked = !on; return; }
       api('POST', '/impact/counter', { enabled: on }).then(function () { toast(on ? 'המתג הודלק' : 'המתג כובה'); again(); }).catch(function (x) { e.target.checked = !on; fail(x); });
     };
     document.getElementById('ia-root').addEventListener('click', function (e) {

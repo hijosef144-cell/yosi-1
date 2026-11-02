@@ -61,7 +61,7 @@ test('the counter is OFF by default: no numbers at all, even when counted outcom
   assert.equal((await adm('POST', `/requests/${id}/outcomes`, refund())).status, 200);
   const r = await pub();
   assert.equal(r.status, 200); assert.deepEqual(r.body, { ok: true, enabled: false });
-  assert.match(r.headers.get('cache-control'), /public/); assert.match(r.headers.get('cache-control'), /s-maxage=60\b/);
+  assert.equal(r.headers.get('cache-control'), 'no-store');
   await adm('POST', '/impact/counter', { enabled: false });
   assert.deepEqual((await pub()).body, { ok: true, enabled: false });
 });
@@ -82,7 +82,7 @@ test('a documented outcome of a completed treatment counts; the response is exac
   assert.deepEqual(r.body.amounts, { ongoing_saving: 0, one_time_refund: 1000, located_funds: 0 });
   assert.equal(r.body.families_helped, 1); assert.equal(r.body.active_now, 0); // a one-time refund is never "active now"
   assert.ok(!isNaN(Date.parse(r.body.as_of)) && r.body.as_of.endsWith('Z'));
-  assert.match(r.headers.get('cache-control'), /public/); assert.match(r.headers.get('cache-control'), /s-maxage=3600/); assert.match(r.headers.get('cache-control'), /max-age=\d+/);
+  assert.equal(r.headers.get('cache-control'), 'no-store'); // never cached: switching the counter off must reach the next visitor at once
   assert.ok(!/total|sum|combined/i.test(r.text));
 });
 

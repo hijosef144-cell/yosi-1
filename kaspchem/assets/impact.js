@@ -9,6 +9,12 @@
   'use strict';
   var sec = document.getElementById('impact');
   var done = false;
+  var HINT = 'kasp:imp';
+  // Remember (this browser only, no personal data) whether the counter was shown and how tall the section was at this width, so that the next
+  // visit can reserve exactly that space before the answer arrives (see impact-hint.js). Forgotten as soon as the counter is off.
+  function collapse() { sec.classList.add('imp-off'); document.documentElement.classList.remove('imp-expect'); } // give back reserved space when there is nothing to show
+  var active = null; // active_now of the last good answer, remembered so the headline can reserve sentence 3's height next time (never shown from here)
+  function remember(on) { try { if (on) localStorage.setItem(HINT, JSON.stringify({ w: window.innerWidth, h: Math.round(sec.getBoundingClientRect().height), t: active })); else localStorage.removeItem(HINT); } catch (e) {} }
   function settle(n) { if (done) return; done = true; try { if (window.KaspHeadline && window.KaspHeadline.impact) window.KaspHeadline.impact(n); } catch (e) {} }
   if (!sec || !window.fetch) { settle(null); return; }
 
@@ -69,10 +75,13 @@
 
     var when = new Date(d.as_of), upd = document.getElementById('imp-upd');
     var hhmm = new Intl.DateTimeFormat('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Jerusalem' }).format(when);
-    upd.textContent = 'מתעדכן אחת לשעה. נכון ל־' + hhmm;
+    upd.textContent = 'נכון ל־' + hhmm;
     upd.setAttribute('data-as-of', d.as_of);
 
-    sec.hidden = false;
+    active = (typeof d.active_now === 'number' && d.active_now >= 1 && Math.floor(d.active_now) === d.active_now) ? d.active_now : null;
+    sec.classList.remove('imp-off');
+    // measured once the web fonts are in, so the remembered height is the settled one
+    (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(function () { requestAnimationFrame(function () { remember(true); }); });
     if (reduce || !jobs.length) return; // no motion: the final figures are already in place
     // Each figure counts up when it itself scrolls into view (so a tall section on a phone never animates out of sight).
     if (!('IntersectionObserver' in window)) { jobs.forEach(function (j) { j.run(); }); return; }
@@ -83,14 +92,15 @@
   }
 
   var ctl = window.AbortController ? new AbortController() : null;
-  var timer = setTimeout(function () { if (ctl) ctl.abort(); settle(null); }, 4000);
-  fetch('/api/kaspchem/impact', { headers: { Accept: 'application/json' }, credentials: 'same-origin', signal: ctl ? ctl.signal : undefined })
-    .then(function (r) { return r.ok ? r.json() : null; })
+  var timer = setTimeout(function () { if (ctl) ctl.abort(); collapse(); settle(null); }, 4000);
+  fetch('/api/kaspchem/impact', { cache: 'no-store', headers: { Accept: 'application/json' }, credentials: 'same-origin', signal: ctl ? ctl.signal : undefined })
+    .then(function (r) { return r.ok ? r.json() : { __failed: true }; })
     .then(function (d) {
       clearTimeout(timer);
-      if (!valid(d)) { settle(null); return; }
+      if (d && d.__failed) { collapse(); settle(null); return; }                // a failed answer says nothing about the switch: keep the hint
+      if (!valid(d)) { remember(false); collapse(); settle(null); return; }   // an answer that says "off" (or is empty): forget the hint
       settle(d.active_now);   // the headline decides for itself whether this is a usable integer >= 1
       render(d);
     })
-    .catch(function () { clearTimeout(timer); settle(null); });
+    .catch(function () { clearTimeout(timer); collapse(); settle(null); }); // the hint is kept: a failed answer says nothing about the switch
 })();

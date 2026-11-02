@@ -46,7 +46,7 @@ async function gotoWithThird(page, expected) {
 }
 const shot = async (page, ti, n) => { fs.mkdirSync('tests/shots', { recursive: true }); await page.screenshot({ path: `tests/shots/${ti.project.name}-impact-${n}.png`, fullPage: true }); };
 
-// a routed request bypasses the browser's HTTP cache, so every page load in these tests sees the current answer (production caches it for up to an hour on purpose)
+// the counter endpoint is never cached (no-store), routing it here only keeps the call observable
 test.beforeEach(async ({ page, request }) => { await page.route('**/api/kaspchem/impact', (route) => route.continue()); await reset(request); });
 test.afterEach(async ({ request }) => { await reset(request); });
 
@@ -85,7 +85,7 @@ test('counter: shown with exact amounts per kind, families, a calm update line; 
   await expect(sec.locator('[data-kind="one_time_refund"] .imp-v')).toHaveText('1,000.50 ₪', { timeout: 6000 });
   // update line: HH:MM of the answer, never "real time"
   const hhmm = new Intl.DateTimeFormat('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Jerusalem' }).format(new Date(api.as_of));
-  await expect(page.locator('#imp-upd')).toHaveText('מתעדכן אחת לשעה. נכון ל־' + hhmm);
+  await expect(page.locator('#imp-upd')).toHaveText('נכון ל־' + hhmm);
   const txt = await page.evaluate(() => document.body.innerText);
   expect(txt).not.toContain('בזמן אמת');
   expect(txt).not.toMatch(/סה״כ|סך הכול|סכום כולל/);       // no combined total anywhere

@@ -326,3 +326,8 @@ p { margin: 0 0 1rem; }
 @media (min-width: 640px) { .imp { padding: 3rem 0 3.25rem; } .imp-kinds { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; } .imp-amt { font-size: clamp(1.45rem, 3.3vw, 2.3rem); } }
 @media (min-width: 1000px) { .imp-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 2.4fr); gap: 1.5rem; } .imp-fam { padding: 1.5rem; } }
 @media (forced-colors: active) { .imp-kind, .imp-fam { border: 1px solid CanvasText; } }
+
+/* ---- stage 3: no layout jump when the counter data arrives ---- */
+.imp.imp-off { display: none; }
+/* a returning visitor who last saw the counter at this width: reserve the exact height until the answer is in (impact-hint.js sets --imp-h) */
+.imp-expect .imp.imp-off { display: block; visibility: hidden; min-height: var(--imp-h, 0); padding: 0; overflow: hidden; }

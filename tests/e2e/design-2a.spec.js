@@ -38,8 +38,20 @@ test('headline: types sentence 1, 2, then rests on sentence 1; sentence 3 is not
 });
 
 test('headline: it passes through sentence 2 while typing', async ({ page }) => {
+  // Record every text the typed layer ever shows (a poll can miss the ~1 s hold on a loaded machine). The animation deliberately jumps to its resting
+  // sentence when the tab is hidden (see headline.js), which a headless browser under load can briefly report; that case is noted, not counted as a failure.
+  await page.addInitScript(() => {
+    window.__seen = []; window.__hidden = document.hidden;
+    document.addEventListener('visibilitychange', () => { if (document.hidden) window.__hidden = true; });
+    new MutationObserver(() => { const t = document.querySelector('.tw-t'); if (t && window.__seen[window.__seen.length - 1] !== t.textContent) window.__seen.push(t.textContent); })
+      .observe(document, { subtree: true, childList: true, characterData: true });
+  });
   await page.goto('/kaspchem');
-  await page.waitForFunction((s) => (document.querySelector('.tw-t') || {}).textContent === s, S2, { timeout: 12000 });
+  await expect(page.locator('#h')).toHaveClass(/tw-done/, { timeout: 15000 });
+  const r = await page.evaluate(() => ({ seen: window.__seen, hidden: window.__hidden }));
+  if (r.hidden) { test.info().annotations.push({ type: 'note', description: 'tab reported hidden: animation skipped by design' }); return; }
+  expect(r.seen).toContain(S2);
+  expect(r.seen.indexOf(S1)).toBeGreaterThan(-1); expect(r.seen.indexOf(S1)).toBeLessThan(r.seen.indexOf(S2));  // sentence 1 first, then sentence 2
 });
 
 test('headline: any interaction stops the animation and shows the resting sentence at once', async ({ page }) => {
