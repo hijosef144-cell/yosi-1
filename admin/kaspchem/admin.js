@@ -25,7 +25,12 @@
   function fail(e) {
     if (e.status === 401) return gate('פג תוקף ההתחברות. יש להתחבר מחדש.');
     if (e.status === 403) return gate('אין לחשבון הזה הרשאת מנהל לכספכם.');
-    toast('שגיאה: ' + (e.message || 'לא ידועה'));
+    var known = {
+      compensation_blocked: 'עמלת הפניה חסומה בתחום הזה עד אישור משפטי בכתב',
+      phone_exists: 'מספר הטלפון כבר רשום אצל פונה אחר',
+      bad_phone: 'מספר טלפון לא תקין', bad_email: 'כתובת דוא״ל לא תקינה', bad_name: 'שם לא תקין', nothing_to_update: 'אין מה לעדכן'
+    };
+    toast('שגיאה: ' + (known[e.message] || e.message || 'לא ידועה'));
   }
   function authBox(title, inner) { tabsEl.hidden = true; document.getElementById('who').textContent = ''; view.innerHTML = '<section class="gate"><h1>' + title + '</h1>' + inner + '</section>'; }
   function gate(msg) {
@@ -128,6 +133,8 @@
         '<textarea id="nb" aria-label="הערה חדשה"></textarea><p><button class="btn sec" id="nadd" style="margin-top:.5rem">הוספת הערה</button></p>' +
         '<h2 style="margin:1.2rem 0 .5rem">הכנסות</h2>' + d.revenues.map(function (v) { return '<div class="qa">' + money(v.amount) + ' (עלות ' + money(v.cost) + ') · ' + ({ pending: 'ממתין לאישור', approved: 'מאושר', rejected: 'נדחה' }[v.status]) + (v.status === 'pending' ? ' <button class="btn mini sec" data-rv="' + v.id + '" data-s="approved">אישור</button> <button class="btn mini sec" data-rv="' + v.id + '" data-s="rejected">דחייה</button>' : '') + '</div>'; }).join('') +
         '<div class="row"><div><label for="ra">סכום (₪)</label><input id="ra" type="number" min="0" step="0.01"></div><div><label for="rc">עלות (₪)</label><input id="rc" type="number" min="0" step="0.01"></div><div><button class="btn sec" id="radd">הוספת הכנסה</button></div></div>' +
+        '<h2 style="margin:1.2rem 0 .5rem">עיון ותיקון פרטים</h2><p><button class="btn sec" id="aexp">ייצוא נתוני הפונה (JSON)</button> <button class="btn sec" id="aedit" aria-expanded="false" aria-controls="afix">תיקון פרטים</button></p>' +
+        '<form id="afix" hidden class="panel row" novalidate><div><label for="an">שם</label><input id="an" type="text" value="' + esc(r.name) + '"></div><div><label for="ap">טלפון</label><input id="ap" type="tel" dir="ltr" value="' + esc(r.phone) + '"></div><div><label for="ae">דוא״ל</label><input id="ae" type="email" dir="ltr" value="' + esc(r.email || '') + '"></div><div><button class="btn" id="asave">שמירת התיקון</button></div></form>' +
         '<hr style="margin:1.5rem 0"><details><summary>מחיקת פונה (זכות למחיקה)</summary><p>מוחק את הפונה וכל בקשותיו, הערותיו והסכמותיו לצמיתות.</p><button class="btn danger" id="erase">מחיקה לצמיתות</button></details></div>';
       document.body.appendChild(dr);
       var close = function () { dr.remove(); if (done) done(); };
@@ -135,6 +142,15 @@
       dr.querySelector('#x').onclick = close;
       var act = function (p) { return p.then(function () { toast('נשמר'); close(); detail(id, done); }).catch(fail); };
       dr.querySelector('#dsave').onclick = function () { act(api('PATCH', '/requests/' + id, { status: dr.querySelector('#ds').value, assignee: dr.querySelector('#da').value, service_id: dr.querySelector('#dv').value, professional_id: dr.querySelector('#dp').value })); };
+      dr.querySelector('#aexp').onclick = function () {
+        api('GET', '/applicants/' + r.applicant_id + '/export').then(function (j) {
+          var url = URL.createObjectURL(new Blob([JSON.stringify(j, null, 2)], { type: 'application/json' }));
+          var a = document.createElement('a'); a.href = url; a.download = 'applicant-' + r.applicant_id + '.json'; document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(function () { URL.revokeObjectURL(url); }, 2000); toast('הקובץ ירד. הייצוא נרשם ביומן');
+        }).catch(fail);
+      };
+      dr.querySelector('#aedit').onclick = function () { var f = dr.querySelector('#afix'); f.hidden = !f.hidden; this.setAttribute('aria-expanded', String(!f.hidden)); if (!f.hidden) dr.querySelector('#an').focus(); };
+      dr.querySelector('#afix').onsubmit = function (e) { e.preventDefault(); act(api('PATCH', '/applicants/' + r.applicant_id, { name: dr.querySelector('#an').value, phone: dr.querySelector('#ap').value, email: dr.querySelector('#ae').value })); };
       dr.querySelector('#nadd').onclick = function () { var v = dr.querySelector('#nb').value.trim(); if (v) act(api('POST', '/requests/' + id + '/notes', { body: v })); };
       dr.querySelector('#radd').onclick = function () { var a = dr.querySelector('#ra').value; if (a !== '') act(api('POST', '/requests/' + id + '/revenues', { amount: a, cost: dr.querySelector('#rc').value || 0 })); };
       [].forEach.call(dr.querySelectorAll('[data-rv]'), function (b) { b.onclick = function () { act(api('POST', '/revenues/' + b.dataset.rv + '/decide', { status: b.dataset.s })); }; });
@@ -167,7 +183,7 @@
   function pricing() {
     Promise.all([api('GET', '/pricing'), api('GET', '/services')]).then(function (a) {
       var rows = a[0].pricing, sv = a[1].services;
-      view.innerHTML = H('תמחור') + '<p class="warn">כל המחירים מוזנים ידנית על ידך. אין ערכי ברירת מחדל. מחיר מוצג לציבור רק אם אושר וסומן כציבורי, ועריכתו מבטלת את האישור.</p>' +
+      view.innerHTML = H('תמחור') + '<p class="warn">כל המחירים מוזנים ידנית על ידך. אין ערכי ברירת מחדל. מחיר מוצג לציבור רק אם אושר וסומן כציבורי, ועריכתו מבטלת את האישור.</p><p class="warn">עמלה על הפניה חסומה כברירת מחדל בכל התחומים. אפשר להזין עמלה רק לשירות שהתחום שלו הופעל בהגדרות (<code>private.compensation_topics</code>), ורק אחרי אישור משפטי בכתב לאותו תחום.</p>' +
         '<form class="panel row" id="xf"><div><label for="xl">תיאור</label><input id="xl" type="text" required></div><div><label for="xs">שירות</label><select id="xs"><option value="">—</option>' + sv.map(function (s) { return '<option value="' + s.id + '">' + esc(s.name) + '</option>'; }).join('') + '</select></div><div><label for="xp">מחיר ללקוח ₪</label><input id="xp" type="number" min="0" step="0.01"></div><div><label for="xc">עלות ₪</label><input id="xc" type="number" min="0" step="0.01"></div><div><label for="xm">עמלה ₪</label><input id="xm" type="number" min="0" step="0.01"></div><div><button class="btn">הוספה</button></div></form>' +
         '<div class="scroll"><table class="tbl"><thead><tr><th>תיאור</th><th>מחיר</th><th>עלות</th><th>עמלה</th><th>סטטוס</th><th></th></tr></thead><tbody>' + rows.map(function (p) {
           return '<tr><td>' + esc(p.label) + '</td><td>' + money(p.price) + '</td><td>' + money(p.cost) + '</td><td>' + money(p.commission) + '</td><td>' + (p.public ? 'ציבורי' : p.approved ? 'מאושר, פנימי' : 'ממתין לאישור') + '</td><td>' +

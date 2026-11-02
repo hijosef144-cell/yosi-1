@@ -1,6 +1,6 @@
 'use strict';
 const { json, fail, HttpError, parseBody, logError } = require('./http');
-const { cleanText } = require('./validate');
+const { cleanText, normalizePhone, cleanEmail } = require('./validate');
 const content = require('./content');
 const db = require('./db');
 const engine = require('../../../kaspchem/assets/engine.js');
@@ -43,6 +43,7 @@ on('GET', '/requests', async (c) => {
             (SELECT count(*)::int FROM treatment_requests x WHERE x.applicant_id = a.id) AS applicant_requests
      FROM treatment_requests r JOIN applicants a ON a.id = r.applicant_id
      ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY r.created_at DESC LIMIT 300`, p);
+  await audit(c.me.email, 'request.list', 'request', '', { rows: rows.length, filtered: where.length > 0 }); // the list shows names and phones
   return { requests: rows };
 });
 
@@ -63,6 +64,7 @@ on('GET', '/requests/(\\d+)', async (c, id) => {
   })) : [];
   const findings = topic ? (r.findings || []).map((fid) => (topic.rules.find((x) => x.id === fid) || { finding: { title: fid } }).finding.title) : r.findings;
   const findingDetails = topic ? (r.findings || []).map((fid) => { const rule = topic.rules.find((x) => x.id === fid) || {}; return { id: fid, title: (rule.finding || {}).title || fid, refer: (rule.finding || {}).refer || null, serviceTag: rule.serviceTag || null }; }) : [];
+  await audit(c.me.email, 'request.view', 'request', rid, {}); // who looked at personal details, not only who changed something
   return { request: Object.assign({}, r, { readable, findingTitles: findings, findingDetails }), notes, consents, revenues };
 });
 
@@ -83,6 +85,7 @@ on('PATCH', '/requests/(\\d+)', async (c, id) => {
 on('POST', '/requests/(\\d+)/notes', async (c, id) => {
   const rid = idOf(id);
   await db.query('INSERT INTO request_notes (request_id, author, body) VALUES ($1,$2,$3)', [rid, c.me.email, text(c.body.body, 2000)]);
+  await audit(c.me.email, 'note.create', 'request', rid, {}); // the note text itself is never copied into the log
   return { ok: true };
 });
 
@@ -94,6 +97,36 @@ on('POST', '/applicants/(\\d+)/erase', async (c, id) => {
   await db.query('DELETE FROM treatment_requests WHERE applicant_id = $1', [aid]);
   await db.query('DELETE FROM applicants WHERE id = $1', [aid]);
   await audit(c.me.email, 'applicant.erase', 'applicant', aid, {});
+  return { ok: true };
+});
+
+// Access and correction requests (applicant rights). Which fields may be corrected and how long data is kept are legal decisions;
+// this only provides the mechanics. Neither route echoes personal data into the audit log. ---------------------------------
+on('GET', '/applicants/(\\d+)/export', async (c, id) => {
+  const aid = idOf(id);
+  const [a] = await db.query('SELECT id, name, phone, email, created_at FROM applicants WHERE id = $1', [aid]);
+  if (!a) throw new HttpError(404, 'not_found');
+  const [requests, consents, notes, revenues] = await Promise.all([
+    db.query('SELECT id, topic, questionnaire_ver, answers, outcome, findings, status, consent_contact, consent_marketing, created_at FROM treatment_requests WHERE applicant_id = $1 ORDER BY id', [aid]),
+    db.query('SELECT kind, granted, text_version, request_id, created_at FROM consents WHERE applicant_id = $1 ORDER BY id', [aid]),
+    db.query('SELECT n.request_id, n.author, n.body, n.created_at FROM request_notes n JOIN treatment_requests r ON r.id = n.request_id WHERE r.applicant_id = $1 ORDER BY n.id', [aid]),
+    db.query('SELECT v.request_id, v.amount, v.cost, v.status, v.created_at FROM revenues v JOIN treatment_requests r ON r.id = v.request_id WHERE r.applicant_id = $1 ORDER BY v.id', [aid])
+  ]);
+  await audit(c.me.email, 'applicant.export', 'applicant', aid, {});
+  return { exportedAt: new Date().toISOString(), applicant: a, requests, consents, notes, revenues };
+});
+on('PATCH', '/applicants/(\\d+)', async (c, id) => {
+  const aid = idOf(id); const b = c.body; const sets = []; const p = []; const fields = [];
+  if (b.name !== undefined) { const v = cleanText(b.name, 2, 80); if (!v) throw new HttpError(400, 'bad_name'); p.push(v); sets.push('name = $' + p.length); fields.push('name'); }
+  if (b.phone !== undefined) { const v = normalizePhone(b.phone); if (!v) throw new HttpError(400, 'bad_phone'); p.push(v); sets.push('phone = $' + p.length); fields.push('phone'); }
+  if (b.email !== undefined) { const v = cleanEmail(b.email); if (v === null) throw new HttpError(400, 'bad_email'); p.push(v || null); sets.push('email = $' + p.length); fields.push('email'); }
+  if (!sets.length) throw new HttpError(400, 'nothing_to_update');
+  p.push(aid);
+  let rows;
+  try { rows = await db.query('UPDATE applicants SET ' + sets.join(', ') + ' WHERE id = $' + p.length + ' RETURNING id', p); }
+  catch (e) { if (e && (e.code === '23505' || /duplicate key|unique/i.test(String(e.message)))) throw new HttpError(409, 'phone_exists'); throw e; }
+  if (!rows.length) throw new HttpError(404, 'not_found');
+  await audit(c.me.email, 'applicant.update', 'applicant', aid, { fields });
   return { ok: true };
 });
 
@@ -137,12 +170,26 @@ function priceFields(b) {
   if (price === undefined || cost === undefined || commission === undefined) throw new HttpError(400, 'bad_number');
   return [b.service_id ? idOf(b.service_id) : null, b.professional_id ? idOf(b.professional_id) : null, text(b.label, 160), price, cost, commission, optText(b.notes, 600)];
 }
+// Referral compensation is BLOCKED by default for every topic. It can be switched on per topic only through the setting
+// `private.compensation_topics` (a list of topic ids) after written legal approval for that field of practice. A commission
+// above zero is refused otherwise, so nobody can enter a referral fee by accident or by habit.
+async function assertCompensationAllowed(b) {
+  const commission = num(b.commission);
+  if (!commission) return; // empty or zero: nothing to block
+  const [s] = await db.query("SELECT value FROM settings WHERE key = 'private.compensation_topics'");
+  const allowed = s && Array.isArray(s.value) ? s.value : [];
+  let topic = null;
+  if (b.service_id) { const [sv] = await db.query('SELECT topic FROM services WHERE id = $1', [idOf(b.service_id)]); topic = sv ? sv.topic : null; }
+  if (!topic || !allowed.includes(topic)) throw new HttpError(422, 'compensation_blocked');
+}
 on('POST', '/pricing', async (c) => {
+  await assertCompensationAllowed(c.body);
   const r = await db.query('INSERT INTO pricing (service_id, professional_id, label, price, cost, commission, notes) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id', priceFields(c.body));
   await audit(c.me.email, 'pricing.create', 'pricing', r[0].id, {});
   return { id: Number(r[0].id) };
 });
 on('PATCH', '/pricing/(\\d+)', async (c, id) => {
+  await assertCompensationAllowed(c.body);
   await db.query('UPDATE pricing SET service_id=$1, professional_id=$2, label=$3, price=$4, cost=$5, commission=$6, notes=$7, approved=false, approved_by=NULL, approved_at=NULL, public=false WHERE id=$8',
     priceFields(c.body).concat([idOf(id)]));
   await audit(c.me.email, 'pricing.update', 'pricing', id, {});
@@ -226,6 +273,7 @@ on('POST', '/questionnaires/([a-z-]+)/rollback', async (c, topic) => {
 });
 on('POST', '/questionnaires/([a-z-]+)/discard', async (c, topic) => {
   await db.query("DELETE FROM questionnaire_versions WHERE topic = $1 AND status = 'draft'", [topic]);
+  await audit(c.me.email, 'questionnaire.discard', 'topic', topic, {});
   return { ok: true };
 });
 
@@ -238,6 +286,7 @@ on('PUT', '/settings', async (c) => {
   const key = String(c.body.key || '');
   if (!/^(public|private)\.[a-z_]{1,40}$/.test(key)) throw new HttpError(400, 'bad_key');
   if (JSON.stringify(c.body.value).length > 4000) throw new HttpError(400, 'too_large');
+  if (key === 'private.compensation_topics' && !(Array.isArray(c.body.value) && c.body.value.every((t) => typeof t === 'string' && /^[a-z-]{1,40}$/.test(t)))) throw new HttpError(400, 'bad_value');
   await db.query('INSERT INTO settings (key, value, updated_by) VALUES ($1,$2::jsonb,$3) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_by = EXCLUDED.updated_by, updated_at = now()', [key, JSON.stringify(c.body.value), c.me.email]);
   await audit(c.me.email, 'settings.update', 'settings', key, {});
   return { ok: true };
