@@ -17,9 +17,12 @@ const goodLead = (over) => Object.assign({
 test.before(async () => { srv = await start(0); base = 'http://localhost:' + srv.server.address().port; });
 test.after(async () => { srv.server.close(); });
 
-test('public config serves 10 published topics', async () => {
+test('public config serves the 10 published topics plus the quick check (kind "router")', async () => {
   const r = await call('GET', '/api/kaspchem/config');
-  assert.equal(r.body.topics.length, 10);
+  // stage 4: the config API now returns 11 entries: the ten topics (unchanged) and "quick", the router that sends people to one of the ten
+  assert.equal(r.body.topics.length, 11);
+  assert.equal(r.body.topics.filter((t) => t.kind !== 'router').length, 10);
+  assert.deepEqual(r.body.topics.filter((t) => t.kind === 'router').map((t) => t.id), ['quick']);
   assert.ok(r.body.topics.every((t) => t.questions.length >= 3));
 });
 

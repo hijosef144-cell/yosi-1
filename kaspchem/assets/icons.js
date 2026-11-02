@@ -10,7 +10,9 @@
     'national-insurance': '<circle cx="16" cy="16" r="6"/><path d="M5 41c0-7.5 5-12 11-12s11 4.5 11 12"/><path class="a" d="M35.5 20.5c-2.8-4.2-9-1.4-6 4l6 6 6-6c3-5.4-3.2-8.2-6-4z"/>',
     'banking-loans': '<path d="M5 18L24 7l19 11z"/><path d="M10 22v16M19 22v16M29 22v16M38 22v16"/><path class="a" d="M5 43h38"/>',
     'household': '<path d="M24 5a12 12 0 0 0-6.5 22v6h13v-6A12 12 0 0 0 24 5z"/><path d="M19 38h10M21 43h6"/><path class="a" d="M21 27l3-7 3 7"/>',
-    'education-work': '<path d="M3 18L24 7l21 11-21 11z"/><path d="M12 23.5v9c0 3 5.5 6 12 6s12-3 12-6v-9"/><path class="a" d="M45 18v12"/>'
+    'education-work': '<path d="M3 18L24 7l21 11-21 11z"/><path d="M12 23.5v9c0 3 5.5 6 12 6s12-3 12-6v-9"/><path class="a" d="M45 18v12"/>',
+    // the quick check: a signpost (it points you to the right topic)
+    'quick': '<path d="M24 4v40"/><path d="M16 44h16"/><path d="M24 9h14l4 5.5-4 5.5H24"/><path class="a" d="M24 25H10l-4 5.5 4 5.5h14"/>'
   };
   window.KaspIcon = function (name, size) {
     var s = size || 48;

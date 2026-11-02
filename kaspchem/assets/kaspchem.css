@@ -331,3 +331,31 @@ p { margin: 0 0 1rem; }
 .imp.imp-off { display: none; }
 /* a returning visitor who last saw the counter at this width: reserve the exact height until the answer is in (impact-hint.js sets --imp-h) */
 .imp-expect .imp.imp-off { display: block; visibility: hidden; min-height: var(--imp-h, 0); padding: 0; overflow: hidden; }
+
+/* ---- stage 4: the quick check (every class here starts with qk-; admin pages load this file too, so nothing here may use a generic name) ---- */
+.qk-tile { position: relative; display: flex; align-items: center; gap: 1rem; width: 100%; min-height: 5rem; padding: .95rem 1.05rem; margin: 0 0 1.35rem; color: #fff; text-decoration: none; border-radius: var(--r-lg);
+  background: linear-gradient(155deg, #1b6068 0%, #0f3b41 72%); border: 1px solid rgba(227,176,75,.55);
+  box-shadow: 0 6px 0 #061d21, 0 0 0 1px rgba(227,176,75,.18), 0 16px 22px rgba(0,0,0,.28); transition: transform .22s ease, box-shadow .22s ease, border-color .3s ease; }
+.qk-tile::before { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; background: radial-gradient(110% 120% at 100% -30%, rgba(244,210,127,.26), transparent 62%); }
+.qk-face { position: relative; flex: none; width: 3.4rem; height: 3.4rem; display: grid; place-items: center; border-radius: 14px; background: rgba(227,176,75,.14); border: 1px solid rgba(227,176,75,.35); color: #fff; }
+.qk-face .ico { width: 2.2rem; height: 2.2rem; overflow: visible; }
+.qk-face .ico .a { stroke: var(--gold-l); }
+.qk-txt { position: relative; flex: 1; min-width: 0; display: grid; gap: .1rem; }
+.qk-h { font-family: var(--font-display); font-weight: 900; font-size: 1.22rem; line-height: 1.3; overflow-wrap: anywhere; text-wrap: balance; }
+.qk-sub { font-size: .92rem; color: #b8d3cf; line-height: 1.4; }
+.qk-arrow { position: relative; flex: none; color: var(--gold-l); transition: transform .22s ease; }
+.qk-tile:hover, .qk-tile:focus-visible { transform: translateY(-3px); border-color: var(--gold); }
+.qk-tile:hover .qk-arrow, .qk-tile:focus-visible .qk-arrow { transform: translateX(-5px); }
+.qk-tile:active { transform: translateY(4px); box-shadow: 0 2px 0 #061d21, 0 8px 14px rgba(0,0,0,.28); }
+@media (min-width: 640px) { .qk-tile { gap: 1.4rem; min-height: 6.25rem; padding: 1.15rem 1.6rem; margin-bottom: 1.6rem; } .qk-face { width: 4rem; height: 4rem; } .qk-face .ico { width: 2.6rem; height: 2.6rem; } .qk-h { font-size: clamp(1.4rem, 2.6vw, 1.9rem); } .qk-sub { font-size: 1.02rem; } }
+@media (forced-colors: active) { .qk-tile { border: 2px solid CanvasText; } }
+
+/* result of the quick check: a sentence, then one card per recommended topic */
+.result .qk-sentence { color: #e6f1ef; font-size: 1.12rem; line-height: 1.6; max-width: 34em; margin: .85rem auto 0; }
+.qk-reasons { list-style: none; margin: .3rem 0 0; padding: 0; display: grid; gap: .35rem; }
+.find .qk-reasons li { display: block; position: relative; padding-inline-start: 1.05rem; color: #cfe3e0; font-size: .98rem; line-height: 1.55; }
+.find .qk-reasons li::before { content: ''; position: absolute; inset-inline-start: 0; top: .62em; width: 6px; height: 6px; border-radius: 50%; background: var(--gold-l); }
+.find .btn.qk-go { display: flex; width: 100%; min-height: 2.9rem; margin-top: .8rem; padding: .45rem 1.1rem; font-size: 1rem; background: transparent; color: var(--gold-l); border: 2px solid var(--gold); box-shadow: none; }
+.find .btn.qk-go:hover, .find .btn.qk-go:focus-visible { background: rgba(227,176,75,.18); color: #fff; }
+.find .btn.qk-go:active { transform: translateY(2px); }
+@media (min-width: 560px) { .find .btn.qk-go { display: inline-flex; width: auto; } }

@@ -21,10 +21,11 @@
       topics = c.topics; settings = c.settings || {};
       topic = topics.filter(function (t) { return t.id === topicId; })[0];
       if (!topic) { app.innerHTML = '<h1>התחום לא נמצא</h1><p><a href="/kaspchem">חזרה לכל התחומים</a></p>'; return; }
-      document.title = topic.name + ' – בדיקה בכספכם';
+      document.title = topic.kind === 'router' ? topic.name + ' – כספכם' : topic.name + ' – בדיקה בכספכם';
       load();
       answers = E.pruneAnswers(topic, answers);
-      Object.keys(answers).forEach(function (k) { var qd = topic.questions.filter(function (x) { return x.id === k; })[0]; if (!qd || !!qd.multi !== Array.isArray(answers[k])) delete answers[k]; }); // stale shape after a questionnaire edit
+      Object.keys(answers).forEach(function (k) { var qd = topic.questions.filter(function (x) { return x.id === k; })[0]; if (!qd || !!qd.multi !== Array.isArray(answers[k]) || [].concat(answers[k]).some(function (id) { return !qd.options.some(function (o) { return o.id === id; }); })) delete answers[k]; }); // stale shape or a removed option after a questionnaire edit
+      answers = E.pruneAnswers(topic, answers); // an answer dropped above may have been what made a later question visible
       order = order.filter(function (id) { return answers[id] != null; });
       history.replaceState({ n: order.length }, '');
       step();
@@ -137,7 +138,9 @@
   function reveal() {
     var box = document.getElementById('result'); if (!box) return;
     var m = topic.messages, n = res.cardCount != null ? res.cardCount : res.count, html = '';
-    if (res.outcome === 'found') {
+    if (res.outcome === 'found' && topic.kind === 'router') {
+      html += routerFound(res.cards || [], n, m);
+    } else if (res.outcome === 'found') {
       html += '<div class="head"><div class="big" id="num">' + (reduce ? n : 0) + '</div><div class="bigcap">נושאים שכדאי לברר</div><div class="goldline" aria-hidden="true"></div>' +
         '<h1 id="rt">' + esc(n === 1 ? 'זיהינו נושא אחד שכדאי לבדוק' : m.found.replace('{n}', n)) + ' ב' + esc(topic.name) + '</h1>' +
         PRELIM + '</div>' +
@@ -158,7 +161,7 @@
     html += '<div id="lead-slot"></div>';
     box.innerHTML = html;
     if (res.outcome === 'found' && n > 0) box.classList.add('found');
-    if (res.outcome === 'found' && !reduce && n > 0) countUp(document.getElementById('num'), n);
+    if (res.outcome === 'found' && !reduce && n > 0 && document.getElementById('num')) countUp(document.getElementById('num'), n);
     document.getElementById('rt').setAttribute('tabindex', '-1'); document.getElementById('rt').focus({ preventScroll: true });
     var cta = document.getElementById('cta');
     if (cta && settings.legal_approved !== true) { // launch gate: no contact form until the legal texts are approved
@@ -166,6 +169,26 @@
     }
     if (cta) cta.addEventListener('click', openForm);
     var fix = document.getElementById('fix'); if (fix) fix.addEventListener('click', function () { var last = order.pop(); delete answers[last]; save(); goingBack = true; step(); });
+  }
+
+  /* ---- the quick check (kind "router"): a personal heading + ONE sentence, then one card per recommended topic that links to that topic's own check ---- */
+  function topicById(id) { return topics.filter(function (t) { return t.id === id && t.kind !== 'router'; })[0] || null; }
+  function routerFound(cards, n, m) {
+    var items = cards.map(function (c) { var t = topicById(c.topic || c.group); return { card: c, topic: t, name: t ? t.name : c.title }; });
+    var names = items.slice(0, 3).map(function (x) { return 'ב' + x.name; });
+    var list = names.length === 1 ? names[0] : names.length === 2 ? names[0] + ' ו' + names[1] : names[0] + ', ' + names[1] + ' ו' + names[2];
+    var rest = n - names.length;
+    var sentence = 'לפי התשובות שלכם, כדאי להתחיל ' + list + (rest > 0 ? ', ויש עוד ' + (rest === 1 ? 'תחום אחד' : rest + ' תחומים') + ' ברשימה' : '') + '.';
+    return '<div class="head"><div class="goldline" aria-hidden="true"></div>' +
+      '<h1 id="rt">' + esc(n === 1 ? 'זיהינו תחום אחד שכדאי להתחיל בו' : m.found.replace('{n}', n)) + '</h1>' +
+      '<p class="qk-sentence">' + esc(sentence) + '</p>' + PRELIM + '</div>' +
+      '<ul class="finds">' + items.map(function (x, i) {
+        var c = x.card, parts = c.parts || [c];
+        return '<li class="find" style="animation-delay:' + (reduce ? 0 : 400 + i * 180) + 'ms"><i class="mk" aria-hidden="true"></i><div><b>' + esc(c.title) + '</b>' +
+          '<ul class="qk-reasons">' + parts.map(function (p) { return '<li>' + esc(p.why) + '</li>'; }).join('') + '</ul>' +
+          (x.topic ? '<a class="btn qk-go" href="/kaspchem/check/' + esc(x.topic.id) + '">לבדיקה מלאה: ' + esc(x.topic.name) + '</a>' : '') + '</div></li>';
+      }).join('') + '</ul>' +
+      '<div class="cta-row"><button type="button" class="btn" id="cta">אני רוצה עזרה בבדיקה</button><p class="reassure">הבדיקה הראשונית חינמית, והשארת פרטים אינה התחייבות.</p><a class="btn link" href="/kaspchem">לבדוק תחום אחר</a></div>';
   }
 
   function safeUrl(u) { return /^https:\/\//.test(String(u || '')) ? u : null; }
@@ -243,7 +266,7 @@
 
   function thanks() {
     try { sessionStorage.removeItem(STORE); } catch (e) {}
-    var others = topics.filter(function (t) { return t.id !== topic.id; });
+    var others = topics.filter(function (t) { return t.id !== topic.id && t.kind !== 'router'; }); // the quick check is not offered as "another topic"
     var slot = document.getElementById('lead-slot');
     slot.innerHTML = '<div class="lead done" id="done" tabindex="-1"><div class="tick"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"/></svg></div>' +
       '<h2>הפנייה התקבלה, תודה</h2><p>נחזור אליכם בנושא <strong>' + esc(topic.name) + '</strong>. בינתיים, אפשר להמשיך לבדוק תחומים נוספים:</p>' +

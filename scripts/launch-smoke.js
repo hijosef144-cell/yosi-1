@@ -13,14 +13,16 @@ const get = (p, o) => fetch(base + p, Object.assign({ redirect: 'manual' }, o));
   console.log('Smoke test: ' + base + (gateOpen ? '  (expecting the lead gate OPEN)' : '  (expecting the lead gate CLOSED)'));
 
   // public pages
-  for (const p of ['/kaspchem/', '/kaspchem/check/mortgage', '/kaspchem/privacy.html', '/kaspchem/terms.html', '/']) {
+  for (const p of ['/kaspchem/', '/kaspchem/check/mortgage', '/kaspchem/check/quick', '/kaspchem/privacy.html', '/kaspchem/terms.html', '/']) {
     const r = await get(p); ok(r.status === 200, `public page ${p} is 200`, r.status);
   }
   const r404 = await get('/kaspchem/check/does-not-exist'); ok(r404.status === 200, 'unknown topic page still renders a friendly message (200)');
 
-  // config API: ten topics, no prices unless approved
+  // config API: the ten topics plus the quick check (stage 4: kind "router", id "quick") = 11 entries; no prices unless approved.
+  // The "ten topics" expectation is deliberately kept for the non-router entries, so a missing topic is still caught.
   const cfg = await (await get('/api/kaspchem/config')).json().catch(() => ({}));
-  ok(cfg.ok === true && Array.isArray(cfg.topics) && cfg.topics.length === 10, 'config API returns the ten topics', JSON.stringify(cfg).slice(0, 100));
+  const tens = Array.isArray(cfg.topics) ? cfg.topics.filter((t) => t.kind !== 'router') : [];
+  ok(cfg.ok === true && Array.isArray(cfg.topics) && tens.length === 10 && cfg.topics.length === 11 && cfg.topics.some((t) => t.id === 'quick' && t.kind === 'router'), 'config API returns the ten topics and the quick check', JSON.stringify(cfg).slice(0, 100));
   ok(Array.isArray(cfg.prices || []) && (cfg.prices || []).every((x) => x && x.price != null), 'no price is published without a value');
 
   // lead gate

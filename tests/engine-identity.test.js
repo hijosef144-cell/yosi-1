@@ -17,6 +17,8 @@ const hasV6 = fs.existsSync(V6);
 const SKIP_V6 = hasV6 ? false : 'V6 draft not available in this checkout (private research folder not linked); published content is still checked';
 
 const load = (f) => JSON.parse(fs.readFileSync(f, 'utf8')).topics;
+// Stage 4: topics.json also holds the quick check (kind "router"), which is not one of the ten. The ten are checked exactly as before; the quick check is added to each check where it belongs.
+const loadTen = (f) => load(f).filter((t) => t.kind !== 'router');
 
 // Every complete answer path of a topic, or a deterministic spread of them when there are very many.
 function paths(t, limit) {
@@ -44,13 +46,20 @@ function equivalence(topics, perTopic) {
 }
 
 test('published: the colliding local ids are exactly work and fees, and they are different questions', () => {
-  const c = E.idCollisions(load(PUBLISHED));
+  const c = E.idCollisions(loadTen(PUBLISHED));
   assert.deepEqual(c.map((x) => x.id).sort(), ['fees', 'work']);
   c.forEach((x) => assert.equal(x.same, false, x.id + ' is a different question in each topic and must never be merged'));
 });
 
+test('published + quick check: the quick check adds only the collision "bills" (household has a different question of that name); nothing is merged', () => {
+  const c = E.idCollisions(load(PUBLISHED));
+  assert.deepEqual(c.map((x) => x.id).sort(), ['bills', 'fees', 'work']);
+  c.forEach((x) => assert.equal(x.same, false, x.id + ' must never be merged'));
+  assert.deepEqual(E.lint(E.composeTopics(load(PUBLISHED))), []);
+});
+
 test('a plain merge of the published topics collides; the composed config does not', () => {
-  const topics = load(PUBLISHED);
+  const topics = loadTen(PUBLISHED);
   const naive = { questions: [].concat(...topics.map((t) => t.questions)), rules: [].concat(...topics.map((t) => t.rules)) };
   assert.ok(E.lint(naive).some((e) => /work|fees/.test(e)), 'the naive merge must report the duplicate ids');
   const composed = E.composeTopics(topics);
@@ -60,7 +69,7 @@ test('a plain merge of the published topics collides; the composed config does n
   assert.equal(composed.rules.length, topics.reduce((n, t) => n + t.rules.length, 0), 'no rule lost or merged');
 });
 
-test('qualifying ids changes no outcome, finding or card for any published answer path', () => {
+test('qualifying ids changes no outcome, finding or card for any published answer path (the ten and the quick check)', () => {
   equivalence(load(PUBLISHED), 100000);
 });
 
@@ -73,7 +82,7 @@ test('qualifyTopic does not modify its input, and refuses a topic id that would 
 });
 
 test('answers of all published topics in one map: work and fees keep their own meaning, every topic result is unchanged', () => {
-  const topics = load(PUBLISHED), composed = E.composeTopics(topics);
+  const topics = loadTen(PUBLISHED), composed = E.composeTopics(topics);
   [0, 'last', 'mid'].forEach((pick) => {
     let merged = {}; const expected = {};
     topics.forEach((t) => {

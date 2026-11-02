@@ -1,6 +1,6 @@
 {
  "content": "topics.json",
- "contentSha256": "86888cf7eff8ebf6c1a73b47fb9875bde5cf427830875636a133097b0fab5446",
+ "contentSha256": "c306f745435e054886b843f345db417b5d2a169832fd2f857022ef89b4e773cf",
  "cap": 300000,
  "topics": {
   "lost-funds": {
@@ -170,6 +170,37 @@
     "ed-soldier": 4,
     "ed-study": 4,
     "ed-train": 4
+   }
+  },
+  "quick": {
+   "mode": "sampled:30000:seed20261102",
+   "paths": 30000,
+   "invalid": 0,
+   "digest": "a999c9eb912748d915d3bbbb7db3eb1e98686b41447dbf7f751c8eda4888c431",
+   "outcomes": {
+    "found": 30000
+   },
+   "fires": {
+    "q-bk-fees": 19984,
+    "q-ed-income": 15058,
+    "q-ed-study": 5904,
+    "q-hh-bills": 19946,
+    "q-hs-own": 12061,
+    "q-hs-rent": 3919,
+    "q-ip-review": 19980,
+    "q-lf-acc": 15217,
+    "q-lf-forgot": 15124,
+    "q-lf-inherit": 14895,
+    "q-lf-jobs": 15056,
+    "q-mg-refi": 6232,
+    "q-ni-birth": 14917,
+    "q-ni-health": 14970,
+    "q-ni-job": 14872,
+    "q-ni-ret": 6010,
+    "q-ps-ended": 11841,
+    "q-ps-monthly": 3965,
+    "q-tx-family": 22399,
+    "q-tx-nofile": 6104
    }
   }
  },
