@@ -135,7 +135,7 @@
         '<div class="row"><div><label for="ra">סכום (₪)</label><input id="ra" type="number" min="0" step="0.01"></div><div><label for="rc">עלות (₪)</label><input id="rc" type="number" min="0" step="0.01"></div><div><button class="btn sec" id="radd">הוספת הכנסה</button></div></div>' +
         '<h2 style="margin:1.2rem 0 .5rem">עיון ותיקון פרטים</h2><p><button class="btn sec" id="aexp">ייצוא נתוני הפונה (JSON)</button> <button class="btn sec" id="aedit" aria-expanded="false" aria-controls="afix">תיקון פרטים</button></p>' +
         '<form id="afix" hidden class="panel row" novalidate><div><label for="an">שם</label><input id="an" type="text" value="' + esc(r.name) + '"></div><div><label for="ap">טלפון</label><input id="ap" type="tel" dir="ltr" value="' + esc(r.phone) + '"></div><div><label for="ae">דוא״ל</label><input id="ae" type="email" dir="ltr" value="' + esc(r.email || '') + '"></div><div><button class="btn" id="asave">שמירת התיקון</button></div></form>' +
-        '<hr style="margin:1.5rem 0"><details><summary>מחיקת פונה (זכות למחיקה)</summary><p>מוחק את הפונה וכל בקשותיו, הערותיו והסכמותיו לצמיתות.</p><button class="btn danger" id="erase">מחיקה לצמיתות</button></details></div>';
+        '</div>';
       document.body.appendChild(dr);
       var close = function () { dr.remove(); if (done) done(); };
       dr.querySelector('#x').focus(); dr.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
@@ -154,7 +154,6 @@
       dr.querySelector('#nadd').onclick = function () { var v = dr.querySelector('#nb').value.trim(); if (v) act(api('POST', '/requests/' + id + '/notes', { body: v })); };
       dr.querySelector('#radd').onclick = function () { var a = dr.querySelector('#ra').value; if (a !== '') act(api('POST', '/requests/' + id + '/revenues', { amount: a, cost: dr.querySelector('#rc').value || 0 })); };
       [].forEach.call(dr.querySelectorAll('[data-rv]'), function (b) { b.onclick = function () { act(api('POST', '/revenues/' + b.dataset.rv + '/decide', { status: b.dataset.s })); }; });
-      dr.querySelector('#erase').onclick = function () { if (confirm('למחוק לצמיתות את הפונה וכל נתוניו? אי אפשר לבטל.')) api('POST', '/applicants/' + r.applicant_id + '/erase', { confirm: 'ERASE' }).then(function () { toast('נמחק'); dr.remove(); if (done) done(); }).catch(fail); };
     }).catch(fail);
   }
 

@@ -90,15 +90,11 @@ on('POST', '/requests/(\\d+)/notes', async (c, id) => {
   return { ok: true };
 });
 
-// Privacy erasure: removes the person and (via ON DELETE) their notes and consents; revenue rows go with the request.
+// Deleting applicants from the dashboard is disabled (owner decision, 2.11.2026): no admin can remove personal data or income records here.
+// The route stays only so that an old page or a stale client gets a clear refusal; it changes no data. A legally required erasure is handled separately, outside the dashboard.
 on('POST', '/applicants/(\\d+)/erase', async (c, id) => {
-  const aid = idOf(id);
-  if (c.body.confirm !== 'ERASE') throw new HttpError(400, 'confirmation_required');
-  await db.query('DELETE FROM revenues WHERE request_id IN (SELECT id FROM treatment_requests WHERE applicant_id = $1)', [aid]);
-  await db.query('DELETE FROM treatment_requests WHERE applicant_id = $1', [aid]);
-  await db.query('DELETE FROM applicants WHERE id = $1', [aid]);
-  await audit(c.me.email, 'applicant.erase', 'applicant', aid, {});
-  return { ok: true };
+  await audit(c.me.email, 'applicant.erase.refused', 'applicant', idOf(id), {});
+  throw new HttpError(410, 'erase_disabled');
 });
 
 // Access and correction requests (applicant rights). Which fields may be corrected and how long data is kept are legal decisions;

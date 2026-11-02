@@ -131,9 +131,18 @@ test('lead: rate limit after 5 per hour', async () => {
   assert.equal(last.status, 429);
 });
 
-test('erasure removes applicant and dependent rows', async () => {
+test('the old applicant erase is disabled: it refuses, changes nothing and leaves an audit entry', async () => {
+  const before = async () => JSON.stringify([
+    (await srv.pg.query('SELECT count(*)::int n FROM applicants')).rows[0].n, (await srv.pg.query('SELECT count(*)::int n FROM treatment_requests')).rows[0].n,
+    (await srv.pg.query('SELECT count(*)::int n FROM revenues')).rows[0].n, (await srv.pg.query('SELECT count(*)::int n FROM consents')).rows[0].n, (await srv.pg.query('SELECT count(*)::int n FROM request_notes')).rows[0].n]);
   const a = (await srv.pg.query('SELECT id FROM applicants LIMIT 1')).rows[0].id;
-  assert.equal((await call('POST', `/api/kaspchem/admin/applicants/${a}/erase`, {}, ADMIN)).body.error, 'confirmation_required');
-  assert.equal((await call('POST', `/api/kaspchem/admin/applicants/${a}/erase`, { confirm: 'ERASE' }, ADMIN)).status, 200);
-  assert.equal((await srv.pg.query('SELECT count(*)::int n FROM consents WHERE applicant_id = $1', [a])).rows[0].n, 0);
+  const snap = await before();
+  for (const body of [{}, { confirm: 'ERASE' }, { confirm: 'ERASE', mode: 'full', acknowledgeConsentLoss: true }]) {
+    const r = await call('POST', `/api/kaspchem/admin/applicants/${a}/erase`, body, ADMIN);
+    assert.equal(r.status, 410); assert.equal(r.body.error, 'erase_disabled');
+  }
+  assert.equal(await before(), snap, 'no row in any table changed');
+  assert.ok((await srv.pg.query("SELECT count(*)::int n FROM audit_log WHERE action = 'applicant.erase.refused'")).rows[0].n >= 3);
+  assert.ok([401, 403].includes((await call('POST', `/api/kaspchem/admin/applicants/${a}/erase`, { confirm: 'ERASE' })).status), 'anonymous callers are refused before anything else');
+
 });
