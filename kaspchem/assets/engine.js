@@ -172,8 +172,65 @@
     return errs;
   }
 
+  /*
+   * Question identity across topics.
+   * Inside one topic a question id is local to that topic (this is what saved answers and every single-topic check use, and it never changes).
+   * Two topics may legitimately use the same local id for DIFFERENT questions (e.g. `work`, `fees`, `events`). Whenever several topics are used
+   * together (the quick and deep checks), a question is identified by topic id + local id, written `topic.id`; nothing is merged by name.
+   */
+  function qualifyId(topicId, id) { return String(topicId) + '.' + String(id); }
+
+  function qualifyCond(cond, topicId) {
+    if (!cond) return cond;
+    if (cond.all) return { all: cond.all.map(function (c) { return qualifyCond(c, topicId); }) };
+    if (cond.any) return { any: cond.any.map(function (c) { return qualifyCond(c, topicId); }) };
+    if (cond.not) return { not: qualifyCond(cond.not, topicId) };
+    if (cond.q) return { q: qualifyId(topicId, cond.q), in: cond.in };
+    return cond;
+  }
+
+  /** The same topic with every question id and every reference to one rewritten to topic.id. Pure: the input is not modified. */
+  function qualifyTopic(topic) {
+    var tid = topic.id || topic.topic;
+    if (!tid || String(tid).indexOf('.') !== -1) throw new Error('topic id missing or contains a dot: ' + tid);
+    var copy = JSON.parse(JSON.stringify({ questions: topic.questions || [], rules: topic.rules || [] }));
+    copy.questions.forEach(function (q) { q.localId = q.id; q.topicId = tid; q.id = qualifyId(tid, q.id); if (q.showIf) q.showIf = qualifyCond(q.showIf, tid); });
+    copy.rules.forEach(function (r) { r.localId = r.id; r.topicId = tid; r.id = qualifyId(tid, r.id); if (r.when) r.when = qualifyCond(r.when, tid); });
+    return { id: tid, topic: tid, title: topic.title || topic.name, questions: copy.questions, rules: copy.rules };
+  }
+
+  /** Several topics as one config. Ids are unique by construction; two topics with the same id are refused. */
+  function composeTopics(topics) {
+    var seen = {}, out = { topic: 'composed', title: 'composed', topics: [], questions: [], rules: [] };
+    topics.forEach(function (t) {
+      var tid = t.id || t.topic;
+      if (seen[tid]) throw new Error('topic used twice: ' + tid);
+      seen[tid] = true;
+      var q = qualifyTopic(t);
+      out.topics.push(tid);
+      out.questions = out.questions.concat(q.questions);
+      out.rules = out.rules.concat(q.rules);
+    });
+    return out;
+  }
+
+  /** Local question ids used by more than one topic, and whether the questions are the same (same wording and answers) or different. Report only. */
+  function idCollisions(topics) {
+    var by = {};
+    topics.forEach(function (t) {
+      (t.questions || []).forEach(function (q) {
+        (by[q.id] = by[q.id] || []).push({ topic: t.id || t.topic, text: q.text, sig: JSON.stringify([q.text, !!q.multi, (q.options || []).map(function (o) { return [o.id, o.label]; })]) });
+      });
+    });
+    return Object.keys(by).filter(function (id) { return by[id].length > 1; }).map(function (id) {
+      var sigs = {}; by[id].forEach(function (x) { sigs[x.sig] = true; });
+      return { id: id, topics: by[id].map(function (x) { return x.topic; }), same: Object.keys(sigs).length === 1, texts: by[id].map(function (x) { return x.text; }) };
+    });
+  }
+
   return {
     check: check, visibleQuestions: visibleQuestions, nextQuestion: nextQuestion, progress: progress,
-    pruneAnswers: pruneAnswers, validateAnswers: validateAnswers, evaluate: evaluate, lint: lint
+    pruneAnswers: pruneAnswers, validateAnswers: validateAnswers, evaluate: evaluate, lint: lint,
+    qualifyId: qualifyId, qualifyTopic: qualifyTopic, composeTopics: composeTopics, idCollisions: idCollisions
   };
 });
