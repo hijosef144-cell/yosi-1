@@ -16,7 +16,10 @@
 
   /* ---------- data ---------- */
   function fetchJson(u) { return fetch(u).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }); }
-  fetchJson('/api/kaspchem/config').catch(function () { return fetchJson('/kaspchem/content/topics.json'); })
+  fetchJson('/api/kaspchem/config').catch(function () { // fallback when the API is down: the ten topics and the entry routes (quick check), both static files
+      return Promise.all([fetchJson('/kaspchem/content/topics.json'), fetchJson('/kaspchem/content/routes.json').catch(function () { return { topics: [] }; })])
+        .then(function (r) { return { topics: r[0].topics.concat(r[1].topics || []) }; });
+    })
     .then(function (c) {
       topics = c.topics; settings = c.settings || {};
       topic = topics.filter(function (t) { return t.id === topicId; })[0];
@@ -138,8 +141,9 @@
   function reveal() {
     var box = document.getElementById('result'); if (!box) return;
     var m = topic.messages, n = res.cardCount != null ? res.cardCount : res.count, html = '';
-    if (res.outcome === 'found' && topic.kind === 'router') {
-      html += routerFound(res.cards || [], n, m);
+    var routerTwoTier = topic.kind === 'router' && (res.outcome === 'found' || (res.outcome === 'insufficient' && res.infoCardCount > 0));
+    if (routerTwoTier) {
+      html += routerResult(res, m);
     } else if (res.outcome === 'found') {
       html += '<div class="head"><div class="big" id="num">' + (reduce ? n : 0) + '</div><div class="bigcap">נושאים שכדאי לברר</div><div class="goldline" aria-hidden="true"></div>' +
         '<h1 id="rt">' + esc(n === 1 ? 'זיהינו נושא אחד שכדאי לבדוק' : m.found.replace('{n}', n)) + ' ב' + esc(topic.name) + '</h1>' +
@@ -168,27 +172,56 @@
       var closed = document.createElement('p'); closed.className = 'note'; closed.textContent = 'השארת פרטים תיפתח בקרוב. בינתיים אפשר לבדוק תחומים נוספים.'; cta.replaceWith(closed); cta = null;
     }
     if (cta) cta.addEventListener('click', openForm);
+    if (routerTwoTier) wireRouter();
     var fix = document.getElementById('fix'); if (fix) fix.addEventListener('click', function () { var last = order.pop(); delete answers[last]; save(); goingBack = true; step(); });
   }
 
   /* ---- the quick check (kind "router"): a personal heading + ONE sentence, then one card per recommended topic that links to that topic's own check ---- */
   function topicById(id) { return topics.filter(function (t) { return t.id === id && t.kind !== 'router'; })[0] || null; }
-  function routerFound(cards, n, m) {
-    var items = cards.map(function (c) { var t = topicById(c.topic || c.group); return { card: c, topic: t, name: t ? t.name : c.title }; });
-    var names = items.slice(0, 3).map(function (x) { return 'ב' + x.name; });
-    var list = names.length === 1 ? names[0] : names.length === 2 ? names[0] + ' ו' + names[1] : names[0] + ', ' + names[1] + ' ו' + names[2];
-    var rest = n - names.length;
-    var sentence = 'לפי התשובות שלכם, כדאי להתחיל ' + list + (rest > 0 ? ', ויש עוד ' + (rest === 1 ? 'תחום אחד' : rest + ' תחומים') + ' ברשימה' : '') + '.';
-    return '<div class="head"><div class="goldline" aria-hidden="true"></div>' +
-      '<h1 id="rt">' + esc(n === 1 ? 'זיהינו תחום אחד שכדאי להתחיל בו' : m.found.replace('{n}', n)) + '</h1>' +
-      '<p class="qk-sentence">' + esc(sentence) + '</p>' + PRELIM + '</div>' +
-      '<ul class="finds">' + items.map(function (x, i) {
-        var c = x.card, parts = c.parts || [c];
-        return '<li class="find" style="animation-delay:' + (reduce ? 0 : 400 + i * 180) + 'ms"><i class="mk" aria-hidden="true"></i><div><b>' + esc(c.title) + '</b>' +
-          '<ul class="qk-reasons">' + parts.map(function (p) { return '<li>' + esc(p.why) + '</li>'; }).join('') + '</ul>' +
-          (x.topic ? '<a class="btn qk-go" href="/kaspchem/check/' + esc(x.topic.id) + '">לבדיקה מלאה: ' + esc(x.topic.name) + '</a>' : '') + '</div></li>';
-      }).join('') + '</ul>' +
-      '<div class="cta-row"><button type="button" class="btn" id="cta">אני רוצה עזרה בבדיקה</button><p class="reassure">הבדיקה הראשונית חינמית, והשארת פרטים אינה התחייבות.</p><a class="btn link" href="/kaspchem">לבדוק תחום אחר</a></div>';
+  var QK_CAP = 4; // firm cards shown at first; the rest is in the page, hidden until the user expands it
+  function qkCard(x, i, label, cls) {
+    var c = x.card, parts = c.parts || [c];
+    return '<li class="find' + (cls ? ' ' + cls : '') + '" style="animation-delay:' + (reduce ? 0 : 400 + i * 180) + 'ms"><i class="mk" aria-hidden="true"></i><div><b>' + esc(c.title) + '</b>' +
+      '<ul class="qk-reasons">' + parts.map(function (p) { return '<li>' + esc(p.why) + '</li>'; }).join('') + '</ul>' +
+      (x.topic ? '<a class="btn qk-go" href="/kaspchem/check/' + esc(x.topic.id) + '">' + label + ': ' + esc(x.topic.name) + '</a>' : '') + '</div></li>';
+  }
+  function qkItems(cards) { return cards.map(function (c) { var t = topicById(c.topic || c.group); return { card: c, topic: t, name: t ? t.name : c.title }; }); }
+  function routerResult(r, m) {
+    var firm = qkItems(r.cards || []), info = qkItems(r.infoCards || []), n = firm.length;
+    var html = '';
+    if (n) {
+      var names = firm.slice(0, 3).map(function (x) { return 'ב' + x.name; });
+      var list = names.length === 1 ? names[0] : names.length === 2 ? names[0] + ' ו' + names[1] : names[0] + ', ' + names[1] + ' ו' + names[2];
+      var rest = n - names.length;
+      var sentence = 'לפי התשובות שלכם, כדאי להתחיל ' + list + (rest > 0 ? ', ויש עוד ' + (rest === 1 ? 'תחום אחד' : rest + ' תחומים') + ' ברשימה' : '') + '.';
+      html += '<div class="head"><div class="goldline" aria-hidden="true"></div><h1 id="rt">' + esc(n === 1 ? 'זיהינו תחום אחד שכדאי להתחיל בו' : m.found.replace('{n}', n)) + '</h1>' +
+        '<p class="qk-sentence">' + esc(sentence) + '</p>' + PRELIM + '</div>';
+      var top = firm.slice(0, QK_CAP), more = firm.slice(QK_CAP);
+      html += '<ul class="finds qk-top">' + top.map(function (x, i) { return qkCard(x, i, 'לבדיקה מלאה'); }).join('') + '</ul>';
+      if (more.length) {
+        html += '<ul class="finds qk-rest" id="qk-more" hidden>' + more.map(function (x, i) { return qkCard(x, i, 'לבדיקה מלאה'); }).join('') + '</ul>' +
+          '<div class="qk-tog-row"><button type="button" class="btn qk-tog" id="qk-tog" aria-expanded="false" aria-controls="qk-more" data-n="' + more.length + '">הצגת כל התחומים שזוהו (' + more.length + ')</button></div>';
+      }
+    } else {
+      // only needs-info items: nothing was "identified", so nothing here says so
+      html += '<div class="head"><div class="goldline" aria-hidden="true"></div><h1 id="rt">חסר לנו מידע — כדאי להמשיך לבדיקה בתחומים הבאים</h1>' + PRELIM + '</div>';
+    }
+    if (info.length) {
+      html += '<section class="qk-info" aria-labelledby="qk-info-h">' + (n ? '<h2 id="qk-info-h">חסר מידע — כדאי להמשיך לבדיקה</h2>' : '<h2 id="qk-info-h" class="sr">חסר מידע — כדאי להמשיך לבדיקה</h2>') +
+        '<p class="qk-info-sub">בתחומים האלה אין לנו די מידע כדי לומר אם יש מה למצוא. אפשר להמשיך לבדיקה המלאה כדי לברר.</p>' +
+        '<ul class="finds qk-infolist">' + info.map(function (x, i) { return qkCard(x, i, 'להמשך הבדיקה', 'qk-infocard'); }).join('') + '</ul></section>';
+    }
+    html += '<div class="cta-row"><button type="button" class="btn" id="cta">אני רוצה עזרה בבדיקה</button><p class="reassure">הבדיקה הראשונית חינמית, והשארת פרטים אינה התחייבות.</p>' +
+      (n ? '' : '<button type="button" class="btn link" id="fix">לחזור ולתקן תשובות</button>') + '<a class="btn link" href="/kaspchem">לבדוק תחום אחר</a></div>';
+    return html;
+  }
+  function wireRouter() {
+    var tog = document.getElementById('qk-tog'); if (!tog) return;
+    tog.addEventListener('click', function () {
+      var box = document.getElementById('qk-more'), open = tog.getAttribute('aria-expanded') === 'true';
+      box.hidden = open; tog.setAttribute('aria-expanded', String(!open));
+      tog.textContent = open ? 'הצגת כל התחומים שזוהו (' + tog.dataset.n + ')' : 'הצגת פחות';
+    });
   }
 
   function safeUrl(u) { return /^https:\/\//.test(String(u || '')) ? u : null; }

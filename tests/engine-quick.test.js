@@ -8,9 +8,10 @@ const path = require('path');
 const E = require('../kaspchem/assets/engine.js');
 const GM = require('../scripts/golden-master.js');
 
-const ALL = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'kaspchem', 'content', 'topics.json'), 'utf8')).topics;
-const Q = ALL.find((t) => t.id === 'quick');
-const TEN = ALL.filter((t) => t.kind !== 'router');
+const CONTENT = path.join(__dirname, '..', 'kaspchem', 'content');
+const TEN = JSON.parse(fs.readFileSync(path.join(CONTENT, 'topics.json'), 'utf8')).topics;        // topics.json: exactly the ten check topics
+const ROUTES = JSON.parse(fs.readFileSync(path.join(CONTENT, 'routes.json'), 'utf8')).topics;     // routes.json: entry routes (the quick check)
+const Q = ROUTES.find((t) => t.id === 'quick');
 const TEN_IDS = TEN.map((t) => t.id);
 const PRIORITY = ['lost-funds', 'tax-refunds', 'national-insurance', 'mortgage', 'insurance-pension', 'banking-loans', 'household', 'housing', 'payslip-rights', 'education-work'];
 
@@ -29,12 +30,12 @@ function walk(cfg, onLeaf, multi) {
 function condQs(c, out) { if (!c) return out; if (c.all) c.all.forEach((x) => condQs(x, out)); else if (c.any) c.any.forEach((x) => condQs(x, out)); else if (c.not) condQs(c.not, out); else if (c.q) out.add(c.q); return out; }
 const hasNot = (c) => !!c && (!!c.not || (c.all || c.any || []).some(hasNot));
 
-test('the quick check is the 11th topic: kind router, lints clean, the ten are untouched and come first', () => {
-  assert.ok(Q, 'topic quick exists');
-  assert.equal(Q.kind, 'router');
-  assert.equal(ALL.length, 11); assert.equal(ALL[10].id, 'quick'); assert.equal(TEN.length, 10);
+test('the quick check lives in routes.json (kind router), lints clean; topics.json holds exactly the ten and no router', () => {
+  assert.ok(Q, 'route quick exists');
+  assert.equal(Q.kind, 'router'); assert.equal(ROUTES.length, 1);
+  assert.equal(TEN.length, 10); assert.ok(TEN.every((t) => t.kind === undefined && t.id !== 'quick'));
   assert.deepEqual(E.lint(Q), []);
-  assert.ok(ALL.every((t) => t.id === 'quick' || t.kind === undefined), 'only the quick check is a router');
+  assert.deepEqual(require('../netlify/functions/_kaspchem/content').routeProblems({ topics: TEN }, { topics: ROUTES }), []);
 });
 
 test('every finding.topic is one of the ten published topics, and the card group is that same topic', () => {
@@ -107,14 +108,14 @@ test('every rule can fire (on a path with single picks), and it fires for the re
   Q.rules.forEach((r) => assert.ok(fires[r.id] > 0, 'rule ' + r.id + ' can never fire'));
 });
 
-test('outcomes: "none" happens on exactly 12 skeleton paths; "insufficient" on exactly 12 more, and only through "not sure" about the annual tax report', () => {
+test('outcomes: "none" on exactly 12 skeleton paths; "insufficient" on exactly 96, always with a needs-info item and never with a firm one', () => {
   let none = 0, insufficient = 0, found = 0; const unknownSets = new Set();
-  walk(Q, (a, m) => { const r = E.evaluate(Q, a), o = r.outcome; if (o === 'none') none += m; else if (o === 'insufficient') { insufficient += m; unknownSets.add(r.unknown.join(',')); } else found += m; }, 'singles');
+  walk(Q, (a, m) => { const r = E.evaluate(Q, a), o = r.outcome; if (o === 'none') none += m; else if (o === 'insufficient') { insufficient += m; unknownSets.add(r.unknown.join(',')); assert.equal(r.count, 0); assert.ok(r.infoCardCount > 0, 'insufficient without any needs-info card: ' + JSON.stringify(a)); } else { found += m; assert.ok(r.count > 0); } }, 'singles');
   // 'singles' counts each single pick once; "none" needs both multi questions on their exclusive "none" option, so it is one path per skeleton
   assert.equal(none, 12);
-  // every other "not sure" answer (housing benefit, payslip) and "do not remember" (insurance check) already recommends a topic, so only the tax report can leave a person with nothing
-  assert.equal(insufficient, 12);
-  assert.deepEqual([...unknownSets], ['taxfile']);
+  // every "not sure" answer (tax report, housing benefit, payslip, insurance check) now yields a needs-info item (second tier) and never a finding
+  assert.equal(insufficient, 96);
+  assert.ok(['taxfile', 'payslip', 'cover', 'housebenefit'].every((u) => [...unknownSets].some((s) => s.split(',').includes(u))));
   assert.ok(found > 0);
   // a path with any non-"none" multi pick always finds something, because the rules are positive and each multi option has a rule
   Q.questions.filter((q) => q.multi).forEach((q) => q.options.filter((o) => !o.exclusive).forEach((o) => {
@@ -147,9 +148,21 @@ test('persona: an employed owner with no mortgage who ticked nothing and checked
   assert.equal(r.outcome, 'none'); assert.equal(r.count, 0); assert.equal(r.cardCount, 0);
 });
 
-test('persona: a retiree is always pointed at national insurance (rule q-ni-ret), even with nothing else; this is why a retiree never gets "none"', () => {
+test('persona: a retiree with everything else benign gets "insufficient" with ONLY a needs-info national-insurance item (the status alone is not a finding)', () => {
   const r = ev({ work: 'retired', taxfile: undefined, payslip: undefined });
-  assert.equal(r.outcome, 'found'); assert.deepEqual(tops(r), ['national-insurance']); assert.deepEqual(r.findings.map((f) => f.id), ['q-ni-ret']);
+  assert.equal(r.outcome, 'insufficient'); assert.equal(r.count, 0); assert.equal(r.cardCount, 0);
+  assert.deepEqual(r.infoCards.map((c) => c.topic), ['national-insurance']); assert.deepEqual(r.findings.map((f) => f.id), ['q-ni-ret']);
+  assert.ok(r.findings[0].needsInfo);
+});
+
+test('persona: a retiree with a health event gets a FIRM national-insurance card whose reason is the health one; the retirement item is not repeated as needs-info', () => {
+  const r = ev({ work: 'retired', taxfile: undefined, payslip: undefined, events: ['health'] });
+  assert.equal(r.outcome, 'found'); assert.deepEqual(tops(r), ['national-insurance']);
+  assert.deepEqual(r.cards[0].parts.map((p) => p.id), ['q-ni-health']);
+  assert.match(r.cards[0].parts[0].why, /מחלה או פגיעה/); assert.ok(!/פרישה/.test(r.cards[0].parts[0].why));
+  assert.deepEqual(r.infoCards, []); assert.equal(r.count, 1);
+  // the retirement rule still matched (it is listed in findings, flagged), it just adds nothing to the count
+  assert.ok(r.findings.some((f) => f.id === 'q-ni-ret' && f.needsInfo));
 });
 
 test('persona: an employee who rents, lost the job, never filed and does not read the payslip: tax, national insurance, housing, payslip rights', () => {
@@ -173,7 +186,7 @@ test('persona: a student with a old mortgage and a birth: education, tax (family
 });
 
 test('persona: everything ticked and nothing checked recently lists all ten topics, in priority order', () => {
-  const r = ev({ work: 'student', home: 'rent', housebenefit: 'no', events: ['birth', 'job', 'health', 'income', 'family'], lost: ['jobs', 'forgot', 'inherit', 'oldacc'], cover: 'never', bank: 'never', bills: 'never', taxfile: undefined, payslip: undefined });
+  const r = ev({ work: 'student', home: 'rent', housebenefit: 'no', events: ['birth', 'job', 'health', 'income', 'family'], lost: ['jobs', 'forgot', 'inherit', 'oldacc'], cover: 'old', bank: 'never', bills: 'never', taxfile: undefined, payslip: undefined });
   assert.deepEqual(tops(r), ['lost-funds', 'tax-refunds', 'national-insurance', 'insurance-pension', 'banking-loans', 'household', 'housing', 'payslip-rights', 'education-work']);
   // student: the payslip question is not asked, but "job ended" still points at payslip rights; mortgage needs the old-mortgage answer
   const r2 = ev({ work: 'student', home: 'mortgage_old', housebenefit: 'no', events: ['birth', 'job', 'health', 'income'], lost: ['jobs'], cover: 'old', bank: 'old', bills: 'old', taxfile: undefined, payslip: undefined });
@@ -197,4 +210,68 @@ test('the finding.topic extension is purely additive: findings and cards of the 
 test('the lead endpoint\'s stored shape: finding ids only (the topic comes from the rule), and they are all rule ids of the quick check', () => {
   const r = ev({ home: 'rent', housebenefit: 'no', events: ['job'] });
   r.findings.forEach((f) => assert.ok(Q.rules.some((x) => x.id === f.id)));
+});
+
+// ---- stage 4b: the second tier ("needs information") ----
+const INFO_RULES = Q.rules.filter((r) => r.finding.needsInfo);
+
+test('needs-info rules: exactly the "not sure" answers that the full topic does not count, plus the retirement status; each points at a topic; none sits in the ten', () => {
+  assert.deepEqual(INFO_RULES.map((r) => r.id).sort(), ['q-hs-own-unk', 'q-ip-unk', 'q-ni-ret', 'q-ps-unk', 'q-tx-unk']);
+  // every needs-info rule (except the retirement one) is triggered by an answer that is an "unknown" option of its question
+  INFO_RULES.filter((r) => r.id !== 'q-ni-ret').forEach((r) => {
+    const refs = []; (function f(c) { if (c.all) c.all.forEach(f); else if (c.any) c.any.forEach(f); else refs.push(c); })(r.when);
+    assert.ok(refs.some((c) => { const q = Q.questions.find((x) => x.id === c.q); return c.in.every((id) => (q.options.find((o) => o.id === id) || {}).unknown); }), r.id + ' is not triggered by an unknown option');
+  });
+  // and no firm rule is triggered by an unknown option alone... except the renters one, whose full-topic rule (hs-rent) counts "not sure"
+  Q.rules.filter((r) => !r.finding.needsInfo).forEach((r) => {
+    const refs = []; (function f(c) { if (c.all) c.all.forEach(f); else if (c.any) c.any.forEach(f); else refs.push(c); })(r.when);
+    refs.forEach((c) => { const q = Q.questions.find((x) => x.id === c.q); c.in.forEach((id) => { if ((q.options.find((o) => o.id === id) || {}).unknown) assert.equal(r.id, 'q-hs-rent-unk', r.id + ' fires firmly on an unknown option'); }); });
+  });
+});
+
+test('(a) a needs-info item never changes N, the cards counted, or the "found" outcome: removing every needs-info rule gives the same count, cards and found-ness', () => {
+  const firmOnly = Object.assign({}, Q, { rules: Q.rules.filter((r) => !r.finding.needsInfo) });
+  let n = 0;
+  walk(Q, (a) => {
+    const r = E.evaluate(Q, a), f = E.evaluate(firmOnly, a); n++;
+    assert.equal(r.count, f.count); assert.equal(r.cardCount, f.cardCount);
+    assert.deepEqual(r.cards.map((c) => c.topic), f.cards.map((c) => c.topic));
+    assert.equal(r.outcome === 'found', f.outcome === 'found');
+    assert.equal(r.outcome === 'found', r.count > 0);
+    r.infoCards.forEach((c) => { assert.ok(c.topic); assert.ok(!r.cards.some((x) => x.topic === c.topic), 'a topic is never in both tiers'); assert.ok(c.parts.every((p) => p.needsInfo)); });
+    assert.ok(r.infoCardCount <= 4);
+  }, 'singles');
+  assert.ok(n > 100000);
+});
+
+test('(c) a needs-info recommendation exists only where the path has a matching unknown answer (or the retirement status)', () => {
+  walk(Q, (a) => {
+    const r = E.evaluate(Q, a);
+    r.infoCards.forEach((c) => {
+      const unkAnswered = Q.questions.some((q) => (q.options || []).some((o) => o.unknown && [].concat(a[q.id] || []).includes(o.id)));
+      assert.ok(unkAnswered || a.work === 'retired', 'needs-info for ' + c.topic + ' with no unknown answer: ' + JSON.stringify(a));
+    });
+    // and the reverse: no unknown answer and not retired -> no needs-info item at all
+    const unk = Q.questions.some((q) => (q.options || []).some((o) => o.unknown && [].concat(a[q.id] || []).includes(o.id)));
+    if (!unk && a.work !== 'retired') assert.equal(r.infoCards.length, 0);
+  }, 'singles');
+});
+
+test('wording: no finding title, reason or section anywhere claims an approved or granted entitlement', () => {
+  const BAD = /מגיע(ים|ות)? לכם|זכאים|זכאית|זכאי\b|אושר|מאושר|זכיתם|הוענק|בוודאות|בטוח שיש/;
+  const bad = [];
+  Q.rules.forEach((r) => ['title', 'why', 'section', 'groupTitle', 'groupIntro'].forEach((k) => { if (BAD.test(r.finding[k] || '')) bad.push(r.id + '.' + k + ': ' + r.finding[k]); }));
+  assert.deepEqual(bad, []);
+  // needs-info wording says "not sure / worth continuing" and nothing that sounds like a result
+  INFO_RULES.forEach((r) => assert.match(r.finding.why, /כדאי להמשיך לבדיקה|כדאי להמשיך לבדיקת/));
+  INFO_RULES.forEach((r) => assert.ok(!/זיהינו|נמצא|יש לכם/.test(r.finding.why)));
+});
+
+test('the second tier is additive: the ten topics carry no needsInfo flag, no infoCards content, and identical counts', () => {
+  TEN.forEach((t) => t.rules.forEach((r) => assert.ok(!('needsInfo' in (r.finding || {})))));
+  (function go(t, ans) {
+    const q = E.nextQuestion(t, ans);
+    if (!q) { const r = E.evaluate(t, ans); assert.equal(r.infoCardCount, 0); assert.equal(r.count, r.findings.length); assert.equal(r.outcome === 'found', r.findings.length > 0); return; }
+    GM.choices(q).forEach((c) => go(t, Object.assign({}, ans, { [q.id]: c })));
+  })(TEN[0], {});
 });

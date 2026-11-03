@@ -1,6 +1,33 @@
 // Post-deploy smoke test for Kaspchem. Safe to run against preview or production: read-only requests, plus ONE lead POST that is
 // rejected before anything is written (gate closed, or - with --gate-open - an invalid phone). It never creates data.
 // Usage: node scripts/launch-smoke.js <baseUrl> [--gate-open]
+const CORE = ['lost-funds', 'tax-refunds', 'housing', 'mortgage', 'insurance-pension', 'payslip-rights', 'national-insurance', 'banking-loans', 'household', 'education-work'];
+
+// The checks on the public config answer, as a pure function (so they can be tested without a network): [{ pass: true|false|null, msg }], pass null = information only.
+// The ten core topics are required. The quick check ("quick", kind router) is OPTIONAL: a deployment that does not have it yet (an older preview) is fine and only
+// gets an informational line; if it IS present its shape is validated (kind, questions, rules, and every finding.topic must be one of the ten).
+function configChecks(cfg) {
+  const out = [], topics = cfg && Array.isArray(cfg.topics) ? cfg.topics : null;
+  if (!cfg || cfg.ok !== true || !topics) return [{ pass: false, msg: 'config API answers ok with a topics list' }];
+  const ids = topics.map((t) => t.id);
+  const missing = CORE.filter((id) => !ids.includes(id));
+  out.push({ pass: missing.length === 0, msg: 'config API returns the ten core topics' + (missing.length ? ' (missing: ' + missing.join(', ') + ')' : '') });
+  const q = topics.find((t) => t.id === 'quick');
+  if (!q) out.push({ pass: null, msg: 'the quick check ("quick") is not in this deployment (fine for a build from before the quick check)' });
+  else {
+    const bad = [];
+    if (q.kind !== 'router') bad.push('kind is not router');
+    if (!Array.isArray(q.questions) || q.questions.length < 3) bad.push('no questions');
+    if (!Array.isArray(q.rules) || !q.rules.length) bad.push('no rules');
+    (q.rules || []).forEach((r) => { const t = r.finding && r.finding.topic; if (!CORE.includes(t)) bad.push('rule ' + r.id + ' points at "' + t + '", not one of the ten'); });
+    out.push({ pass: bad.length === 0, msg: 'quick check is present and well-formed (router, questions, rules, every finding.topic among the ten)' + (bad.length ? ' -> ' + bad.slice(0, 3).join('; ') : '') });
+  }
+  out.push({ pass: topics.every((t) => Array.isArray(t.questions) && t.questions.length >= 3), msg: 'every topic has questions' });
+  return out;
+}
+module.exports = { configChecks, CORE };
+if (require.main !== module) return; // required by a test: only the pure checks above are exported
+
 const base = (process.argv[2] || '').replace(/\/$/, '');
 const gateOpen = process.argv.includes('--gate-open');
 if (!/^https:\/\//.test(base)) { console.error('usage: node scripts/launch-smoke.js https://host [--gate-open]'); process.exit(2); }
@@ -13,16 +40,15 @@ const get = (p, o) => fetch(base + p, Object.assign({ redirect: 'manual' }, o));
   console.log('Smoke test: ' + base + (gateOpen ? '  (expecting the lead gate OPEN)' : '  (expecting the lead gate CLOSED)'));
 
   // public pages
+  // /kaspchem/check/quick is the same shell page as every check page, so it is 200 whether or not this deployment has the quick check yet
   for (const p of ['/kaspchem/', '/kaspchem/check/mortgage', '/kaspchem/check/quick', '/kaspchem/privacy.html', '/kaspchem/terms.html', '/']) {
     const r = await get(p); ok(r.status === 200, `public page ${p} is 200`, r.status);
   }
   const r404 = await get('/kaspchem/check/does-not-exist'); ok(r404.status === 200, 'unknown topic page still renders a friendly message (200)');
 
-  // config API: the ten topics plus the quick check (stage 4: kind "router", id "quick") = 11 entries; no prices unless approved.
-  // The "ten topics" expectation is deliberately kept for the non-router entries, so a missing topic is still caught.
+  // config API: the ten core topics (required) and the quick check (optional, validated when present); no prices unless approved
   const cfg = await (await get('/api/kaspchem/config')).json().catch(() => ({}));
-  const tens = Array.isArray(cfg.topics) ? cfg.topics.filter((t) => t.kind !== 'router') : [];
-  ok(cfg.ok === true && Array.isArray(cfg.topics) && tens.length === 10 && cfg.topics.length === 11 && cfg.topics.some((t) => t.id === 'quick' && t.kind === 'router'), 'config API returns the ten topics and the quick check', JSON.stringify(cfg).slice(0, 100));
+  configChecks(cfg).forEach((c) => { if (c.pass === null) console.log('INFO ' + c.msg); else ok(c.pass, c.msg); });
   ok(Array.isArray(cfg.prices || []) && (cfg.prices || []).every((x) => x && x.price != null), 'no price is published without a value');
 
   // lead gate

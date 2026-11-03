@@ -8,15 +8,15 @@ const L = {
   employee: 'שכיר/ה', self: 'עצמאי/ת', seeking: 'לא עובד/ת כרגע', retired: 'גמלאי/ת', student: 'סטודנט/ית, חייל/ת או משוחרר/ת',
   mortgageOld: 'בדירה שלי, עם משכנתה שנלקחה או שונתה לפני חמש שנים או יותר', mortgageNew: 'בדירה שלי, עם משכנתה שנלקחה או שונתה בחמש השנים האחרונות', owned: 'בדירה שלי, בלי משכנתה', rent: 'בשכירות', other: 'אחר, למשל גרים עם המשפחה',
   hbYes: 'כן, בדקתי', hbNo: 'לא בדקתי', hbUnk: 'לא בטוח/ה',
-  birth: 'לידה או אימוץ', job: 'פיטורים או סיום עבודה', none: 'אף אחד מאלה', jobs: 'עבדתי ביותר ממקום עבודה אחד במהלך החיים', oldacc: 'החלפתי בנק או דירה בלי לסגור חשבונות ישנים',
-  coverRecent: 'בשלוש השנים האחרונות', coverOld: 'לפני יותר משלוש שנים',
+  birth: 'לידה או אימוץ', health: 'מחלה או פגיעה שמנעו עבודה', job: 'פיטורים או סיום עבודה', none: 'אף אחד מאלה', jobs: 'עבדתי ביותר ממקום עבודה אחד במהלך החיים', oldacc: 'החלפתי בנק או דירה בלי לסגור חשבונות ישנים',
+  coverRecent: 'בשלוש השנים האחרונות', coverOld: 'לפני יותר משלוש שנים', coverNever: 'לא זוכר/ת שבדקתי',
   recent: 'בשנה האחרונה', old: 'לפני יותר משנה', never: 'מעולם לא בדקתי',
   yes: 'כן', no: 'לא', unk: 'לא בטוח/ה'
 };
 
 const noHScroll = async (page) => expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(2); // Edge phone emulation: see nothingSticksOut
-// (the honeypot field of the lead form is deliberately parked off-screen.) Edge's phone emulation can report a layout viewport 2px wider than the page, so we check that no element sticks out instead.
-const nothingSticksOut = async (page) => expect(await page.evaluate(() => { const vw = document.documentElement.clientWidth; return [].filter.call(document.querySelectorAll('body *'), (e) => { const r = e.getBoundingClientRect(); return r.width && (r.right > vw + 0.5 || r.left < -0.5) && !e.closest('#kp-defs') && !e.closest('.hp'); }).map((e) => e.tagName + '.' + String(e.className && e.className.baseVal !== undefined ? e.className.baseVal : e.className)); })).toEqual([]);
+// (the honeypot field of the lead form is deliberately parked off-screen.) Edge's phone emulation can report a layout viewport 2px wider than the page, so we check that no element sticks out by more than that 2px (tolerance 2.5) instead.
+const nothingSticksOut = async (page) => expect(await page.evaluate(() => { const vw = document.documentElement.clientWidth; return [].filter.call(document.querySelectorAll('body *'), (e) => { const r = e.getBoundingClientRect(); return r.width && (r.right > vw + 2.5 || r.left < -2.5) && !e.closest('#kp-defs') && !e.closest('.hp'); }).map((e) => e.tagName + '.' + String(e.className && e.className.baseVal !== undefined ? e.className.baseVal : e.className)); })).toEqual([]);
 const frac = (page) => page.locator('.kp-ring:visible').first().getAttribute('data-frac').then(Number);
 const coins = (page) => page.locator('.kp-jar:visible').first().getAttribute('data-coins').then(Number);
 const h1 = (page) => page.locator('.q h1').first().textContent();
@@ -125,9 +125,33 @@ test('branching: a retiree skips the tax and payslip questions; "other" housing 
   await expect(page.locator('.pmeta')).toContainText('שאלה 7 מתוך 7');
   await pick(page, L.recent);                                                          // seven questions and done: no tax report / payslip question
   await result(page);
-  await expect(page.locator('#result h1')).toContainText('זיהינו תחום אחד שכדאי להתחיל בו');
+  // a retiree with everything else benign: the status alone is NOT a finding, only a needs-info pointer
+  await expect(page.locator('#result h1')).toHaveText('חסר לנו מידע — כדאי להמשיך לבדיקה בתחומים הבאים');
+  expect(await page.locator('#result').innerText()).not.toContain('זיהינו');
+  await expect(page.locator('.qk-sentence')).toHaveCount(0);
+  await expect(page.locator('#result .qk-top .find')).toHaveCount(0);
+  await expect(page.locator('.qk-infocard')).toHaveCount(1);
+  await expect(page.locator('.qk-infocard')).toContainText('ביטוח לאומי');
+  await expect(page.locator('.qk-infocard a.qk-go')).toHaveText('להמשך הבדיקה: ביטוח לאומי');
+  await expect(page.locator('.qk-infocard a.qk-go')).toHaveAttribute('href', '/kaspchem/check/national-insurance');
+  expect(((await page.locator('#result').innerText()).match(/תוצאות ראשוניות בלבד/g) || []).length).toBe(1);
+  await expect(page.locator('#result')).not.toContainText(/מגיע(ים|ות)? לכם|זכאים|אושר/);
+  await nothingSticksOut(page);
+});
+
+test('retiree with a health event: a FIRM national-insurance card whose reason is the health one; no needs-info section', async ({ page }) => {
+  await open(page);
+  await pick(page, L.retired); await pick(page, L.other);
+  await multi(page, [L.health]); await multi(page, [L.none]);
+  await pick(page, L.coverRecent); await pick(page, L.recent); await pick(page, L.recent);
+  await result(page);
+  await expect(page.locator('#result h1')).toHaveText('זיהינו תחום אחד שכדאי להתחיל בו');
   await expect(page.locator('.qk-sentence')).toHaveText('לפי התשובות שלכם, כדאי להתחיל בביטוח לאומי.');
-  await expect(page.locator('.find')).toHaveCount(1);
+  await expect(page.locator('#result .find')).toHaveCount(1);
+  await expect(page.locator('#result .find .qk-reasons li')).toHaveCount(1);
+  await expect(page.locator('#result .find .qk-reasons li')).toContainText('מחלה או פגיעה');
+  await expect(page.locator('#result .find .qk-reasons li')).not.toContainText('פרישה');
+  await expect(page.locator('.qk-info')).toHaveCount(0);
 });
 
 test('multi-select screens fit, long labels wrap, tap targets are large, and the checkboxes work by keyboard (Space toggles, Enter on continue)', async ({ page }) => {
@@ -190,7 +214,18 @@ test('result: personal heading and one sentence, a card per topic with a real li
   await result(page);
   await expect(page.locator('#result h1')).toHaveText('זיהינו 9 תחומים שכדאי להתחיל בהם');
   await expect(page.locator('.qk-sentence')).toHaveText('לפי התשובות שלכם, כדאי להתחיל בכספים אבודים, במסים והחזרים ובביטוח לאומי, ויש עוד 6 תחומים ברשימה.');
-  await expect(page.locator('#result .find')).toHaveCount(9);
+  await expect(page.locator('#result .find')).toHaveCount(9);                           // all nine are in the page...
+  await expect(page.locator('#result .qk-top .find')).toHaveCount(4);                    // ...four are shown, in the fixed priority order
+  await expect(page.locator('#qk-more')).toBeHidden();                                   // the rest is hidden (not deleted) until expanded
+  await expect(page.locator('#qk-more')).toHaveAttribute('hidden', '');
+  await expect(page.locator('#result .find:visible')).toHaveCount(4);
+  const tog = page.locator('#qk-tog');
+  await expect(tog).toHaveText('הצגת כל התחומים שזוהו (5)');
+  await expect(tog).toHaveAttribute('aria-expanded', 'false'); await expect(tog).toHaveAttribute('aria-controls', 'qk-more');
+  expect((await tog.boundingBox()).height).toBeGreaterThanOrEqual(44);
+  await tog.click();
+  await expect(tog).toHaveAttribute('aria-expanded', 'true'); await expect(tog).toHaveText('הצגת פחות');
+  await expect(page.locator('#result .find:visible')).toHaveCount(9);
   const hrefs = await page.locator('a.qk-go').evaluateAll((as) => as.map((a) => a.getAttribute('href')));
   expect(hrefs).toEqual(['lost-funds', 'tax-refunds', 'national-insurance', 'mortgage', 'insurance-pension', 'banking-loans', 'household', 'housing', 'payslip-rights'].map((t) => '/kaspchem/check/' + t));
   // every card: the topic name as title, one line per reason, a button that names the topic; nothing from the ordinary cards
@@ -224,6 +259,7 @@ test('result: the link on a card really opens that topic\'s own questionnaire', 
   await result(page);
   await expect(page.locator('#result .find')).toHaveCount(9);
   for (const t of ['housing', 'payslip-rights', 'tax-refunds']) {
+    if ((await page.locator('#qk-tog').getAttribute('aria-expanded')) === 'false') await page.locator('#qk-tog').click();   // housing and payslip rights are behind the expander
     await page.locator('a.qk-go[href$="/' + t + '"]').click();
     await expect(page.locator('.q h1')).toBeVisible();
     await expect(page.locator('#app h1')).not.toContainText('לא נמצא');
@@ -250,8 +286,11 @@ test('result: "not sure" about the tax report with nothing else leaves "insuffic
   await open(page);
   await answer(page, Object.assign({}, NONE_PATH, { tax: L.unk }));
   await result(page);
-  await expect(page.locator('#result h1')).toHaveText('חסר לנו מידע כדי להמליץ על תחום');
-  await expect(page.locator('#result .sub')).toContainText('אפשר לחזור ולתקן');
+  await expect(page.locator('#result h1')).toHaveText('חסר לנו מידע — כדאי להמשיך לבדיקה בתחומים הבאים');
+  expect(await page.locator('#result').innerText()).not.toContain('זיהינו');
+  await expect(page.locator('.qk-infocard')).toHaveCount(1);
+  await expect(page.locator('.qk-infocard')).toContainText('לא בטוח/ה אם הוגש דוח שנתי');
+  await expect(page.locator('.qk-infocard a.qk-go')).toHaveText('להמשך הבדיקה: מסים והחזרים');
   await expect(page.locator('#fix')).toBeVisible();
   expect(((await page.locator('#result').innerText()).match(/תוצאות ראשוניות בלבד/g) || []).length).toBe(1);
   await page.locator('#fix').click();
@@ -312,7 +351,7 @@ test('session: a reload resumes the quick check where it was; a stale or malform
   // finished answers resume straight at the result
   await page.evaluate(() => sessionStorage.setItem('kaspchem:quick', JSON.stringify({ a: { work: 'retired', home: 'other', events: ['none'], lost: ['none'], cover: 'recent', bank: 'recent', bills: 'recent' }, o: ['work', 'home', 'events', 'lost', 'cover', 'bank', 'bills'] })));
   await page.reload(); await result(page);
-  await expect(page.locator('#result h1')).toContainText('תחום אחד');
+  await expect(page.locator('#result h1')).toContainText('חסר לנו מידע');               // a retiree with nothing else: the needs-info result
 });
 
 test('reduced motion: the whole flow works without waiting for animations and nothing is cut off', async ({ browser, baseURL }, ti) => {
@@ -329,4 +368,59 @@ test('reduced motion: the whole flow works without waiting for animations and no
   expect(parseFloat(await page.locator('#result .find').first().evaluate((e) => getComputedStyle(e).animationDuration))).toBeLessThan(0.01);
   await nothingSticksOut(page);
   await ctx.close();
+});
+
+// ---- stage 4b: second tier and the expander ----
+const MIXED = { work: L.employee, home: L.owned, hb: L.hbUnk, events: [L.birth], lost: [L.none], cover: L.coverNever, bank: L.recent, bills: L.recent, tax: L.yes, pay: L.yes };
+
+test('result: firm cards first, then a separate "needs information" section with its own links; N and the sentence count firm topics only', async ({ page }) => {
+  await open(page);
+  await answer(page, MIXED);
+  await result(page);
+  await expect(page.locator('#result h1')).toHaveText('זיהינו 2 תחומים שכדאי להתחיל בהם');                // tax (family) and national insurance (birth): firm only
+  await expect(page.locator('.qk-sentence')).toHaveText('לפי התשובות שלכם, כדאי להתחיל במסים והחזרים ובביטוח לאומי.');
+  await expect(page.locator('#result .qk-top .find')).toHaveCount(2);
+  await expect(page.locator('#qk-tog')).toHaveCount(0);                                                // two cards: no expander
+  const info = page.locator('.qk-info');
+  await expect(info.locator('h2')).toHaveText('חסר מידע — כדאי להמשיך לבדיקה');
+  await expect(info.locator('.qk-infocard')).toHaveCount(2);
+  await expect(info.locator('a.qk-go')).toHaveText(['להמשך הבדיקה: ביטוחים ופנסיה', 'להמשך הבדיקה: דיור וארנונה']);
+  await expect(info).toContainText('לא זוכר/ת מתי נבדקו הביטוחים והפנסיה');
+  await expect(info).toContainText('לא בטוח/ה אם בדקתם הנחות בתשלומי הדיור');
+  expect(await page.locator('#result').innerText()).toContain('זיהינו');
+  expect(((await page.locator('#result').innerText()).match(/זיהינו/g) || []).length).toBe(1);        // only in the heading
+  expect(((await page.locator('#result').innerText()).match(/תוצאות ראשוניות בלבד/g) || []).length).toBe(1);
+  // order on the page: firm cards, then the needs-info section, then the call to action
+  const y = (sel) => page.locator(sel).first().evaluate((e) => e.getBoundingClientRect().top + scrollY);
+  expect(await y('.qk-top')).toBeLessThan(await y('.qk-info')); expect(await y('.qk-info')).toBeLessThan(await y('#cta'));
+  await expect(page.locator('#lead')).toHaveCount(0);
+  await nothingSticksOut(page); await noHScroll(page);
+  for (const b of await page.locator('a.qk-go').all()) expect((await b.boundingBox()).height).toBeGreaterThanOrEqual(44);
+});
+
+test('result: long results show four topics, the expander works by keyboard, nothing is lost, and the needs-info section and the call to action stay in order', async ({ page }) => {
+  await open(page);
+  await answer(page, Object.assign({}, BIG_PATH, { hb: L.hbUnk }));        // eight firm topics (housing becomes needs-info)
+  await result(page);
+  await expect(page.locator('#result h1')).toHaveText('זיהינו 8 תחומים שכדאי להתחיל בהם');       // N counts every firm topic, also the ones still hidden
+  await expect(page.locator('.qk-sentence')).toContainText('ויש עוד 5 תחומים ברשימה');
+  await expect(page.locator('#result .find:visible')).toHaveCount(4 + 1);                         // four firm + the one needs-info card
+  const tog = page.locator('#qk-tog');
+  await expect(tog).toHaveText('הצגת כל התחומים שזוהו (4)');
+  const y = (sel) => page.locator(sel).first().evaluate((e) => e.getBoundingClientRect().top + scrollY);
+  expect(await y('#qk-tog')).toBeLessThan(await y('.qk-info')); expect(await y('.qk-info')).toBeLessThan(await y('#cta'));
+  // keyboard: Tab to the expander, Enter opens, Enter again closes; focus stays on the button
+  await page.locator('#qk-tog').focus();
+  await page.keyboard.press('Enter');
+  await expect(tog).toHaveAttribute('aria-expanded', 'true'); await expect(page.locator('#qk-more')).toBeVisible();
+  await expect(page.locator('#result .find:visible')).toHaveCount(8 + 1);
+  expect(await page.evaluate(() => document.activeElement.id)).toBe('qk-tog');
+  expect(await y('#qk-more')).toBeLessThan(await y('#qk-tog')); expect(await y('#qk-tog')).toBeLessThan(await y('.qk-info')); expect(await y('.qk-info')).toBeLessThan(await y('#cta'));
+  await nothingSticksOut(page);
+  await page.keyboard.press('Space');
+  await expect(tog).toHaveAttribute('aria-expanded', 'false'); await expect(page.locator('#qk-more')).toBeHidden();
+  await expect(tog).toHaveText('הצגת כל התחומים שזוהו (4)');
+  await expect(page.locator('#result .find')).toHaveCount(8 + 1);                                  // never deleted
+  // the call to action still works after expanding
+  await page.locator('#cta').click(); await expect(page.locator('#lead')).toBeVisible();
 });

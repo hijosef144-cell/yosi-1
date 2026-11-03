@@ -96,8 +96,8 @@
 
   /**
    * outcome:
-   *  'found'        — at least one rule matched → "identified topics worth checking"
-   *  'insufficient' — nothing matched, but at least one answer was "don't know" → not enough information
+   *  'found'        — at least one firm rule matched → "identified topics worth checking"
+   *  'insufficient' — no firm rule matched, but a needs-info rule matched or at least one answer was "don't know" → not enough information
    *  'none'         — nothing matched and every answer was definite → no focused topic identified
    */
   function evaluate(cfg, answers, opts) {
@@ -109,24 +109,36 @@
         var o = { id: r.id, title: f.title, why: f.why, step: f.step, official: f.official, refer: f.refer, serviceTag: r.serviceTag,
           group: f.group, groupTitle: f.groupTitle, groupIntro: f.groupIntro, groupStep: f.groupStep, section: f.section };
         if (f.topic) o.topic = f.topic;
+        // `finding.needsInfo` (set only by quick-check rules) marks a second tier: "not enough information, worth continuing to the full check". Never set on the ten topics.
+        if (f.needsInfo) o.needsInfo = true;
         return o;
       });
     // Display cards: findings that share a `group` (e.g. the same benefit for different tax years) are shown as ONE card with a section each.
     // Matching stays per rule; `findings`/`count` are unchanged, `cards`/`cardCount` are what the result screen counts.
-    var cards = [], byGroup = {};
-    findings.forEach(function (f) {
-      if (!f.group) { cards.push(f); return; }
-      if (!byGroup[f.group]) { byGroup[f.group] = { group: f.group, title: f.groupTitle || f.title, intro: f.groupIntro, step: f.groupStep, official: f.official, refer: f.refer, parts: [] }; if (f.topic) byGroup[f.group].topic = f.topic; cards.push(byGroup[f.group]); }
-      byGroup[f.group].parts.push(f);
-    });
+    // Needs-info findings (second tier) never count and never make the outcome 'found': `count`/`cardCount`/`cards` are the firm findings only; `infoCards` holds the
+    // needs-info ones, grouped the same way, and leaves out a group that already has a firm card (the topic is already recommended). `findings` lists both, in rule order.
+    function toCards(list) {
+      var out = [], by = {};
+      list.forEach(function (f) {
+        if (!f.group) { out.push(f); return; }
+        if (!by[f.group]) { by[f.group] = { group: f.group, title: f.groupTitle || f.title, intro: f.groupIntro, step: f.groupStep, official: f.official, refer: f.refer, parts: [] }; if (f.topic) by[f.group].topic = f.topic; out.push(by[f.group]); }
+        by[f.group].parts.push(f);
+      });
+      return out;
+    }
+    var firm = findings.filter(function (f) { return !f.needsInfo; });
+    var info = findings.filter(function (f) { return f.needsInfo; });
+    var cards = toCards(firm);
+    var firmGroups = {}; cards.forEach(function (c) { if (c.group) firmGroups[c.group] = true; });
+    var infoCards = toCards(info).filter(function (c) { return !(c.group && firmGroups[c.group]); });
     var unknownIds = [];
     visibleQuestions(cfg, answers).forEach(function (q) {
       var picked = [].concat(answers[q.id]);
       var hit = q.options.some(function (o) { return picked.indexOf(o.id) !== -1 && o.unknown; });
       if (hit) unknownIds.push(q.id);
     });
-    var outcome = findings.length ? 'found' : (unknownIds.length ? 'insufficient' : 'none');
-    return { outcome: outcome, findings: findings, count: findings.length, cards: cards, cardCount: cards.length, unknown: unknownIds };
+    var outcome = firm.length ? 'found' : ((info.length || unknownIds.length) ? 'insufficient' : 'none');
+    return { outcome: outcome, findings: findings, count: firm.length, cards: cards, cardCount: cards.length, infoCards: infoCards, infoCardCount: infoCards.length, unknown: unknownIds };
   }
 
   /** Static sanity checks for a config — used by the admin before publishing. Returns array of Hebrew error strings. */

@@ -80,6 +80,20 @@ test('the lead gate still applies to the quick check (closed gate: not_open, not
 
 test('public config: the quick check is served with its rules (the browser evaluates them with the shared engine), questions are those of the draft', async () => {
   const q = (await call('GET', '/api/kaspchem/config')).body.topics.find((t) => t.id === 'quick');
-  assert.equal(q.kind, 'router'); assert.equal(q.questions.length, 10); assert.equal(q.rules.length, 20);
+  assert.equal(q.kind, 'router'); assert.equal(q.questions.length, 10); assert.equal(q.rules.length, 25);
   assert.ok(q.rules.every((r) => r.finding.topic));
+});
+
+test('a lead with only needs-info items is stored with outcome "insufficient" and the needs-info rule ids; the dashboard marks them "(חסר מידע)"', async () => {
+  const retiree = { work: 'retired', home: 'other', events: ['none'], lost: ['none'], cover: 'recent', bank: 'recent', bills: 'recent' };
+  const r = await call('POST', '/api/kaspchem/lead', lead({ phone: '0503330006', name: 'פורש בדיקה', answers: retiree }));
+  assert.equal(r.status, 200);
+  const [row] = (await srv.pg.query('SELECT outcome, findings FROM treatment_requests WHERE id = $1', [r.body.ref])).rows;
+  assert.equal(row.outcome, 'insufficient'); assert.deepEqual(row.findings, ['q-ni-ret']);
+  const d = (await call('GET', A + '/requests/' + r.body.ref, null, ADMIN)).body.request;
+  assert.deepEqual(d.findingTitles, ['ביטוח לאומי: גיל פרישה (חסר מידע)']);
+  // retiree + health: firm outcome, both rules stored (the retirement one is the flagged needs-info rule)
+  const r2 = await call('POST', '/api/kaspchem/lead', lead({ phone: '0503330007', name: 'פורש חולה', answers: Object.assign({}, retiree, { events: ['health'] }) }));
+  const [row2] = (await srv.pg.query('SELECT outcome, findings FROM treatment_requests WHERE id = $1', [r2.body.ref])).rows;
+  assert.equal(row2.outcome, 'found'); assert.deepEqual([...row2.findings].sort(), ['q-ni-health', 'q-ni-ret']);
 });

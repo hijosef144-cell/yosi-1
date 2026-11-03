@@ -359,3 +359,17 @@ p { margin: 0 0 1rem; }
 .find .btn.qk-go:hover, .find .btn.qk-go:focus-visible { background: rgba(227,176,75,.18); color: #fff; }
 .find .btn.qk-go:active { transform: translateY(2px); }
 @media (min-width: 560px) { .find .btn.qk-go { display: inline-flex; width: auto; } }
+
+/* quick check, second tier ("needs information") and the expander for long results */
+.finds.qk-top { margin-bottom: .7rem; }
+.finds.qk-rest { margin: 0 0 .7rem; }
+.qk-tog-row { display: flex; justify-content: center; margin: .5rem 0 1.4rem; }
+.btn.qk-tog { width: 100%; max-width: 26rem; min-height: 3rem; font-size: 1rem; background: transparent; color: #fff; border: 2px solid rgba(255,255,255,.4); box-shadow: none; }
+.btn.qk-tog:hover, .btn.qk-tog:focus-visible { background: rgba(255,255,255,.1); }
+.qk-info { margin: 1.3rem 0 1.5rem; padding-top: 1.2rem; border-top: 1px solid rgba(255,255,255,.18); }
+.qk-info h2 { font-family: var(--font-body); font-size: 1.2rem; font-weight: 700; line-height: 1.35; margin: 0 0 .3rem; color: #fff; }
+.qk-info-sub { color: #bcd6d2; font-size: .95rem; line-height: 1.55; margin: 0 0 .9rem; }
+.qk-info .finds { margin: 0; }
+.find.qk-infocard { border-inline-start-color: #6fb3ab; }
+.qk-infocard .mk { border-style: dashed; }
+.qk-infocard .mk::after { opacity: .3; }

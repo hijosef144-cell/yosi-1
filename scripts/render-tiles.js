@@ -7,8 +7,7 @@ const R = (f) => path.join(__dirname, '..', f);
 
 const ctx = { window: {} };
 vm.runInNewContext(fs.readFileSync(R('kaspchem/assets/icons.js'), 'utf8'), ctx);
-// The quick check (kind "router") is not one of the ten topic tiles: it has its own featured tile (class qk-tile, outside #tiles) written by hand in index.html.
-const topics = JSON.parse(fs.readFileSync(R('kaspchem/content/topics.json'), 'utf8')).topics.filter((t) => t.kind !== 'router');
+const topics = JSON.parse(fs.readFileSync(R('kaspchem/content/topics.json'), 'utf8')).topics;
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
 const html = topics.map((t) =>
   `        <li><a class="tile" href="/kaspchem/check/${t.id}"><span class="face">${ctx.window.KaspIcon(t.icon)}</span><h3>${esc(t.name)}</h3><p>${esc(t.tagline)}</p></a></li>`).join('\n');
