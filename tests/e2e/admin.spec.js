@@ -32,7 +32,9 @@ test('admin: submit a lead publicly, handle it, edit a questionnaire and publish
   await shot(page, ti, 'request');
   await page.locator('#ds').selectOption('in_progress');
   await page.locator('#da').fill('יוסי');
-  await page.locator('#dsave').click();
+  // wait for the save to finish and the drawer to settle: pressing Escape before the re-render let the drawer re-open (a race that flaked on phones)
+  await Promise.all([page.waitForResponse((r) => r.request().method() === 'PATCH' && /requests\/\d+$/.test(r.url())), page.locator('#dsave').click()]);
+  await page.waitForLoadState('networkidle');
   await expect(page.locator('.drawer #ds')).toHaveValue('in_progress');
   await page.keyboard.press('Escape');
   await expect(page.locator('.drawer')).toHaveCount(0);
