@@ -16,7 +16,7 @@ test('the new build (ten topics + quick): every check passes, no information lin
 });
 
 test('the current preview (ten topics, no quick): no failure, one informational line', async () => {
-  const topics = (await content.loadTopics()).filter((t) => t.id !== 'quick');
+  const topics = (await content.loadTopics()).filter((t) => t.id !== 'quick' && t.kind !== 'deep'); // an older build has neither
   assert.equal(topics.length, 10);
   const cs = configChecks({ ok: true, topics });
   assert.deepEqual(fails(cs), []); assert.equal(infos(cs).length, 1); assert.match(infos(cs)[0], /not in this deployment/);
@@ -31,4 +31,12 @@ test('a missing core topic, a malformed quick check, or a broken answer is a fai
   assert.equal(fails(configChecks({ ok: true, topics: notRouter })).length, 1);
   assert.equal(fails(configChecks({ ok: false })).length, 1); assert.equal(fails(configChecks(null)).length, 1);
   assert.equal(CORE.length, 10);
+});
+
+test('the deep check, when served (switch on), is accepted by its shape; a deep route without a profile is a failure', async () => {
+  const all = await content.loadTopics();
+  assert.deepEqual(fails(configChecks({ ok: true, topics: all })), []);
+  assert.ok(configChecks({ ok: true, topics: all }).some((c) => c.pass === true && /deep check is present/.test(c.msg)));
+  const bad = JSON.parse(JSON.stringify(all)); delete bad.find((t) => t.kind === 'deep').profile;
+  assert.equal(fails(configChecks({ ok: true, topics: bad })).length, 1);
 });

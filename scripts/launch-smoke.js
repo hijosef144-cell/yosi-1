@@ -22,7 +22,10 @@ function configChecks(cfg) {
     (q.rules || []).forEach((r) => { const t = r.finding && r.finding.topic; if (!CORE.includes(t)) bad.push('rule ' + r.id + ' points at "' + t + '", not one of the ten'); });
     out.push({ pass: bad.length === 0, msg: 'quick check is present and well-formed (router, questions, rules, every finding.topic among the ten)' + (bad.length ? ' -> ' + bad.slice(0, 3).join('; ') : '') });
   }
-  out.push({ pass: topics.every((t) => Array.isArray(t.questions) && t.questions.length >= 3), msg: 'every topic has questions' });
+  // The deep check (kind "deep", present only when switched on) has its profile instead of questions; it is validated by its own lint, here only its shape.
+  const deep = topics.find((t) => t.kind === 'deep');
+  if (deep) out.push({ pass: !!(deep.profile && Array.isArray(deep.profile.questions) && deep.profile.questions.length) && Array.isArray(deep.topics), msg: 'deep check is present and well-formed (profile, sections)' });
+  out.push({ pass: topics.filter((t) => t.kind !== 'deep').every((t) => Array.isArray(t.questions) && t.questions.length >= 3), msg: 'every topic has questions' });
   return out;
 }
 module.exports = { configChecks, CORE };
