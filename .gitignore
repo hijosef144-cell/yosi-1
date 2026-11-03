@@ -29,3 +29,12 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+
+# Playwright
+test-results/
+playwright-report/
+tests/shots/
+
+# unpublished research drafts: the GitHub repo is PUBLIC, keep these local
+docs/research/
+test-results-failed/

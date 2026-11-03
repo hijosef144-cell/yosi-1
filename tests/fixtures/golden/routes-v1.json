@@ -1,0 +1,45 @@
+{
+ "content": "routes.json",
+ "contentSha256": "8c91f9e1a934bd233004e93f2ba031011b6f714279eeff46cd148397d8483888",
+ "cap": 300000,
+ "topics": {
+  "quick": {
+   "mode": "sampled:30000:seed20261102",
+   "paths": 30000,
+   "invalid": 0,
+   "digest": "884fe91a6c4414d1c4221c93e6d03b21b6e1a8e32e1bf0c72cb106457e2a829a",
+   "outcomes": {
+    "found": 29999,
+    "insufficient": 1
+   },
+   "fires": {
+    "q-bk-fees": 19984,
+    "q-ed-income": 15058,
+    "q-ed-study": 5904,
+    "q-hh-bills": 19946,
+    "q-hs-own": 6035,
+    "q-hs-own-unk": 6026,
+    "q-hs-rent": 2032,
+    "q-hs-rent-unk": 1887,
+    "q-ip-review": 10116,
+    "q-ip-unk": 9864,
+    "q-lf-acc": 15217,
+    "q-lf-forgot": 15124,
+    "q-lf-inherit": 14895,
+    "q-lf-jobs": 15056,
+    "q-mg-refi": 6232,
+    "q-ni-birth": 14917,
+    "q-ni-health": 14970,
+    "q-ni-job": 14872,
+    "q-ni-ret": 6010,
+    "q-ps-ended": 11841,
+    "q-ps-monthly": 1976,
+    "q-ps-unk": 1989,
+    "q-tx-family": 22399,
+    "q-tx-nofile": 6104,
+    "q-tx-unk": 6053
+   }
+  }
+ },
+ "scenarios": {}
+}
