@@ -302,9 +302,17 @@
     var url = o && safeUrl(o.url); if (!url) return '';
     return '<span class="fx">' + (first ? '<b>איפה:</b> ' : '') + '<a href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">' + esc(o.label || 'לבדיקה עצמית באתר הרשמי') + '</a>' + (o.checked ? ' <small>(הקישור נבדק ' + esc(heDate(o.checked)) + ')</small>' : '') + '</span>';
   }
+  function stepHtml(step) {
+    var paras = String(step).split(String.fromCharCode(10));
+    if (paras.length === 1) return '<span class="fx"><b>הצעד הבא:</b> ' + esc(paras[0]) + '</span>';
+    return '<span class="fx"><b>הצעד הבא:</b>' + paras.map(function (p) {
+      var m = /^([^:]{3,70}):\s+([\s\S]*)$/.exec(p);
+      return '<span class="fx-line">' + (m ? '<b>' + esc(m[1]) + ':</b> ' + esc(m[2]) : esc(p)) + '</span>';
+    }).join('') + '</span>';
+  }
   function findingExtras(f) {
     var h = '';
-    if (f.step) h += '<span class="fx"><b>הצעד הבא:</b> ' + esc(f.step).split(String.fromCharCode(10)).join('<br>') + '</span>';
+    if (f.step) h += stepHtml(f.step);
     h += linkHtml(f.official, true);
     (f.officialMore || []).forEach(function (o) { h += linkHtml(o, false); });
     if (f.refer) h += '<details class="fx fxd"><summary>להמשך טיפול ועלויות</summary>' + esc(f.refer) + '</details>';
