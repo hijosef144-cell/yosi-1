@@ -106,7 +106,7 @@
       .map(function (r) {
         var f = r.finding || {};
         // `finding.topic` (set only by the quick check: the topic to open next) is carried through when present; for every other topic nothing is added.
-        var o = { id: r.id, title: f.title, why: f.why, step: f.step, official: f.official, refer: f.refer, serviceTag: r.serviceTag,
+        var o = { id: r.id, title: f.title, why: f.why, step: f.step, official: f.official, officialMore: f.officialMore, refer: f.refer, serviceTag: r.serviceTag,
           group: f.group, groupTitle: f.groupTitle, groupIntro: f.groupIntro, groupStep: f.groupStep, section: f.section };
         if (f.topic) o.topic = f.topic;
         // `finding.needsInfo` (set only by quick-check rules) marks a second tier: "not enough information, worth continuing to the full check". Never set on the ten topics.

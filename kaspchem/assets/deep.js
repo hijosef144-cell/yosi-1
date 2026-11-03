@@ -1,6 +1,6 @@
 /*
  * The deep check: its question screens and its result screen. Loaded on demand by wizard.js (only for /kaspchem/check/deep, and only when the check is switched on),
- * so no other page pays for it. The flow itself is the shared wizard (answers, back/forward, resume, lead form); the questions, facts, gates and three-valued
+ * so no other page pays for it. The flow itself is the shared wizard (answers, back/forward, resume); the questions, facts, gates and three-valued
  * evaluation are the shared engine (engine.js: buildDeep / deepNext / evaluateDeep). Every class here starts with dp-.
  *
  * Wording rule: nothing on these screens says that anything is granted or owed. Results are "worth checking", ordered by likelihood, and "initial results only".
@@ -202,12 +202,12 @@
     html += tierHtml('high', hi, M('highTitle', 'סבירות גבוהה'), M('highSub', ''));
     html += tierHtml('missing', mi, M('missingTitle', 'חסר מידע — כדאי להשלים בדיקה'), M('missingSub', ''));
     html += tierHtml('low', lo, M('lowTitle', 'סבירות נמוכה'), M('lowSub', ''));
-    html += '<div class="cta-row dp-cta"><button type="button" class="btn" id="cta">אני רוצה עזרה בבדיקה</button><p class="reassure">הבדיקה הראשונית חינמית, והשארת פרטים אינה התחייבות.</p>' +
-      (!n ? '<button type="button" class="btn link" id="fix">לחזור ולתקן תשובות</button>' : '') + '<a class="btn link" href="/kaspchem">לבדוק תחום אחר</a></div><div id="lead-slot"></div>';
+    html += '<div class="cta-row dp-cta">' +
+      (!n ? '<button type="button" class="btn link" id="fix">לחזור ולתקן תשובות</button>' : '') + '<a class="btn link" href="/kaspchem">לבדוק תחום אחר</a></div>';
     box.innerHTML = html;
     if (n) box.classList.add('found');
     var rt = document.getElementById('rt'); rt.setAttribute('tabindex', '-1'); rt.focus({ preventScroll: true });
-    C.wireCta(function () { C.fixLast(); });
+    C.wireFix(function () { C.fixLast(); });
     [].forEach.call(box.querySelectorAll('.dp-tog'), function (tog) {
       tog.addEventListener('click', function () {
         var more = document.getElementById(tog.getAttribute('aria-controls')), open = tog.getAttribute('aria-expanded') === 'true';

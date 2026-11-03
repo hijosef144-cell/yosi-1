@@ -104,10 +104,7 @@
       delete answers[id]; answers = prune(answers); order = order.filter(function (k) { return answers[k] != null; });
       save(); goingBack = true; history.pushState({ n: order.length }, ''); step(); return true;
     },
-    wireCta: function (onFix) { // the lead gate and the button, exactly as on every other result screen
-      var cta = document.getElementById('cta');
-      if (cta && settings.legal_approved !== true) { var closed = document.createElement('p'); closed.className = 'note'; closed.textContent = 'השארת פרטים תיפתח בקרוב. בינתיים אפשר לבדוק תחומים נוספים.'; cta.replaceWith(closed); cta = null; }
-      if (cta) cta.addEventListener('click', openForm);
+    wireFix: function (onFix) { // the "fix my answers" button on a result screen
       var fix = document.getElementById('fix'); if (fix && onFix) fix.addEventListener('click', onFix);
     }
   };
@@ -205,7 +202,7 @@
 
   /* ---------- result ---------- */
   var res = null;
-  var PRELIM = '<p class="prelim">תוצאות ראשוניות בלבד</p>'; // the only caveat on the result screen; the lead form's consent text and the legal pages are unchanged
+  var PRELIM = '<p class="prelim">תוצאות ראשוניות בלבד</p>'; // the only caveat on the result screen
   function result() {
     if (D) return D.result();
     res = E.evaluate(topic, answers);
@@ -233,24 +230,18 @@
             : '<span>' + esc(f.why) + '</span>' + findingExtras(f);
           return '<li class="find" style="animation-delay:' + (reduce ? 0 : 500 + i * 220) + 'ms"><i class="mk" aria-hidden="true"></i><div><b>' + esc(f.title) + '</b>' + body + '</div></li>';
         }).join('') + '</ul>' +
-        '<div class="cta-row"><button type="button" class="btn" id="cta">אני רוצה עזרה בבדיקה</button><p class="reassure">הבדיקה הראשונית חינמית, והשארת פרטים אינה התחייבות.</p><a class="btn link" href="/kaspchem">לבדוק תחום אחר</a></div>';
+        '<div class="cta-row"><a class="btn" href="/kaspchem">לבדוק תחום אחר</a></div>';
     } else if (res.outcome === 'insufficient') {
       html += '<div class="head"><h1 id="rt">' + esc(m.insufficient) + '</h1><p class="sub">' + esc(m.insufficientBody) + '</p>' + PRELIM + '</div>' +
-        '<div class="cta-row" style="margin-top:1.6rem"><button type="button" class="btn ghost" id="fix" style="color:#fff">לחזור ולתקן תשובות</button><button type="button" class="btn" id="cta">אשמח לעזרה בהשלמת התמונה</button><a class="btn link" href="/kaspchem">לבדוק תחום אחר</a></div>';
+        '<div class="cta-row" style="margin-top:1.6rem"><button type="button" class="btn ghost" id="fix" style="color:#fff">לחזור ולתקן תשובות</button><a class="btn link" href="/kaspchem">לבדוק תחום אחר</a></div>';
     } else {
       html += '<div class="head"><h1 id="rt">' + esc(m.none) + '</h1><p class="sub">' + esc(m.noneBody) + '</p>' + PRELIM + '</div>' +
-        '<div class="cta-row" style="margin-top:1.6rem"><a class="btn" href="/kaspchem">לבדוק תחום אחר</a><button type="button" class="btn link" id="cta">בכל זאת, אשמח שיסתכלו על זה</button><button type="button" class="btn link" id="fix">לחזור ולתקן תשובות</button></div>';
+        '<div class="cta-row" style="margin-top:1.6rem"><a class="btn" href="/kaspchem">לבדוק תחום אחר</a><button type="button" class="btn link" id="fix">לחזור ולתקן תשובות</button></div>';
     }
-    html += '<div id="lead-slot"></div>';
     box.innerHTML = html;
     if (res.outcome === 'found' && n > 0) box.classList.add('found');
     if (res.outcome === 'found' && !reduce && n > 0 && document.getElementById('num')) countUp(document.getElementById('num'), n);
     document.getElementById('rt').setAttribute('tabindex', '-1'); document.getElementById('rt').focus({ preventScroll: true });
-    var cta = document.getElementById('cta');
-    if (cta && settings.legal_approved !== true) { // launch gate: no contact form until the legal texts are approved
-      var closed = document.createElement('p'); closed.className = 'note'; closed.textContent = 'השארת פרטים תיפתח בקרוב. בינתיים אפשר לבדוק תחומים נוספים.'; cta.replaceWith(closed); cta = null;
-    }
-    if (cta) cta.addEventListener('click', openForm);
     if (routerTwoTier) wireRouter();
     var fix = document.getElementById('fix'); if (fix) fix.addEventListener('click', function () { var last = order.pop(); delete answers[last]; save(); goingBack = true; step(); });
   }
@@ -290,7 +281,7 @@
         '<p class="qk-info-sub">בתחומים האלה אין לנו די מידע כדי לומר אם יש מה למצוא. אפשר להמשיך לבדיקה המלאה כדי לברר.</p>' +
         '<ul class="finds qk-infolist">' + info.map(function (x, i) { return qkCard(x, i, 'להמשך הבדיקה', 'qk-infocard'); }).join('') + '</ul></section>';
     }
-    html += '<div class="cta-row"><button type="button" class="btn" id="cta">אני רוצה עזרה בבדיקה</button><p class="reassure">הבדיקה הראשונית חינמית, והשארת פרטים אינה התחייבות.</p>' +
+    html += '<div class="cta-row">' +
       (n ? '' : '<button type="button" class="btn link" id="fix">לחזור ולתקן תשובות</button>') + '<a class="btn link" href="/kaspchem">לבדוק תחום אחר</a></div>';
     return html;
   }
@@ -305,11 +296,17 @@
 
   function safeUrl(u) { return /^https:\/\//.test(String(u || '')) ? u : null; }
   function heDate(d) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d || ''); return m ? m[3] + '.' + m[2] + '.' + m[1] : ''; }
+  // One finding can serve more than one situation (an employee and a self-employed person, an illness and a work injury): the step then has one line per
+  // situation (separated by a line break) and `officialMore` adds one more official link per situation, each labelled with who it is for.
+  function linkHtml(o, first) {
+    var url = o && safeUrl(o.url); if (!url) return '';
+    return '<span class="fx">' + (first ? '<b>איפה:</b> ' : '') + '<a href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">' + esc(o.label || 'לבדיקה עצמית באתר הרשמי') + '</a>' + (o.checked ? ' <small>(הקישור נבדק ' + esc(heDate(o.checked)) + ')</small>' : '') + '</span>';
+  }
   function findingExtras(f) {
     var h = '';
-    if (f.step) h += '<span class="fx"><b>צעד מעשי:</b> ' + esc(f.step) + '</span>';
-    var url = f.official && safeUrl(f.official.url);
-    if (url) h += '<span class="fx"><a href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">' + esc(f.official.label || 'לבדיקה עצמית באתר הרשמי') + '</a>' + (f.official.checked ? ' <small>(הקישור נבדק ' + esc(heDate(f.official.checked)) + ')</small>' : '') + '</span>';
+    if (f.step) h += '<span class="fx"><b>הצעד הבא:</b> ' + esc(f.step).split(String.fromCharCode(10)).join('<br>') + '</span>';
+    h += linkHtml(f.official, true);
+    (f.officialMore || []).forEach(function (o) { h += linkHtml(o, false); });
     if (f.refer) h += '<details class="fx fxd"><summary>להמשך טיפול ועלויות</summary>' + esc(f.refer) + '</details>';
     return h;
   }
@@ -319,72 +316,5 @@
     (function f(t) { var k = Math.min(1, (t - t0) / dur); el.textContent = Math.round(n * (1 - Math.pow(1 - k, 3))); if (k < 1) requestAnimationFrame(f); })(t0);
   }
 
-  /* ---------- lead form (opens inside the result screen) ---------- */
-  function openForm() {
-    var slot = document.getElementById('lead-slot');
-    if (slot.firstChild) { slot.querySelector('input').focus(); return; }
-    slot.innerHTML =
-      '<form class="lead" id="lead" novalidate aria-labelledby="lt"><h2 id="lt">נחזור אליכם בנושא הבדיקה</h2>' +
-      '<p style="margin:0;color:#3e5f63">שם וטלפון בלבד. דוא״ל הוא רשות.</p>' +
-      '<div class="field"><label for="f-name">שם מלא</label><input id="f-name" name="name" type="text" autocomplete="name" required aria-describedby="e-name"><p class="err" id="e-name"></p></div>' +
-      '<div class="field"><label for="f-phone">טלפון</label><input id="f-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" dir="ltr" style="text-align:right" required aria-describedby="e-phone"><p class="err" id="e-phone"></p></div>' +
-      '<div class="field"><label for="f-email">דוא״ל <small>(רשות)</small></label><input id="f-email" name="email" type="email" autocomplete="email" dir="ltr" style="text-align:right" aria-describedby="e-email"><p class="err" id="e-email"></p></div>' +
-      '<div class="hp" aria-hidden="true"><label>אל תמלאו שדה זה<input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>' +
-      '<label class="check"><input type="checkbox" id="c-contact" aria-describedby="e-consent"><span>אני מאשר/ת שיחזרו אליי בנושא הבדיקה, ושהפרטים שלי יישמרו לצורך כך, בהתאם ל<a href="/kaspchem/privacy.html" target="_blank" rel="noopener">מדיניות הפרטיות</a>.</span></label>' +
-      '<p class="err" id="e-consent"></p>' +
-      '<label class="check"><input type="checkbox" id="c-mkt"><span>אני מסכים/ה לקבל מכספכם ומצפן כלכלי תוכן ועדכונים שיווקיים. אפשר לבטל בכל עת.</span></label>' +
-      '<div id="form-err" role="alert"></div>' +
-      '<button class="btn" type="submit" id="send">שליחה</button></form>';
-    document.getElementById('cta').setAttribute('aria-expanded', 'true');
-    document.getElementById('lead').addEventListener('submit', submit);
-    // Clear a field's error as soon as the user fixes it.
-    [['f-name', 'e-name'], ['f-phone', 'e-phone'], ['f-email', 'e-email'], ['c-contact', 'e-consent']].forEach(function (p) {
-      var el = document.getElementById(p[0]);
-      el.addEventListener(el.type === 'checkbox' ? 'change' : 'input', function () { setErr(p[1], '', el); });
-    });
-    document.getElementById('f-name').focus();
-    slot.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
-  }
-
-  function setErr(id, msg, input) { document.getElementById(id).textContent = msg || ''; if (input) input.setAttribute('aria-invalid', msg ? 'true' : 'false'); }
-
-  function submit(ev) {
-    ev.preventDefault();
-    var f = ev.target, name = f.name.value.trim(), phone = f.phone.value.trim(), email = f.email.value.trim();
-    var ok = true, first = null;
-    function bad(id, msg, input) { setErr(id, msg, input); if (msg) { ok = false; if (!first) first = input; } }
-    bad('e-name', name.length < 2 ? 'נא להזין שם' : '', f.name);
-    bad('e-phone', !/^(\+?972|0)[\s-]?[2-9][\d\s-]{6,10}$/.test(phone) ? 'נא להזין מספר טלפון תקין, למשל 050-1234567' : '', f.phone);
-    bad('e-email', email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email) ? 'כתובת הדוא״ל אינה תקינה' : '', f.email);
-    var cc = document.getElementById('c-contact');
-    bad('e-consent', !cc.checked ? 'כדי שנוכל לחזור אליכם, יש לאשר את תיבת הסימון' : '', cc);
-    if (!ok) { first.focus(); return; }
-    var btn = document.getElementById('send'); btn.disabled = true; btn.textContent = 'שולחים…';
-    document.getElementById('form-err').innerHTML = '';
-    fetch('/api/kaspchem/lead', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ topic: topic.id, answers: answers, name: name, phone: phone, email: email, website: f.website.value, consentContact: true, consentMarketing: document.getElementById('c-mkt').checked })
-    }).then(function (r) { return r.json().then(function (j) { return { s: r.status, j: j }; }); })
-      .then(function (o) {
-        if (o.j.ok) return thanks();
-        throw new Error(o.j.message || 'לא הצלחנו לקלוט את הפנייה. נסו שוב.');
-      })
-      .catch(function (e) {
-        btn.disabled = false; btn.textContent = 'שליחה';
-        var msg = (e && e.message && /[֐-׿]/.test(e.message)) ? e.message : 'לא הצלחנו לקלוט את הפנייה. בדקו את החיבור ונסו שוב.';
-        document.getElementById('form-err').innerHTML = '<div class="formerr">' + esc(msg) + '</div>';
-      });
-  }
-
-  function thanks() {
-    try { sessionStorage.removeItem(STORE); } catch (e) {}
-    var others = topics.filter(function (t) { return t.id !== topic.id && t.kind !== 'router' && t.kind !== 'deep'; }); // the quick and deep checks are not offered as "another topic"
-    var slot = document.getElementById('lead-slot');
-    slot.innerHTML = '<div class="lead done" id="done" tabindex="-1"><div class="tick"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"/></svg></div>' +
-      '<h2>הפנייה התקבלה, תודה</h2><p>נחזור אליכם בנושא <strong>' + esc(topic.name) + '</strong>. בינתיים, אפשר להמשיך לבדוק תחומים נוספים:</p>' +
-      '<div class="more">' + others.map(function (t) { return '<a href="/kaspchem/check/' + t.id + '">' + KaspIcon(t.icon, 26) + '<span>' + esc(t.name) + '</span></a>'; }).join('') + '</div></div>';
-    var d = document.getElementById('done'); d.focus({ preventScroll: true }); d.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'center' });
-    var cta = document.getElementById('cta'); if (cta) { cta.hidden = true; }
-  }
   boot();
 })();

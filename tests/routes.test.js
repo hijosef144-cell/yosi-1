@@ -84,7 +84,7 @@ test('golden master for routes: the quick check still returns exactly what was r
 test('the published ten keep their original golden master (the snapshot file is the one recorded before the quick check existed)', () => {
   const snap = read(path.join(__dirname, 'fixtures', 'golden', 'published-v1.json'));
   assert.deepEqual(Object.keys(snap.topics), topics.topics.map((t) => t.id));
-  assert.equal(require('crypto').createHash('sha256').update(fs.readFileSync(TOPICS)).digest('hex'), snap.contentSha256);
+  // the file bytes are no longer pinned (version 1.0 added steps and official links); tests/published-content.test.js pins every question, condition, rule and text instead, and the golden master pins the results
 });
 
 test('ids: the quick check collides with the ten only on local ids (never merged); composing all eleven lints clean', () => {

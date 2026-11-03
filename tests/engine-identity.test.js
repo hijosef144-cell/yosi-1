@@ -93,7 +93,7 @@ test('answers of all published topics in one map: work and fees keep their own m
 test('golden master: the engine still returns exactly what was recorded for the published questionnaires (all answer paths)', () => {
   const snap = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'golden', 'published-v1.json'), 'utf8'));
   const topics = load(PUBLISHED);
-  assert.equal(require('crypto').createHash('sha256').update(fs.readFileSync(PUBLISHED)).digest('hex'), snap.contentSha256, 'published content changed: re-record the golden master on purpose, never silently');
+  // the file bytes are no longer pinned (version 1.0 added steps and official links); tests/published-content.test.js pins every question, condition, rule and text, and the digests below pin the results of all answer paths
   topics.forEach((t) => {
     const got = GM.topicSnapshot(E, t), want = snap.topics[t.id];
     assert.equal(got.paths, want.paths, t.id + ' path count');
