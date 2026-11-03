@@ -89,6 +89,7 @@ const phone = () => '0505' + String(Math.floor(Math.random() * 900000) + 100000)
 // The published ten, switched on: the content that is live today. The deep check must work (degraded but valid).
 // =====================================================================================================================
 test.describe('deep check on the published ten', () => {
+  test.describe.configure({ timeout: 180000 }); // a whole check is 25 to 45 clicks: it must not depend on the machine being fast
   test.beforeAll(async ({}, ti) => { await serve(ti, 0, 'ten', true); });
   test.afterAll(stop);
 
@@ -186,6 +187,7 @@ test.describe('deep check on the published ten', () => {
 // The V6 draft: the real content of the deep check. Local only (the research folder is private and is never committed).
 // =====================================================================================================================
 test.describe('deep check on the V6 draft', () => {
+  test.describe.configure({ timeout: 180000 }); // a whole check is 25 to 45 clicks: it must not depend on the machine being fast
   test.beforeAll(async ({}, ti) => { if (HAS_V6) await serve(ti, 1, 'v6', true); });
   test.afterAll(stop);
   test.beforeEach(() => { test.skip(!HAS_V6, 'V6 draft not available in this checkout (the private research folder is not linked)'); });
