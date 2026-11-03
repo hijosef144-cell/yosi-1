@@ -168,7 +168,14 @@
               "label": "הר הכסף: איתור חסכונות פנסיוניים ופוליסות (משרד האוצר)",
               "url": "https://itur.mof.gov.il/home/shuk",
               "checked": "2026-11-03"
-            }
+            },
+            "officialMore": [
+              {
+                "label": "פוליסות ביטוח אחרות: הר הביטוח (רשות שוק ההון)",
+                "url": "https://harb.cma.gov.il/",
+                "checked": "2026-11-04"
+              }
+            ]
           }
         },
         {
@@ -187,7 +194,14 @@
               "label": "הר הכסף: איתור חסכונות פנסיוניים ופוליסות (משרד האוצר)",
               "url": "https://itur.mof.gov.il/home/shuk",
               "checked": "2026-11-03"
-            }
+            },
+            "officialMore": [
+              {
+                "label": "ליווי לאחר פטירה: צעד אחר צעד, צו ירושה וזכויות (gov.il)",
+                "url": "https://www.gov.il/he/service/post-death-accompaniment",
+                "checked": "2026-11-04"
+              }
+            ]
           }
         },
         {
@@ -439,7 +453,14 @@
               "label": "כרטיס עובד: טופס 101 (רשות המסים)",
               "url": "https://www.gov.il/he/service/itc101",
               "checked": "2026-11-03"
-            }
+            },
+            "officialMore": [
+              {
+                "label": "מחשבון נקודות זיכוי לפי מצב משפחתי (רשות המסים)",
+                "url": "https://www.gov.il/he/service/tax-credit",
+                "checked": "2026-11-04"
+              }
+            ]
           }
         },
         {
@@ -469,6 +490,11 @@
                 "label": "תרומות: בדיקת מוסד ציבורי מאושר, סעיף 46 (רשות המסים)",
                 "url": "https://www.misim.gov.il/gmtrumot/startPage1.aspx",
                 "checked": "2026-11-03"
+              },
+              {
+                "label": "תרומות: האזור האישי ברשות המסים, ריכוז תרומות",
+                "url": "https://www.gov.il/he/service/personal_area_taxes",
+                "checked": "2026-11-04"
               }
             ]
           }
@@ -1176,7 +1202,14 @@
               "label": "הר הביטוח: כל פוליסות הביטוח שלכם במקום אחד (רשות שוק ההון)",
               "url": "https://harb.cma.gov.il/",
               "checked": "2026-11-03"
-            }
+            },
+            "officialMore": [
+              {
+                "label": "חיסכון פנסיוני ופוליסות חיים: הר הכסף (משרד האוצר)",
+                "url": "https://itur.mof.gov.il/home/shuk",
+                "checked": "2026-11-04"
+              }
+            ]
           }
         },
         {
@@ -1540,7 +1573,19 @@
               "label": "אבטלה: איך מגישים תביעה (ביטוח לאומי)",
               "url": "https://www.btl.gov.il/benefits/Unemployment/Pages/submit.aspx",
               "checked": "2026-11-03"
-            }
+            },
+            "officialMore": [
+              {
+                "label": "רישום לאתר שירות התעסוקה (gov.il)",
+                "url": "https://www.gov.il/he/service/register_to_israel_employment_service_website",
+                "checked": "2026-11-04"
+              },
+              {
+                "label": "רישום והתייצבות בשירות התעסוקה, תנאי לדמי אבטלה (ביטוח לאומי)",
+                "url": "https://www.btl.gov.il/benefits/Unemployment/Pages/Avtala_att.aspx",
+                "checked": "2026-11-04"
+              }
+            ]
           }
         },
         {
@@ -1565,6 +1610,11 @@
                 "label": "פגיעה בעבודה: נפגעי עבודה (ביטוח לאומי)",
                 "url": "https://www.btl.gov.il/benefits/Work_Injury/Pages/default.aspx",
                 "checked": "2026-11-03"
+              },
+              {
+                "label": "סיוע ללא תשלום בהגשת התביעה: מרכזי ״יד מכוונת״ (ביטוח לאומי)",
+                "url": "https://www.btl.gov.il/snifim/pages/yadmechavenet1.aspx",
+                "checked": "2026-11-04"
               }
             ]
           }
