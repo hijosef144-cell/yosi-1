@@ -74,9 +74,11 @@ test('the result screens and the landing page have no help button, contact form 
   assert.ok(!/שם וטלפון/.test(home), 'landing page asks for name and phone');
 });
 
-test('the main site page is not touched: no link to Kaspchem and no Kaspchem script', () => {
+test('the main site home page has no link, nav item or card pointing to Kaspchem (until the owner decides otherwise)', () => {
   const home = read('index.html');
-  assert.ok(!/kaspchem/i.test(home), 'index.html mentions kaspchem (links, cards or the invite redirect are not part of version 1.0)');
+  // the temporary invite redirect that production already has (kc-invite-redirect, a script and not a link) may stay; links, nav items and cards may not
+  assert.ok(!/href="[^"]*kaspchem/i.test(home), 'index.html links to kaspchem');
+  assert.ok(!/kc-cta|kc-identity-shim/.test(home), 'index.html has the Kaspchem entry card or the identity shim (not part of version 1.0)');
   const map = fs.existsSync(path.join(root, 'sitemap.xml')) ? read('sitemap.xml') : '';
   assert.ok(!/kaspchem/i.test(map), 'sitemap.xml lists kaspchem');
 });
