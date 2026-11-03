@@ -53,12 +53,13 @@ async function deepEnabled() {
 }
 
 // The deep route composed with the topics that are served right now (the ten, or whatever replaced them). Same builder as in the browser.
-async function loadDeepConfig() {
+// `ignoreRequires` is only for READING stored requests in the dashboard; a visitor-facing path never passes it, so a missing required part means "not available", never a reduced check.
+async function loadDeepConfig(opts) {
   const all = await loadTopics();
   const route = all.find((t) => t.kind === 'deep');
   if (!route) return null;
   const served = all.filter((t) => t.kind !== 'router' && t.kind !== 'deep');
-  const cfg = engine.buildDeep(route, served);
+  const cfg = engine.buildDeep(route, served, { ignoreRequires: !!(opts && opts.ignoreRequires) });
   cfg.versionLabel = ('deep:' + route.versionLabel + '+' + Array.from(new Set(served.map((t) => t.versionLabel))).sort().join(',')).slice(0, 60);
   return cfg;
 }

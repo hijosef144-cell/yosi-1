@@ -11,7 +11,11 @@ const ROOT = path.join(__dirname, '..');
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.woff2': 'font/woff2' };
 const FUNCS = { config: 'kaspchem-config', lead: 'kaspchem-lead', impact: 'kaspchem-impact' };
 
-async function start(port) {
+// TEST-ONLY: opts.degradeDeep serves the deep route WITHOUT its `requires`, so the check runs (reduced) against the ten published topics. Production code never does this.
+let DEEP_REQUIRES = null;
+async function start(port, opts) {
+  { const route = require('../netlify/functions/_kaspchem/content').routes.topics.find((t) => t.kind === 'deep');
+    if (route) { if (DEEP_REQUIRES === null) DEEP_REQUIRES = route.requires || []; route.requires = (opts && opts.degradeDeep) || process.env.DEEP_TEST_DEGRADE === '1' ? [] : DEEP_REQUIRES; } }
   const pg = new PGlite();
   await pg.exec(fs.readFileSync(path.join(ROOT, 'db', 'kaspchem-schema.sql'), 'utf8'));
   await pg.exec("INSERT INTO settings (key, value, updated_by) VALUES ('public.legal_approved', 'true', 'test') ON CONFLICT DO NOTHING");

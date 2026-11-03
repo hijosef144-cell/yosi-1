@@ -222,8 +222,25 @@
       if (!x.sensitiveWhy || !String(x.sensitiveWhy).trim()) errors.push('שאלה רגישה ' + x.id + ' ללא משפט הסבר קצר');
       if (!used[x.id]) errors.push('שאלה רגישה ' + x.id + ' אינה משמשת אף כלל פעיל');
       if (gateRefs[x.id]) errors.push('שער מסתמך על שאלה רגישה ' + x.id);
-      cfg.questions.forEach(function (y) { if (y.topicId === 'profile') E.condQs(y.showIf, function (id) { if (id === x.id) errors.push('שאלת פרופיל ' + y.id + ' תלויה בשאלה רגישה ' + x.id); }); });
+      cfg.questions.forEach(function (y) { if (y.topicId === 'profile' && !y.sensitive) E.condQs(y.showIf, function (id) { if (id === x.id) errors.push('שאלת פרופיל ' + y.id + ' תלויה בשאלה רגישה ' + x.id); }); });
     });
+    // ---- persons: every rule fed by the family question is classified; a respondent-only rule is guarded by the "whom" follow-up, nothing else is ----
+    var PS = route.persons;
+    if (PS) {
+      var fed = {}; cfg.derive.forEach(function (d) { if (d.from === PS.fedBy) d.targets.forEach(function (t) { fed[t] = true; }); });
+      cfg.rules.forEach(function (r) {
+        if (r.weak || r.status === 'inactive') return;
+        var touches = false; E.condQs(r.when, function (id) { if (fed[id]) touches = true; });
+        if (!touches) return;
+        var cls = (PS.classes || {})[r.id];
+        if (!cls || ['respondent', 'household', 'other-person'].indexOf(cls.class) === -1) errors.push('כלל ' + r.id + ' תלוי בשאלת המשפחה ואינו מסווג (משיב/ה, משק בית או אדם אחר)');
+        else if (cls.class === 'respondent' && !(r.personGuards || []).length) errors.push('כלל ' + r.id + ' מסווג כנוגע למשיב/ה אך אינו מוגן בשאלת ״מי״');
+        else if (cls.class !== 'respondent' && (r.personGuards || []).length) errors.push('כלל ' + r.id + ' מסווג כ' + cls.class + ' אך מוגן בשאלת ״מי״');
+        if (r.personUnsafe) errors.push('כלל ' + r.id + ': תנאי של אדם מסוים מופיע תחת שלילה');
+      });
+      Object.keys(PS.classes || {}).forEach(function (id) { if (!cfg.rules.some(function (r) { return r.id === id; }) && !cfg.unavailable) warnings.push('סיווג לכלל שאינו קיים: ' + id); });
+      (cfg.guards || []).forEach(function (g) { if (!g.rules) warnings.push('שער אדם ' + g.id + ' אינו מגן על אף כלל'); });
+    }
     // a weak rule never fires without its base rule's question set; a weak rule must say why it is weak
     (route.weak || []).forEach(function (w) { if (!w.note) warnings.push('כלל חלש ' + w.id + ' ללא הערה'); });
 

@@ -13,6 +13,9 @@ const E = require('../kaspchem/assets/engine.js');
 const V6F = path.join(__dirname, '..', 'docs', 'research', 'drafts-v6', 'PUBLISHABLE-v6.draft.json');
 const SKIP_V6 = fs.existsSync(V6F) ? false : 'V6 draft not available in this checkout (the private research folder is not linked)';
 const origSeed = content.seed;
+// The real route requires V6 shapes. The published ten run it only in the TEST-ONLY reduced mode (the dev server serves the route without `requires`); `realMode(true)` switches back.
+const ROUTE_DEEP = content.routes.topics.find((t) => t.kind === 'deep'), REAL_REQUIRES = JSON.parse(JSON.stringify(ROUTE_DEEP.requires));
+const realMode = (on) => { ROUTE_DEEP.requires = on ? REAL_REQUIRES : []; };
 let srv, base; const sent = [];
 const ADMIN = { 'x-test-user': 'yosi@example.test|admin', 'x-kaspchem': '1' };
 const A = '/api/kaspchem/admin';
@@ -35,7 +38,7 @@ async function path_(overrides, pick) {
   return a;
 }
 
-test.before(async () => { srv = await start(0); base = 'http://localhost:' + srv.server.address().port; ops.setSender(async (m) => { sent.push(m); }); });
+test.before(async () => { srv = await start(0, { degradeDeep: true }); base = 'http://localhost:' + srv.server.address().port; ops.setSender(async (m) => { sent.push(m); }); });
 test.after(async () => { ops.setSender(null); content.setSeed(origSeed); srv.server.close(); });
 
 test('switched off (the default): the deep route and the flag are not in the public config, and a lead for it is refused like an unknown topic; nothing is stored', async () => {
@@ -55,6 +58,19 @@ test('switched off (the default): the deep route and the flag are not in the pub
   assert.equal((await call('POST', '/api/kaspchem/lead', lead({ answers, phone: '0504440002' }))).body.error, 'bad_topic');
   // the other flags and the old routes are unaffected: the ten topics are still served in full
   assert.equal((await call('GET', '/api/kaspchem/config')).body.topics.filter((t) => !t.kind).length, 10);
+});
+
+test('switched on but the content lacks what the route requires (the real route against the published ten): nothing is served, the flag is not revealed, the lead is refused, nothing is stored', async () => {
+  realMode(true);
+  try {
+    assert.equal((await setFlag(true)).status, 200);
+    const cfg = (await call('GET', '/api/kaspchem/config')).body;
+    assert.ok(!cfg.topics.some((t) => t.kind === 'deep')); assert.ok(!('deep_enabled' in cfg.settings));
+    assert.equal((await content.loadDeepConfig()).unavailable, true);
+    const before = (await rows()).length;
+    const r = await call('POST', '/api/kaspchem/lead', lead({ answers: {}, phone: '0504440011' }));
+    assert.equal(r.body.error, 'bad_topic'); assert.equal((await rows()).length, before);
+  } finally { realMode(false); await setFlag(false); }
 });
 
 test('switched on: the route (profile, facts, gates) is served with the flag; the questions of the sections are the served topics', async () => {
@@ -161,9 +177,9 @@ test('the setting cannot be turned on by a visitor (admin only, CSRF header need
   assert.ok([400, 401, 403].includes(noCsrf.status));
 });
 
-test('V6 content served (draft, local only): the lead is evaluated against the composed V6 config, three tiers stored', { skip: SKIP_V6 }, async () => {
+test('V6 content served (draft, local only): the REAL route is available, the lead is evaluated against the composed V6 config, two tiers stored (the low tier is off)', { skip: SKIP_V6 }, async () => {
   const v6 = JSON.parse(fs.readFileSync(V6F, 'utf8'));
-  content.setSeed(v6);
+  content.setSeed(v6); realMode(true);
   try {
     await setFlag(true);
     const cfg = await content.loadDeepConfig();
@@ -180,5 +196,7 @@ test('V6 content served (draft, local only): the lead is evaluated against the c
     // a derived question may not be sent, an asked one may not be missing
     assert.equal((await call('POST', '/api/kaspchem/lead', lead({ answers: Object.assign({}, a, { 'national-insurance.now': ['none'] }), phone: '0504440010' }))).body.error, 'bad_answers');
     assert.equal(row.outcome, E.evaluateDeep(cfg, a).outcome);
-  } finally { content.setSeed(origSeed); }
+    assert.ok(!row.findings.some((f) => f.startsWith('low:')));
+    assert.equal((await call('GET', '/api/kaspchem/config')).body.topics.some((t) => t.kind === 'deep'), true);
+  } finally { content.setSeed(origSeed); realMode(false); }
 });

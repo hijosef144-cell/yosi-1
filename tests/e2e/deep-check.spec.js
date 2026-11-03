@@ -19,19 +19,21 @@ const noHScroll = async (page) => expect(await page.evaluate(() => document.docu
 const nothingSticksOut = async (page) => expect(await page.evaluate(() => { const vw = document.documentElement.clientWidth; return [].filter.call(document.querySelectorAll('body *'), (e) => { const r = e.getBoundingClientRect(); return r.width && (r.right > vw + 2.5 || r.left < -2.5) && !e.closest('#kp-defs') && !e.closest('.hp'); }).map((e) => e.tagName + '.' + String(e.className && e.className.baseVal !== undefined ? e.className.baseVal : e.className)); })).toEqual([]);
 
 // ---- servers ----
-let srv = null, base = '', content = null, origSeed = null;
-async function serve(ti, slot, set, flag) {
+let srv = null, base = '', content = null, origSeed = null, REAL_REQUIRES = null;
+// `degrade` = TEST-ONLY reduced mode: the dev server serves the route without `requires`, so the check runs against the ten published topics. realMode() puts the requirements back.
+async function serve(ti, slot, set, flag, degrade) {
   process.env.TOPICS_FILE = set === 'v6' ? V6F : '';
   if (!process.env.TOPICS_FILE) delete process.env.TOPICS_FILE;
   content = require(path.join(ROOT, 'netlify', 'functions', '_kaspchem', 'content'));
-  if (origSeed === null) origSeed = content.seed;
+  if (origSeed === null) { origSeed = content.seed; REAL_REQUIRES = JSON.parse(JSON.stringify(content.routes.topics.find((t) => t.kind === 'deep').requires)); }
   content.setSeed(origSeed); // the published ten, unless the dev server swaps in the V6 draft below
   const { start } = require(path.join(ROOT, 'tests', 'dev-server'));
-  srv = await start(PORT0[ti.project.name] + slot);
+  srv = await start(PORT0[ti.project.name] + slot, { degradeDeep: !!degrade });
   base = 'http://localhost:' + srv.server.address().port;
   delete process.env.TOPICS_FILE;
   if (flag !== undefined) await setFlag(flag);
 }
+const realMode = (on) => { const r = content.routes.topics.find((t) => t.kind === 'deep'); r.requires = on ? REAL_REQUIRES : []; };
 async function stop() { if (srv) { srv.server.close(); srv = null; } if (content && origSeed) content.setSeed(origSeed); delete process.env.TOPICS_FILE; }
 const setFlag = async (v) => { const r = await fetch(base + '/api/kaspchem/admin/settings', { method: 'PUT', headers: ADM, body: JSON.stringify({ key: 'public.deep_enabled', value: v }) }); expect(r.ok).toBe(true); };
 const adminGet = async (p) => (await fetch(base + '/api/kaspchem/admin' + p, { headers: ADM })).json();
@@ -90,7 +92,7 @@ const phone = () => '0505' + String(Math.floor(Math.random() * 900000) + 100000)
 // =====================================================================================================================
 test.describe('deep check on the published ten', () => {
   test.describe.configure({ timeout: 180000 }); // a whole check is 25 to 45 clicks: it must not depend on the machine being fast
-  test.beforeAll(async ({}, ti) => { await serve(ti, 0, 'ten', true); });
+  test.beforeAll(async ({}, ti) => { await serve(ti, 0, 'ten', true, true); });
   test.afterAll(stop);
 
   test('home page: the deep tile appears only because the switch is on, beside (wide) or under (phone) the quick tile, and works by keyboard', async ({ page }) => {
@@ -99,7 +101,8 @@ test.describe('deep check on the published ten', () => {
     await expect(tile).toBeVisible();
     await expect(tile).toHaveAttribute('href', '/kaspchem/check/deep');
     await expect(tile).toContainText('תבדקו אותי לעומק');
-    await expect(tile).toContainText('15 דקות');
+    await expect(tile).toContainText('בדיקה מקיפה ומעמיקה יותר, עם שאלות המשך לפי התשובות שלכם');
+    expect(await tile.innerText()).not.toMatch(/דקות/);   // no time is promised anywhere
     await expect(page.locator('a.qk-tile')).toHaveCount(1); await expect(page.locator('a.qk-tile')).toBeVisible(); // the quick tile is exactly as before
     await expect(page.locator('.tile')).toHaveCount(10);
     const r = await page.evaluate(() => { const b = (s) => { const x = document.querySelector(s).getBoundingClientRect(); return { x: x.x, y: x.y, w: x.width, h: x.height, r: x.right, b: x.bottom }; }; return { q: b('a.qk-tile'), d: b('#dp-tile'), g: b('#tiles'), vw: document.documentElement.clientWidth }; });
@@ -124,7 +127,7 @@ test.describe('deep check on the published ten', () => {
     await expect(page.locator('.dp-phases .dp-ph')).toHaveText(['1פרופיל', '2תחומים', '3סיכום']);
     await expect(page.locator('.dp-ph-cur')).toHaveText('1פרופיל');
     await expect(page.locator('.dp-seg')).toHaveCount(3);
-    await expect(page.locator('.q')).toContainText('בדיקה מקיפה של');                      // the intro on the first screen
+    await expect(page.locator('.q')).toContainText('בדיקה מקיפה ומעמיקה יותר');                      // the intro on the first screen
     expect(cfg.questions.filter((q) => q.topicId === 'profile').map((q) => q.id)).toEqual(['profile.home', 'profile.mortgage', 'profile.worknow']);
     const run = await drive(page, cfg, (q) => firstPick(q));
     expect(nonDecreasing(run.bars)).toBe(true);
@@ -231,33 +234,69 @@ test.describe('deep check on the V6 draft', () => {
     await expect(page.locator('.q h1')).toHaveText(cfg.questions.find((x) => x.id === 'profile.family').text);
   });
 
-  test('a declined personal question is "missing information", never a finding, and the card says which answer is missing and lets the visitor complete it', async ({ page }) => {
+  test('a declined personal question is "missing information", never a finding: ONE calm card (no list of rights), operated by keyboard, and the result is re-evaluated with the new answer', async ({ page }) => {
     const { cfg } = await configOf();
     await openDeep(page);
     const policy = (q) => (q.id === 'profile.family' ? ['pna'] : q.id === 'profile.worknow' ? 'retired' : q.id === 'profile.workhist' ? ['none'] : nonePick(q));
     const run = await drive(page, cfg, policy);
     const res = E.evaluateDeep(cfg, run.answers);
-    expect(res.counts.missing).toBeGreaterThan(0);
+    expect(res.counts.missingCards).toBeGreaterThan(10);                                      // many rights wait for this one answer ...
     expect(res.high.some((f) => f.topicId === 'national-insurance')).toBe(false);
     const sec = page.locator('#dp-sec-missing');
-    await expect(sec.locator('h2')).toContainText('חסר מידע — כדאי להמשיך לבדיקה');
-    await expect(sec.locator('.dp-card').first()).toContainText('חסר מידע:');
-    await expect(sec.locator('.dp-card').first()).toContainText('מה מתאים למשפחה שלכם');
-    // no claim about the visitor in a missing-information card: the reason text of the rule is not shown
+    await expect(sec.locator('h2')).toContainText('חסר מידע — כדאי להשלים בדיקה');
+    expect(res.counts.missingItems).toBeLessThanOrEqual(3);
+    await expect(sec.locator('.dp-group-card')).toHaveCount(1);                              // ... and the visitor sees exactly ONE card for them
+    const card = sec.locator('.dp-group-card');
+    await expect(card).toContainText('חסרה תשובה אחת, והיא משפיעה על כמה תחומים בבדיקה');
+    await expect(card).toContainText('חסר מידע: מה מתאים למשפחה שלכם');
+    await expect(card).toContainText('תשובה זו משפיעה על כמה תחומים בבדיקה.');
+    await expect(card.locator('li')).toHaveCount(0);                                         // no list of rights
+    await expect(card.locator('details')).toHaveCount(0);
     const f0 = res.missingCards[0]; expect(f0.why || (f0.parts && f0.parts[0].why)).toBeTruthy();
-    expect(await sec.innerText()).not.toContain((f0.why || f0.parts[0].why).slice(0, 40));
-    // everything that waits for the same declined question is ONE item (a wall of identical cards helps nobody), and nothing is lost: it lists every dependent topic
-    expect(res.counts.missingItems).toBeLessThan(res.counts.missingCards);
-    await expect(sec.locator('.dp-group-card').first()).toContainText('נושאים תלויים בתשובה שחסרה');
-    await sec.locator('.dp-group-card').first().locator('summary').click();
-    expect(await sec.locator('.dp-group-card').first().locator('.dp-dep li').count()).toBe(res.missingItems.find((x) => x.folded).cards.length);
-    // complete the answer: back to the profile question, with the later answers that depended on it re-asked
-    await sec.locator('.dp-fill').first().click();
+    expect(await sec.innerText()).not.toContain((f0.why || f0.parts[0].why).slice(0, 40));      // no claim about the visitor
+    expect(await sec.innerText()).not.toContain(f0.title);                                      // none of the 15 titles is listed
+    const action = card.getByRole('button', { name: 'להשלמת התשובה' });
+    expect((await action.boundingBox()).height).toBeGreaterThanOrEqual(44);
+    await nothingSticksOut(page); await noHScroll(page);
+    // keyboard: focus the action, Enter takes the visitor to that very question
+    await action.focus(); await page.keyboard.press('Enter');
     await expect(page.locator('.q h1')).toHaveText(cfg.questions.find((x) => x.id === 'profile.family').text);
     await expect(page.locator('.dp-ph-cur')).toHaveText('1פרופיל');
-    await page.getByRole('checkbox', { name: 'אף אחד מאלה', exact: true }).click(); await page.locator('#mgo').click();
+    // answer it, and the visitor is back at the RESULT (nothing else is asked again), now evaluated with the new answer
+    await page.getByRole('checkbox', { name: 'אף אחד מאלה', exact: true }).focus(); await page.keyboard.press('Space');
+    await page.locator('#mgo').focus(); await page.keyboard.press('Enter');
     await page.locator('#result h1').waitFor({ timeout: 8000 });
-    expect((await counts(page)).missing).toBe(E.evaluateDeep(cfg, Object.assign({}, run.answers, { 'profile.family': ['none'] })).counts.missingItems);
+    const after = E.evaluateDeep(cfg, Object.assign({}, run.answers, { 'profile.family': ['none'] }));
+    expect(after.counts.missingCards).toBeLessThan(res.counts.missingCards);
+    expect((await counts(page)).missing).toBe(after.counts.missingItems);
+    await expect(sec.locator('.dp-group-card')).toHaveCount(0);                              // the folded card is gone: its answer was given
+  });
+
+  test('family question: a spouse or a parent who meets the condition is never "high" for the respondent: it asks WHOM, shows a missing-information card, and completing it with "me" turns it high', async ({ page }) => {
+    const { cfg } = await configOf();
+    await openDeep(page);
+    const policy = (q) => (q.id === 'profile.family' ? ['retire'] : q.id === 'profile.who_retire' ? ['parent'] : q.id === 'national-insurance.retirefacts' ? ['nopension'] : q.id === 'profile.worknow' ? 'employee' : q.id === 'profile.workhist' ? ['emp'] : nonePick(q));
+    const run = await drive(page, cfg, policy, { stopAt: (q) => q.id === 'profile.who_retire' });
+    const who = cfg.questions.find((x) => x.id === 'profile.who_retire');
+    await expect(page.locator('.q h1')).toHaveText(who.text);
+    await expect(page.locator('.q .help')).toContainText('יש במשפחה אדם שהגיע לגיל הפרישה');
+    await expect(page.getByRole('checkbox')).toHaveText(['אני', 'בן/בת הזוג', 'הורה', 'מעדיפ/ה לא לענות']);
+    await expect(page.locator('#dp-skip')).toBeVisible();
+    // the minimal flow: no "whom" screen for options whose meaning does not depend on the person (checked on the engine path)
+    expect(run.asked.filter((id) => /^profile\.who_/.test(id))).toEqual([]);
+    const answers = Object.assign({}, run.answers); const done = await drive(page, cfg, policy, { answers });
+    const res = E.evaluateDeep(cfg, done.answers);
+    expect(done.asked).toContain('profile.who_retire');
+    expect(res.high.some((f) => f.localId === 'ni-oldage')).toBe(false); expect(res.missing.some((f) => f.localId === 'ni-oldage')).toBe(true);
+    await expect(page.locator('#dp-sec-high')).not.toContainText('קצבת זקנה');
+    const miss = page.locator('#dp-sec-missing'); await expect(miss).toContainText('מי הגיע לגיל הפרישה');
+    // complete the answer as "me": the same facts are now high
+    await miss.getByRole('button', { name: 'להשלמת התשובה' }).first().click();
+    await expect(page.locator('.q h1')).toHaveText(who.text);
+    await page.getByRole('checkbox', { name: 'אני', exact: true }).click(); await page.locator('#mgo').click();
+    await page.locator('#result h1').waitFor({ timeout: 8000 });
+    await expect(page.locator('#dp-sec-high')).toContainText('קצבת זקנה');
+    expect(E.evaluateDeep(cfg, Object.assign({}, done.answers, { 'profile.who_retire': ['me'] })).high.some((f) => f.localId === 'ni-oldage')).toBe(true);
   });
 
   test('the running count: "now N topics worth checking" follows the answers, in words that promise nothing; progress of ring, jar and segments never goes down', async ({ page }) => {
@@ -277,31 +316,28 @@ test.describe('deep check on the V6 draft', () => {
     expect((await page.evaluate(() => window.__ring)).pop()).toBe(1);
   });
 
-  test('result: three tiers in order, four cards first with an expander, three-part cards, low likelihood collapsed, results before the form', async ({ page }) => {
+  test('result: high and missing-information sections in order with the approved headings, four cards first with an expander, three-part cards, no low tier, results before the form', async ({ page }) => {
     const { cfg } = await configOf();
     await openDeep(page);
-    // a long result (many high-likelihood topics), a missing one (an unknown answer) and a weak one (senior-management overtime)
+    // a long result (many high-likelihood topics) and a missing one (an unknown answer)
     const policy = (q, a) => {
       if (q.id === 'profile.worknow') return 'employee';
       if (q.id === 'profile.workhist') return ['emp'];
-      if (q.id === 'payslip-rights.hours') return ['ot', 'mgr'];
-      if (q.id === 'payslip-rights.lines') return ['none'];
       if (q.id === 'tax-refunds.letters') return 'unk';
-      if (q.id === 'banking-loans.overdraft') return 'some';
-      if (q.id === 'banking-loans.credit') return ['bank'];
       if (q.id === 'profile.family') return ['none'];
       return firstPick(q);
     };
     const run = await drive(page, cfg, policy);
     const res = E.evaluateDeep(cfg, run.answers), c = await counts(page);
-    expect(res.counts.highCards).toBeGreaterThan(4); expect(res.counts.missingItems).toBeGreaterThan(0); expect(res.counts.lowCards).toBeGreaterThan(0);
-    expect(c).toEqual({ high: res.counts.highCards, missing: res.counts.missingItems, low: res.counts.lowCards });
-    await expect(page.locator('#result h1')).toHaveText('זיהינו ' + res.counts.highCards + ' נושאים בסבירות גבוהה שכדאי לבדוק');
-    // order: high, missing, low, then the call to action
+    expect(res.counts.highCards).toBeGreaterThan(4); expect(res.counts.missingItems).toBeGreaterThan(0); expect(res.counts.lowCards).toBe(0);
+    expect(c).toEqual({ high: res.counts.highCards, missing: res.counts.missingItems, low: 0 });
+    await expect(page.locator('#result h1')).toHaveText('מצאנו ' + res.counts.highCards + ' הזדמנויות בסבירות גבוהה שכדאי לבדוק');
+    await expect(page.locator('#dp-low')).toHaveCount(0);                                   // the low tier is off: it never appears
+    await expect(page.locator('#result')).not.toContainText('סבירות נמוכה');
     const y = (sel) => page.locator(sel).first().evaluate((e) => e.getBoundingClientRect().top + scrollY);
-    expect(await y('#dp-sec-high')).toBeLessThan(await y('#dp-sec-missing')); expect(await y('#dp-sec-missing')).toBeLessThan(await y('#dp-low')); expect(await y('#dp-low')).toBeLessThan(await y('#cta'));
-    await expect(page.locator('#dp-sec-high h2')).toContainText('סבירות גבוהה'); await expect(page.locator('#dp-sec-high h2')).toContainText('(' + res.counts.highCards + ')');
-    await expect(page.locator('#dp-sec-missing h2')).toContainText('חסר מידע — כדאי להמשיך לבדיקה');
+    expect(await y('#dp-sec-high')).toBeLessThan(await y('#dp-sec-missing')); expect(await y('#dp-sec-missing')).toBeLessThan(await y('#cta'));
+    await expect(page.locator('#dp-sec-high h2')).toContainText('מצאנו הזדמנויות בסבירות גבוהה שכדאי לבדוק'); await expect(page.locator('#dp-sec-high h2')).toContainText('(' + res.counts.highCards + ')');
+    await expect(page.locator('#dp-sec-missing h2')).toContainText('חסר מידע — כדאי להשלים בדיקה');
     // four cards first, the rest behind an expander that works by keyboard; nothing is deleted
     await expect(page.locator('#dp-sec-high .dp-top .dp-card')).toHaveCount(4);
     await expect(page.locator('#dp-sec-high .dp-card:visible')).toHaveCount(4);
@@ -316,22 +352,30 @@ test.describe('deep check on the V6 draft', () => {
     const card = page.locator('#dp-sec-high .dp-card').filter({ has: page.locator('a[href^="https://"]') }).first();
     await expect(card.locator('.dp-pt')).toHaveText('מה אפשר לקבל');
     await expect(card.locator('summary')).toHaveText(['איך זה עובד', 'מי יכול לעזור']);
-    await expect(card.locator('details').nth(1).locator('a[href^="https://"]').first()).toBeHidden();
     await card.locator('details').nth(1).locator('summary').click();
     await expect(card.locator('details').nth(1).locator('a[href^="https://"]').first()).toBeVisible();
-    // low likelihood: collapsed by default, only weak rules, with the reason the sign is weak
-    const low = page.locator('#dp-low');
-    expect(await low.evaluate((e) => e.open)).toBe(false);
-    await low.locator(':scope > summary').click();
-    await expect(low.locator('.dp-card').first()).toContainText('החוק אינו חל על חלק מהתפקידים האלה');
-    await expect(low.locator('.dp-weak').first()).toBeVisible();
-    // wording: the single caveat, no claim of entitlement anywhere on the page
+    // wording: the single caveat, nothing that claims an entitlement or a time, on the frame of this screen
     const text = await page.locator('#result').innerText();
     expect((text.match(/תוצאות ראשוניות בלבד/g) || []).length).toBe(1);
-    const frame = (await page.locator('#result .head, #result .dp-tier-h, #result .dp-tier-sub').allInnerTexts()).join(' ');   // the wording of this screen (not the rule texts, which are the topics' own)
-    expect(frame).not.toMatch(/מגיע(ים|ות)? לכם|זכאים|זכאי|זכיתם|הוענק|בוודאות|אושר/);
+    const frame = (await page.locator('#result .head, #result .dp-tier-h, #result .dp-tier-sub, #result .dp-cta').allInnerTexts()).join(' ');
+    expect(frame).not.toMatch(/מגיע(ים|ות)? לכם|זכאים|זכאי\b|זכאות|זכיתם|הוענק|בוודאות|אושר|דקות/);
     await expect(page.locator('#lead')).toHaveCount(0);                                     // results first; the form only on request
     await nothingSticksOut(page); await noHScroll(page);
+  });
+
+  test('the three newly sensitive questions are optional: the reason line, "prefer not to answer", and skipping is unknown (a missing-information item), never "no"', async ({ page }) => {
+    const { cfg } = await configOf();
+    await openDeep(page);
+    const policy = (q) => (q.id === 'profile.family' ? ['death'] : q.id === 'profile.worknow' ? 'employee' : q.id === 'profile.workhist' ? ['emp'] : firstPick(q));
+    const run = await drive(page, cfg, policy, { stopAt: (q) => q.id === 'national-insurance.survclaim' });
+    await expect(page.locator('.q h1')).toHaveText(cfg.questions.find((x) => x.id === 'national-insurance.survclaim').text);
+    await expect(page.locator('.q .dp-why')).toContainText('למה שואלים'); await expect(page.locator('.q .dp-why')).toContainText('קצבת שאירים');
+    await expect(page.getByRole('radio', { name: 'מעדיפ/ה לא לענות', exact: true })).toBeVisible();
+    await page.locator('#dp-skip').click();                                                    // skip = prefer not to answer
+    const done = await drive(page, cfg, policy, { answers: Object.assign({}, run.answers, { 'national-insurance.survclaim': 'pna' }) });
+    const res = E.evaluateDeep(cfg, done.answers);
+    expect(res.missing.some((f) => f.localId === 'ni-survivors')).toBe(true); expect(res.high.some((f) => f.localId === 'ni-survivors')).toBe(false);
+    await expect(page.locator('#dp-sec-missing')).toContainText('חסר מידע');
   });
 
   test('keyboard only: the whole first screens, the expander and the form can be used without a mouse', async ({ page }) => {
@@ -398,7 +442,7 @@ const watchShifts = (page) => page.addInitScript(() => {
 });
 
 test.describe('deep check switched off (the default)', () => {
-  test.beforeAll(async ({}, ti) => { await serve(ti, 2, 'ten', undefined); });
+  test.beforeAll(async ({}, ti) => { await serve(ti, 2, 'ten', undefined, true); });
   test.afterAll(stop);
 
   test('home page: no deep tile, nothing reserved, the layout is exactly the one without the wrapper, and nothing shifts', async ({ page }) => {
@@ -470,5 +514,127 @@ test.describe('deep check switched off (the default)', () => {
     await expect(page.locator('#dp-tile')).toBeHidden();
     expect(await page.evaluate(() => document.documentElement.classList.contains('dp-expect'))).toBe(false);
     expect(await page.evaluate(() => localStorage.getItem('kasp:dp'))).toBeNull();
+  });
+});
+
+// =====================================================================================================================
+// Switched on, but the content lacks what the route requires: for a visitor it is the same as off (nothing is shown, nothing is reserved).
+// =====================================================================================================================
+test.describe('deep check switched on but not runnable (a required part is not served)', () => {
+  test.beforeAll(async ({}, ti) => { await serve(ti, 4, 'ten', undefined, true); });
+  test.afterAll(stop);
+
+  test('nothing about it is shown: no tile, the "coming soon" page, the lead refused, the code never loaded; the real requirements are what decides', async ({ page }) => {
+    realMode(true);
+    try {
+      await setFlag(true);
+      const j = await (await fetch(base + '/api/kaspchem/config')).json();
+      expect(j.topics.some((t) => t.kind === 'deep')).toBe(false); expect('deep_enabled' in j.settings).toBe(false);
+      await Promise.all([page.waitForResponse((r) => r.url().endsWith('/api/kaspchem/config')), page.goto(base + '/kaspchem')]);
+      await expect(page.locator('#dp-tile')).toBeHidden();
+      expect(await page.evaluate(() => localStorage.getItem('kasp:dp'))).toBeNull();
+      await page.goto(base + '/kaspchem/check/deep');
+      await expect(page.locator('h1')).toHaveText('הבדיקה המעמיקה תיפתח בקרוב');
+      expect(await page.evaluate(() => [].map.call(document.scripts, (s) => s.src).filter((s) => /deep\.js/.test(s)))).toEqual([]);
+      const r = await fetch(base + '/api/kaspchem/lead', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ topic: 'deep', answers: {}, name: 'אין כזה', phone: phone(), consentContact: true }) });
+      expect((await r.json()).error).toBe('bad_topic');
+      expect((await adminGet('/requests?topic=deep')).requests.length).toBe(0);
+    } finally { realMode(false); await setFlag(false); }
+  });
+});
+
+// =====================================================================================================================
+// The content does not load: a clear message with a retry button and a way home; never partial content or a partial result.
+// =====================================================================================================================
+test.describe('content does not load: a clear message and a retry, never partial content', () => {
+  test.describe.configure({ timeout: 120000 });
+  test.beforeAll(async ({}, ti) => { await serve(ti, 3, 'ten', true, true); });
+  test.afterAll(stop);
+  const CFG = '**/api/kaspchem/config';
+  const failState = async (page, title) => {
+    await expect(page.locator('#load-fail h1')).toHaveText(title);
+    await expect(page.locator('#retry')).toBeVisible(); await expect(page.locator('#retry')).toHaveText('נסו שוב');
+    await expect(page.locator('#load-fail a[href="/kaspchem"]')).toBeVisible();
+    // nothing partial: no question, no option, no phases, no result, no form
+    for (const sel of ['.opt', '.q', '#result', '.dp-phases', '.dp-segs', '#lead', '.find']) await expect(page.locator(sel)).toHaveCount(0);
+    expect((await page.locator('#retry').boundingBox()).height).toBeGreaterThanOrEqual(44);
+    await nothingSticksOut(page); await noHScroll(page);
+  };
+  const FAIL_DEEP = 'לא הצלחנו לטעון את הבדיקה';
+
+  test('the config answers with an error (500): message + retry; no partial content; retry works once the failure clears, also by keyboard', async ({ page }) => {
+    await page.route(CFG, (r) => r.fulfill({ status: 500, contentType: 'application/json', body: '{"ok":false}' }));
+    await page.goto(base + '/kaspchem/check/deep');
+    await failState(page, FAIL_DEEP);
+    await page.unroute(CFG);
+    await page.locator('#retry').focus(); await page.keyboard.press('Enter');
+    await expect(page.locator('.q h1')).toBeVisible(); await expect(page.locator('#load-fail')).toHaveCount(0);
+    await expect(page.locator('.dp-ph-cur')).toHaveText('1פרופיל');
+  });
+
+  test('the config never answers (timeout): message + retry after the wait, nothing shown meanwhile except the loading line; retry works', async ({ page }) => {
+    await page.clock.install();
+    await page.route(CFG, () => {});                                                          // the request hangs
+    await page.goto(base + '/kaspchem/check/deep');
+    await expect(page.locator('#app')).toContainText('טוענים את השאלון');
+    for (const sel of ['.opt', '.q', '#result']) await expect(page.locator(sel)).toHaveCount(0);
+    await page.clock.fastForward(16000);                                                       // the load gives up after 15 s
+    await failState(page, FAIL_DEEP);
+    await page.unroute(CFG);
+    await page.locator('#retry').click();
+    await expect(page.locator('.q h1')).toBeVisible();
+  });
+
+  test('a malformed answer (not JSON, JSON without topics, a route without its profile) is a load failure, never a partial check; retry works', async ({ page }) => {
+    await page.route(CFG, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true,"topics":' }));
+    await page.goto(base + '/kaspchem/check/deep'); await failState(page, FAIL_DEEP);
+    await page.unroute(CFG);
+    await page.route(CFG, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true,"settings":{"deep_enabled":true}}' }));
+    await page.locator('#retry').click(); await failState(page, FAIL_DEEP);
+    await page.unroute(CFG);
+    await page.route(CFG, async (r) => { const j = await (await r.fetch()).json(); j.topics.find((t) => t.kind === 'deep').profile = null; await r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(j) }); });
+    await page.locator('#retry').click(); await failState(page, FAIL_DEEP);
+    await page.unroute(CFG);
+    await page.locator('#retry').click(); await expect(page.locator('.q h1')).toBeVisible();
+  });
+
+  test('a topic the route REQUIRES is missing from the answer: "not available right now" + retry, the check is not run in a reduced form; retry works when it is back', async ({ page }) => {
+    await page.route(CFG, async (r) => {
+      const j = await (await r.fetch()).json();
+      j.topics.find((t) => t.kind === 'deep').requires = ['housing', 'mortgage'];
+      j.topics = j.topics.filter((t) => t.id !== 'housing');
+      await r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(j) });
+    });
+    await page.goto(base + '/kaspchem/check/deep');
+    await failState(page, 'הבדיקה המעמיקה אינה זמינה כרגע');
+    await expect(page.locator('#load-fail')).toContainText('לא נריץ אותה בצורה חלקית');
+    await expect(page.locator('#load-fail a[href="/kaspchem/check/quick"]')).toBeVisible();
+    expect(await page.evaluate(() => [].map.call(document.scripts, (s) => s.src).filter((s) => /deep\.js/.test(s)))).toEqual([]); // the check's own code is not even loaded
+    await page.unroute(CFG);
+    await page.locator('#retry').click(); await expect(page.locator('.q h1')).toBeVisible();
+  });
+
+  test('every other check has the same retry state when nothing loads (config and the static fallback both fail); with only the config broken it still works from the static files', async ({ page }) => {
+    await page.route(CFG, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: 'not json' }));
+    await page.goto(base + '/kaspchem/check/mortgage');
+    await expect(page.locator('.q h1')).toBeVisible();                                         // the static fallback keeps the ten topics working, as before
+    await page.route('**/kaspchem/content/topics.json', (r) => r.abort());
+    await page.reload();
+    await failState(page, 'לא הצלחנו לטעון את השאלון');
+    await page.unroute(CFG); await page.unroute('**/kaspchem/content/topics.json');
+    await page.locator('#retry').focus(); await page.keyboard.press('Enter');
+    await expect(page.locator('.q h1')).toBeVisible(); await expect(page.locator('.opt').first()).toBeVisible();
+  });
+
+  test('a result is never computed from a stale or partial answers shape: saved answers that do not fit are dropped and the questions are asked again', async ({ page }) => {
+    const { cfg } = await configOf();
+    await page.goto(base + '/kaspchem/check/deep');
+    await page.evaluate(() => sessionStorage.setItem('kaspchem:deep', JSON.stringify({ a: { 'profile.home': 'gone', 'profile.mortgage': ['no'], 'profile.worknow': 'nope', 'zzz.q': 'a' }, o: ['profile.home', 'profile.mortgage', 'profile.worknow', 'zzz.q'] })));
+    await page.reload();
+    await expect(page.locator('.q h1')).toHaveText(cfg.questions.find((q) => q.id === 'profile.home').text);
+    await expect(page.locator('#result')).toHaveCount(0);
+    await page.evaluate(() => sessionStorage.setItem('kaspchem:deep', '{not json'));
+    await page.reload();
+    await expect(page.locator('.q h1')).toHaveText(cfg.questions.find((q) => q.id === 'profile.home').text);
   });
 });

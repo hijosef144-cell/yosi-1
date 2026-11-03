@@ -9,6 +9,7 @@ const N = 3000, SEED = 20261103;
 
 function snapshot(topicsFile) {
   const route = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'kaspchem', 'content', 'routes.json'), 'utf8')).topics.find((t) => t.id === 'deep');
+  route.requires = []; // a regression digest of the composed flow: the published ten are recorded in the TEST-ONLY reduced mode (the real route is not available against them)
   const topics = JSON.parse(fs.readFileSync(topicsFile, 'utf8')).topics;
   const cfg = E.buildDeep(route, topics), rand = L.rng(SEED), hash = crypto.createHash('sha256'), fires = {}, outcomes = {};
   for (let i = 0; i < N; i++) {

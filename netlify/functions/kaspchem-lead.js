@@ -33,7 +33,7 @@ exports.handler = async (event) => {
     if (topic.kind === 'deep') {
       if (!(await content.deepEnabled())) throw new HttpError(400, 'bad_topic');
       deep = await content.loadDeepConfig();
-      if (!deep) throw new HttpError(400, 'bad_topic');
+      if (!deep || deep.unavailable) throw new HttpError(400, 'bad_topic'); // a required part is not served: the check is not run, in no reduced form
     }
 
     const name = cleanText(b.name, 2, 80);

@@ -141,14 +141,17 @@
     var items = c ? (c.parts || [c]) : [], seen = {}, list = given || [];
     if (!given) { list = []; items.forEach(function (f) { (f.missing || []).forEach(function (m) { if (!seen[m.id]) { seen[m.id] = true; list.push(m); } }); }); }
     return '<ul class="dp-miss">' + list.map(function (m) {
-      return '<li><span class="dp-mq">' + esc(M('missingLine', 'חסר מידע:')) + ' ' + esc(m.text) + '</span> <button type="button" class="btn link dp-fill" data-ask="' + esc(m.ask || m.id) + '">' + esc(M('completeAnswer', 'השלמת התשובה')) + '</button></li>';
+      return '<li><span class="dp-mq">' + esc(M('missingLine', 'חסר מידע:')) + ' ' + esc(m.text) + '</span> <button type="button" class="btn link dp-fill" data-ask="' + esc(m.ask || m.id) + '">' + esc(M('completeAnswer', 'להשלמת התשובה')) + '</button></li>';
     }).join('') + '</ul>';
   }
   // Several rights that wait for the same unanswered question are shown as ONE item: the question, a button to answer it, and the list of what depends on it.
   function groupHtml(g, i) {
-    return '<li class="find dp-card dp-card-missing dp-group-card" style="animation-delay:' + (reduce ? 0 : 300 + i * 140) + 'ms"><i class="mk" aria-hidden="true"></i><div><b>' + esc(g.cards.length) + ' נושאים תלויים בתשובה שחסרה</b>' +
-      missingLine(null, g.missing) +
-      '<details class="dp-part dp-det"><summary>הנושאים שתלויים בתשובה (' + g.cards.length + ')</summary><ul class="dp-dep">' + g.cards.map(function (c) { return '<li>' + esc(c.title) + '</li>'; }).join('') + '</ul></details></div></li>';
+    // ONE calm card per missing answer: what is missing (one sentence), a neutral line that it touches several areas, and the action. No list of rights.
+    var m = g.missing[0] || {};
+    return '<li class="find dp-card dp-card-missing dp-group-card" style="animation-delay:' + (reduce ? 0 : 300 + i * 140) + 'ms"><i class="mk" aria-hidden="true"></i><div><b>' + esc(M('missingGroupTitle', 'חסרה תשובה אחת, והיא משפיעה על כמה תחומים בבדיקה')) + '</b>' +
+      '<p class="dp-mq dp-mq-one">' + esc(M('missingLine', 'חסר מידע:')) + ' ' + esc(m.text || '') + '</p>' +
+      '<p class="dp-note">' + esc(M('missingGroupNote', 'תשובה זו משפיעה על כמה תחומים בבדיקה.')) + '</p>' +
+      '<button type="button" class="btn dp-fill dp-fill-main" data-ask="' + esc(m.ask || m.id || '') + '">' + esc(M('completeAnswer', 'להשלמת התשובה')) + '</button></div></li>';
   }
   function itemHtml(it, i, tier) { return it.folded ? groupHtml(it, i) : cardHtml(it.card || it, i, tier); }
   function cardHtml(c, i, tier) {
@@ -171,6 +174,7 @@
 
   function result() {
     var cfg = C.cfg(), answers = C.answers(), p = E.deepProgress(cfg, answers);
+    if (E.deepNext(cfg, answers)) return step(); // never a result from answers that are not complete for this flow
     shown.profile = 1; shown.topics = 1;
     res = E.evaluateDeep(cfg, answers);
     C.app.innerHTML = C.crumb() + phaseStrip('summary') + bar(p, true) + '<div style="height:1.2rem"></div>' +

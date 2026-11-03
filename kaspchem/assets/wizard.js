@@ -16,17 +16,39 @@
   function focusMain() { main.focus({ preventScroll: true }); window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' }); }
 
   /* ---------- data ---------- */
-  function fetchJson(u) { return fetch(u).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }); }
-  fetchJson('/api/kaspchem/config').catch(function () { // fallback when the API is down: the ten topics and the entry routes (quick check), both static files
+  var LOAD_MS = 15000; // a request that takes longer than this counts as failed
+  function fetchJson(u) {
+    return new Promise(function (resolve, reject) {
+      var ctl = window.AbortController ? new AbortController() : null, done = false;
+      var timer = setTimeout(function () { if (!done) { done = true; if (ctl) { try { ctl.abort(); } catch (e) {} } reject(new Error('timeout')); } }, LOAD_MS);
+      fetch(u, ctl ? { signal: ctl.signal } : undefined).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+        .then(function (j) { if (!done) { done = true; clearTimeout(timer); resolve(j); } }, function (e) { if (!done) { done = true; clearTimeout(timer); reject(e); } });
+    });
+  }
+  // The content did not load (error, timeout, malformed answer, or a part the check needs is missing): say so, offer to try again, and show nothing partial.
+  function loadFail(deep, unavailable) {
+    document.title = (deep ? 'בדיקה מעמיקה' : 'בדיקה') + ' – כספכם';
+    var m = (topic && topic.messages) || {}, title = unavailable ? (m.unavailableTitle || 'הבדיקה המעמיקה אינה זמינה כרגע') : (deep ? (m.loadFailTitle || 'לא הצלחנו לטעון את הבדיקה') : 'לא הצלחנו לטעון את השאלון');
+    var body = unavailable ? (m.unavailableBody || 'חלק מהתוכן שהבדיקה זקוקה לו אינו זמין כרגע, ולכן לא נריץ אותה בצורה חלקית. נסו שוב מאוחר יותר.') : 'נסו שוב בעוד רגע. אם זה חוזר, אפשר לחזור לדף הראשי.';
+    app.innerHTML = '<div class="dp-fail" id="load-fail" role="alert"><h1>' + esc(title) + '</h1><p>' + esc(body) + '</p><div class="cta-row"><button type="button" class="btn" id="retry">נסו שוב</button>' +
+      (unavailable ? '<a class="btn link" href="/kaspchem/check/quick">לבדיקה מהירה</a>' : '') + '<a class="btn link" href="/kaspchem">חזרה לדף הראשי</a></div></div>';
+    document.getElementById('retry').addEventListener('click', boot);
+    var h = app.querySelector('h1'); if (h) { h.setAttribute('tabindex', '-1'); h.focus({ preventScroll: true }); }
+  }
+  function boot() {
+    topic = null; dcfg = null; answers = {}; order = []; busy = false;
+    app.innerHTML = '<p>טוענים את השאלון…</p>';
+    var api = fetchJson('/api/kaspchem/config').then(function (c) { if (!c || !Array.isArray(c.topics)) throw new Error('malformed'); return c; });
+    (topicId === 'deep' ? api : api.catch(function () { // fallback when the API is down: the ten topics and the entry routes (quick check), both static files. Never for the deep check: its switch would be unknown.
       return Promise.all([fetchJson('/kaspchem/content/topics.json'), fetchJson('/kaspchem/content/routes.json').catch(function () { return { topics: [] }; })])
         .then(function (r) { return { topics: r[0].topics.concat((r[1].topics || []).filter(function (t) { return t.kind !== 'deep'; })) }; }); // API down: the deep check is never shown (its switch is unknown)
-    })
+    }))
     .then(function (c) {
       topics = c.topics; settings = c.settings || {};
       topic = topics.filter(function (t) { return t.id === topicId; })[0];
       if (!topic && topicId === 'deep') { // switched off (or unknown): a friendly page, nothing about the check itself is loaded or computed
         document.title = 'בדיקה מעמיקה – בקרוב – כספכם';
-        app.innerHTML = '<div class="dp-soon"><h1>הבדיקה המעמיקה תיפתח בקרוב</h1><p>אנחנו עדיין מכינים אותה. בינתיים אפשר לעשות בדיקה מהירה של כמה דקות, או לבדוק תחום מסוים.</p><div class="cta-row dp-soon-row"><a class="btn" href="/kaspchem/check/quick">לבדיקה מהירה</a><a class="btn link" href="/kaspchem">חזרה לכל התחומים</a></div></div>';
+        app.innerHTML = '<div class="dp-soon"><h1>הבדיקה המעמיקה תיפתח בקרוב</h1><p>אנחנו עדיין מכינים אותה. בינתיים אפשר לעשות בדיקה מהירה, או לבדוק תחום מסוים.</p><div class="cta-row dp-soon-row"><a class="btn" href="/kaspchem/check/quick">לבדיקה מהירה</a><a class="btn link" href="/kaspchem">חזרה לכל התחומים</a></div></div>';
         return;
       }
       if (!topic) { app.innerHTML = '<h1>התחום לא נמצא</h1><p><a href="/kaspchem">חזרה לכל התחומים</a></p>'; return; }
@@ -40,16 +62,22 @@
       history.replaceState({ n: order.length }, '');
       step();
     })
-    .catch(function () { app.innerHTML = '<h1>לא הצלחנו לטעון את השאלון</h1><p>נסו לרענן את הדף, או <a href="/kaspchem">חזרו לדף הראשי</a>.</p>'; });
+    .catch(function () { loadFail(topicId === 'deep', false); });
+  }
 
   /* ---------- the deep check: composed here from the route and the served topics; its screens live in assets/deep.js ---------- */
   function findQ(id) { return (dcfg || topic).questions.filter(function (x) { return x.id === id; })[0]; }
   function prune(a) { return dcfg ? E.deepPrune(dcfg, a) : E.pruneAnswers(topic, a); }
   function startDeep() {
+    // a malformed route or a missing part the route requires is NOT run in a reduced form: it is the "not available" state
+    if (!topic.profile || !Array.isArray(topic.profile.questions) || !Array.isArray(topic.requires)) throw new Error('malformed route');
     dcfg = E.buildDeep(topic, topics);
+    if (dcfg.unavailable) { dcfg = null; return loadFail(true, true); }
+    if (window.KaspDeep) return deepReady(); // loaded on an earlier try
     var sc = document.createElement('script');
     sc.src = '/kaspchem/assets/deep.js';
-    sc.onload = function () {
+    sc.onload = deepReady;
+    function deepReady() {
       D = window.KaspDeep; D.init(ctx);
       load();
       answers = prune(answers);
@@ -58,8 +86,8 @@
       order = order.filter(function (id) { return answers[id] != null; });
       history.replaceState({ n: order.length }, '');
       step();
-    };
-    sc.onerror = function () { app.innerHTML = '<h1>לא הצלחנו לטעון את הבדיקה</h1><p>נסו לרענן את הדף, או <a href="/kaspchem">חזרו לדף הראשי</a>.</p>'; };
+    }
+    sc.onerror = function () { dcfg = null; loadFail(true, false); };
     document.head.appendChild(sc);
   }
   // what the deep screens may use of this file (they never touch the lead form or the stored answers except through these)
@@ -358,4 +386,5 @@
     var d = document.getElementById('done'); d.focus({ preventScroll: true }); d.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'center' });
     var cta = document.getElementById('cta'); if (cta) { cta.hidden = true; }
   }
+  boot();
 })();

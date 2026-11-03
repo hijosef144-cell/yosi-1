@@ -65,7 +65,7 @@ on('GET', '/requests/(\\d+)', async (c, id) => {
   let readable, findings, findingDetails;
   if (topic && topic.kind === 'deep') {
     // The deep check: answers are profile + topic questions (qualified ids), findings are stored as "tier:ruleId" and shown grouped by tier.
-    const deep = await content.loadDeepConfig();
+    const deep = await content.loadDeepConfig({ ignoreRequires: true });
     const eff = deep ? engine.deepEffective(deep, r.answers) : { answers: {}, visible: {} };
     readable = deep ? deep.questions.filter((q) => eff.answers[q.id] != null).map((q) => ({
       question: q.text, answer: [].concat(r.answers[q.id]).map((id) => (q.options.find((o) => o.id === id) || {}).label || id).join(' · ')

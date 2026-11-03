@@ -15,7 +15,9 @@ const TEN = read(path.join(root, 'kaspchem', 'content', 'topics.json')).topics;
 const ROUTE = read(path.join(root, 'kaspchem', 'content', 'routes.json')).topics.find((t) => t.id === 'deep');
 const V6F = path.join(root, 'docs', 'research', 'drafts-v6', 'PUBLISHABLE-v6.draft.json');
 const SKIP_V6 = fs.existsSync(V6F) ? false : 'V6 draft not available in this checkout (the private research folder is not linked)';
-const SETS = [['published ten', TEN]].concat(SKIP_V6 ? [] : [['V6 draft', read(V6F).topics]]);
+// the real route is not available against the published ten (it requires V6 shapes); the reduced run is TEST-ONLY: the same route without `requires`
+const ROUTE_DEG = Object.assign({}, ROUTE, { requires: [] });
+const SETS = [['published ten', TEN, ROUTE_DEG]].concat(SKIP_V6 ? [] : [['V6 draft', read(V6F).topics, ROUTE]]);
 
 // positive atoms of a rule: question → options that make it fire (atoms under "not" are skipped)
 function targets(cond, out, neg) {
@@ -44,9 +46,9 @@ function biasedPath(cfg, rand, want) {
   return ans;
 }
 
-for (const [name, topics] of SETS) {
+for (const [name, topics, route] of SETS) {
   test('alignment (' + name + '): every active rule is reachable as HIGH in the deep check, and every HIGH finding is a finding of its topic alone', () => {
-    const cfg = E.buildDeep(ROUTE, topics), byTopic = {}, srcOf = {}; topics.forEach((t) => { srcOf[t.id] = t; });
+    const cfg = E.buildDeep(route, topics), byTopic = {}, srcOf = {}; topics.forEach((t) => { srcOf[t.id] = t; });
     const rand = L.rng(20261103), reached = {}, active = cfg.rules.filter((r) => !r.weak && r.status !== 'inactive');
     active.forEach((r) => {
       const want = targets(r.when);
@@ -69,7 +71,7 @@ for (const [name, topics] of SETS) {
   });
 
   test('alignment (' + name + '): the deep check adds no finding of its own: every high or missing item is a rule of a served topic; low items only come from the declared weak rules', () => {
-    const cfg = E.buildDeep(ROUTE, topics), rules = {}; cfg.rules.forEach((r) => { rules[r.id] = r; });
+    const cfg = E.buildDeep(route, topics), rules = {}; cfg.rules.forEach((r) => { rules[r.id] = r; });
     const rand = L.rng(5);
     for (let i = 0; i < 3000; i++) {
       const a = biasedPath(cfg, rand, {}), r = E.evaluateDeep(cfg, a);

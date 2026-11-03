@@ -280,12 +280,13 @@
    * Whatever the route declares about a topic, question or option that the served content does not have is SKIPPED (listed in `skipped`, never an error):
    * the same route works against the ten published topics and against a newer content set.
    */
-  function buildDeep(route, topics) {
+  function buildDeep(route, topics, opts) {
+    opts = opts || {};
     var served = {};
     (topics || []).forEach(function (t) { if (t && t.questions && t.kind !== 'router' && t.kind !== 'deep') served[t.id || t.topic] = t; });
     var included = (route.topics || []).filter(function (id) { return served[id]; });
     var cfg = { id: route.id || 'deep', topic: route.id || 'deep', kind: 'deep', title: route.name, name: route.name, icon: route.icon, intro: route.intro, messages: route.messages || {},
-      phases: route.phases || [], topics: included, questions: [], rules: [], derive: [], gates: [], skipped: [], profileIds: [] };
+      phases: route.phases || [], topics: included, questions: [], rules: [], derive: [], gates: [], guards: [], skipped: [], profileIds: [], unavailable: false, requiresMissing: [] };
     var parts = [qualifyTopic({ id: 'profile', name: 'profile', questions: (route.profile && route.profile.questions) || [], rules: [] })];
     included.forEach(function (id) { parts.push(qualifyTopic(served[id])); });
     parts.forEach(function (p) { cfg.questions = cfg.questions.concat(p.questions); cfg.rules = cfg.rules.concat(p.rules); });
@@ -320,6 +321,29 @@
       cfg.gates.push({ id: g.id, targets: targets.map(function (q) { return q.id; }), show: g.show, why: g.why });
     });
 
+    // requires: the content the route was written for. A topic id, or a shape guard ("topic.question#option"). If any is missing the check is NOT AVAILABLE: it is never run in a
+    // degraded form in production (the only degraded mode is a test-only one: the test server serves the route without `requires`). opts.ignoreRequires is for reading old requests.
+    (route.requires || []).forEach(function (r) {
+      var ok = r.indexOf('.') === -1 ? !!served[r] : guardOk(byId, r);
+      if (!ok) cfg.requiresMissing.push(r);
+    });
+    if (cfg.requiresMissing.length && !opts.ignoreRequires) cfg.unavailable = true;
+
+    // person guards: an option of a family-level question whose meaning depends on WHO it concerns (e.g. "someone stopped working"). A rule that is about the respondent
+    // themselves must not fire because ANOTHER person meets the condition: every positive atom on that option is rewritten to "option AND the follow-up question says it is me".
+    // Any other answer of the follow-up (a spouse, a child, a parent, "prefer not to answer") makes the atom UNKNOWN, so such a rule can only be missing information, never high.
+    ((route.persons && route.persons.guards) || []).forEach(function (g) {
+      if (!byId[g.question] || !dOpt(byId[g.question], g.option) || !byId[g.who] || !guardsOk(byId, g.needs)) { cfg.skipped.push({ kind: 'person', id: g.id, reason: 'target-missing' }); return; }
+      var hits = 0;
+      cfg.rules.forEach(function (r) {
+        if (r.weak) return;
+        var changed = false;
+        r.when = guardAtoms(r.when, g, false, function (unsafe) { if (unsafe) r.personUnsafe = true; else { changed = true; hits++; } });
+        if (changed) (r.personGuards = r.personGuards || []).push(g.id);
+      });
+      cfg.guards.push({ id: g.id, question: g.question, option: g.option, who: g.who, rules: hits });
+    });
+
     // facts: profile answer → equivalent answer(s) of topic questions. Applies only when every target question exists and the guards hold.
     (route.facts || []).forEach(function (f) {
       var targets = {}; Object.keys(f.map || {}).forEach(function (o) { Object.keys(f.map[o]).forEach(function (t) { targets[t] = true; }); });
@@ -342,6 +366,7 @@
     var usedProfile = {};
     cfg.derive.forEach(function (d) { usedProfile[d.from] = true; });
     cfg.questions.forEach(function (q) { if (q.topicId !== 'profile') condQs(q.showIf, function (id) { usedProfile[id] = true; }); });
+    cfg.rules.forEach(function (r) { condQs(r.when, function (id) { usedProfile[id] = true; }); }); // a person follow-up is used by the rules it guards
     // a profile question is also "used" when a later profile question depends on a used one
     var again = true;
     while (again) { again = false; cfg.questions.forEach(function (q) { if (q.topicId === 'profile' && usedProfile[q.id]) condQs(q.showIf, function (id) { if (!usedProfile[id]) { usedProfile[id] = true; again = true; } }); }); }
@@ -351,6 +376,20 @@
     });
     cfg.profileIds = cfg.profileIds.filter(function (id) { return usedProfile[id]; });
     return cfg;
+  }
+
+  function guardAtoms(cond, g, neg, note) {
+    if (!cond) return cond;
+    if (cond.all) return { all: cond.all.map(function (c) { return guardAtoms(c, g, neg, note); }) };
+    if (cond.any) return { any: cond.any.map(function (c) { return guardAtoms(c, g, neg, note); }) };
+    if (cond.not) return { not: guardAtoms(cond.not, g, !neg, note) };
+    if (cond.q === g.question && Array.isArray(cond.in) && cond.in.indexOf(g.option) !== -1) {
+      if (neg) { note(true); return cond; }
+      note(false);
+      var rest = cond.in.filter(function (x) { return x !== g.option; }), guarded = { all: [{ q: cond.q, in: [g.option] }, { q: g.who, in: g.as || ['me'] }] };
+      return rest.length ? { any: [{ q: cond.q, in: rest }, guarded] } : guarded;
+    }
+    return cond;
   }
 
   function condQs(cond, fn) {
@@ -546,7 +585,7 @@
     var by = {}, order = [];
     cards.forEach(function (c) {
       var ids = [], info = {};
-      (c.parts || [c]).forEach(function (f) { (f.missing || []).forEach(function (m) { if (!info[m.id]) { info[m.id] = m; ids.push(m.id); } }); });
+      (c.parts || [c]).forEach(function (f) { (f.missing || []).forEach(function (m) { var k = m.ask || m.id; if (!info[k]) { info[k] = m; ids.push(k); } }); });
       var key = ids.slice().sort().join('|');
       if (!by[key]) { by[key] = { cards: [], missing: ids.map(function (id) { return info[id]; }) }; order.push(key); }
       by[key].cards.push(c);
@@ -576,7 +615,8 @@
       if (res.v === true) high.push(findingOf(r));
       else if (res.v === null) {
         var f = findingOf(r);
-        f.missing = dUniq(res.miss).map(function (id) { var q = byId[id], ask = id; (cfg.derive || []).forEach(function (d) { if (ask === id && d.targets.indexOf(id) !== -1 && isAnswered(e.answers[d.from])) ask = d.from; }); return { id: id, ask: ask, text: q ? q.text : id, topicId: q ? q.topicId : null, sensitive: !!(q && q.sensitive) }; });
+        var askSeen = {};
+        f.missing = dUniq(res.miss).map(function (id) { var q = byId[id], ask = id; (cfg.derive || []).forEach(function (d) { if (ask === id && d.targets.indexOf(id) !== -1 && isAnswered(e.answers[d.from])) ask = d.from; }); return { id: id, ask: ask, text: q ? q.text : id, topicId: q ? q.topicId : null, sensitive: !!(q && q.sensitive) }; }).filter(function (m) { if (askSeen[m.ask]) return false; askSeen[m.ask] = true; return true; }); // one entry per question the visitor would have to answer
         missing.push(f);
       }
     });

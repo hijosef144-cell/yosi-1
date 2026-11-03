@@ -818,30 +818,36 @@
       "kind": "deep",
       "name": "בדיקה מעמיקה",
       "order": 12,
-      "tagline": "בדיקה מקיפה של כ־15 דקות, עם שאלות שמתאימות את עצמן אליכם",
-      "intro": "בדיקה מקיפה של כ־15 דקות. קודם כמה שאלות על המצב שלכם, ואחר כך שאלות רק בתחומים שרלוונטיים אליכם. בסוף נציג מה כדאי לבדוק, לפי סבירות. אפשר לחזור לשאלה הקודמת, ובשאלות אישיות אפשר לבחור ״מעדיפ/ה לא לענות״.",
+      "tagline": "בדיקה מקיפה ומעמיקה יותר, עם שאלות המשך לפי התשובות שלכם",
+      "intro": "בדיקה מקיפה ומעמיקה יותר. קודם כמה שאלות על המצב שלכם, ואחר כך שאלות המשך רק בתחומים שרלוונטיים אליכם. בסוף נציג מה כדאי לבדוק, לפי סבירות. אפשר לחזור לשאלה הקודמת, ובשאלות אישיות אפשר לבחור ״מעדיפ/ה לא לענות״.",
       "messages": {
-        "found": "זיהינו {n} נושאים בסבירות גבוהה שכדאי לבדוק",
-        "foundOne": "זיהינו נושא אחד בסבירות גבוהה שכדאי לבדוק",
-        "insufficient": "חסר לנו מידע כדי להצביע על נושא",
+        "found": "מצאנו {n} הזדמנויות בסבירות גבוהה שכדאי לבדוק",
+        "foundOne": "מצאנו הזדמנות אחת בסבירות גבוהה שכדאי לבדוק",
+        "insufficient": "חסר לנו מידע כדי להצביע על הזדמנות לבדיקה",
         "none": "לא עלה נושא מיוחד לבדיקה כרגע",
         "insufficientBody": "על חלק מהשאלות ענית ״לא יודע/ת״ או ״מעדיפ/ה לא לענות״, ואין לנו די בסיס כדי להצביע על נושא. אפשר לחזור ולהשלים תשובות.",
         "noneBody": "לפי התשובות לא עלה נושא ממוקד. תוצאה כזו אינה הוכחה שאין מה לבדוק. אפשר לבדוק כל אחד מהתחומים בנפרד.",
         "running": "כרגע {n} נושאים שכדאי לבדוק",
         "runningOne": "כרגע נושא אחד שכדאי לבדוק",
         "runningNone": "עוד לא זיהינו נושא לבדיקה",
-        "highTitle": "סבירות גבוהה",
-        "highSub": "לפי התשובות שלכם, אלה הנושאים שהכי כדאי לבדוק קודם. זו אינה קביעה שיש זכאות.",
-        "missingTitle": "חסר מידע — כדאי להמשיך לבדיקה",
-        "missingSub": "בנושאים האלה אין לנו די מידע כדי לומר אם יש מה לבדוק. אפשר לחזור להשלים את התשובה, או להמשיך לבדיקה.",
+        "highTitle": "מצאנו הזדמנויות בסבירות גבוהה שכדאי לבדוק",
+        "highSub": "לפי התשובות שלכם, כדאי להתחיל מהנושאים האלה. זו הזדמנות לבדיקה בלבד, ולא קביעה שיש הטבה או החזר.",
+        "missingTitle": "חסר מידע — כדאי להשלים בדיקה",
+        "missingSub": "בנושאים האלה אין לנו די מידע כדי לומר אם כדאי לבדוק. אפשר להשלים את התשובה החסרה ולראות את התוצאה מחדש.",
         "lowTitle": "סבירות נמוכה",
         "lowSub": "נושאים שעלו מסימן חלש בלבד. כדאי להכיר אותם, אך הם פחות בעדיפות.",
         "partGet": "מה אפשר לקבל",
         "partHow": "איך זה עובד",
         "partHelp": "מי יכול לעזור",
         "missingLine": "חסר מידע:",
-        "completeAnswer": "השלמת התשובה",
-        "sensitiveNote": "אפשר לבחור ״מעדיפ/ה לא לענות״ ונמשיך. אז נציין בתוצאה שחסר מידע."
+        "completeAnswer": "להשלמת התשובה",
+        "sensitiveNote": "אפשר לבחור ״מעדיפ/ה לא לענות״ ונמשיך. אז נציין בתוצאה שחסר מידע.",
+        "missingGroupTitle": "חסרה תשובה אחת, והיא משפיעה על כמה תחומים בבדיקה",
+        "missingGroupNote": "תשובה זו משפיעה על כמה תחומים בבדיקה.",
+        "loadFailTitle": "לא הצלחנו לטעון את הבדיקה",
+        "loadFailBody": "נסו שוב בעוד רגע. אם זה חוזר, אפשר לחזור לדף הראשי.",
+        "unavailableTitle": "הבדיקה המעמיקה אינה זמינה כרגע",
+        "unavailableBody": "חלק מהתוכן שהבדיקה זקוקה לו אינו זמין כרגע, ולכן לא נריץ אותה בצורה חלקית. נסו שוב מאוחר יותר, או עשו בדיקה מהירה."
       },
       "phases": [
         {
@@ -1006,6 +1012,161 @@
               {
                 "id": "none",
                 "label": "אף אחד מאלה",
+                "exclusive": true
+              }
+            ]
+          },
+          {
+            "id": "who_stopped",
+            "text": "מי הפסיק לעבוד בשנה האחרונה? מדובר בכם, בבן/בת הזוג, בילד/ה או בהורה?",
+            "help": "השאלה נוגעת לתשובה: ״מישהו מבני המשפחה הפסיק לעבוד בשנה האחרונה (כשכיר/ה או כעצמאי/ת)״. אפשר לסמן כמה.",
+            "multi": true,
+            "showIf": {
+              "q": "family",
+              "in": [
+                "stopped"
+              ]
+            },
+            "options": [
+              {
+                "id": "me",
+                "label": "אני"
+              },
+              {
+                "id": "spouse",
+                "label": "בן/בת הזוג",
+                "unknown": true
+              },
+              {
+                "id": "child",
+                "label": "ילד/ה",
+                "unknown": true
+              },
+              {
+                "id": "parent",
+                "label": "הורה",
+                "unknown": true
+              },
+              {
+                "id": "pna",
+                "label": "מעדיפ/ה לא לענות",
+                "unknown": true,
+                "pna": true,
+                "exclusive": true
+              }
+            ]
+          },
+          {
+            "id": "who_health",
+            "text": "מי נפגע או חולה ומתקשה לעבוד? מדובר בכם, בבן/בת הזוג, בילד/ה או בהורה?",
+            "help": "השאלה נוגעת לתשובה: ״מישהו מבני המשפחה נפגע או חולה, והדבר מקשה עליו/ה לעבוד״. אפשר לסמן כמה.",
+            "multi": true,
+            "showIf": {
+              "q": "family",
+              "in": [
+                "health"
+              ]
+            },
+            "options": [
+              {
+                "id": "me",
+                "label": "אני"
+              },
+              {
+                "id": "spouse",
+                "label": "בן/בת הזוג",
+                "unknown": true
+              },
+              {
+                "id": "child",
+                "label": "ילד/ה",
+                "unknown": true
+              },
+              {
+                "id": "parent",
+                "label": "הורה",
+                "unknown": true
+              },
+              {
+                "id": "pna",
+                "label": "מעדיפ/ה לא לענות",
+                "unknown": true,
+                "pna": true,
+                "exclusive": true
+              }
+            ]
+          },
+          {
+            "id": "who_reserve",
+            "text": "מי שירת במילואים בשנה האחרונה? מדובר בכם, בבן/בת הזוג, בילד/ה או בהורה?",
+            "help": "השאלה נוגעת לתשובה: ״מישהו מבני המשפחה שירת במילואים בשנה האחרונה״. אפשר לסמן כמה.",
+            "multi": true,
+            "showIf": {
+              "q": "family",
+              "in": [
+                "reserve"
+              ]
+            },
+            "options": [
+              {
+                "id": "me",
+                "label": "אני"
+              },
+              {
+                "id": "spouse",
+                "label": "בן/בת הזוג",
+                "unknown": true
+              },
+              {
+                "id": "child",
+                "label": "ילד/ה",
+                "unknown": true
+              },
+              {
+                "id": "parent",
+                "label": "הורה",
+                "unknown": true
+              },
+              {
+                "id": "pna",
+                "label": "מעדיפ/ה לא לענות",
+                "unknown": true,
+                "pna": true,
+                "exclusive": true
+              }
+            ]
+          },
+          {
+            "id": "who_retire",
+            "text": "מי הגיע לגיל הפרישה? מדובר בכם, בבן/בת הזוג או בהורה?",
+            "help": "השאלה נוגעת לתשובה: ״יש במשפחה אדם שהגיע לגיל הפרישה או מעליו (כולל הורים)״. אפשר לסמן כמה.",
+            "multi": true,
+            "showIf": {
+              "q": "family",
+              "in": [
+                "retire"
+              ]
+            },
+            "options": [
+              {
+                "id": "me",
+                "label": "אני"
+              },
+              {
+                "id": "spouse",
+                "label": "בן/בת הזוג",
+                "unknown": true
+              },
+              {
+                "id": "parent",
+                "label": "הורה",
+                "unknown": true
+              },
+              {
+                "id": "pna",
+                "label": "מעדיפ/ה לא לענות",
+                "unknown": true,
+                "pna": true,
                 "exclusive": true
               }
             ]
@@ -1230,30 +1391,14 @@
               {
                 "q": "profile.worknow",
                 "in": [
-                  "employee"
+                  "employee",
+                  "notworking",
+                  "student"
                 ]
               }
             ]
           },
-          "why": "זכויות עובדים נבדקות למי שעבד כשכיר/ה בשש השנים האחרונות או עובד/ת כשכיר/ה כיום."
-        },
-        {
-          "id": "g-homeins",
-          "questions": [
-            "household.homeins"
-          ],
-          "needs": [
-            "household.homeins#mortgage"
-          ],
-          "show": {
-            "not": {
-              "q": "profile.home",
-              "in": [
-                "other"
-              ]
-            }
-          },
-          "why": "ביטוח דירה ותכולה נבדק למי שיש חיוב ארנונה על שמו או דירה בבעלותו."
+          "why": "זכויות עובדים נבדקות למי שעבד כשכיר/ה בשש השנים האחרונות, למי שעובד/ת כשכיר/ה כיום, ולמי שאינו עובד/ת כרגע או לומד/ת (ייתכן שסיים עבודה לאחרונה). הן מוסתרות רק מעצמאי/ת או גמלאי/ת שלא עבדו כשכירים בשש השנים האחרונות."
         }
       ],
       "tune": {
@@ -1370,83 +1515,164 @@
             "bank": "חסכונות וחשבונות",
             "offer": "הצעות שקיבלתם"
           }
+        },
+        "national-insurance.survclaim": {
+          "sensitive": {
+            "why": "שואלים כדי לבדוק אם כדאי להגיש תביעה לקצבת שאירים."
+          }
+        },
+        "national-insurance.retirefacts": {
+          "sensitive": {
+            "why": "שואלים כדי לבדוק קצבת זקנה והשלמת הכנסה לגיל פרישה."
+          }
+        },
+        "national-insurance.stopfacts": {
+          "sensitive": {
+            "why": "שואלים כדי לבדוק דמי אבטלה והבטחת הכנסה למי שהפסיק לעבוד."
+          }
+        },
+        "profile.who_stopped": {
+          "sensitive": {
+            "why": "שואלים כי הבדיקה בנושא עבודה והכנסה נוגעת לאדם עצמו: אם התשובה על בן משפחה אחר, לא נניח שהיא נוגעת לכם."
+          }
+        },
+        "profile.who_health": {
+          "sensitive": {
+            "why": "שואלים כי הבדיקה בנושא פגיעה ומחלה נוגעת לאדם עצמו: אם התשובה על בן משפחה אחר, לא נניח שהיא נוגעת לכם."
+          }
+        },
+        "profile.who_reserve": {
+          "sensitive": {
+            "why": "שואלים כי הבדיקה בנושא מילואים נוגעת למי ששירת/ה: אם התשובה על בן משפחה אחר, לא נניח שהיא נוגעת לכם."
+          }
+        },
+        "profile.who_retire": {
+          "sensitive": {
+            "why": "שואלים כי הבדיקה בנושא גיל פרישה נוגעת למי שהגיע/ה לגיל הפרישה: אם התשובה על בן משפחה אחר, לא נניח שהיא נוגעת לכם."
+          }
         }
       },
-      "weak": [
-        {
-          "id": "ps-hrs-mgr",
-          "like": "payslip-rights.ps-hrs",
-          "needs": [
-            "payslip-rights.hours#mgr"
-          ],
-          "when": {
-            "all": [
-              {
-                "q": "payslip-rights.emp",
-                "in": [
-                  "now"
-                ]
-              },
-              {
-                "q": "payslip-rights.hours",
-                "in": [
-                  "ot",
-                  "rest"
-                ]
-              },
-              {
-                "q": "payslip-rights.hours",
-                "in": [
-                  "mgr"
-                ]
-              },
-              {
-                "not": {
-                  "q": "payslip-rights.hours",
-                  "in": [
-                    "glob"
-                  ]
-                }
-              },
-              {
-                "not": {
-                  "q": "payslip-rights.lines",
-                  "in": [
-                    "otline",
-                    "unk"
-                  ]
-                }
-              }
+      "persons": {
+        "fedBy": "profile.family",
+        "target": "national-insurance.now",
+        "guards": [
+          {
+            "id": "pg-stopped",
+            "question": "national-insurance.now",
+            "option": "stopped",
+            "who": "profile.who_stopped",
+            "needs": [
+              "national-insurance.now#stopped"
             ]
           },
-          "note": "תפקיד ניהול בכיר או אמון אישי: החוק אינו חל על חלק מהתפקידים האלה, ולכן הסימן חלש."
-        },
-        {
-          "id": "bk-credit-some",
-          "like": "banking-loans.bk-credit-overview",
-          "needs": [
-            "banking-loans.overdraft#some"
-          ],
-          "when": {
-            "all": [
-              {
-                "q": "banking-loans.overdraft",
-                "in": [
-                  "some"
-                ]
-              },
-              {
-                "q": "banking-loans.credit",
-                "in": [
-                  "bank",
-                  "card",
-                  "nonbank"
-                ]
-              }
+          {
+            "id": "pg-health",
+            "question": "national-insurance.now",
+            "option": "health",
+            "who": "profile.who_health",
+            "needs": [
+              "national-insurance.now#health"
             ]
           },
-          "note": "מינוס בכמה חודשים בשנה (ולא ביותר ממחצית), יחד עם הלוואות: סימן חלש יותר מהכלל הרגיל."
+          {
+            "id": "pg-reserve",
+            "question": "national-insurance.now",
+            "option": "reserve",
+            "who": "profile.who_reserve",
+            "needs": [
+              "national-insurance.now#reserve"
+            ]
+          },
+          {
+            "id": "pg-retire",
+            "question": "national-insurance.now",
+            "option": "retire",
+            "who": "profile.who_retire",
+            "needs": [
+              "national-insurance.now#retire"
+            ]
+          }
+        ],
+        "classes": {
+          "national-insurance.ni-birth-claim": {
+            "class": "household",
+            "why": "הלידה היא של המשפחה, ושאלת ההמשך עצמה שואלת על האם שעבדה. אין בכלל טענה על מצבכם האישי."
+          },
+          "national-insurance.ni-birth-save": {
+            "class": "household",
+            "why": "חיסכון לכל ילד שנולד במשפחה: הילד הוא הנוגע בדבר."
+          },
+          "national-insurance.ni-kids": {
+            "class": "household",
+            "why": "קצבת ילדים: הילדים במשפחה הם הנוגעים בדבר."
+          },
+          "national-insurance.ni-unemp": {
+            "class": "respondent",
+            "why": "דמי אבטלה שייכים למי שהפסיק לעבוד. נדרש שהתשובה תהיה על המשיב/ה."
+          },
+          "national-insurance.ni-selfclosed": {
+            "class": "respondent",
+            "why": "הבטחת הכנסה למי שהפסיק לעבוד: נדרש שהתשובה תהיה על המשיב/ה."
+          },
+          "national-insurance.ni-workinjury": {
+            "class": "respondent",
+            "why": "תביעה בגין פגיעה בעבודה היא של הנפגע/ת: נדרש שהתשובה תהיה על המשיב/ה."
+          },
+          "national-insurance.ni-disability": {
+            "class": "respondent",
+            "why": "נכות כללית: בענף הבריאות נדרש שהתשובה תהיה על המשיב/ה. הענף של מי שזקוק לעזרה (מבוגר בן 18 עד גיל הפרישה) עוסק באדם שתואר בשאלת העזרה עצמה ולא במשיב/ה."
+          },
+          "national-insurance.ni-reserve-emp": {
+            "class": "respondent",
+            "why": "תגמולי מילואים הם של מי ששירת/ה: נדרש שהתשובה תהיה על המשיב/ה."
+          },
+          "national-insurance.ni-reserve-self": {
+            "class": "respondent",
+            "why": "תגמולי מילואים הם של מי ששירת/ה: נדרש שהתשובה תהיה על המשיב/ה."
+          },
+          "national-insurance.ni-reserve-other": {
+            "class": "respondent",
+            "why": "תגמולי מילואים הם של מי ששירת/ה: נדרש שהתשובה תהיה על המשיב/ה."
+          },
+          "national-insurance.ni-oldage": {
+            "class": "respondent",
+            "why": "תביעה לקצבת זקנה היא של מי שהגיע/ה לגיל הפרישה: נדרש שהתשובה תהיה על המשיב/ה (הורה בגיל פרישה אינו הופך את המשיב/ה לזכאי/ת)."
+          },
+          "national-insurance.ni-supplement": {
+            "class": "respondent",
+            "why": "השלמת הכנסה לקצבת זקנה היא של מקבל/ת הקצבה: נדרש שהתשובה תהיה על המשיב/ה."
+          },
+          "national-insurance.ni-ltc": {
+            "class": "other-person",
+            "why": "גמלת סיעוד נוגעת לאדם הקשיש שזקוק לעזרה, כפי שתואר בשאלת העזרה, ולא למשיב/ה."
+          },
+          "national-insurance.ni-child-disabled": {
+            "class": "other-person",
+            "why": "קצבת ילד נכה נוגעת לילד, כפי שתואר בשאלת העזרה."
+          },
+          "national-insurance.ni-survivors": {
+            "class": "household",
+            "why": "קצבת שאירים של ילדי המשפחה: בן/בת הזוג או ההורה של הילדים שנפטר/ה."
+          }
         }
+      },
+      "requires": [
+        "lost-funds",
+        "tax-refunds",
+        "payslip-rights",
+        "housing",
+        "mortgage",
+        "national-insurance",
+        "insurance-pension",
+        "banking-loans",
+        "household",
+        "education-work",
+        "tax-refunds.kind#emp",
+        "payslip-rights.emp#now",
+        "housing.status#renter_owns",
+        "national-insurance.now#care",
+        "national-insurance.survclaim",
+        "household.homeins#mortgage"
       ]
     }
   ]

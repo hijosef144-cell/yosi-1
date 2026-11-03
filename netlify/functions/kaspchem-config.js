@@ -20,7 +20,10 @@ exports.handler = async (event) => {
       } catch (e) { logError('config', e); }
     }
     // The deep check is served only when switched on (public.deep_enabled === true). Off: the route is not in the answer at all, and neither is the flag.
-    if (settings.deep_enabled !== true) { topics = topics.filter((t) => t.kind !== 'deep'); delete settings.deep_enabled; }
+    // Switched on but not runnable (a part the route requires is not served): the same as off for visitors, nothing about it is revealed.
+    let deepOn = settings.deep_enabled === true;
+    if (deepOn) { try { const d = await content.loadDeepConfig(); deepOn = !!d && !d.unavailable; } catch (e) { deepOn = false; } }
+    if (!deepOn) { topics = topics.filter((t) => t.kind !== 'deep'); delete settings.deep_enabled; }
     return json(200, { ok: true, topics, settings, prices }, { 'Cache-Control': 'public, max-age=60' });
   } catch (e) { logError('config', e); return fail(500, 'server_error'); }
 };
