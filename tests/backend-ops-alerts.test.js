@@ -93,7 +93,7 @@ test('health check really touches the database and returns no data', async () =>
   db.setDriver(realDriver);
   assert.equal(down.status, 503); assert.deepEqual(down.body, { ok: false });
   // the normal config call still falls back to the bundled questionnaires (so the public site keeps working); the health check is what exposes the outage
-  assert.equal((await call('GET', '/api/kaspchem/config')).body.topics.length, 10);
+  assert.equal((await call('GET', '/api/kaspchem/config')).body.topics.length, 11); // the ten topics + the quick check (stage 4)
 });
 
 test('every successfully received lead alerts once (request number and field only); refused leads do not', async () => {

@@ -65,8 +65,10 @@ on('GET', '/requests/(\\d+)', async (c, id) => {
   const readable = topic ? engine.visibleQuestions(topic, r.answers).map((q) => ({
     question: q.text, answer: [].concat(r.answers[q.id]).map((id) => (q.options.find((o) => o.id === id) || {}).label || id).join(' · ')
   })) : [];
-  const findings = topic ? (r.findings || []).map((fid) => (topic.rules.find((x) => x.id === fid) || { finding: { title: fid } }).finding.title) : r.findings;
-  const findingDetails = topic ? (r.findings || []).map((fid) => { const rule = topic.rules.find((x) => x.id === fid) || {}; return { id: fid, title: (rule.finding || {}).title || fid, refer: (rule.finding || {}).refer || null, serviceTag: rule.serviceTag || null }; }) : [];
+  // The quick check's findings point at other topics: show "topic: reason" so staff see which topics were recommended.
+  const fTitle = (rule, fid) => { const f = (rule || {}).finding || {}; const t = f.title || fid; return topic && topic.kind === 'router' && f.groupTitle ? f.groupTitle + ': ' + t + (f.needsInfo ? ' (חסר מידע)' : '') : t; };
+  const findings = topic ? (r.findings || []).map((fid) => fTitle(topic.rules.find((x) => x.id === fid), fid)) : r.findings;
+  const findingDetails = topic ? (r.findings || []).map((fid) => { const rule = topic.rules.find((x) => x.id === fid) || {}; return { id: fid, title: fTitle(rule, fid), refer: (rule.finding || {}).refer || null, serviceTag: rule.serviceTag || null }; }) : [];
   await audit(c.me.email, 'request.view', 'request', rid, {}); // who looked at personal details, not only who changed something
   return { request: Object.assign({}, r, { readable, findingTitles: findings, findingDetails }), notes, consents, revenues, outcomes: outcomeRows.map((o) => Object.assign({}, o, { amount: Number(o.amount) })) };
 });

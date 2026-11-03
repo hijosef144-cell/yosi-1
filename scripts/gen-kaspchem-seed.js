@@ -1,4 +1,5 @@
 /*
+ * NOTE: entry routes (the quick check) live in kaspchem/content/routes.json, which this script never reads or writes.
  * Generates kaspchem/content/topics.json — the initial (editable) questionnaires.
  * The live source of truth after launch is the database (questionnaire_versions); this file is the seed and the fallback.
  * Wording is intentionally non-committal: every finding says "worth checking", never "you are entitled to X".

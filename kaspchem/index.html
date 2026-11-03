@@ -40,6 +40,12 @@
       <script src="/kaspchem/assets/headline.js"></script>
       <p class="lede">בחרו תחום, ענו על שלוש עד חמש שאלות קצרות וקבלו מיד תמונה של מה שכדאי לבדוק. בלי להשאיר פרטים לפני התוצאה.</p>
       <ul class="chips"><li>עשרה תחומים</li><li>כמה דקות בלבד</li><li>התוצאה מוצגת במלואה</li></ul>
+      <!-- stage 4: the featured quick-check tile. NOT one of the ten .tile cubes (own class, outside #tiles), so the ring of light and the tile tests are unaffected. -->
+      <a class="qk-tile" href="/kaspchem/check/quick">
+        <span class="qk-face"><svg class="ico" width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M24 4v40"/><path d="M16 44h16"/><path d="M24 9h14l4 5.5-4 5.5H24"/><path class="a" d="M24 25H10l-4 5.5 4 5.5h14"/></svg></span>
+        <span class="qk-txt"><span class="qk-h">אני לא יודע מה מגיע לי — תבדקו אותי</span><span class="qk-sub">עד עשר שאלות קצרות</span></span>
+        <svg class="qk-arrow" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M15 5l-7 7 7 7"/></svg>
+      </a>
       <h2 class="tiles-title" id="pick">איזה תחום תרצו לבדוק קודם?</h2>
       <ul class="tiles" id="tiles" aria-labelledby="pick">
 <!--tiles:start-->
