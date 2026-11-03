@@ -58,7 +58,8 @@ for (const [name, topics, route] of SETS) {
           // alignment: the same topic evaluated alone on the same answers gives this finding
           const e = E.deepEffective(cfg, a), local = {};
           Object.keys(e.merged).forEach((k) => { if (k.indexOf(f.topicId + '.') === 0) local[k.slice(f.topicId.length + 1)] = e.merged[k]; });
-          assert.ok(E.evaluate(srcOf[f.topicId], local).findings.some((x) => x.id === f.localId), f.id + ' is high but its topic alone does not give it');
+          // per-person copies are checked against the single-topic engine by the person property in engine-deep.test.js (their facts are the copies', not the respondent's)
+          if (!f.subject || f.subject === 'me') assert.ok(E.evaluate(srcOf[f.topicId], local).findings.some((x) => x.id === f.base.slice(f.topicId.length + 1)), f.id + ' is high but its topic alone does not give it');
           reached[f.id] = true;
         });
       }

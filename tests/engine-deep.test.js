@@ -279,13 +279,15 @@ function property(name, topics, n, seed, pUnknown, route) {
     const ans = draw(), e = E.deepEffective(cfg, ans), r = E.evaluateDeep(cfg, ans);
     assert.ok(E.deepValidate(cfg, ans), name + ': a path the flow produced must validate');
     const alone = perTopic(cfg, e.merged), high = {}, miss = {};
-    r.high.forEach((f) => { high[f.id] = true; }); r.missing.forEach((f) => { miss[f.id] = true; });
+    const resp = (f) => !f.subject || f.subject === 'me';   // per-person copies are checked by their own property below
+    r.high.filter(resp).forEach((f) => { high[f.base] = true; }); r.missing.filter(resp).forEach((f) => { miss[f.base] = true; });
     const hasUnknown = cfg.questions.some((q) => e.merged[q.id] != null && [].concat(e.merged[q.id]).some((id) => q.options.some((o) => o.id === id && o.unknown)));
     // always: high ⊆ alone (never a finding the topic itself would not give), and what the topic gives but is not high is open because of an unknown answer
     Object.keys(high).forEach((id) => assert.ok(alone[id], name + ' path ' + i + ': ' + id + ' is high but the topic alone does not give it'));
     Object.keys(alone).forEach((id) => { if (!high[id]) assert.ok(miss[id] && hasUnknown, name + ' path ' + i + ': ' + id + ' is given by the topic but is neither high nor missing (or there is no unknown answer)'); });
     // missing items must name at least one question, and that question must hold an unknown answer or be a follow-up gated by one
     r.missing.forEach((f) => assert.ok(f.missing.length > 0));
+    r.high.concat(r.missing).forEach((f) => { if (f.subject) assert.ok(f.id.indexOf('@') !== -1 || f.subject === 'me'); });
     if (!hasUnknown) {
       // every relevant answer known → exactly the same findings, no missing item
       assert.deepEqual(Object.keys(high).sort(), Object.keys(alone).sort(), name + ' path ' + i);
@@ -312,7 +314,7 @@ for (const [name, topics, route] of SETS) {
   test('lint (' + name + '): the route is clean — minimal collection, sensitive questions, ids, facts, path length', () => {
     const r = L.lintDeep(route, topics, { samples: 1500 });
     assert.deepEqual(r.errors, []);
-    assert.ok(r.stats.exactMax <= 60, 'longest path ' + r.stats.exactMax);
+    assert.ok(r.stats.exactMax <= (route.maxPath || 60), 'longest path ' + r.stats.exactMax);
     // every profile question that is asked is used; every sensitive question is optional
     r.cfg.questions.filter((q) => q.topicId === 'profile').forEach((q) => assert.ok(r.used[q.id]));
     r.cfg.questions.filter((q) => q.sensitive).forEach((q) => assert.ok(q.options.some((o) => o.pna && o.unknown) && r.used[q.id]));
@@ -388,11 +390,11 @@ test('lint (v): path lengths are measured exactly and the maximum is enforced', 
 
 test('path length report (printed): the number of questions a visitor answers, for the published ten and for V6', { skip: false }, () => {
   for (const [name, topics, route] of SETS) {
-    const cfg = E.buildDeep(route, topics), s = L.pathStats(cfg, 6000, 99);
+    const cfg = E.buildDeep(route, topics), s = L.pathStats(cfg, 6000, 99, undefined, route);
     const lines = Object.keys(s.histogram).map(Number).sort((a, b) => a - b).map((k) => k + ':' + s.histogram[k]).join(' ');
     console.log('   ' + name + ': exact min ' + s.exactMin + ', exact max ' + s.exactMax + '; 6000 simulated visitors: min ' + s.min + ', p10 ' + s.p10 + ', median ' + s.median + ', mean ' + s.mean + ', p90 ' + s.p90 + ', max ' + s.max);
     console.log('   histogram (questions:visitors) ' + lines);
-    assert.ok(s.exactMax <= 60);
+    assert.ok(s.exactMax <= (route.maxPath || 60));
   }
 });
 
@@ -501,115 +503,200 @@ const BASE = { 'profile.home': 'owner', 'profile.mortgage': 'no', 'profile.workn
 const ni = (r, tier) => r[tier].filter((f) => f.id.indexOf('national-insurance.') === 0).map((f) => f.localId).sort();
 const WHO = (opt, who, extra) => Object.assign({}, BASE, { 'profile.family': [opt], ['profile.who_' + opt]: who }, extra || {});
 
-test('family question: every person-dependent option is followed by ONE question about whom it concerns, asked only when that option was chosen', { skip: SKIP_V6 }, () => {
+test('family question: every person-dependent option is followed by ONE question about whom it concerns, asked only when that option was chosen; it defines the SUBJECTS', { skip: SKIP_V6 }, () => {
   const cfg = E.buildDeep(ROUTE, V6);
-  const ids = (a) => { const out = []; let q; const x = Object.assign({}, a); while ((q = E.deepNext(cfg, x))) { out.push(q.id); x[q.id] = q.multi ? [q.options.filter((o) => o.exclusive)[0].id] : q.options[0].id; if (out.length > 80) break; } return out; };
   const after = (fam, extra) => { const a = Object.assign({}, BASE, { 'profile.family': fam }, extra || {}); const q = E.deepNext(cfg, a); return q && q.id; };
   assert.equal(after(['none']), 'lost-funds.events');                    // nothing person-dependent: no follow-up at all
   assert.equal(after(['kids']), 'lost-funds.events');                    // household-level options need no "whom"
   assert.equal(after(['birth', 'death', 'care']), 'lost-funds.events');
-  assert.equal(after(['stopped']), 'profile.who_stopped');
-  assert.equal(after(['health']), 'profile.who_health');
-  assert.equal(after(['reserve']), 'profile.who_reserve');
-  assert.equal(after(['retire']), 'profile.who_retire');
-  assert.equal(after(['pna']), 'lost-funds.events');                     // declined: not asked again
-  // two person-dependent options: two follow-ups, one per option, in order; each exactly once
-  const both = ids(Object.assign({}, BASE, { 'profile.family': ['stopped', 'reserve'] })).filter((x) => x.indexOf('profile.who_') === 0);
-  assert.deepEqual(both, ['profile.who_stopped', 'profile.who_reserve']);
-  // the question and its options
+  assert.equal(after(['stopped']), 'profile.who_stopped'); assert.equal(after(['health']), 'profile.who_health');
+  assert.equal(after(['reserve']), 'profile.who_reserve'); assert.equal(after(['retire']), 'profile.who_retire');
+  assert.equal(after(['pna']), 'lost-funds.events');
   const q = cfg.questions.find((x) => x.id === 'profile.who_stopped');
   assert.equal(q.multi, true); assert.match(q.text, /מדובר בכם, בבן\/בת הזוג, בילד\/ה או בהורה\?/);
   assert.deepEqual(q.options.map((o) => o.label), ['אני', 'בן/בת הזוג', 'ילד/ה', 'הורה', 'מעדיפ/ה לא לענות']);
-  assert.deepEqual(q.options.filter((o) => o.unknown).map((o) => o.id), ['spouse', 'child', 'parent', 'pna']);
+  assert.deepEqual(q.options.filter((o) => o.unknown).map((o) => o.id), ['pna']); // only "prefer not to answer" is unknown: the persons are SUBJECTS now
   assert.ok(q.options.find((o) => o.id === 'pna').exclusive && q.sensitive);
-  // texts differ (two consecutive screens never look the same)
   const texts = cfg.questions.filter((x) => /^profile\.who_/.test(x.id)).map((x) => x.text); assert.equal(new Set(texts).size, texts.length);
+  // the per-person fact questions are asked once per subject, named in the text, right after the whom question
+  const a = Object.assign({}, BASE, { 'profile.family': ['retire'], 'profile.who_retire': ['me', 'spouse', 'parent'] });
+  const seq = []; let n; const x = Object.assign({}, a); while ((n = E.deepNext(cfg, x))) { seq.push(n.id); x[n.id] = n.multi ? [n.options.filter((o) => o.exclusive)[0].id] : n.options[0].id; if (seq.length > 80) break; }
+  assert.deepEqual(seq.filter((id) => /retirefacts/.test(id)), ['national-insurance.retirefacts', 'national-insurance.retirefacts@spouse', 'national-insurance.retirefacts@parent']);
+  const cq = cfg.questions.find((y) => y.id === 'national-insurance.retirefacts@spouse');
+  assert.ok(cq.text.indexOf('עבור בן/בת הזוג: ') === 0); assert.equal(cq.subject, 'spouse'); assert.equal(cq.copyOf, 'national-insurance.retirefacts');
+  assert.deepEqual(cq.options.map((o) => o.id), cfg.questions.find((y) => y.id === 'national-insurance.retirefacts').options.map((o) => o.id)); // the same options, nothing invented
 });
 
-test('family question, other person: a spouse, child or parent who meets the condition NEVER makes a respondent-only rule high; the rule is missing information that names the question (never false, never invented)', { skip: SKIP_V6 }, () => {
-  const cfg = E.buildDeep(ROUTE, V6);
-  const cases = [
-    // [family option, follow-up answer, facts answer, rule it feeds]
-    ['retire', ['spouse'], { 'national-insurance.retirefacts': ['nopension'] }, 'ni-oldage'],
-    ['retire', ['parent'], { 'national-insurance.retirefacts': ['nopension'] }, 'ni-oldage'],
-    ['retire', ['parent'], { 'national-insurance.retirefacts': ['onlypension'] }, 'ni-supplement'],
-    ['health', ['spouse'], { 'national-insurance.healthfacts': ['inj_noclaim'] }, 'ni-workinjury'],
-    ['health', ['child'], { 'national-insurance.healthfacts': ['long_noclaim'] }, 'ni-disability'],
-    ['stopped', ['spouse'], { 'national-insurance.stopfacts': ['emp_noreg'] }, 'ni-unemp'],
-    ['stopped', ['parent'], { 'national-insurance.stopfacts': ['noinc'] }, 'ni-selfclosed'],
-    ['reserve', ['spouse'], { 'national-insurance.reservefacts': ['emp_unpaid'] }, 'ni-reserve-emp'],
-    ['reserve', ['child', 'parent'], { 'national-insurance.reservefacts': ['self_unpaid'] }, 'ni-reserve-self']
-  ];
-  cases.forEach(([opt, who, facts, rule]) => {
-    const a = walkV6(cfg, WHO(opt, who, facts)), r = E.evaluateDeep(cfg, a), tag = opt + '/' + who + '/' + rule;
-    assert.ok(!ni(r, 'high').includes(rule), tag + ': must not be high');
-    assert.ok(ni(r, 'missing').includes(rule), tag + ': must be missing information');
-    const f = r.missing.find((x) => x.localId === rule);
-    assert.ok(f.missing.some((m) => m.id === 'profile.who_' + opt), tag + ': names the "whom" question');
-    // the respondent's own facts are exactly what the respondent said about themselves: nothing was derived from the other person's answer
+// scenarios: [family option, subject, answers for the facts of that subject, base id of the rule, expected subject]
+const SUBJECT_CASES = [
+  ['retire', 'spouse', { 'national-insurance.retirefacts@spouse': ['nopension'] }, 'national-insurance.ni-oldage'],
+  ['retire', 'parent', { 'national-insurance.retirefacts@parent': ['nopension'] }, 'national-insurance.ni-oldage'],
+  ['retire', 'parent', { 'national-insurance.retirefacts@parent': ['onlypension'] }, 'national-insurance.ni-supplement'],
+  ['health', 'spouse', { 'national-insurance.healthfacts@spouse': ['inj_noclaim'] }, 'national-insurance.ni-workinjury'],
+  ['health', 'child', { 'national-insurance.healthfacts@child': ['long_noclaim'] }, 'national-insurance.ni-disability'],
+  ['stopped', 'spouse', { 'national-insurance.stopfacts@spouse': ['emp_noreg'] }, 'national-insurance.ni-unemp'],
+  ['stopped', 'parent', { 'national-insurance.stopfacts@parent': ['noinc'] }, 'national-insurance.ni-selfclosed'],
+  ['stopped', 'spouse', { 'payslip-rights.emp@spouse': 'past', 'payslip-rights.lastslip@spouse': 'no' }, 'payslip-rights.ps-lastslip'],
+  ['stopped', 'child', { 'payslip-rights.emp@child': 'past', 'payslip-rights.unused@child': 'yes', 'payslip-rights.finpay@child': 'no' }, 'payslip-rights.ps-vac'],
+  ['reserve', 'spouse', { 'national-insurance.reservefacts@spouse': ['emp_unpaid'] }, 'national-insurance.ni-reserve-emp'],
+  ['reserve', 'child', { 'national-insurance.reservefacts@child': ['self_unpaid'] }, 'national-insurance.ni-reserve-self'],
+  ['reserve', 'parent', { 'tax-refunds.kind@parent': ['emp'], 'tax-refunds.letters@parent': 'never' }, 'tax-refunds.tx-jobs']
+];
+const WHO2 = (opt, who, extra) => Object.assign({}, BASE, { 'profile.family': [opt], ['profile.who_' + opt]: who }, extra || {});
+const baseHigh = (r, base, subj) => r.high.filter((f) => f.base === base && (subj === undefined || f.subject === subj));
+
+test('per-person findings: a spouse, child or parent who meets a rule\'s conditions gets a HIGH finding FOR THAT PERSON (labelled), none for the respondent, and the respondent\'s own facts stay untouched', { skip: SKIP_V6 }, () => {
+  const cfg = E.buildDeep(ROUTE, V6), label = { spouse: 'בן/בת הזוג', child: 'ילד/ה', parent: 'הורה' };
+  SUBJECT_CASES.forEach(([opt, who, facts, rule]) => {
+    const a = walkV6(cfg, WHO2(opt, [who], facts)), r = E.evaluateDeep(cfg, a), tag = opt + '/' + who + '/' + rule;
+    const hi = baseHigh(r, rule, who);
+    assert.equal(hi.length, 1, tag + ': one HIGH finding for that person');
+    assert.equal(hi[0].subjectLabel, label[who], tag); assert.ok(hi[0].id.indexOf('@' + who) !== -1, tag);
+    assert.equal(baseHigh(r, rule).filter((f) => f.subject !== who).length, 0, tag + ': nothing for anyone else (the respondent included)');
+    // the respondent's own facts are exactly what the respondent said: nothing was derived from the other person's answers
     assert.deepEqual(E.deriveAnswers(cfg, a), { 'housing.status': 'owner', 'mortgage.has': 'no', 'payslip-rights.emp': 'now', 'tax-refunds.kind': ['emp'], 'national-insurance.now': [opt] }, tag);
-    // the same facts when the respondent is the person: high, as before the follow-up existed
-    const me = E.evaluateDeep(cfg, walkV6(cfg, WHO(opt, ['me'], facts)));
-    assert.ok(ni(me, 'high').includes(rule), tag + ': the respondent themselves → high');
-    assert.ok(!ni(me, 'missing').includes(rule), tag + ': and no longer missing');
-    // both the respondent and someone else → still high (the respondent is among those concerned)
-    assert.ok(ni(E.evaluateDeep(cfg, walkV6(cfg, WHO(opt, ['me', who[0]], facts))), 'high').includes(rule), tag + ': me + other → high');
+    const e = E.deepEffective(cfg, a);
+    assert.ok(!(e.merged['payslip-rights.emp'] === 'past'), tag + ': the respondent is still an employee now');
+    // the same facts when the respondent is the person: HIGH for "me", labelled; nothing for the others
+    if (rule.indexOf('ps-') === -1 && rule.indexOf('tx-jobs') === -1) {
+      const mine = {}; Object.keys(facts).forEach((k) => { mine[k.replace('@' + who, '')] = facts[k]; });
+      const rm = E.evaluateDeep(cfg, walkV6(cfg, WHO2(opt, ['me'], mine)));
+      const hm = baseHigh(rm, rule, 'me'); assert.equal(hm.length, 1, tag + ': me → HIGH for me'); assert.equal(hm[0].subjectLabel, 'אני');
+      assert.equal(baseHigh(rm, rule).filter((f) => f.subject !== 'me').length, 0);
+    }
   });
 });
 
-test('family question, skipped or declined: "prefer not to answer" in the follow-up (or in the family question itself) is unknown: missing information, never high, never "no"', { skip: SKIP_V6 }, () => {
+test('per-person findings, combinations: me + spouse ask both sets of questions and give two separately labelled findings; the facts of one person are never used for the other', { skip: SKIP_V6 }, () => {
   const cfg = E.buildDeep(ROUTE, V6);
-  const facts = { 'national-insurance.retirefacts': ['nopension'] };
-  const r1 = E.evaluateDeep(cfg, walkV6(cfg, WHO('retire', ['pna'], facts)));
-  assert.ok(!ni(r1, 'high').includes('ni-oldage')); assert.ok(ni(r1, 'missing').includes('ni-oldage'));
-  const r2 = E.evaluateDeep(cfg, walkV6(cfg, Object.assign({}, BASE, { 'profile.family': ['pna'] })));
-  assert.deepEqual(ni(r2, 'high'), []); assert.ok(ni(r2, 'missing').length >= 13);
-  // the follow-up unanswered (partial answers): not high either
-  const part = Object.assign({}, BASE, { 'profile.family': ['retire'] });
-  assert.ok(!ni(E.evaluateDeep(cfg, part), 'high').includes('ni-oldage'));
-  // a rule that is false stays false (not invented as missing): nobody stopped working
-  const none = E.evaluateDeep(cfg, walkV6(cfg, Object.assign({}, BASE, { 'profile.family': ['none'] })));
-  assert.deepEqual(ni(none, 'high'), []); assert.deepEqual(ni(none, 'missing'), []);
+  const A = (facts) => E.evaluateDeep(cfg, walkV6(cfg, WHO2('stopped', ['me', 'spouse'], facts)));
+  const seq = (facts) => { const x = Object.assign({}, WHO2('stopped', ['me', 'spouse'], facts)); const out = []; let q; while ((q = E.deepNext(cfg, x))) { out.push(q.id); x[q.id] = q.multi ? [q.options.filter((o) => o.exclusive)[0].id] : q.options[0].id; if (out.length > 90) break; } return out; };
+  assert.deepEqual(seq({}).filter((id) => /stopfacts/.test(id)), ['national-insurance.stopfacts', 'national-insurance.stopfacts@spouse']);
+  // both meet the rule → two findings, one per person
+  let r = A({ 'national-insurance.stopfacts': ['emp_noreg'], 'national-insurance.stopfacts@spouse': ['emp_noreg'] });
+  assert.deepEqual(baseHigh(r, 'national-insurance.ni-unemp').map((f) => f.subject).sort(), ['me', 'spouse']);
+  assert.notEqual(baseHigh(r, 'national-insurance.ni-unemp', 'me')[0].id, baseHigh(r, 'national-insurance.ni-unemp', 'spouse')[0].id);
+  // only the respondent meets it
+  r = A({ 'national-insurance.stopfacts': ['emp_noreg'], 'national-insurance.stopfacts@spouse': ['ok'] });
+  assert.deepEqual(baseHigh(r, 'national-insurance.ni-unemp').map((f) => f.subject), ['me']);
+  // only the spouse meets it: the respondent's "ok" does not hide it, the spouse's answer does not leak to the respondent
+  r = A({ 'national-insurance.stopfacts': ['ok'], 'national-insurance.stopfacts@spouse': ['emp_noreg'] });
+  assert.deepEqual(baseHigh(r, 'national-insurance.ni-unemp').map((f) => f.subject), ['spouse']);
+  // a spouse and a parent
+  const rp = E.evaluateDeep(cfg, walkV6(cfg, WHO2('retire', ['spouse', 'parent'], { 'national-insurance.retirefacts@spouse': ['nopension'], 'national-insurance.retirefacts@parent': ['onlypension'] })));
+  assert.deepEqual(baseHigh(rp, 'national-insurance.ni-oldage').map((f) => f.subject), ['spouse']);
+  assert.deepEqual(baseHigh(rp, 'national-insurance.ni-supplement').map((f) => f.subject), ['parent']);
 });
 
-test('family question: household and other-person rules are NOT held back by the follow-up (a child, a birth, a death in the family, the person in need of care)', { skip: SKIP_V6 }, () => {
+test('per-person findings, unknown and partial: "prefer not to answer" and skipped facts are unknown (missing information naming the question AND the person), never high, never "no"; a false condition gives nothing', { skip: SKIP_V6 }, () => {
+  const cfg = E.buildDeep(ROUTE, V6), A = (over) => E.evaluateDeep(cfg, walkV6(cfg, over));
+  // the whom question declined: nobody can be a subject: missing information naming the whom question, nothing high
+  let r = A(WHO2('retire', ['pna']));
+  assert.equal(baseHigh(r, 'national-insurance.ni-oldage').length, 0);
+  assert.ok(r.missing.some((f) => f.base === 'national-insurance.ni-oldage' && f.missing.some((m) => m.id === 'profile.who_retire')));
+  // a fact question of the spouse declined / "don't know": unknown for the spouse only
+  ['pna', 'unk'].forEach((v) => {
+    r = A(WHO2('retire', ['me', 'spouse'], { 'national-insurance.retirefacts': ['nopension'], 'national-insurance.retirefacts@spouse': [v] }));
+    assert.deepEqual(baseHigh(r, 'national-insurance.ni-oldage').map((f) => f.subject), ['me'], v);
+    const m = r.missing.filter((f) => f.base === 'national-insurance.ni-oldage' && f.subject === 'spouse');
+    assert.equal(m.length, 1, v + ': missing information for the spouse'); assert.deepEqual(m[0].missing.map((x) => x.id), ['national-insurance.retirefacts@spouse']);
+    assert.ok(m[0].missing[0].text.indexOf('עבור בן/בת הזוג: ') === 0, 'the person is named in the missing question');
+    assert.equal(m[0].subjectLabel, 'בן/בת הזוג');
+  });
+  // partial information (the payslip chain of a spouse who stopped working): exactly what is missing is named
+  const part = Object.assign({}, WHO2('stopped', ['spouse']), { 'national-insurance.stopfacts@spouse': ['ok'], 'payslip-rights.emp@spouse': 'past' });
+  let rp = E.evaluateDeep(cfg, part);
+  const ms = rp.missing.filter((f) => f.base === 'payslip-rights.ps-lastslip' && f.subject === 'spouse');
+  assert.equal(ms.length, 1); assert.deepEqual(ms[0].missing.map((x) => x.id), ['payslip-rights.lastslip@spouse']);
+  // false condition: nothing at all (a final slip was received; nothing was left unused)
+  r = A(WHO2('stopped', ['spouse'], { 'national-insurance.stopfacts@spouse': ['ok'], 'payslip-rights.emp@spouse': 'past', 'payslip-rights.lastslip@spouse': 'yes', 'payslip-rights.unused@spouse': 'no' }));
+  assert.ok(![].concat(r.high, r.missing).some((f) => f.subject === 'spouse'), 'nothing for the spouse');
+  r = A(WHO2('health', ['spouse'], { 'national-insurance.healthfacts@spouse': ['ok'] }));
+  assert.ok(![].concat(r.high, r.missing).some((f) => f.subject === 'spouse'));
+  // the family question itself declined: the old behaviour (every national-insurance rule unknown), nothing high for anyone
+  r = A(Object.assign({}, BASE, { 'profile.family': ['pna'] }));
+  assert.deepEqual(r.high.filter((f) => f.topicId === 'national-insurance'), []); assert.ok(r.missing.filter((f) => f.topicId === 'national-insurance').length >= 13);
+  assert.ok(r.missing.every((f) => !f.subject || f.missing.some((m) => m.ask === 'profile.family')));
+});
+
+test('household and other-person rules are NOT held back by the follow-up (a child, a birth, a death in the family, the person in need of care)', { skip: SKIP_V6 }, () => {
   const cfg = E.buildDeep(ROUTE, V6), A = (fam, facts) => E.evaluateDeep(cfg, walkV6(cfg, Object.assign({}, BASE, { 'profile.family': fam }, facts)));
-  assert.ok(ni(A(['birth'], { 'national-insurance.birthfacts': ['mom_unpaid'] }), 'high').includes('ni-birth-claim'));
-  assert.ok(ni(A(['birth'], { 'national-insurance.birthfacts': ['save_open'] }), 'high').includes('ni-birth-save'));
-  assert.ok(ni(A(['kids'], { 'national-insurance.kidsallow': 'missing' }), 'high').includes('ni-kids'));
-  assert.ok(ni(A(['death'], { 'national-insurance.survclaim': 'no' }), 'high').includes('ni-survivors'));
-  assert.ok(ni(A(['care'], { 'national-insurance.carefacts': ['child_noallow'] }), 'high').includes('ni-child-disabled'));
-  assert.ok(ni(A(['care'], { 'national-insurance.carefacts': ['elder_noallow'] }), 'high').includes('ni-ltc'));
-  assert.ok(ni(A(['care'], { 'national-insurance.carefacts': ['adult_noallow'] }), 'high').includes('ni-disability')); // the adult described in the care question, not the respondent
+  const has = (r, id) => baseHigh(r, 'national-insurance.' + id).length > 0;
+  assert.ok(has(A(['birth'], { 'national-insurance.birthfacts': ['mom_unpaid'] }), 'ni-birth-claim'));
+  assert.ok(has(A(['birth'], { 'national-insurance.birthfacts': ['save_open'] }), 'ni-birth-save'));
+  assert.ok(has(A(['kids'], { 'national-insurance.kidsallow': 'missing' }), 'ni-kids'));
+  assert.ok(has(A(['death'], { 'national-insurance.survclaim': 'no' }), 'ni-survivors'));
+  assert.ok(has(A(['care'], { 'national-insurance.carefacts': ['child_noallow'] }), 'ni-child-disabled'));
+  assert.ok(has(A(['care'], { 'national-insurance.carefacts': ['elder_noallow'] }), 'ni-ltc'));
+  assert.ok(has(A(['care'], { 'national-insurance.carefacts': ['adult_noallow'] }), 'ni-disability'));   // the care branch of the split rule
+  // none of these carries a person label (the person is the one described in the question itself)
+  assert.ok(A(['care'], { 'national-insurance.carefacts': ['elder_noallow'] }).high.filter((f) => f.base === 'national-insurance.ni-ltc').every((f) => !f.subject));
 });
 
-test('family-rule classification: every national-insurance rule fed by the family question is classified; respondent-only ones are guarded, the others are not', { skip: SKIP_V6 }, () => {
+test('rule classification (every topic): each of the 61 active rules (60, one split in two) is classified, event-person rules are exactly the ones with per-person copies; lint catches gaps', { skip: SKIP_V6 }, () => {
   const cfg = E.buildDeep(ROUTE, V6), cls = ROUTE.persons.classes;
-  const fedRules = cfg.rules.filter((r) => r.topicId === 'national-insurance' && r.status !== 'inactive');
-  assert.equal(fedRules.length, 15); assert.equal(Object.keys(cls).length, 15);
-  fedRules.forEach((r) => { assert.ok(cls[r.id], r.id + ' is classified'); assert.equal(!!(r.personGuards || []).length, cls[r.id].class === 'respondent', r.id); assert.ok(cls[r.id].why.length > 10); });
-  assert.deepEqual(Object.keys(cls).filter((k) => cls[k].class === 'respondent').map((k) => k.split('.')[1]).sort(), ['ni-disability', 'ni-oldage', 'ni-reserve-emp', 'ni-reserve-other', 'ni-reserve-self', 'ni-selfclosed', 'ni-supplement', 'ni-unemp', 'ni-workinjury']);
+  const base = cfg.rules.filter((r) => !r.weak && r.status !== 'inactive' && r.id.indexOf('@') === -1);
+  assert.equal(base.length, 61); assert.equal(Object.keys(cls).length, 61);
+  base.forEach((r) => { assert.ok(cls[r.id], r.id + ' is classified'); assert.ok(cls[r.id].why.length > 10); });
+  const inGroup = {}; ROUTE.persons.groups.forEach((g) => g.rules.forEach((id) => { inGroup[id] = true; }));
+  Object.keys(cls).forEach((id) => assert.equal(cls[id].class === 'event-person', !!inGroup[id], id));
+  const counts = {}; Object.keys(cls).forEach((id) => { counts[cls[id].class] = (counts[cls[id].class] || 0) + 1; });
+  assert.deepEqual(counts, { respondent: 17, household: 29, 'event-person': 12, 'other-person': 3 });
   assert.deepEqual(L.lintDeep(ROUTE, V6, { noStats: true }).errors, []);
-  // lint catches an unclassified rule, and a respondent-only rule without its guard
   const bad = JSON.parse(JSON.stringify(ROUTE)); delete bad.persons.classes['national-insurance.ni-unemp'];
   assert.ok(L.lintDeep(bad, V6, { noStats: true }).errors.some((e) => /ni-unemp.*אינו מסווג/.test(e)));
-  const bad2 = JSON.parse(JSON.stringify(ROUTE)); bad2.persons.guards = bad2.persons.guards.filter((g) => g.id !== 'pg-stopped');
-  assert.ok(L.lintDeep(bad2, V6, { noStats: true }).errors.some((e) => /ni-unemp.*אינו מוגן/.test(e)));
+  const bad2 = JSON.parse(JSON.stringify(ROUTE)); bad2.persons.groups = bad2.persons.groups.filter((g) => g.id !== 'pg-stopped');
+  assert.ok(L.lintDeep(bad2, V6, { noStats: true }).errors.some((e) => /ni-unemp.*אין לו עותק/.test(e)));
+  const bad3 = JSON.parse(JSON.stringify(ROUTE)); bad3.persons.classes['housing.hs-disc'].class = 'event-person';
+  assert.ok(L.lintDeep(bad3, V6, { noStats: true }).errors.some((e) => /hs-disc/.test(e)));
 });
 
-test('person guard (engine): rewrites only positive atoms of the guarded option; an other-person answer is unknown; under "not" it is refused by lint', () => {
-  const topics = [{ id: 't', name: 't', questions: [Q('now', ['stop', 'other', { id: 'none', label: 'n', exclusive: true }], { multi: true })], rules: [rule('r', { q: 't.now'.replace('t.', ''), in: ['stop', 'other'] }), rule('neg', { not: { q: 'now', in: ['stop'] } })] }];
-  const route = { id: 'deep', name: 'd', topics: ['t'], profile: { questions: [Q('f', ['stop', 'other', { id: 'none', label: 'n', exclusive: true }], { multi: true }), Q('w', ['me', { id: 'sp', label: 'sp', unknown: true }, { id: 'pna', label: 'p', unknown: true, pna: true, exclusive: true }], { multi: true, showIf: { q: 'f', in: ['stop'] } })] },
+test('per-person expansion (engine, toy content): copies are made from the original rule, name the person, are not gated, use only copies and the event; a rule leaning on the respondent\'s own answers is refused by lint', () => {
+  const topics = [{ id: 't', name: 't', questions: [Q('now', ['stop', 'other', { id: 'none', label: 'n', exclusive: true }], { multi: true }), Q('facts', ['yes', 'no', { id: 'unk', label: 'unk', unknown: true }], { showIf: { q: 'now', in: ['stop'] } }), Q('own', ['a', 'b'])],
+    rules: [rule('r', { all: [{ q: 'now', in: ['stop'] }, { q: 'facts', in: ['yes'] }] }), rule('leaky', { all: [{ q: 'now', in: ['stop'] }, { q: 'own', in: ['a'] }] }), rule('plain', { q: 'own', in: ['a'] })] }];
+  const mkRoute = (rules) => ({ id: 'deep', name: 'd', topics: ['t'], profile: { questions: [Q('f', ['stop', 'other', { id: 'none', label: 'n', exclusive: true }], { multi: true }), Q('w', ['me', 'sp', { id: 'pna', label: 'p', unknown: true, pna: true, exclusive: true }], { multi: true, showIf: { q: 'f', in: ['stop'] } })] },
     facts: [{ id: 'f1', from: 'profile.f', map: { stop: { 't.now': ['stop'] }, other: { 't.now': ['other'] }, none: { 't.now': ['none'] } } }],
-    persons: { fedBy: 'profile.f', guards: [{ id: 'g', question: 't.now', option: 'stop', who: 'profile.w' }], classes: {} } };
-  const cfg = E.buildDeep(route, topics), r = cfg.rules.find((x) => x.localId === 'r');
-  assert.deepEqual(r.when, { any: [{ q: 't.now', in: ['other'] }, { all: [{ q: 't.now', in: ['stop'] }, { q: 'profile.w', in: ['me'] }] }] }); // the other option is untouched
-  const ev = (f, w) => E.evaluateDeep(cfg, Object.assign({ 'profile.f': f }, w ? { 'profile.w': w } : {}));
-  assert.deepEqual(ev(['stop'], ['me']).high.map((x) => x.localId), ['r', 'neg'].filter((id) => id === 'r'));
-  assert.deepEqual(ev(['stop'], ['sp']).missing.map((x) => x.localId), ['r']);
-  assert.deepEqual(ev(['other']).high.map((x) => x.localId), ['r', 'neg']); // "other" needs no follow-up and is not guarded
-  assert.ok(cfg.rules.find((x) => x.localId === 'neg').personUnsafe);
-  assert.ok(L.lintDeep(route, topics, { noStats: true }).errors.some((e) => /תחת שלילה/.test(e)));
+    gates: [{ id: 'g', topic: 't', show: { q: 'profile.f', in: ['stop', 'other', 'none'] } }],
+    persons: { fedBy: 'profile.f', subjects: { me: { label: 'אני' }, sp: { label: 'בן/בת הזוג', prefix: 'עבור בן/בת הזוג: ', note: 'ענו עליו/ה.' } }, groups: [{ id: 'g1', question: 't.now', option: 'stop', who: 'profile.w', subjects: ['me', 'sp'], factQuestions: ['t.facts'], rules: rules }], classes: {} } });
+  const cfg = E.buildDeep(mkRoute(['t.r']), topics);
+  const cq = cfg.questions.find((q) => q.id === 't.facts@sp');
+  assert.ok(cq && cq.text.indexOf('עבור בן/בת הזוג: ') === 0 && cq.noGate && cq.subject === 'sp');
+  assert.deepEqual(cq.showIf, { all: [{ q: 't.now', in: ['stop'] }, { q: 'profile.w', in: ['sp'] }] });
+  const rs = cfg.rules.find((r) => r.id === 't.r@sp');
+  assert.deepEqual(rs.when, { all: [{ q: 'profile.w', in: ['sp'] }, { all: [{ q: 't.now', in: ['stop'] }, { q: 't.facts@sp', in: ['yes'] }] }] });
+  assert.equal(rs.baseId, 't.r'); assert.equal(rs.subject, 'sp');
+  const me = cfg.rules.find((r) => r.id === 't.r'); assert.equal(me.subject, 'me');
+  const ev = (w, facts) => E.evaluateDeep(cfg, Object.assign({ 'profile.f': ['stop'], 'profile.w': w }, facts));
+  assert.deepEqual(ev(['sp'], { 't.facts@sp': 'yes' }).high.map((f) => f.id), ['t.r@sp']);
+  assert.deepEqual(ev(['me'], { 't.facts': 'yes' }).high.map((f) => f.id), ['t.r']);
+  assert.deepEqual(ev(['me', 'sp'], { 't.facts': 'no', 't.facts@sp': 'yes' }).high.map((f) => f.id), ['t.r@sp']);   // the facts of one person never decide for the other
+  assert.deepEqual(ev(['sp'], { 't.facts@sp': 'unk' }).missing.filter((f) => f.base === 't.r').map((f) => f.id), ['t.r@sp']);
+  // a rule that needs the respondent's own answer (own) cannot be copied for someone else
+  const leak = E.buildDeep(mkRoute(['t.leaky']), topics);
+  assert.ok(leak.rules.find((r) => r.id === 't.leaky@sp').personUnsafe);
+  assert.ok(L.lintDeep(mkRoute(['t.leaky']), topics, { noStats: true }).errors.some((e) => /נשען על תשובה של המשיב/.test(e)));
+});
+
+test('route: the 13 partially verified rules are recorded as unverified (with a reason), they exist, and findings from them are flagged; the route is not approved', { skip: SKIP_V6 }, () => {
+  assert.equal(ROUTE.unverified.length, 13); assert.equal(ROUTE.approved, false);
+  assert.deepEqual(ROUTE.unverified.map((u) => u.id).sort(), ['education-work.ed-haredi-employment', 'household.hh-ins-mortgage', 'housing.hs-damaged', 'housing.hs-daycare', 'housing.hs-empty', 'lost-funds.lf-inherit-open', 'lost-funds.lf-inherit-search',
+    'national-insurance.ni-disability', 'national-insurance.ni-supplement', 'payslip-rights.ps-bal', 'tax-refunds.tx-grant-2024', 'tax-refunds.tx-grant-2025', 'tax-refunds.tx-jobs']);
+  ROUTE.unverified.forEach((u) => assert.ok(u.reason && u.reason.length > 10));
+  const cfg = E.buildDeep(ROUTE, V6);
+  const r = E.evaluateDeep(cfg, walkV6(cfg, WHO2('retire', ['me'], { 'national-insurance.retirefacts': ['onlypension'] })));
+  assert.ok(r.high.find((f) => f.base === 'national-insurance.ni-supplement').unverified);
+  const o = E.evaluateDeep(cfg, walkV6(cfg, WHO2('retire', ['me'], { 'national-insurance.retirefacts': ['nopension'] })));
+  assert.ok(!o.high.find((f) => f.base === 'national-insurance.ni-oldage').unverified);
+  assert.deepEqual(L.lintDeep(ROUTE, V6, { noStats: true }).errors, []);
+});
+
+test('titles: three tiers with their own exact names, the approved line under the high tier, a neutral page heading, the part title "מה כדאי לבדוק"; the low tier is configured but inactive', () => {
+  const m = ROUTE.messages;
+  assert.equal(m.highTitle, 'סבירות גבוהה'); assert.equal(m.highSub, 'התאמה גבוהה לתנאי הסינון שנבדקו. זו אינה קביעה סופית של זכאות.');
+  assert.equal(m.missingTitle, 'חסר מידע — כדאי להשלים בדיקה'); assert.equal(m.lowTitle, 'סבירות נמוכה');
+  assert.equal(m.resultTitle, 'תוצאות הבדיקה המעמיקה'); assert.equal(m.partGet, 'מה כדאי לבדוק'); assert.equal(m.partHow, 'איך זה עובד'); assert.equal(m.partHelp, 'מי יכול לעזור');
+  assert.equal(m.running, 'כרגע {n} נושאים שכדאי לבדוק');
+  assert.equal(ROUTE.weak, undefined);
 });
 
 test('gate g-homeins is gone: the home/contents insurance question is asked for every living situation (no option says "no dwelling at all")', { skip: SKIP_V6 }, () => {
@@ -635,7 +722,7 @@ test('gate g-payslip: employee rights are hidden only for someone self-employed 
 });
 
 test('sensitive questions: the final set is exactly this one, each optional with "prefer not to answer" that is unknown (never "no"), and each used by an active rule', { skip: SKIP_V6 }, () => {
-  const r = L.lintDeep(ROUTE, V6, { noStats: true }), set = r.cfg.questions.filter((q) => q.sensitive).map((q) => q.id).sort();
+  const r = L.lintDeep(ROUTE, V6, { noStats: true }), set = r.cfg.questions.filter((q) => q.sensitive && !q.copyOf).map((q) => q.id).sort();
   assert.deepEqual(set, ['education-work.ew', 'education-work.vetlen', 'housing.bti', 'housing.household', 'national-insurance.carefacts', 'national-insurance.healthfacts', 'national-insurance.now', 'national-insurance.retirefacts',
     'national-insurance.stopfacts', 'national-insurance.survclaim', 'profile.family', 'profile.who_health', 'profile.who_reserve', 'profile.who_retire', 'profile.who_stopped', 'tax-refunds.grantfam', 'tax-refunds.inc']);
   r.cfg.questions.filter((q) => q.sensitive).forEach((q) => { const p = q.options.find((o) => o.pna); assert.ok(p && p.unknown && p.label === 'מעדיפ/ה לא לענות', q.id); assert.ok(q.sensitiveWhy && q.sensitiveWhy.length > 10, q.id); assert.ok(r.used[q.id], q.id + ' is used by a rule'); });
@@ -665,7 +752,8 @@ test('requires: against content that lacks a required topic or shape the route i
 });
 
 test('wording: every deep string (route, screens, tile, load/unavailable/coming-soon pages) is free of entitlement/approval claims and of any time promise', () => {
-  const FORBID = /מגיע(ים|ות)? לכם|זכאים|זכאית|זכאי\b|זכאות|אושר|מאושר|זכיתם|הוענק|בוודאות|בטוח שיש|מובטח|תקבלו/;
+  const APPROVED = 'התאמה גבוהה לתנאי הסינון שנבדקו. זו אינה קביעה סופית של זכאות.';   // the only sentence that may name the word
+  const FORBID = /מגיע(ים|ות)? לכם|(?<![א-ת])(זכאים|זכאית|זכאי|זכאות)(?![א-ת])|(?<![א-ת])(מאושר|אושר)(?![א-ת])|זכיתם|הוענק|בוודאות|בטוח שיש|מובטח|תקבלו/;
   const MINUTES = /(?<![א-ת])(דקות|דקה|שעה|שעות|שניות)(?![א-ת])/;
   const texts = [];
   (function walk(o, p) { if (typeof o === 'string') texts.push([p, o]); else if (o && typeof o === 'object') Object.keys(o).forEach((k) => walk(o[k], p + '.' + k)); })(ROUTE, 'route');
@@ -676,18 +764,67 @@ test('wording: every deep string (route, screens, tile, load/unavailable/coming-
   const tile = /id="dp-tile"[\s\S]*?<\/a>/.exec(fs.readFileSync(path.join(root, 'kaspchem', 'index.html'), 'utf8'));
   assert.ok(tile); texts.push(['index.html deep tile', tile[0]]);
   assert.ok(texts.length > 150);
-  const bad = texts.filter(([, s]) => FORBID.test(s) || MINUTES.test(s)).map(([p, s]) => p + ': ' + s.slice(0, 80));
+  const bad = texts.map(([p, s]) => [p, s.split(APPROVED).join('')]).filter(([, s]) => FORBID.test(s) || MINUTES.test(s)).map(([p, s]) => p + ': ' + s.slice(0, 80));
   assert.deepEqual(bad, []);
   // the exact headings the owner approved
-  assert.equal(ROUTE.messages.highTitle, 'מצאנו הזדמנויות בסבירות גבוהה שכדאי לבדוק');
+  assert.equal(ROUTE.messages.highTitle, 'סבירות גבוהה');
   assert.equal(ROUTE.messages.missingTitle, 'חסר מידע — כדאי להשלים בדיקה');
   assert.equal(ROUTE.tagline.includes('מקיפה ומעמיקה יותר'), true);
 });
 
-test('wording, V6 finding texts (not ours): the rules that use "מאושר" in a neutral sense are listed so a new offender is noticed; none claims an entitlement', { skip: SKIP_V6 }, () => {
-  const BAD = /מגיע(ים|ות)? לכם|זכאים|זכאית|זכאי\b|אושר|מאושר|זכיתם|הוענק|בוודאות|בטוח שיש|מובטח|תקבלו/, out = [];
+test('wording, V6 finding texts (not ours): the fields that use the word eligibility or "approved" are listed so a new one is noticed; they say "worth checking", none claims a granted entitlement', { skip: SKIP_V6 }, () => {
+  const BAD = /מגיע(ים|ות)? לכם|(?<![א-ת])(זכאים|זכאית|זכאי|זכאות)(?![א-ת])|(?<![א-ת])(מאושר|אושר)(?![א-ת])|זכיתם|הוענק|בוודאות|בטוח שיש|מובטח|תקבלו/, out = [];
   V6.forEach((t) => t.rules.filter((r) => r.status !== 'inactive').forEach((r) => ['title', 'why', 'step', 'refer', 'section'].forEach((k) => { if (BAD.test((r.finding || {})[k] || '')) out.push(t.id + '.' + r.id + '.' + k); })));
-  assert.deepEqual(out.sort(), ['banking-loans.bk-fees.step', 'banking-loans.bk-fees.why', 'banking-loans.bk-overdraft.step', 'education-work.ed-haredi-academic.step', 'education-work.ed-vet-prep.step']);
+  assert.deepEqual(out.sort(), ["banking-loans.bk-credit-overview.why","housing.hs-daycare.why","housing.hs-disc.title","housing.hs-rentaid.title","housing.hs-rentaid.why","national-insurance.ni-child-disabled.title","national-insurance.ni-child-disabled.why","national-insurance.ni-disability.title","national-insurance.ni-disability.why","national-insurance.ni-ltc.title","national-insurance.ni-ltc.why","national-insurance.ni-selfclosed.title","national-insurance.ni-selfclosed.why","national-insurance.ni-survivors.title","national-insurance.ni-unemp.why","payslip-rights.ps-pen.why","tax-refunds.tx-grant-2024.step","tax-refunds.tx-grant-2024.title","tax-refunds.tx-grant-2025.step","tax-refunds.tx-grant-2025.title"]);
+  // the 5 neutral "מאושר" uses of the previous round are among them or have been rephrased by the strict word-boundary check: no entitlement is ever granted in these texts, they all start from "כדאי לבדוק"
+  V6.forEach((t) => t.rules.filter((r) => r.status !== 'inactive').forEach((r) => assert.match(r.finding.title, /^(כדאי|גם אחרי|הצעה)/)));
+});
+
+// PROPERTY (no missed findings, no invented ones): over many sampled V6 paths, for every person who was named in a "whom" answer and every rule of the group, the deep check has a HIGH
+// finding for that person exactly when the ORIGINAL single-topic rule, evaluated on that person's own facts, fires. The reference is the unchanged single-topic engine.
+test('property (V6): per-person findings equal the single-topic rule evaluated on that person\'s own facts: none missed, none invented, none for a person who was not named', { skip: SKIP_V6 }, () => {
+  const cfg = E.buildDeep(ROUTE, V6), draw = sampler(cfg, 4242, 0), src = {}; V6.forEach((t) => { src[t.id] = t; });
+  let checked = 0, highs = 0, persons = {};
+  for (let i = 0; i < 4000; i++) {
+    const ans = draw(), e = E.deepEffective(cfg, ans), r = E.evaluateDeep(cfg, ans);
+    ROUTE.persons.groups.forEach((g) => {
+      const who = [].concat(e.merged[g.who] || []).filter((x) => x !== 'pna');
+      // nothing for a subject that was not named
+      r.high.concat(r.missing).forEach((f) => { if (f.subject && g.rules.some((id) => id.replace(/#\d+$/, '') === f.base)) assert.ok(who.includes(f.subject), 'subject ' + f.subject + ' was not named'); });
+      who.forEach((S) => {
+        persons[S] = (persons[S] || 0) + 1;
+        g.rules.forEach((ruleId) => {
+          const topicId = ruleId.split('.')[0], local0 = ruleId.slice(topicId.length + 1), baseLocal = local0.replace(/#\d+$/, ''), base = topicId + '.' + baseLocal;
+          const rule = cfg.rules.find((x) => x.id === ruleId);
+          if (S === 'me' && !(rule.personGuards || []).length) return;        // the respondent's own payslip / tax rules are ordinary rules, not person copies
+          const local = {};
+          Object.keys(e.merged).forEach((k) => { if (k.indexOf(topicId + '.') === 0 && k.indexOf('@') === -1) local[k.slice(topicId.length + 1)] = e.merged[k]; });
+          if (S !== 'me') {
+            (g.factQuestions || []).concat(g.copyOnly || []).forEach((q) => { if (q.indexOf(topicId + '.') !== 0) return; const k = q.slice(topicId.length + 1), v = e.merged[q + '@' + S]; if (v === undefined) delete local[k]; else local[k] = v; });
+            Object.keys(g.implies || {}).forEach((q) => { if (q.indexOf(topicId + '.') === 0) local[q.slice(topicId.length + 1)] = g.implies[q]; });
+          }
+          if (g.question.indexOf(topicId + '.') === 0) local[g.question.slice(topicId.length + 1)] = [g.option];
+          const ref = E.evaluate(src[topicId], local).findings.some((x) => x.id === baseLocal);
+          const hi = r.high.some((f) => f.base === base && f.subject === S && f.id.replace(/#\d+/, '').replace('@' + S, '') === base);
+          const branch = r.high.some((f) => f.base === base && f.subject === S);
+          assert.equal(branch, ref, 'path ' + i + ' ' + base + ' for ' + S + ': deep=' + branch + ' single-topic=' + ref);
+          checked++; if (branch) highs++;
+        });
+      });
+    });
+  }
+  console.log('   per-person property: ' + checked + ' (rule, person) checks, ' + highs + ' HIGH findings; persons: ' + JSON.stringify(persons));
+  assert.ok(highs > 300 && ['me', 'spouse', 'child', 'parent'].every((x) => persons[x] > 100));
+});
+
+test('property (V6): with unknown answers mixed in, a finding for a person is never high unless the single-topic rule fires on that person\'s facts, and what the rule would give is open (missing) for that person', { skip: SKIP_V6 }, () => {
+  const cfg = E.buildDeep(ROUTE, V6), draw = sampler(cfg, 99, 0.2);
+  for (let i = 0; i < 1500; i++) {
+    const ans = draw(), r = E.evaluateDeep(cfg, ans);
+    r.high.forEach((f) => { assert.ok(!f.missing); });
+    r.missing.forEach((f) => { assert.ok(f.missing.length > 0); if (f.subject && f.subject !== 'me') assert.ok(f.id.indexOf('@' + f.subject) !== -1); });
+    assert.equal(new Set(r.high.map((f) => f.id)).size, r.high.length);
+  }
 });
 
 test('deep golden master: the composed deep check gives exactly what was recorded on 3,000 seeded paths (published ten, and V6 when present)', () => {

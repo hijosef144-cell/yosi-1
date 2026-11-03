@@ -447,6 +447,11 @@ details.dp-low[open] > summary.dp-tier-h::after { content: '−'; }
 .btn.dp-tog { width: 100%; max-width: 26rem; min-height: 3rem; font-size: 1rem; background: transparent; color: #fff; border: 2px solid rgba(255,255,255,.4); box-shadow: none; }
 .btn.dp-tog:hover, .btn.dp-tog:focus-visible { background: rgba(255,255,255,.1); }
 .dp-cta { margin-top: 1.5rem; }
+.dp-tier-h .dp-tt { font: inherit; margin: 0; display: inline; }
+.dp-subj { margin: .3rem 0 .4rem; }
+.dp-chip { display: inline-block; padding: .12rem .75rem; border: 1px solid rgba(227,176,75,.7); border-radius: 999px; font-size: .9rem; font-weight: 700; color: var(--gold-l); background: rgba(227,176,75,.1); }
+.dp-q .dp-chip { color: var(--teal-d); border-color: var(--teal); background: #e7f4f2; }
+.find .dp-subjnote { margin: .1rem 0 .3rem; color: #bcd6d2; font-size: .93rem; line-height: 1.5; }
 .find .dp-note { margin: .25rem 0 0; color: #bcd6d2; font-size: .93rem; line-height: 1.5; }
 .find .dp-mq-one { display: block; margin: .45rem 0 0; }
 .btn.dp-fill-main { margin-top: .7rem; width: 100%; min-height: 3rem; font-size: 1rem; background: transparent; color: #fff; border: 2px solid var(--gold); box-shadow: none; }

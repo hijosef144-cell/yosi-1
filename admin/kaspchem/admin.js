@@ -25,7 +25,7 @@
     if (method !== 'GET') h['X-Kaspchem'] = '1'; // CSRF guard checked by the server
     if (TEST_USER) { h['x-test-user'] = TEST_USER; }
     return fetch('/api/kaspchem/admin' + path, { method: method, headers: h, credentials: 'same-origin', body: body ? JSON.stringify(body) : undefined })
-      .then(function (r) { return r.json().then(function (j) { if (!r.ok) { var e = new Error(j.error || 'error'); e.status = r.status; throw e; } return j; }); });
+      .then(function (r) { return r.json().then(function (j) { if (!r.ok) { var e = new Error(j.error || 'error'); e.status = r.status; e.userMessage = j.message; throw e; } return j; }); });
   }
   function fail(e) {
     if (e.status === 401) return gate('פג תוקף ההתחברות. יש להתחבר מחדש.');
@@ -35,6 +35,7 @@
       phone_exists: 'מספר הטלפון כבר רשום אצל פונה אחר',
       bad_phone: 'מספר טלפון לא תקין', bad_email: 'כתובת דוא״ל לא תקינה', bad_name: 'שם לא תקין', nothing_to_update: 'אין מה לעדכן'
     });
+    if (e.message === 'deep_not_ready') return toast(e.userMessage || 'הבדיקה המעמיקה אינה מוכנה להפעלה');
     toast('שגיאה: ' + (known[e.message] || e.message || 'לא ידועה'));
   }
   function authBox(title, inner) { tabsEl.hidden = true; document.getElementById('who').textContent = ''; view.innerHTML = '<section class="gate"><h1>' + title + '</h1>' + inner + '</section>'; }
@@ -131,7 +132,7 @@
         '<div><label for="dv">שירות</label><select id="dv"><option value="">—</option>' + a[1].services.map(function (s) { return '<option value="' + s.id + '"' + (String(r.service_id) === String(s.id) ? ' selected' : '') + '>' + esc(s.name) + '</option>'; }).join('') + '</select></div>' +
         '<div><label for="dp">בעל מקצוע</label><select id="dp"><option value="">—</option>' + a[2].professionals.map(function (s) { return '<option value="' + s.id + '"' + (String(r.professional_id) === String(s.id) ? ' selected' : '') + '>' + esc(s.name) + '</option>'; }).join('') + '</select></div></div>' +
         '<p><button class="btn" id="dsave" style="margin-top:.8rem">שמירה</button></p>' +
-        '<h2 style="margin:1.2rem 0 .5rem">ממצאים והפניה מוצעת</h2>' + (r.findingDetails && r.findingDetails.length ? '<ul>' + r.findingDetails.map(function (d) { return '<li>' + (d.tierLabel ? '<span class="pill">' + esc(d.tierLabel) + '</span> ' : '') + '<b>' + esc(d.title) + '</b>' + (d.refer ? '<br><small>הפניה: ' + esc(d.refer) + '</small>' : '') + (d.serviceTag ? ' <span class="pill">' + esc(d.serviceTag) + '</span>' : '') + '</li>'; }).join('') + '</ul>' : (r.findingTitles.length ? '<ul>' + r.findingTitles.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ul>' : '<p>אין.</p>')) +
+        '<h2 style="margin:1.2rem 0 .5rem">ממצאים והפניה מוצעת</h2>' + (r.findingDetails && r.findingDetails.length ? '<ul>' + r.findingDetails.map(function (d) { return '<li>' + (d.tierLabel ? '<span class="pill">' + esc(d.tierLabel) + '</span> ' : '') + (d.subjectLabel ? '<span class="pill">עבור: ' + esc(d.subjectLabel) + '</span> ' : '') + '<b>' + esc(d.title) + '</b>' + (d.unverified ? ' <span class="pill">כלל לא מאומת</span>' : '') + (d.refer ? '<br><small>הפניה: ' + esc(d.refer) + '</small>' : '') + (d.serviceTag ? ' <span class="pill">' + esc(d.serviceTag) + '</span>' : '') + '</li>'; }).join('') + '</ul>' : (r.findingTitles.length ? '<ul>' + r.findingTitles.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ul>' : '<p>אין.</p>')) +
         '<h2 style="margin:1.2rem 0 .5rem">תשובות</h2>' + r.readable.map(function (x) { return '<div class="qa"><b>' + esc(x.question) + '</b>' + esc(x.answer) + '</div>'; }).join('') +
         '<h2 style="margin:1.2rem 0 .5rem">הסכמות</h2>' + d.consents.map(function (c) { return '<div class="qa">' + (c.kind === 'contact' ? 'חזרה בנושא הבדיקה' : 'תוכן שיווקי') + ': <b style="display:inline">' + (c.granted ? 'אושר' : 'לא אושר') + '</b> · ' + fdate(c.created_at) + ' · ' + esc(c.text_version) + '</div>'; }).join('') +
         '<h2 style="margin:1.2rem 0 .5rem">הערות</h2>' + d.notes.map(function (n) { return '<div class="note-i"><small>' + esc(n.author) + ' · ' + fdate(n.created_at) + '</small><br>' + esc(n.body) + '</div>'; }).join('') +
@@ -214,15 +215,29 @@
   }
 
   function settings() {
-    api('GET', '/settings').then(function (r) {
+    // The deep check's readiness panel: a plain checklist. While anything is unmet the switch cannot be turned ON (the server refuses too); turning it OFF is always possible.
+    function deepPanel(rd, cur) {
+      var on = cur['public.deep_enabled'] === true, items = rd.items.map(function (i) {
+        return '<li class="' + (i.ok ? 'ok' : 'no') + '"><b aria-hidden="true">' + (i.ok ? '✓' : '✗') + '</b> ' + esc(i.label) + ' <span class="pill">' + (i.ok ? 'מתקיים' : 'לא מתקיים') + '</span>' +
+          (!i.ok && i.detail && i.detail.length ? '<details><summary>' + i.detail.length + ' כללים</summary><ul>' + i.detail.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></details>' : '') + '</li>';
+      }).join('');
+      var blocked = !rd.ready && !on;
+      return '<div class="panel" id="dp-panel"><h2 style="margin-bottom:.6rem">בדיקה מעמיקה</h2>' +
+        (rd.ready ? '' : '<p class="warn" id="dp-notready"><strong>הבדיקה המעמיקה אינה מוכנה להפעלה.</strong> עד שכל התנאים מתקיימים אי אפשר להפעיל אותה לציבור.</p>') +
+        '<ul class="dp-check" style="list-style:none;padding:0;margin:.4rem 0 .8rem;display:grid;gap:.35rem">' + items + '</ul>' +
+        '<p>מצב המתג כעת: <strong id="dp-state">' + (on ? 'דלוק (מוצגת לציבור)' : 'כבוי') + '</strong></p>' +
+        '<label style="display:flex;gap:.6rem;font-weight:700"><input type="checkbox" id="dpe"' + (on ? ' checked' : '') + (blocked ? ' disabled' : '') + '> להציג את הבדיקה המעמיקה לציבור</label></div>';
+    }
+    Promise.all([api('GET', '/settings'), api('GET', '/deep/readiness')]).then(function (res) {
+      var r = res[0], rd = res[1];
       var cur = {}; r.settings.forEach(function (s) { cur[s.key] = s.value; });
       view.innerHTML = H('הגדרות') +
         '<div class="panel"><h2 style="margin-bottom:.6rem">מיתוג ומבנה</h2><p><strong>כספכם</strong> מוצג לציבור כארגון חסד, בשיתוף <strong>מצפן כלכלי</strong> כגוף המקצועי. הבדיקה הראשונית חינמית, ושירותי המשך עשויים להיות בתשלום לפי מחיר ותנאים שמוצגים מראש. לא נקבע באתר אם כספכם עמותה רשומה ומי הגוף שמקבל את התשלום, ולכן אין לציין זאת עד שיוכרע.</p></div>' +
         '<div class="panel"><h2 style="margin-bottom:.6rem">פתיחה לציבור</h2><p class="warn">כל עוד זה כבוי, האתר מציג שאלונים ותוצאות אך אינו מקבל פניות. הפעילו רק לאחר שעורך דין אישר את מדיניות הפרטיות, תנאי השימוש ונוסח ההסכמות, והחלפתם את הטיוטות בדפים.</p><label style="display:flex;gap:.6rem;font-weight:700"><input type="checkbox" id="la"' + (cur['public.legal_approved'] === true ? ' checked' : '') + '> הנוסחים המשפטיים אושרו, אפשר לקבל פניות</label></div>' +
-        '<div class="panel"><h2 style="margin-bottom:.6rem">בדיקה מעמיקה</h2><p class="warn">כבוי כברירת מחדל. כשהוא כבוי, האתר אינו מציג את הקובייה ״תבדקו אותי לעומק״ ואינו מקבל ממנה פניות. הפעילו רק לאחר שאישרתם את תוכן הבדיקה.</p><label style="display:flex;gap:.6rem;font-weight:700"><input type="checkbox" id="dpe"' + (cur['public.deep_enabled'] === true ? ' checked' : '') + '> להציג את הבדיקה המעמיקה לציבור</label></div>' +
+        deepPanel(rd, cur) +
         '<div class="panel"><h2 style="margin-bottom:.6rem">פרטי הגוף המשפטי (רשות)</h2><p>טקסט חופשי שיוצג בעמוד הציבורי ובתחתיתו, למשל שם הגוף ומספר רישום. מלאו רק לאחר שהמבנה המשפטי אושר. ריק = לא מוצג דבר.</p><div class="row"><div><label for="od">פרטים להצגה</label><textarea id="od" maxlength="300">' + esc(cur['public.org_details'] || '') + '</textarea></div><div><button class="btn" id="ods">שמירה</button></div></div></div>';
       document.getElementById('la').onchange = function (e) { if (e.target.checked && !confirm('לאשר שהנוסחים המשפטיים אושרו ולפתוח לקבלת פניות?')) { e.target.checked = false; return; } api('PUT', '/settings', { key: 'public.legal_approved', value: e.target.checked }).then(function () { toast(e.target.checked ? 'האתר מקבל פניות' : 'קבלת פניות כבויה'); }).catch(fail); };
-      document.getElementById('dpe').onchange = function (e) { if (e.target.checked && !confirm('להציג את הבדיקה המעמיקה לציבור ולקבל ממנה פניות?')) { e.target.checked = false; return; } api('PUT', '/settings', { key: 'public.deep_enabled', value: e.target.checked }).then(function () { toast(e.target.checked ? 'הבדיקה המעמיקה מוצגת לציבור' : 'הבדיקה המעמיקה כבויה'); }).catch(fail); };
+      document.getElementById('dpe').onchange = function (e) { if (e.target.checked && !confirm('להציג את הבדיקה המעמיקה לציבור ולקבל ממנה פניות?')) { e.target.checked = false; return; } api('PUT', '/settings', { key: 'public.deep_enabled', value: e.target.checked }).then(function () { var st = document.getElementById('dp-state'); if (st) st.textContent = e.target.checked ? 'דלוק (מוצגת לציבור)' : 'כבוי'; toast(e.target.checked ? 'הבדיקה המעמיקה מוצגת לציבור' : 'הבדיקה המעמיקה כבויה'); }).catch(function (er) { e.target.checked = !e.target.checked; fail(er); }); };
       document.getElementById('ods').onclick = function () { api('PUT', '/settings', { key: 'public.org_details', value: od.value.trim() }).then(function () { toast('נשמר'); }).catch(fail); };
     }).catch(fail);
   }

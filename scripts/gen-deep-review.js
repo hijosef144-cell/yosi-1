@@ -1,6 +1,9 @@
-// Generates the owner-facing review of the deep check's content (Hebrew) from the route, the V6 draft and the engine, so every table is computed, not typed.
-// Usage: node scripts/gen-deep-review.js [out.md]   (default: docs/research/raw/DEEP-CHECK-CONTENT-REVIEW.md; the research folder is private and gitignored)
-// Needs the V6 draft (docs/research/drafts-v6/PUBLISHABLE-v6.draft.json). Nothing here is published or sent anywhere.
+// Generates the owner/professional review package of the deep check (Hebrew) from the route, the V6 draft and the engine, so every table is computed, not typed:
+//   docs/research/raw/DEEP-CHECK-CONTENT-REVIEW.md            index + the general parts (profile, whom questions, per-person mechanism, gates, tiers, wording, readiness, decisions)
+//   docs/research/raw/deep-review-by-domain/<domain>.md        one self-contained file per domain (+ profile), ready to forward to a professional
+// Usage: node scripts/gen-deep-review.js [rawDir]   (default: docs/research/raw; the research folder is private and gitignored)
+// Needs the V6 draft (docs/research/drafts-v6/PUBLISHABLE-v6.draft.json). Nothing here is published or sent anywhere. No content is invented: every question, option, rule,
+// card text, source and open point comes from the V6 draft and the route; the only words of ours are the labels of the structure.
 const fs = require('fs');
 const path = require('path');
 const E = require('../kaspchem/assets/engine.js');
@@ -13,20 +16,45 @@ const TEN = read(path.join(root, 'kaspchem', 'content', 'topics.json')).topics;
 const V6F = path.join(root, 'docs', 'research', 'drafts-v6', 'PUBLISHABLE-v6.draft.json');
 if (!fs.existsSync(V6F)) { console.error('V6 draft not found: link docs/research first'); process.exit(1); }
 const V6 = read(V6F).topics;
-const out = process.argv[2] || path.join(root, 'docs', 'research', 'raw', 'DEEP-CHECK-CONTENT-REVIEW.md');
+const rawDir = process.argv[2] || path.join(root, 'docs', 'research', 'raw');
+const dom = path.join(rawDir, 'deep-review-by-domain'); fs.mkdirSync(dom, { recursive: true });
 
-const cfg6 = E.buildDeep(ROUTE, V6), cfg1 = E.buildDeep(ROUTE, TEN);
-const lint6 = L.lintDeep(ROUTE, V6, { samples: 6000, seed: 7 }), lint1 = L.lintDeep(ROUTE, TEN, { samples: 6000, seed: 7 });
+const cfg6 = E.buildDeep(ROUTE, V6), cfg1 = E.buildDeep(Object.assign({}, ROUTE, { requires: [] }), TEN);
+const lint6 = L.lintDeep(ROUTE, V6, { samples: 6000, seed: 7 }), lint1 = L.lintDeep(Object.assign({}, ROUTE, { requires: [] }), TEN, { samples: 6000, seed: 7 });
 const q6 = {}; cfg6.questions.forEach((q) => { q6[q.id] = q; });
-const q1 = {}; cfg1.questions.forEach((q) => { q1[q.id] = q; });
-const tname = (id) => (V6.find((t) => t.id === id) || TEN.find((t) => t.id === id) || { name: id }).name;
+const md = (s) => String(s == null ? '' : s).replace(/\|/g, '/').replace(/\n/g, ' ');
+const BT = String.fromCharCode(96);
+const code = (s) => BT + s + BT;
+const tname = (id) => (V6.find((t) => t.id === id) || { name: id }).name;
 const lab = (q, id) => ((q.options.find((o) => o.id === id)) || { label: id }).label;
-const md = (s) => String(s).replace(/\|/g, '/').replace(/\n/g, ' ');
-const lines = [];
-const P = (s) => lines.push(s === undefined ? '' : s);
-const ruleTitle = (cfg, id) => ((cfg.rules.find((r) => r.id === id) || { finding: { title: id } }).finding.title);
+const SUBJ = ROUTE.persons.subjects;
+const UNV = {}; ROUTE.unverified.forEach((u) => { UNV[u.id] = u.reason; });
+const CLS = { respondent: 'נוגע למשיב/ה בלבד', 'event-person': 'נוגע לאדם שהיה לו האירוע (אני / בן/בת הזוג / ילד/ה / הורה)', household: 'משק בית / ילדים / המשפחה', 'other-person': 'אדם אחר שתואר בשאלה עצמה' };
+const BASIS = { 'official-fact': 'עובדה רשמית', 'professional-assumption': 'הנחה מקצועית', 'screening-heuristic': 'היוריסטיקת סינון' };
+const CONF = { verified: 'מאומת במקורות', partial: 'חלקי', unverified: 'לא מאומת' };
+const PRO = {
+  'tax-refunds': 'יועץ/ת מס או רואה חשבון', 'insurance-pension': 'יועץ/ת פנסיוני/ת או סוכן/ת ביטוח מורשה', 'national-insurance': 'עורך/ת דין או יועץ/ת זכויות בביטוח לאומי',
+  housing: 'מומחה/ית לארנונה ולסיוע בדיור (עורך/ת דין לשלטון מקומי)', mortgage: 'יועץ/ת משכנתאות מורשה', 'banking-loans': 'יועץ/ת פיננסי/ת או עורך/ת דין בנקאי',
+  household: 'יועץ/ת ביטוח דירה ותכולה, או איש/אשת מקצוע בצרכנות', 'payslip-rights': 'עורך/ת דין לדיני עבודה', 'education-work': 'יועץ/ת תעסוקה והכשרה, או נציג/ת האגף לחיילים משוחררים',
+  'lost-funds': 'יועץ/ת פנסיוני/ת ועורך/ת דין לענייני ירושה'
+};
+const lines = []; const P = (s) => lines.push(s === undefined ? '' : s);
 
-// ---- personas: engine-evaluated, answers by question id; anything not listed takes the first plain option (single) or "none of these" (multi) ----
+// ---- conditions in words ----
+function words(qs, c) {
+  if (!c) return 'תמיד';
+  const par = (x) => ((x.all || x.any) ? '(' + words(qs, x) + ')' : words(qs, x));
+  if (c.all) return c.all.map(par).join(' וגם ');
+  if (c.any) return c.any.map(par).join(' או ');
+  if (c.not) return 'לא (' + words(qs, c.not) + ')';
+  const q = qs[c.q]; if (!q) return c.q;
+  return '״' + q.text.replace(/[?:]\s*$/, '').slice(0, 90) + '״ = ' + c.in.map((i) => '״' + lab(q, i) + '״').join(' או ');
+}
+const localQs = (t) => { const m = {}; t.questions.forEach((q) => { m[q.id] = q; }); return m; };
+const profQs = {}; ROUTE.profile.questions.forEach((q) => { profQs['profile.' + q.id] = q; });
+const pwords = (c) => words(Object.assign({}, profQs, q6), c);
+
+// ---- engine-evaluated examples ----
 function walk(cfg, over) {
   const a = {}; let q;
   while ((q = E.deepNext(cfg, a))) {
@@ -36,282 +64,367 @@ function walk(cfg, over) {
   }
   return a;
 }
-const show = (cfg, a) => {
-  const r = E.evaluateDeep(cfg, a), asked = Object.keys(a).length, cards = (list) => list.map((c) => c.title).join('; ') || '—';
+const sj = (f) => (f.subjectLabel ? ' [עבור: ' + f.subjectLabel + ']' : '');
+function show(cfg, a) {
+  const r = E.evaluateDeep(cfg, a), cards = (list) => list.map((c) => c.title + sj(c)).join('; ') || '—';
   const miss = (c) => ((c.parts ? c.parts[0] : c).missing || []).map((m) => m.text.replace(/[?]$/, '')).join(' / ');
-  return { r, asked, high: cards(r.highCards), missing: r.missingItems.map((it) => (it.folded ? '**' + it.cards.length + ' נושאים תלויים בתשובה שחסרה** (' + it.missing.map((m) => m.text.replace(/[?]$/, '')).join(' / ') + '): ' + it.cards.map((c) => c.title).join(', ') : it.card.title + ' [חסר: ' + miss(it.card) + ']')).join('; ') || '—', low: cards(r.lowCards) };
-};
+  return { r, asked: Object.keys(a).length, high: cards(r.highCards),
+    missing: r.missingItems.map((it) => (it.folded ? '**' + it.cards.length + ' נושאים תלויים בתשובה שחסרה** (' + it.missing.map((m) => m.text.replace(/[?]$/, '')).join(' / ') + ')' : it.card.title + sj(it.card) + ' [חסר: ' + miss(it.card) + ']')).join('; ') || '—' };
+}
+const BASE = { 'profile.home': 'owner', 'profile.mortgage': 'no', 'profile.worknow': 'employee', 'profile.workhist': ['emp'] };
 const PERSONAS = [
-  { name: 'א. משפחה צעירה בשכירות: שכירה, שני ילדים קטנים, נולד ילד השנה, משכנתה בתכנון, לא ידוע אם הוגש דוח מס',
-    over: { 'profile.home': 'renter', 'profile.mortgage': 'plan', 'profile.worknow': 'employee', 'profile.workhist': ['emp'], 'profile.family': ['birth', 'kids'], 'tax-refunds.events': ['family'], 'tax-refunds.letters': 'unk', 'mortgage.offers': 'one', 'national-insurance.birthfacts': ['mom_unpaid'], 'housing.household': ['single_parent', 'daycare'], 'housing.bti': ['none'], 'housing.property': ['none'], 'housing.already': ['none'] } },
-  { name: 'ב. גמלאי בבית משלו, בלי משכנתה, מעדיף לא לענות על שאלת המשפחה',
-    over: { 'profile.home': 'owner', 'profile.mortgage': 'no', 'profile.worknow': 'retired', 'profile.workhist': ['none'], 'profile.family': ['pna'] } },
-  { name: 'ג. הורה של בן/בת זוג גמלאי/ת: המשיב/ה עובד/ת, ההורה בגיל פרישה ולא מקבל קצבה (לא נניח שזה נוגע למשיב/ה)',
-    over: { 'profile.home': 'renter', 'profile.mortgage': 'no', 'profile.worknow': 'employee', 'profile.workhist': ['emp'], 'profile.family': ['retire'], 'profile.who_retire': ['parent'], 'national-insurance.retirefacts': ['nopension'], 'tax-refunds.events': ['none'], 'tax-refunds.letters': 'all' } },
-  { name: 'ד. אותו מצב, אבל המשיב/ה עצמו/ה בגיל הפרישה (״אני״)',
-    over: { 'profile.home': 'owner', 'profile.mortgage': 'no', 'profile.worknow': 'retired', 'profile.workhist': ['none'], 'profile.family': ['retire'], 'profile.who_retire': ['me'], 'national-insurance.retirefacts': ['nopension'] } }
+  { name: 'א. משפחה צעירה בשכירות: נולד ילד השנה, שני ילדים קטנים, משכנתה בתכנון, לא ידוע אם הוגש דוח מס', over: { 'profile.home': 'renter', 'profile.mortgage': 'plan', 'profile.family': ['birth', 'kids'], 'tax-refunds.events': ['family'], 'tax-refunds.letters': 'unk', 'mortgage.offers': 'one', 'national-insurance.birthfacts': ['mom_unpaid'], 'housing.household': ['single_parent', 'daycare'], 'housing.bti': ['none'], 'housing.property': ['none'], 'housing.already': ['none'] } },
+  { name: 'ב. המשיב/ה שכיר/ה; בן/בת הזוג בגיל פרישה ואינו/ה מקבל/ת קצבה', over: { 'profile.family': ['retire'], 'profile.who_retire': ['spouse'], 'national-insurance.retirefacts@spouse': ['nopension'] } },
+  { name: 'ג. המשיב/ה וגם בן/בת הזוג הפסיקו לעבוד: הנתונים של כל אחד נשאלים בנפרד', over: { 'profile.family': ['stopped'], 'profile.who_stopped': ['me', 'spouse'], 'national-insurance.stopfacts': ['ok'], 'national-insurance.stopfacts@spouse': ['emp_noreg'], 'payslip-rights.emp@spouse': 'past', 'payslip-rights.lastslip@spouse': 'no', 'payslip-rights.unused@spouse': 'no' } },
+  { name: 'ד. הורה שירת במילואים: שאלות המילואים ושאלות המס נשאלות עבור ההורה', over: { 'profile.family': ['reserve'], 'profile.who_reserve': ['parent'], 'national-insurance.reservefacts@parent': ['emp_unpaid'], 'tax-refunds.kind@parent': ['emp'], 'tax-refunds.letters@parent': 'never' } },
+  { name: 'ה. מידע חלקי על בן/בת זוג: ״לא יודע/ת״ בשאלת העובדות שלו/ה, ו״מעדיפ/ה לא לענות״ בשאלה על מי נפגע', over: { 'profile.family': ['retire', 'health'], 'profile.who_retire': ['me', 'spouse'], 'profile.who_health': ['pna'], 'national-insurance.retirefacts': ['nopension'], 'national-insurance.retirefacts@spouse': ['unk'] } },
+  { name: 'ו. גמלאי בבית משלו, בלי משכנתה, מעדיף לא לענות על שאלת המשפחה כולה', over: { 'profile.home': 'owner', 'profile.mortgage': 'no', 'profile.worknow': 'retired', 'profile.workhist': ['none'], 'profile.family': ['pna'] } }
 ];
 
-// ============================================================ document ============================================================
+// =========================================================================================================================================
+// the domain files
+// =========================================================================================================================================
+const s6 = lint6.stats, s1 = lint1.stats;
+const groupsFor = (ruleId) => ROUTE.persons.groups.filter((g) => g.rules.indexOf(ruleId) !== -1);
+const ruleList = (t) => { const out = []; t.rules.forEach((r) => { if (r.id === 'ni-disability') { out.push({ r, id: 'ni-disability#1', when: r.when.any[0] }); out.push({ r, id: 'ni-disability#2', when: r.when.any[1] }); } else out.push({ r, id: r.id, when: r.when }); }); return out; };
+
+function domainFile(t) {
+  const L2 = []; const Q = (s) => L2.push(s === undefined ? '' : s);
+  const qs = localQs(t), act = t.rules.filter((r) => r.status !== 'inactive'), inact = t.rules.filter((r) => r.status === 'inactive');
+  const nUnv = act.filter((r) => UNV[t.id + '.' + r.id]).length;
+  Q('# ' + t.name + ': סקירה מקצועית של הבדיקה המעמיקה');
+  Q();
+  Q('**קובץ זה עומד בפני עצמו** ומיועד להעברה ל' + (PRO[t.id] || 'איש/אשת מקצוע') + ' (הצעה שלי למי שכדאי שיבדוק). הוא נוצר אוטומטית מתוכן V6 (טיוטה, לא מפורסם) ומהנתיב של הבדיקה המעמיקה: **שום נוסח אינו מומצא כאן**. הבדיקה אינה קובעת זכאות: היא מסננת ומציגה ״כדאי לבדוק״, לפי תשובות העובדה של הפונה.');
+  Q();
+  Q('## 1. מה מתבקש מבעל/ת המקצוע');
+  Q();
+  Q('1. לאשר או לתקן **את נוסח השאלות והתשובות** (סעיף 2): האם הן מדויקות ומובנות לאדם מן השורה?');
+  Q('2. לאשר או לתקן **את תנאי הסינון של כל כלל** (סעיף 3): האם התנאים, כפי שהם כתובים במילים, הם אכן הסימן שבגללו כדאי לבדוק את הנושא? האם חסר תנאי, או שיש תנאי מיותר או שגוי?');
+  Q('3. לבדוק **את נוסח הכרטיס** שמוצג בתוצאה (הכותרת, ההסבר, הצעד המעשי, הגורם שמסייע והקישור הרשמי): נכון, זהיר, לא מבטיח?');
+  Q('4. להתייחס **לנקודות הפתוחות** של כל כלל, ובמיוחד לכללים שסומנו ״חלקי״ (' + nUnv + ' בתחום זה).');
+  Q();
+  Q('## 2. השאלות');
+  Q();
+  Q('כל שאלה נשאלת רק אם כלל פעיל תלוי בה. ״מופיעה״ = התנאי שבו השאלה נשאלת. ״לא ידוע״ = תשובה שמטופלת כחסר מידע ולא כ״לא״.');
+  Q();
+  t.questions.forEach((q, i) => {
+    const cq = q6[t.id + '.' + q.id];
+    const used = act.some((r) => JSON.stringify(r.when).indexOf('"' + q.id + '"') !== -1) || t.questions.some((x) => x.showIf && JSON.stringify(x.showIf).indexOf('"' + q.id + '"') !== -1);
+    Q('### שאלה ' + (i + 1) + ' (' + code(q.id) + '): ' + q.text);
+    Q();
+    if (q.help) Q('- **הערת עזר מתחת לשאלה:** ' + q.help);
+    Q('- **סוג:** ' + (q.multi ? 'בחירה מרובה (תשובה בלעדית כמו ״אף אחד מאלה״ נבחרת לבדה)' : 'בחירה אחת'));
+    const ders = (cfg6.derive || []).filter((d) => d.targets.indexOf(t.id + '.' + q.id) !== -1);
+    const when = q.showIf ? words(qs, q.showIf) : 'תמיד';
+    const gates = ((cq && cq.gatedBy) || []).map((gid) => ROUTE.gates.find((g) => g.id === gid)).filter(Boolean);
+    Q('- **מופיעה:** ' + when + (gates.length ? ' ; ובנוסף רק אם: ' + gates.map((g) => pwords(g.show) + ' (' + g.why + ')').join(' ; ') : ''));
+    if (ders.length) Q('- **נגזרת מהפרופיל (לא נשאלת שוב):** ' + ders.map((d) => '״' + (profQs[d.from] || {}).text + '״ ← ' + code(d.id)).join('; ') + ' (הטבלה המלאה בקובץ הפרופיל)');
+    if (cq && cq.sensitive) Q('- **שאלה רגישה (רשות):** יש בה ״מעדיפ/ה לא לענות״ (= לא ידוע). השורה שמוצגת: ״' + cq.sensitiveWhy + '״');
+    Q('- **תשובות:**');
+    (cq || q).options.forEach((o) => Q('  - ' + o.label + (o.exclusive ? ' *(בלעדית)*' : '') + (o.unknown ? ' *(לא ידוע)*' : '') + (o.group ? ' · קבוצה: ' + o.group : '') + (o.hint ? ' · הסבר ליד התשובה: ' + o.hint : '')));
+    const copies = cfg6.questions.filter((x) => x.copyOf === t.id + '.' + q.id);
+    if (copies.length) Q('- **נשאלת גם עבור בני משפחה אחרים:** בנפרד לכל אדם שנבחר בשאלה ״מי״ (' + copies.map((c) => SUBJ[c.subject].label).join(' / ') + '), בנוסח זהה עם הקידומת ״עבור …״ ובאותן תשובות בדיוק; מופיעה רק כשהאדם נבחר.');
+    if (!used) Q('- **הערה:** אף כלל פעיל אינו תלוי בשאלה זו (ראו הלינט).');
+    Q();
+  });
+  Q('## 3. הכללים: תנאים, כרטיס, למי הכלל נוגע, ואימות');
+  Q();
+  Q('**איך נקבעת הרמה:** ״סבירות גבוהה״ = כל תנאי הכלל נכונים לפי התשובות. ״חסר מידע — כדאי להשלים בדיקה״ = אף תנאי אינו שקרי, אך לפחות תשובה אחת אינה ידועה (״לא יודע/ת״, ״מעדיפ/ה לא לענות״, או שהשאלה לא נענתה), והכרטיס אומר איזו שאלה חסרה (ועבור מי). תנאי שקרי: הכלל אינו מוצג כלל. אין אחוזים. כלל שמוזכרת בו במפורש התשובה ״לא יודע״ (למשל במענק העבודה) מפעיל על התשובה הזו כפי שכתוב.');
+  Q();
+  ruleList(t).filter((x) => x.r.status !== 'inactive').forEach((x) => {
+    const r = x.r, f = r.finding, key = t.id + '.' + r.id, cls = ROUTE.persons.classes[t.id + '.' + x.id] || {}, grps = groupsFor(t.id + '.' + x.id);
+    const refQs = []; E.condQs(x.when, (id) => { if (refQs.indexOf(id) === -1) refQs.push(id); });
+    Q('### ' + code(x.id) + ': ' + f.title);
+    Q();
+    Q('- **תנאי הסינון במילים:** ' + words(qs, x.when));
+    Q('- **שאלות שמכריעות:** ' + refQs.map((id) => '״' + (qs[id] ? qs[id].text.replace(/[?:]\s*$/, '') : id) + '״').join('; '));
+    const listed = []; (function w(c) { if (!c) return; if (c.all) c.all.forEach(w); else if (c.any) c.any.forEach(w); else if (c.not) w(c.not); else if (c.q && qs[c.q]) (c.in || []).forEach((i) => { const o = qs[c.q].options.find((y) => y.id === i); if (o && o.unknown) listed.push('״' + o.label + '״ בשאלה ״' + qs[c.q].text.slice(0, 50) + '״'); }); })(x.when);
+    if (listed.length) Q('- **שימו לב:** הכלל מפעיל במפורש גם על התשובה ' + listed.join(', ') + '.');
+    Q('- **למי הכלל נוגע:** ' + (CLS[cls.class] || 'לא מסווג') + (cls.why ? '. ' + cls.why : ''));
+    if (grps.length) {
+      const g = grps[0];
+      Q('- **בדיקה לפי אדם:** כן. נבדק לכל אדם שנבחר בשאלה ״' + ROUTE.profile.questions.find((p) => 'profile.' + p.id === g.who).text + '״ (' + g.subjects.map((s) => SUBJ[s].label).join(' / ') + '), עם התשובות של אותו אדם בלבד. ' + ((g.copyOnly && g.copyOnly.length) ? 'שאלות נוספות שנשאלות רק עבור בן משפחה אחר: ' + g.copyOnly.map((id) => code(id)).join(', ') + '. ' : '') + (g.implies ? 'האירוע עצמו (' + code(g.option) + ') הוא התשובה ' + Object.keys(g.implies).map((k) => code(k) + ' = ' + g.implies[k].join(', ')).join('; ') + '. ' : '') + 'הכרטיס מציג ״עבור: <האדם>״ ואומר שההתאמה נבדקה לפי התשובות על אותו אדם.');
+    } else if (cls.class === 'respondent' || cls.class === 'household') Q('- **בדיקה לפי אדם:** לא. ' + (cls.class === 'respondent' ? 'הכלל נשען על מצב המשיב/ה, ואין אירוע משפחתי שמתאים לתנאיו.' : 'הכלל נוגע למשק הבית או לילדים, והשאלות כבר שואלות עליהם.'));
+    Q('- **כרטיס התוצאה:**');
+    Q('  - **כותרת:** ' + f.title);
+    Q('  - **מה כדאי לבדוק:** ' + f.why);
+    if (f.step) Q('  - **איך זה עובד:** ' + f.step);
+    Q('  - **מי יכול לעזור:** ' + [f.official && f.official.url ? f.official.label + ' (' + f.official.url + (f.official.checked ? ', נבדק ' + f.official.checked : '') + ')' : null, f.refer].filter(Boolean).join(' ; '));
+    (f.officialMore || []).forEach((m) => Q('  - **קישור נוסף:** ' + m.label + ' (' + m.url + ')'));
+    const sc = r.source || {};
+    Q('- **אימות:** ' + (UNV[key] ? '**חלקי** (נרשם בנתיב כלא מאומת): ' + UNV[key] : 'לא רשום כלא מאומת בנתיב') + ' | במקור הכלל: ' + (CONF[sc.confidence] || sc.confidence || '—') + (sc.checked ? ', נבדק ' + sc.checked : '') + ', בסיס: ' + (BASIS[r.basis] || r.basis || '—') + ', מוכנות: ' + (r.readiness || '—') + (sc.url ? ' | מקור: ' + sc.url : ''));
+    if (r.needsFollowUp) Q('- **נקודות פתוחות לאיש המקצוע:** ' + r.needsFollowUp);
+    else if (UNV[key]) Q('- **נקודות פתוחות לאיש המקצוע:** ' + UNV[key]);
+    Q();
+  });
+  if (inact.length) { Q('### כללים לא פעילים (אינם נבדקים כיום)'); Q(); inact.forEach((r) => Q('- ' + code(r.id) + ': ' + r.finding.title)); Q(); }
+  Q('## 4. שאלות פתוחות לאיש המקצוע (מרוכז)');
+  Q();
+  const open = [];
+  ruleList(t).filter((x) => x.r.status !== 'inactive').forEach((x) => { const key = t.id + '.' + x.r.id; if (x.r.needsFollowUp || UNV[key]) { if (!open.some((o) => o[0] === x.r.id)) open.push([x.r.id, x.r.needsFollowUp || UNV[key]]); } });
+  if (open.length) open.forEach(([id, txt]) => Q('- ' + code(id) + ': ' + txt)); else Q('- אין נקודות פתוחות רשומות בתוכן. עדיין מתבקשת בדיקה כללית של התנאים והנוסח (סעיף 1).');
+  Q();
+  Q('---');
+  Q('*נוצר מ־scripts/gen-deep-review.js. הבדיקה המעמיקה כבויה לציבור עד שכל כללי V6 הרלוונטיים אומתו והנוסח אושר.*');
+  fs.writeFileSync(path.join(dom, t.id + '.md'), L2.join('\n') + '\n');
+}
+V6.forEach(domainFile);
+
+// ---- the profile file ----
+(function () {
+  const Q = []; const W = (s) => Q.push(s === undefined ? '' : s);
+  W('# הפרופיל ושאלות ״מי״: סקירה מקצועית של הבדיקה המעמיקה'); W();
+  W('**קובץ זה עומד בפני עצמו.** הפרופיל נשאל פעם אחת בתחילת הבדיקה; שאלות ״מי״ נשאלות רק כשנבחרה בשאלת המשפחה תשובה שמשמעותה תלויה באדם. הוא נוצר אוטומטית מהנתיב. **הנוסח הוא הצעה שלי לאישור.**'); W();
+  W('## 1. השאלות'); W();
+  ROUTE.profile.questions.forEach((q, i) => {
+    const tq = q6['profile.' + q.id];
+    W('### ' + (i + 1) + '. ' + q.text); W();
+    if (q.help) W('- **הערת עזר:** ' + q.help);
+    W('- **מופיעה:** ' + (q.showIf ? 'רק כאשר נבחרה בשאלת המשפחה התשובה ״' + lab(q6['profile.' + q.showIf.q], q.showIf.in[0]) + '״' : 'תמיד'));
+    W('- **סוג:** ' + (q.multi ? 'בחירה מרובה' : 'בחירה אחת') + (/^who_/.test(q.id) ? ' (כל אדם שנבחר הוא ״נושא״ נפרד: נשאלות עבורו שאלות העובדות, והכללים נבדקים לפי התשובות שלו)' : ''));
+    if (tq.sensitive) W('- **רגישה (רשות):** ״' + tq.sensitiveWhy + '״ ' + ROUTE.messages.sensitiveNote);
+    W('- **תשובות:**'); tq.options.forEach((o) => W('  - ' + o.label + (o.exclusive ? ' *(בלעדית)*' : '') + (o.unknown ? ' *(לא ידוע)*' : '') + (o.group ? ' · קבוצה: ' + o.group : '') + (o.hint ? ' · הסבר: ' + o.hint : '')));
+    W();
+  });
+  W('## 2. מה כל תשובת פרופיל ממלאת בשאלות התחומים'); W();
+  W('| שאלת פרופיל | תשובה | שאלת תחום שממולאת | תשובה בתחום |'); W('|---|---|---|---|');
+  ROUTE.facts.forEach((f) => {
+    if (!cfg6.derive.some((d) => d.id === f.id)) return;
+    const pq = q6[f.from];
+    Object.keys(f.map).forEach((o) => Object.keys(f.map[o]).forEach((t2) => { const tq = q6[t2]; W('| ' + md(pq.text) + ' | ' + md(lab(pq, o)) + ' | ' + code(t2) + ' ' + md(tq.text.slice(0, 50)) + ' | ' + md([].concat(f.map[o][t2]).map((v) => lab(tq, v)).join(' · ')) + ' |'); }));
+  });
+  W(); W('## 3. שערים'); W();
+  ROUTE.gates.forEach((g) => W('- ' + code(g.id) + ': ' + (g.topic ? 'תחום ' + tname(g.topic) : g.questions.join(', ')) + ' מוצג רק כאשר ' + pwords(g.show) + '. ' + g.why));
+  W(); W('## 4. נקודות לאיש המקצוע'); W();
+  W('- האם שאלות הפרופיל (מצב מגורים, משכנתה, מצב תעסוקתי, עבודה בשש שנות המס, המשפחה) מנוסחות נכון ואינן מבקשות מידע מיותר?');
+  W('- האם רשימת האירועים בשאלת המשפחה מספקת, והאם ״מי״ מנוסחת באופן ברור?');
+  W('- אילו מהשאלות הרגישות ראוי שיהיו רשות (כרגע ' + cfg6.questions.filter((q) => q.sensitive && !q.copyOf).length + ')?');
+  W(); W('---'); W('*נוצר מ־scripts/gen-deep-review.js.*');
+  fs.writeFileSync(path.join(dom, 'profile.md'), Q.join('\n') + '\n');
+})();
+
+// ---- the folder index ----
+(function () {
+  const Q = []; const W = (s) => Q.push(s === undefined ? '' : s);
+  W('# חבילת הסקירה המקצועית של הבדיקה המעמיקה: אינדקס'); W();
+  W('כל קובץ כאן עומד בפני עצמו ואפשר להעביר אותו לאיש/אשת המקצוע המתאימים. הכול נוצר אוטומטית מתוכן V6 (טיוטה, לא מפורסם) ומהנתיב.'); W();
+  W('| קובץ | נושא | מי כדאי שיבדוק (הצעה) | כללים פעילים | מתוכם חלקיים |'); W('|---|---|---|---|---|');
+  W('| [profile.md](profile.md) | הפרופיל ושאלות ״מי״ | מי שמכיר/ה את שאלון הפתיחה | — | — |');
+  V6.forEach((t) => { const act = t.rules.filter((r) => r.status !== 'inactive'); W('| [' + t.id + '.md](' + t.id + '.md) | ' + t.name + ' | ' + (PRO[t.id] || '') + ' | ' + act.length + ' | ' + act.filter((r) => UNV[t.id + '.' + r.id]).length + ' |'); });
+  fs.writeFileSync(path.join(dom, 'README.md'), Q.join('\n') + '\n');
+})();
+
+// =========================================================================================================================================
+// the main document
+// =========================================================================================================================================
 P('# הבדיקה המעמיקה (תבדקו אותי לעומק): סקירת תוכן לאישורכם');
 P();
-P('**סטטוס:** מסמך סקירה לבעלי המוצר, נוצר מהקוד של הענף `deep-5` (לא פורסם, לא מוזג). הטבלאות מחושבות אוטומטית מהנתיב `deep` ב־`kaspchem/content/routes.json`, מטיוטת V6 (לא מפורסמת) ומהמנוע, ונוצרות מחדש בפקודה `node scripts/gen-deep-review.js`. סעיפים 6 ו־8 נבדקו בהרצת המנוע ולא רק בקריאה. **כל הנוסח כאן הוא הצעה שלי לאישורכם.** לא נוסח כאן שום דבר שאינו מבוסס על כללי V6 או על נוסח קיים.');
+P('**סטטוס:** מסמך סקירה לבעלי המוצר, נוצר מהקוד של הענף deep-5 (לא פורסם, לא מוזג). כל הטבלאות מחושבות אוטומטית מהנתיב ' + code('deep') + ' ב־' + code('kaspchem/content/routes.json') + ', מטיוטת V6 (לא מפורסמת) ומהמנוע, ונוצרות מחדש בפקודה ' + code('node scripts/gen-deep-review.js') + '. **כל הנוסח כאן הוא הצעה שלי לאישורכם; שום דבר לא מומצא מעבר לכללי V6 ולנוסח הקיים.**');
 P();
-P('**בקצרה:** הבדיקה המעמיקה היא אותו מנוע כמו עשרת התחומים והבדיקה המהירה. היא מרכיבה את התחומים יחד, שואלת פרופיל קצר פעם אחת (**5 שאלות בסיס, ועוד שאלת המשך אחת ״מי?״ לכל תשובה בשאלת המשפחה שמשמעותה תלויה באדם**), ממלאת מהפרופיל שאלות תחום מקבילות במפורש בלבד, שואלת שאלות תחום רק כשרלוונטי, ומחלקת את התוצאה לשתי רמות: **סבירות גבוהה** (כל תנאי הכלל נכונים) ו**חסר מידע — כדאי להשלים בדיקה** (הכלל לא שקרי, אך תלוי בתשובה שלא ניתנה, והיא נקראת בשם). **רמת הסבירות הנמוכה כבויה** ולא תופיע לעולם בתוכן הנוכחי. אין אחוזים, אין ממצא שלא כתוב בכלל קיים, וכלל שתנאיו שקריים אינו מפיק דבר. הבדיקה **כבויה כברירת מחדל** (public.deep_enabled) ואינה נראית לציבור עד שתפעילו אותה. **זמן המילוי לא נמדד, ולכן שום מקום בבדיקה אינו מבטיח זמן.**');
+P('## אינדקס החבילה');
 P();
-P('**מושגים:** *נגזר* = שאלת תחום שהפרופיל כבר ענה עליה והיא לא נשאלת שוב. *שער* = תנאי על תשובות הפרופיל שמציג או מסתיר תחום (או שאלה). *רגיש* = שאלה אישית שיש בה ״מעדיפ/ה לא לענות״, ונשאלת רק כשכלל תלוי בה. *חלש* = כלל שהתוכן סימן במפורש כסימן חלש, והוא היחיד שיכול להגיע לרמה הנמוכה.');
+P('1. **המסמך הזה:** החלקים הכלליים (פרופיל ושאלות ״מי״, מנגנון הבדיקה לפי אדם וטבלת הסיווג של כל הכללים, שערים, רמות ונוסח, מוכנות להפעלה, החלטות שלכם).');
+P('2. **התיקייה ' + code('deep-review-by-domain/') + ' (באותה תיקייה):** קובץ לכל תחום, מוכן להעברה לאיש/אשת מקצוע: ' + ['[profile](deep-review-by-domain/profile.md)'].concat(V6.map((t) => '[' + t.id + '](deep-review-by-domain/' + t.id + '.md)')).join(', ') + '. בכל קובץ: נוסח השאלות והתשובות, מתי כל שאלה נשאלת, כל כלל במילים (תנאים, כרטיס, למי נוגע, רמה), סטטוס האימות, ושאלות פתוחות לאיש המקצוע.');
+P();
+P('**בקצרה:** הבדיקה המעמיקה היא אותו מנוע כמו עשרת התחומים והבדיקה המהירה. היא שואלת פרופיל קצר פעם אחת, ממלאת מהפרופיל שאלות מקבילות במפורש בלבד, שואלת שאלות תחום רק כשרלוונטי, ו**בודקת גם בני משפחה**: כשהמשיב/ה מדווח/ת על אירוע של בן/בת זוג, ילד/ה או הורה, נשאלות עבורם שאלות העובדות של הכלל הקיים, והכללים הקיימים (ורק הם) נבדקים לפי תשובות אותו אדם. התוצאה: **סבירות גבוהה** (כל תנאי הכלל נכונים), **חסר מידע — כדאי להשלים בדיקה** (אף תנאי אינו שקרי אך חסרה תשובה, והיא נקראת בשמה ובשם האדם) ו**סבירות נמוכה** (מנגנון קיים אך כבוי: אין כלל חלש בנתיב). אין אחוזים, ואין ממצא שלא כתוב בכלל קיים. הבדיקה **כבויה כברירת מחדל** ואינה ניתנת להפעלה מהדשבורד עד שהיא מוכנה (סעיף 9). **זמן המילוי לא נמדד ואינו מובטח.**');
 P();
 
-// ---- 1. profile ----
-P('## 1. שאלות הפרופיל במלואן');
+// ---- 1 profile ----
+P('## 1. שאלות הפרופיל ושאלות ״מי״ במלואן');
 P();
-P('הפרופיל הוא 5 שאלות בסיס, ובנוסף עד ' + (cfg6.profileIds.length - 5) + ' שאלות המשך ״מי?״: אחת לכל תשובה בשאלת המשפחה שמשמעותה תלויה באדם (הפסיק לעבוד, נפגע או חולה, שירת במילואים, בגיל פרישה). שאלת המשך נשאלת **רק** כשנבחרה התשובה שלה. כל שאלה קיימת כי משהו תלוי בה (סעיף 2 מראה מה). שאלה שאין לה שימוש לא נשאלת: הלינט בודק זאת, וכשהתוכן המשרת הוא עשרת התחומים הישנים (מצב בדיקה בלבד) נשאלות רק ' + cfg1.profileIds.length + ' מהן (סעיף 10).');
+P('הפרופיל: 5 שאלות בסיס. בנוסף ארבע שאלות ״מי״, אחת לכל תשובה בשאלת המשפחה שמשמעותה תלויה באדם (הפסיק לעבוד, נפגע או חולה, שירת במילואים, בגיל פרישה), **רק כשהתשובה נבחרה**. פירוט מלא: [deep-review-by-domain/profile.md](deep-review-by-domain/profile.md). שאלות ״מי״: מדובר בכם, בבן/בת הזוג, בילד/ה או בהורה (בחירה מרובה, עם ״מעדיפ/ה לא לענות״). **בחירה בכמה אנשים היא בחירה בכמה ״נושאים״: לכל אחד נשאלות שאלות העובדות בנפרד.**');
 P();
 ROUTE.profile.questions.forEach((q, i) => {
   const tq = q6['profile.' + q.id];
-  P('### שאלת פרופיל ' + (i + 1) + ': ' + q.text);
+  P('### שאלה ' + (i + 1) + ': ' + q.text);
   P();
-  P('- **מופיעה:** ' + (q.showIf ? 'רק כאשר נבחרה בשאלת המשפחה התשובה: ״' + ((tq0 => (tq0.options.find((o) => o.id === q.showIf.in[0]) || {}).label)(q6['profile.' + q.showIf.q])) + '״' : 'תמיד'));
+  P('- **מופיעה:** ' + (q.showIf ? 'רק כאשר נבחרה בשאלת המשפחה התשובה ״' + lab(q6['profile.' + q.showIf.q], q.showIf.in[0]) + '״' : 'תמיד'));
   if (q.help) P('- **הערת עזר:** ' + q.help);
-  P('- **סוג:** ' + (q.multi ? 'בחירה מרובה (אפשר כמה; התשובה הבלעדית לבדה)' : 'בחירה אחת'));
-  if (tq && tq.sensitive) P('- **רגישה:** כן. השורה שמוצגת: ״' + tq.sensitiveWhy + '״ ' + ROUTE.messages.sensitiveNote);
-  P('- **תשובות:**');
-  tq.options.forEach((o) => P('  - ' + o.label + (o.exclusive ? ' *(בלעדית)*' : '') + (o.pna ? ' *(ניתן להשמטה: נוספה לשאלה רגישה)*' : '') + (o.group ? ' · קבוצה: ' + o.group : '') + (o.hint ? ' · הסבר ליד התשובה: ' + o.hint : '')));
+  P('- **סוג:** ' + (q.multi ? 'בחירה מרובה' : 'בחירה אחת'));
+  if (tq.sensitive) P('- **רגישה (רשות):** ״' + tq.sensitiveWhy + '״ ' + ROUTE.messages.sensitiveNote);
+  P('- **תשובות:** ' + tq.options.map((o) => o.label + (o.exclusive ? ' (בלעדית)' : '')).join(' · '));
   P();
 });
-P('**שאלות שהצעתי לא לכלול ולמה** (להחלטתכם, סעיף 10):');
-P();
-P('- **טווח גילאים:** אף כלל פעיל אינו תלוי בגיל המשיב כנתון בפני עצמו (תנאי הגיל מוטמעים בנוסח האפשרויות במשפחה, למשל ״בן/בת 55 ומעלה״ או ״הגיע לגיל הפרישה״). כלל המינימום של הלינט (איסוף מינימלי) לא מאפשר שאלה ללא כלל שתלוי בה.');
-P('- **מצב משפחתי, בן/בת זוג וילדים:** אין מיפוי מדויק לשאלה קיימת (גיל 19 במענק עבודה מול 18 בביטוח לאומי, ״הורה יחיד״ כמשפט משולב). הם נשארים בשאלות התחום עצמן.');
-P('- **הכנסה:** נשאלת רק בשאלת מענק העבודה ובשאלת משק הבית בדיור, ובטווחים בלבד.');
-P();
 
-// ---- 2. facts ----
-P('## 2. מה כל תשובת פרופיל ממלאת (עובדות מוצהרות, ללא התאמה לפי שם)');
+// ---- 2 per-person mechanism ----
+P('## 2. בדיקה לפי אדם: המנגנון');
 P();
-P('כל שורה היא הצהרה מפורשת בנתיב: ״תשובת הפרופיל הזו היא תשובה זו בשאלת התחום״. שאלת תחום ממולאת **לא נשאלת שוב**. תשובה שאינה בטבלה (למשל ״גמלאי/ת״ ב־payslip) לא ממלאת, והשאלה נשאלת כרגיל. הטבלה מוצגת למבנה V6 ואחריה הגרסה לעשרת התחומים הישנים (הפעילה כשהתוכן המפורסם הוא עדיין ה־10).');
+P('**העיקרון:** כספכם עוזרת לכל המשפחה. כשמדווחים על אירוע של בן/בת זוג, ילד/ה או הורה, הבדיקה מחפשת גם זכויות והזדמנויות שרלוונטיות **לאותו אדם**, ומציגה ממצא **עבורו**, עם תווית ברורה (״עבור: בן/בת הזוג״). **לעולם לא מייחסים למשיב/ה זכות של אדם אחר**, ובאותה מידה **לא מעבירים ל״חסר מידע״ ממצא של בן משפחה** כשתנאי הכלל נענו.');
 P();
-P('| שאלת פרופיל | תשובה | שאלת תחום שממולאת | תשובה בתחום | תוכן |');
+P('**איך זה עובד (בנייה בעת טעינת התוכן, בלי לגעת במנוע הכללים):** לכל קבוצת אירוע נבנים עותקים של שאלות העובדות ושל הכללים לכל אדם שנבחר, עם מזהים כמו ' + code('national-insurance.stopfacts@spouse') + ' ו־' + code('national-insurance.ni-unemp@spouse') + '. **תנאי העותק הם תנאי הכלל המקורי, מוחלפים לעותקי השאלות של אותו אדם** (ושום תנאי אינו מוסף או מומצא). נוסח השאלה: ״עבור בן/בת הזוג: <הנוסח המקורי>״ ושורת עזר ״ענו לפי מצבו/ה של בן/בת הזוג, לא לפי מצבכם״. עותק שהיה צריך להישען על תשובה של המשיב/ה עצמו/ה נפסל בלינט. המשיב/ה (״אני״) נשאר עם השאלות והכללים המקוריים, והאירוע נחשב רק אם ״אני״ נבחר.');
+P();
+P('| אירוע (שאלת המשפחה) | אנשים | שאלות עובדות שנשאלות לכל אדם | שאלות נוספות לבני משפחה אחרים בלבד | כללים שנבדקים לכל אדם |');
 P('|---|---|---|---|---|');
-ROUTE.facts.forEach((f) => {
-  const applied6 = cfg6.derive.some((d) => d.id === f.id), applied1 = cfg1.derive.some((d) => d.id === f.id);
-  const pq = q6[f.from] || q1[f.from];
-  Object.keys(f.map).forEach((o) => Object.keys(f.map[o]).forEach((t) => {
-    const tq = q6[t] || q1[t]; if (!tq) { return; }
-    const tgt = [].concat(f.map[o][t]).map((v) => lab(tq, v)).join(' · ');
-    P('| ' + md(pq.text) + ' | ' + md(lab(pq, o)) + ' | `' + t + '` ' + md(tq.text.slice(0, 50)) + ' | ' + md(tgt) + ' | ' + (applied6 ? 'V6' : '') + (applied1 ? 'עשרת התחומים' : '') + ' |');
-  }));
+ROUTE.persons.groups.forEach((g) => {
+  P('| ' + code(g.option) + ': ' + md(lab(q6[g.question], g.option)) + ' | ' + g.subjects.map((s) => SUBJ[s].label).join(' / ') + ' | ' + (g.factQuestions || []).map((x) => code(x)).join(', ') + ' | ' + ((g.copyOnly || []).map((x) => code(x)).join(', ') || '—') + (g.implies ? ' (האירוע עצמו הוא התשובה ' + Object.keys(g.implies).map((k) => code(k) + ' = ' + g.implies[k].join(',')).join('; ') + ')' : '') + ' | ' + g.rules.map((x) => code(x.split('.').slice(1).join('.'))).join(', ') + ' |');
 });
 P();
-P('**איך זה נקרא במנוע:** (א) אם כמה עובדות ממלאות אותה שאלה, הראשונה בנתיב גוברת. (ב) בבחירה מרובה בפרופיל, השאלה בתחום ממולאת רק אם **כל** התשובות שנבחרו ממופות אליה. (ג) תשובת ״מעדיפ/ה לא לענות״ בשאלת פרופיל רגישה עוברת הלאה כתשובת ״מעדיפ/ה לא לענות״ בשאלת התחום, כך שהיא לא נשאלת שוב ולא נהפכת ל״לא״. (ד) עובדה שיעדה לא קיים בתוכן המוגש מדולגת בשקט: אותו נתיב עובד גם מול V6 וגם מול עשרת התחומים.');
-P();
-P('**כמה שאלות זה חוסך:** ב־V6 ארבע שאלות תחום נגזרות תמיד (`housing.status`, `mortgage.has`, `tax-refunds.kind`, `national-insurance.now`) ועוד אחת לשכירים ולעצמאים (`payslip-rights.emp`). זה **מעביר** שאלות לפרופיל ולא מקצר מסלול: ב־V6 כמעט אין כפילות אמיתית בין התחומים (הם נכתבו כשאלות עובדות נפרדות), והדבר נאמר כאן במפורש. החיסכון האמיתי נוצר בשערים (סעיף 3) ובהסתעפויות הקיימות.');
+P('**שילובים:** ״אני״ + בן/בת זוג: שתי קבוצות שאלות ושני ממצאים נפרדים, והעובדות לעולם אינן משמשות את האדם האחר. **מידע חלקי** על בן משפחה: ״גבוהה״ רק אם כל תנאי הכלל ידועים ונכונים לו/לה; ״חסר מידע״ שמזכיר את השאלה ואת האדם כשהשאר לא ידוע ואף תנאי אינו שקרי; כלום אם תנאי שקרי. ״מעדיפ/ה לא לענות״ (בשאלת ״מי״ או בשאלת עובדות) הוא לא ידוע: לעולם לא ״לא״ ולעולם לא גבוה. אם ״מי״ נענתה ״מעדיפ/ה לא לענות״, כל הכללים של האירוע חסרי מידע, והתוצאה מציגה **כרטיס אחד ורגוע** (״חסרה תשובה אחת, והיא משפיעה על כמה תחומים בבדיקה״) עם הכפתור ״להשלמת התשובה״.');
 P();
 
-// ---- 3. gates ----
-P('## 3. שערי רלוונטיות');
+P('### טבלת סיווג של כל כללי V6 (כל התחומים)');
+P();
+P('מקרא: **משיב/ה** = נשען על מצב המשיב/ה בלבד; **אדם שהיה לו אירוע** = יש עותק לכל אדם שנבחר; **משק בית** = ילדים, דיור, חשבונות הבית (השאלות כבר שואלות על כולם); **אדם אחר** = האדם שתואר בשאלה עצמה (למשל מי שזקוק לעזרה). ״נתמך לפי אדם״ = יש עותקים, כי תנאי הכלל עצמו ושאלות שהבדיקה יכולה לשאול עליו/ה תומכים בכך. אחרת: לא ניחשנו, וההסבר בעמודה האחרונה.');
+P();
+P('| תחום | כלל | כותרת הכרטיס | סיווג | נתמך לפי אדם | שאלות שנשאלות לכל אדם | מה הכרטיס מציג | הסבר |');
+P('|---|---|---|---|---|---|---|---|');
+V6.forEach((t) => ruleList(t).filter((x) => x.r.status !== 'inactive').forEach((x) => {
+  const id = t.id + '.' + x.id, c = ROUTE.persons.classes[id] || {}, g = groupsFor(id)[0], bid = t.id + '.' + x.r.id;
+  P('| ' + t.name + ' | ' + code(x.id) + ' | ' + md(x.r.finding.title) + ' | ' + (CLS[c.class] || '—') + ' | ' + (g ? 'כן (' + g.subjects.filter((s) => s !== 'me').map((s) => SUBJ[s].label).join(', ') + ')' : 'לא') + ' | ' + (g ? (g.factQuestions || []).concat(g.copyOnly || []).map((q) => code(q.split('.').slice(1).join('.'))).join(', ') : '—') + ' | ' + (g ? 'כרטיס עם ״עבור: <אדם>״ לכל אדם שעומד בתנאים' : (c.class === 'other-person' ? 'כרטיס על האדם שתואר בשאלה' : 'כרטיס רגיל')) + ' | ' + md(c.why) + (UNV[bid] ? ' **(לא מאומת: ' + md(UNV[bid]) + ')**' : '') + ' |');
+}));
+P();
+P('**סיכום:** ' + (() => { const cnt = {}; Object.keys(ROUTE.persons.classes).forEach((k) => { const c = ROUTE.persons.classes[k].class; cnt[c] = (cnt[c] || 0) + 1; }); return Object.keys(cnt).map((c) => CLS[c] + ': ' + cnt[c]).join(' | '); })() + '. (61 כללים פעילים: כלל נכות כללית מפוצל לשניים, ענף הבריאות וענף העזרה.)');
+P();
+P('**כללים שאין להם עותק לפי אדם, ולמה (החלטה שלא לנחש):** מענק העבודה (תנאיו נשענים על ילדים, גיל והכנסה של המשיב/ה, ואין בשאלת המשפחה אירוע שמתאים להם), תלוש השכר הנוכחי (עבודה נוכחית), ביטוחים וחיסכון פנסיוני (השאלה ״ענו לגבי אדם אחד: אתם עצמכם״), בנקאות, וכל כללי הלימודים והעבודה (שאלת ״מישהו מבני המשפחה״ כבר משפחתית, בלי ״מי״). בכולם אין תנאי של הכלל שאפשר לבדוק על בן משפחה בשאלות שהבדיקה שואלת, ולכן הבדיקה אינה מציגה ממצא לבן משפחה ואינה מניחה שיש. **מה שחסר מוצג במפורש כשיש שאלה חסרה; כשאין בכלל שאלה כזו, הדבר מתועד כאן בלבד.**');
+P();
+
+// ---- facts + gates ----
+P('## 3. מה כל תשובת פרופיל ממלאת (עובדות מוצהרות)');
+P();
+P('| שאלת פרופיל | תשובה | שאלת תחום שממולאת | תשובה בתחום |');
+P('|---|---|---|---|');
+ROUTE.facts.forEach((f) => {
+  if (!cfg6.derive.some((d) => d.id === f.id)) return;
+  const pq = q6[f.from];
+  Object.keys(f.map).forEach((o) => Object.keys(f.map[o]).forEach((t2) => { const tq = q6[t2]; P('| ' + md(pq.text) + ' | ' + md(lab(pq, o)) + ' | ' + code(t2) + ' ' + md(tq.text.slice(0, 50)) + ' | ' + md([].concat(f.map[o][t2]).map((v) => lab(tq, v)).join(' · ')) + ' |'); }));
+});
+P();
+P('כל שורה היא הצהרה מפורשת: ״תשובת הפרופיל הזו היא תשובה זו בשאלת התחום״. שאלה ממולאת לא נשאלת שוב. **עובדות שנגזרות מהפרופיל הן רק על המשיב/ה** (עבודה כיום, עבודה בשש שנות המס) או ברמת המשפחה (שאלת המשפחה ← ' + code('national-insurance.now') + '): תשובה על בן משפחה אחר אינה ממלאת שאלה של המשיב/ה.');
+P();
+P('## 4. שערי רלוונטיות');
 P();
 P('| שער | מסתיר | מוצג רק כש… | הסיבה |');
 P('|---|---|---|---|');
-ROUTE.gates.forEach((g) => {
-  const cond = (function t(c) { if (!c) return ''; if (c.all) return c.all.map(t).join(' וגם '); if (c.any) return c.any.map(t).join(' או '); if (c.not) return 'לא (' + t(c.not) + ')'; const q = q6[c.q]; return (q ? q.text.replace(/\?$/, '') : c.q) + ' ∈ {' + c.in.map((i) => lab(q || { options: [] }, i)).join(' / ') + '}'; })(g.show);
-  P('| `' + g.id + '` | ' + md(g.topic ? 'כל תחום ' + tname(g.topic) : g.questions.map((x) => '`' + x + '`').join(', ')) + ' | ' + md(cond) + ' | ' + md(g.why) + ' |');
-});
+ROUTE.gates.forEach((g) => P('| ' + code(g.id) + ' | ' + md(g.topic ? 'כל תחום ' + tname(g.topic) : g.questions.join(', ')) + ' | ' + md(pwords(g.show)) + ' | ' + md(g.why) + ' |'));
 P();
-P('**מה השער עושה בפועל:** מי שעצמאי/ת או גמלאי/ת ולא עבד/ה כשכיר/ה בשש השנים האחרונות לא נשאל/ת על תלוש שכר. כל השאר נשאלים (גם מי שאינו עובד כרגע או לומד/ת: ייתכן שסיים עבודה לאחרונה, והשאלות על תלוש אחרון וימי חופשה רלוונטיות להם). ״משכנתאות״ ו״דיור״ מצטמצמים לבד דרך העובדות (אין משכנתה ← אין שאלות נוספות; מגורים אצל משפחה ← אין שאלות ארנונה).');
-P();
-P('### 3.1 שער ביטוח הדירה (g-homeins): הוסר');
-P();
-P('השער הסתיר את שאלת ״ביטוח דירה ותכולה״ ממי שמתגורר אצל משפחה בלי חיוב ארנונה על שמו. זו הייתה טעות מקצועית: ביטוח תכולה (ולעיתים ביטוח מבנה) אינו תלוי בחיוב ארנונה, ושוכרים ומתגוררים אצל משפחה מבטחים תכולה לא פחות. **ההחלטה:** השער הוסר, והשאלה נשאלת בכל מצב מגורים. בדקתי את נוסח השאלה ואת האפשרויות ב־V6: אין אפשרות המתארת ״אין לי בכלל דירה או משהו שאפשר לבטח״ (יש ״אין ביטוח דירה או תכולה״, שהיא תשובה ולא סיבה להסתיר את השאלה), ולכן אין תנאי נכון להסתרה, ואין שער. נבדק בטסט: שוכר/ת, מתגורר/ת אצל משפחה, בעל/ת דירה בלי משכנתה, דיור ציבורי ושוכר/ת עם דירה בבעלות, כולם נשאלים.');
-P();
-P('### 3.2 שער זכויות עובדים (g-payslip): נבדק ונשאר, בצורה מצומצמת יותר');
-P();
-P('הנוסח הקודם הסתיר את תחום תלושי השכר ממי שלא עבד כשכיר/ה בשש השנים האחרונות ואינו שכיר/ה כיום. הבעיה: מי שהתחיל ופוטר ב־2026 (ואין לו עבודה כשכיר בשש שנות המס) היה מפסיד את שאלות התלוש האחרון וחופשה שלא נוצלה. **התיקון:** התחום מוסתר רק מעצמאי/ת או גמלאי/ת שלא עבדו כשכירים בשש השנים. מי שאינו עובד כרגע או לומד נשאל (שאלה אחת: מה מתאר אתכם בעבודה). נבדק בטסט לכל צירוף.');
+P('**שער ביטוח הדירה (g-homeins): הוסר** (בסבב הקודם). ביטוח תכולה אינו תלוי בחיוב ארנונה, ואין ב־V6 אפשרות ״אין לי בכלל דירה״; לכן השאלה נשאלת בכל מצב מגורים. **שער זכויות עובדים (g-payslip):** מוסתר רק מעצמאי/ת או גמלאי/ת שלא עבדו כשכירים בשש השנים; כל השאר נשאלים (ייתכן שסיימו עבודה לאחרונה). נבדק בטסט לכל צירוף. עותקי השאלות לפי אדם אינם נתונים לשער (הם נוגעים לבן משפחה, לא למצבו של המשיב/ה).');
 P();
 
-P('## 3א. שאלת המשפחה: על מי התשובה, ומה זה משנה לכללים');
+// ---- 5 sensitive ----
+P('## 5. שאלות רגישות: הסט הסופי');
 P();
-P('אפשרויות שאלת המשפחה מתייחסות לאנשים שונים (״מישהו מבני המשפחה…״, ״כולל הורים״). **אסור להסיק זכאות אפשרית של המשיב/ה רק כי אדם אחר במשפחה עומד בתנאי.** לכן: (1) לכל אפשרות שמשמעותה תלויה באדם נוספה שאלת המשך אחת, **רק אם האפשרות נבחרה**: ״מדובר בכם, בבן/בת הזוג, בילד/ה או בהורה?״ (בחירה מרובה: אני / בן/בת הזוג / ילד/ה / הורה / מעדיפ/ה לא לענות). (2) כלל שנוגע למשיב/ה עצמו/ה **נשאר גבוה רק אם נבחר ״אני״**. ״בן/בת הזוג״, ״ילד/ה״, ״הורה״ בלבד, או ״מעדיפ/ה לא לענות״, או שאלה שטרם נענתה, הם **לא ידוע** ביחס למשיב/ה: הכלל הופך ל**חסר מידע** (אף פעם לא גבוה), והשאלה ״מי״ נקראת בשם. (3) כלל שנוגע במשק הבית או באדם אחר שתואר בשאלה עצמה (ילד, מי שזקוק לעזרה, קצבת שאירים) אינו מוחזק. (4) עובדות שמוסקות מהפרופיל למשיב/ה (עבודה כיום, עבודה בשש שנים) נגזרות רק מתשובות על המשיב/ה עצמו/ה; מתשובת המשפחה נגזר רק עובדה **ברמת המשפחה** (national-insurance.now). נבדק בטסט (מנוע ודפדפן) לכל אחד מהמצבים: בן/בת זוג, ילד/ה והורה, מול ״אני״, מול דילוג.');
+P('כולן רשות עם ״מעדיפ/ה לא לענות״ (= לא ידוע, לא ״לא״) ושורה ניטרלית שמסבירה למה שואלים. נשאלות רק כי כלל פעיל תלוי בהן (הלינט נכשל אחרת). **הסט (' + cfg6.questions.filter((q) => q.sensitive && !q.copyOf).length + '):** ' + cfg6.questions.filter((q) => q.sensitive && !q.copyOf).map((q) => code(q.id)).join(', ') + '. כל עותק לפי אדם של שאלה רגישה רגיש באותה מידה.');
 P();
-P('### טבלת סיווג: כל כלל של ביטוח לאומי שהשאלה מזינה');
-P();
-P('| כלל | סיווג | למה | אפשרות במשפחה שמוגנת בשאלת ״מי״ |');
-P('|---|---|---|---|');
-const clsName = { respondent: 'נוגע למשיב/ה בלבד', household: 'משק בית / ילד', 'other-person': 'אדם אחר (שתואר בשאלה)' };
-Object.keys(ROUTE.persons.classes).forEach((id) => {
-  const c = ROUTE.persons.classes[id], r = cfg6.rules.find((x) => x.id === id);
-  const g = (r && r.personGuards || []).map((gid) => ROUTE.persons.guards.find((x) => x.id === gid).option);
-  P('| `' + id.split('.')[1] + '` ' + md(r ? r.finding.title : '') + ' | **' + clsName[c.class] + '** | ' + md(c.why) + ' | ' + (g.length ? g.map((o) => '`' + o + '`').join(', ') : '—') + ' |');
-});
-P();
-P('**מיפוי האפשרויות:** `birth`, `kids`, `death`, `care`: ברמת משק הבית או האדם שתואר (אין שאלת ״מי״). `stopped`, `health`, `reserve`, `retire`: תלויות באדם (שאלת ״מי״). `none`: אין. ״מעדיפ/ה לא לענות״ בשאלת המשפחה עצמה: כל הכללים של התחום לא ידועים.');
-P();
-P();
-
-// ---- 4. sensitive ----
-P('## 4. שאלות רגישות: מה נשאל ולמה (מזהה הכלל שתלוי בהן)');
-P();
-P('כל שאלה כאן: (1) רשות, עם ״מעדיפ/ה לא לענות״, (2) מציגה שורה ניטרלית שמסבירה למה שואלים, (3) נשאלת רק כי כלל פעיל תלוי בה (הלינט נכשל אחרת). ״מעדיפ/ה לא לענות״ הוא **לא ידוע**: כל כלל שתלוי בתשובה הופך ל״חסר מידע״ ולא ל״לא״.');
-P();
-P('| שאלה (מזהה) | נוסח | למה שואלים (השורה שמוצגת) | כללים פעילים שתלויים בה |');
-P('|---|---|---|---|');
-cfg6.questions.filter((q) => q.sensitive).forEach((q) => {
-  const deps = cfg6.rules.filter((r) => r.status !== 'inactive' && !r.weak && JSON.stringify(r.when).indexOf('"' + q.id + '"') !== -1).map((r) => '`' + r.localId + '`');
-  P('| `' + q.id + '` | ' + md(q.text) + ' | ' + md(q.sensitiveWhy) + ' | ' + (deps.length ? deps.join(', ') : '(שאלה נגזרת: ' + cfg6.derive.filter((d) => d.targets.indexOf(q.id) !== -1).map((d) => d.from).join(', ') + ')') + ' |');
-});
-P();
-P('**שאלות רגישות שלא סימנתי** (להחלטתכם): `national-insurance.survclaim` (קצבת שאירים), `national-insurance.retirefacts` (הכנסה בגיל פרישה), `national-insurance.stopfacts` (הכנסה במשק הבית). הן מנוסחות בצורה עובדתית ויש בהן ״לא יודע/ת״ שמתנהג כמו ״מעדיפ/ה לא לענות״. אם תרצו שגם הן יהיו ״רגישות״, הוספה היא שורה אחת בנתיב.');
-P();
-
-// ---- 5. tune ----
-P('## 5. קבוצות והסברים ליד תשובות (תצוגה בלבד)');
-P();
-P('שדות `group` ו־`hint` הם תצוגה בלבד: המנוע מתעלם מהם (נבדק: אותה זרימה ואותה תוצאה עם ובלעדיהם). כל הסבר ליד תשובה לקוח ממשפט שכבר קיים בטיוטת V6 (שורת העזר של השאלה). שמות הקבוצות הם הצעה שלי לאישורכם.');
-P();
-P('| שאלה | קבוצות | הסברים |');
+P('| שאלה | נוסח | למה שואלים (השורה שמוצגת) |');
 P('|---|---|---|');
-Object.keys(ROUTE.tune).filter((k) => ROUTE.tune[k].groups || ROUTE.tune[k].hints).forEach((k) => {
-  const t = ROUTE.tune[k], q = q6[k]; if (!q) return;
-  const g = {}; Object.keys(t.groups || {}).forEach((o) => { (g[t.groups[o]] = g[t.groups[o]] || []).push(lab(q, o)); });
-  P('| `' + k + '` | ' + md(Object.keys(g).map((n) => '**' + n + '**: ' + g[n].join(' / ')).join(' ; ')) + ' | ' + md(Object.keys(t.hints || {}).map((o) => lab(q, o) + ' ← ״' + t.hints[o] + '״').join(' ; ')) + ' |');
-});
+cfg6.questions.filter((q) => q.sensitive && !q.copyOf).forEach((q) => P('| ' + code(q.id) + ' | ' + md(q.text) + ' | ' + md(q.sensitiveWhy) + ' |'));
 P();
 
-// ---- 6. which V6 questions remain ----
-P('## 6. מה נשאל בכל תחום, ומה לא');
+// ---- 6 tiers and wording ----
+P('## 6. רמות, כותרות ונוסח (כל המחרוזות לאישור)');
 P();
-P('| תחום | שאלות בתחום ב־V6 | נגזרות מהפרופיל (לא נשאלות) | מוסתרות בשער | נשאלות כשרלוונטי |');
-P('|---|---|---|---|---|');
-V6.forEach((t) => {
-  const qs = cfg6.questions.filter((q) => q.topicId === t.id), der = qs.filter((q) => q.derivedBy), gated = qs.filter((q) => q.gatedBy);
-  P('| ' + t.name + ' | ' + qs.length + ' | ' + (der.map((q) => '`' + q.localId + '`').join(', ') || '—') + ' | ' + (gated.map((q) => '`' + q.localId + '`').join(', ') || '—') + ' | ' + (qs.length - der.length) + ' |');
-});
+P('**שלוש רמות** (השמות מדויקים): **' + ROUTE.messages.highTitle + '** (שורה מתחת: ״' + ROUTE.messages.highSub + '״), **' + ROUTE.messages.missingTitle + '**, **' + ROUTE.messages.lowTitle + '** (המנגנון והתצוגה קיימים בקוד אך **כבויים**: אין כלל חלש בנתיב, ולכן הרמה הזו לא מופיעה לעולם). כותרת העמוד ניטרלית: ״' + ROUTE.messages.resultTitle + '״, ושורת הספירה מתחתיה (״N נושאים בסבירות גבוהה שכדאי לבדוק״). **חלקי כרטיס:** ' + ROUTE.messages.partGet + ' / ' + ROUTE.messages.partHow + ' / ' + ROUTE.messages.partHelp + ' (שונה מ״מה אפשר לקבל״). **תווית אדם בכרטיס:** ״' + ROUTE.messages.subjectLine + '״ ו־״' + ROUTE.messages.subjectNote + '״ (לבן משפחה אחר בלבד).');
+P();
+P('**קובייה בדף הבית:** ״תבדקו אותי לעומק״ / ״' + ROUTE.tagline + '״. **פתיח:** ' + ROUTE.intro);
+P();
+P('| מפתח | נוסח |');
+P('|---|---|');
+Object.keys(ROUTE.messages).forEach((k) => P('| ' + code(k) + ' | ' + md(ROUTE.messages[k]) + ' |'));
+P();
+P('**נוסח של כללי V6 עצמם (לא שלנו):** 20 שדות בכללי V6 משתמשים במילה ״זכאות״ (כמעט תמיד בצורה ״כדאי לבדוק זכאות ל…״) או ״מאושר״ במובן ניטרלי. הם מנוסחים כבדיקה ולא כקביעה; רשימה קבועה בטסט כדי שחדש יעורר תשומת לב.');
 P();
 
-// ---- 7. path length ----
-const s6 = lint6.stats, s1 = lint1.stats;
+// ---- 7 path length ----
 const hist = (s) => Object.keys(s.histogram).map(Number).sort((a, b) => a - b).map((k) => k + ':' + s.histogram[k]).join(' ');
+const asked = (over) => Object.keys(walk(cfg6, Object.assign({}, BASE, over))).length;
 P('## 7. אורך מסלול (מספר השאלות שהמשיב עונה עליהן)');
 P();
 P('| תוכן | מינימום אפשרי | **מקסימום אפשרי** | חציון (משיבים מדומים) | ממוצע | אחוזון 90 |');
 P('|---|---|---|---|---|---|');
 P('| V6 (הטיוטה) | ' + s6.exactMin + ' | **' + s6.exactMax + '** | ' + s6.median + ' | ' + s6.mean + ' | ' + s6.p90 + ' |');
-P('| עשרת התחומים המפורסמים | ' + s1.exactMin + ' | **' + s1.exactMax + '** | ' + s1.median + ' | ' + s1.mean + ' | ' + s1.p90 + ' |');
+P('| עשרת התחומים הישנים (מצב בדיקה בלבד) | ' + s1.exactMin + ' | **' + s1.exactMax + '** | ' + s1.median + ' | ' + s1.mean + ' | ' + s1.p90 + ' |');
 P();
-P('המקסימום והמינימום מחושבים **במדויק** על כל צירופי התשובות האפשריים (לא דגימה). החציון והממוצע הם מ־6,000 משיבים מדומים (תשובה אחידה בבחירה אחת, וכל אפשרות בבחירה מרובה בהסתברות 0.3), והם **אינדיקציה בלבד** ולא מדידת משתמשים אמיתיים. התפלגות V6 (שאלות:משיבים): ' + hist(s6) + '.');
-P();
-P('**זמן מילוי:** לא נמדד, ואין בבדיקה הבטחת זמן (לא בקובייה, לא במבוא, לא בנוסח כלשהו). המספרים כאן הם מספר שאלות בלבד. אם תרצו הצהרת זמן בעתיד, צריך קודם למדוד משתמשים אמיתיים.');
+P('המקסימום והמינימום מחושבים **במדויק** על כל צירופי התשובות (לא דגימה). **המקסימום ' + s6.exactMax + ' הוא המקרה הקיצוני** שבו נבחרים כל ארבעת האירועים לכל האנשים האפשריים; הוא גדל מ־52 (לפני שאלות לפי אדם) כי כל אדם נוסף מוסיף שאלות עובדות. החציון והממוצע הם מ־6,000 משיבים מדומים (בחירה אחידה בבחירה אחת, וכל אפשרות בבחירה מרובה בהסתברות 0.3, כלומר משפחות עמוסות יותר מהרגיל). **דוגמאות:** מסלול בלי אירועים משפחתיים: ' + asked({ 'profile.family': ['none'] }) + ' שאלות; אירוע אחד של המשיב/ה (פרישה, ״אני״): ' + asked({ 'profile.family': ['retire'], 'profile.who_retire': ['me'] }) + '; אירוע אחד של בן/בת זוג: ' + asked({ 'profile.family': ['retire'], 'profile.who_retire': ['spouse'] }) + '; בן/בת זוג שהפסיקו לעבוד (שאלות התלוש האחרון ונוספות): ' + asked({ 'profile.family': ['stopped'], 'profile.who_stopped': ['spouse'] }) + '; אני ובן/בת זוג שהפסיקו לעבוד: ' + asked({ 'profile.family': ['stopped'], 'profile.who_stopped': ['me', 'spouse'] }) + '. התפלגות V6 (שאלות:משיבים): ' + hist(s6) + '. **זמן מילוי: לא נמדד, ואין בבדיקה הבטחת זמן.** לא נוספו שאלות לשום מטרה אחרת מלבד בדיקה לפי אדם.');
 P();
 
-// ---- 8. tiers with real examples ----
-P('## 8. שתי הרמות הפעילות: דוגמאות שהרצתי במנוע');
+// ---- 8 examples ----
+P('## 8. הרמות בפועל: דוגמאות שהרצתי במנוע');
 P();
 P('כל דוגמה היא מסלול מלא על טיוטת V6. התוצאה היא מה שהמנוע מחזיר (לא נכתב ידנית). שאלות שלא פורטו נענו בתשובה הראשונה ברשימה, או ״אף אחד מאלה״ בבחירה מרובה.');
 P();
 PERSONAS.forEach((p) => {
-  const a = walk(cfg6, p.over), s = show(cfg6, a);
+  const a = walk(cfg6, Object.assign({}, BASE, p.over)), s = show(cfg6, a);
   P('### ' + p.name);
   P();
   P('- שאלות שנענו: **' + s.asked + '**');
-  P('- **מצאנו הזדמנויות בסבירות גבוהה (' + s.r.counts.highCards + '):** ' + s.high);
+  P('- **סבירות גבוהה (' + s.r.counts.highCards + '):** ' + s.high);
   P('- **חסר מידע — כדאי להשלים בדיקה (' + s.r.counts.missingItems + ' פריטים, ' + s.r.counts.missingCards + ' נושאים):** ' + s.missing);
   P();
 });
-P('**כלל ברזל שנבדק בטסט (4,000 מסלולים ללא תשובה ״לא ידוע״, ועוד 4,000 איתם):** כשכל התשובות הרלוונטיות ידועות, רמת הסבירות הגבוהה שווה **בדיוק** לממצאי כל תחום בנפרד (V6 ועשרת התחומים). כשיש תשובה לא ידועה, ״גבוהה״ היא תמיד תת־קבוצה של ממצאי התחום, וכל ממצא של התחום שאינו גבוה מופיע כ״חסר מידע״ עם שם השאלה.');
-P();
-P('**מה כרטיס מראה:** ב״סבירות גבוהה״ שלושה חלקים ממופים משדות הממצא הקיימים: **מה אפשר לקבל** = הסבר הממצא (why), **איך זה עובד** = הצעד המעשי (step), **מי יכול לעזור** = הקישור הרשמי וההפניה (official, refer). **חסר מידע:** שאלה חסרה אחת שמשפיעה על שלושה נושאים או יותר מוצגת כ**כרטיס אחד ורגוע**: משפט אחד ״חסר מידע: <השאלה>״, שורה ניטרלית ״תשובה זו משפיעה על כמה תחומים בבדיקה״, וכפתור ״להשלמת התשובה״ (גם במקלדת) שחוזר לשאלה ומחזיר לתוצאה מחושבת מחדש. **אין רשימת זכויות** בכרטיס כזה. פחות משלושה נושאים על אותה שאלה: כרטיס לכל נושא, עם הכפתור. שאלות חסרות שונות: כרטיסים נפרדים. מוצגים עד 4 כרטיסים בכל רמה והשאר מאחורי ״הצגת כל הנושאים״ (שום דבר לא נמחק). בכרטיס ״חסר מידע״ לא מוצג הסבר הממצא, כי הוא מניח עובדות שהמשיב לא מסר.');
-P();
-P('### הרמה הנמוכה: כבויה');
-P();
-P('שני הכללים החלשים שהוצעו (`ps-hrs-mgr`, `bk-credit-some`) **הוסרו** מהתוכן הפעיל. היכולת עצמה נשארת במנוע ובבדיקות (עם כללי בדיקה בלבד), אך כל עוד בנתיב אין כלל חלש, הכותרת ״סבירות נמוכה״ לא תופיע לעולם. נבדק: על 1,500 מסלולים אין אף פריט ברמה הנמוכה.');
+P('**כלל ברזל שנבדק בטסט:** (1) כשכל התשובות ידועות, רמת הסבירות הגבוהה ברמת המשיב/ה שווה **בדיוק** לממצאי כל תחום בנפרד (V6 ועשרת התחומים, 4,000 מסלולים). (2) **לכל אדם שנבחר ולכל כלל בקבוצה, יש ממצא גבוה עבורו אם ורק אם הכלל המקורי, במנוע התחום הבודד, מתקיים על העובדות של אותו אדם** (4,000 מסלולים): אף ממצא לא הוחמץ ואף ממצא לא הומצא, ואין ממצא לאדם שלא נבחר.');
 P();
 
-P('## 9. כללי V6 שנשארים באימות חלקי, ומה זה אומר לבדיקה המעמיקה');
+// ---- 9 unverified / readiness ----
+P('## 9. מוכנות להפעלה, וכללים שאינם מאומתים');
 P();
-P('13 הכללים שבדוח `V6-PARTIAL-RULES-REPORT.md` (`tx-grant-2024`, `tx-grant-2025`, `lf-inherit-open`, `lf-inherit-search`, `tx-jobs`, `hs-empty`, `hs-damaged`, `hs-daycare`, `ps-bal`, `ni-disability`, `ni-supplement`, `hh-ins-mortgage`, `ed-haredi-employment`) **פעילים בבדיקה המעמיקה בדיוק כפי שהם פעילים בבדיקת התחום**: הבדיקה המעמיקה לא מוסיפה להם נוסח ולא מחזקת אותם. לכן **אין להדליק את `public.deep_enabled` בייצור לפני סגירתם** (החלטה 4 בתוכנית). המתג כבוי כברירת מחדל והדרך היחידה להדליק אותו היא מהדשבורד (לשונית הגדרות, עם אישור).');
+P('הבדיקה **כבויה לציבור** ו**אינה ניתנת להפעלה** עד שכל שלושת התנאים מתקיימים. הדשבורד (לשונית הגדרות) מציג רשימת בדיקה, מנטרל את המתג ומסביר מה חסר; השרת מסרב (409, בלי לכתוב כלום). כיבוי תמיד מותר ומיידי.');
+P();
+P('| תנאי | מצב כרגע | איך משתנה |');
+P('|---|---|---|');
+P('| תוכן V6 מפורסם והתחומים הנדרשים זמינים | נבדק מול התוכן המוגש (כרגע: עשרת התחומים הישנים ← **לא מתקיים**) | פרסום V6 |');
+P('| כל כללי V6 הרלוונטיים אומתו מקצועית | **לא מתקיים** (' + ROUTE.unverified.length + ' כללים ברשימה) | הסרת כל הכללים מהרשימה ' + code('unverified') + ' בנתיב, אחרי אימות |');
+P('| נוסח הבדיקה אושר על ידי הבעלים | **לא מתקיים** (' + code('approved: ' + ROUTE.approved) + ') | שינוי ' + code('approved') + ' ל־true בנתיב, כשינוי מפורש (לא מכפתור) |');
+P();
+P('**13 הכללים החלקיים (נרשמו בנתיב כ־unverified עם סיבה):**');
+P();
+P('| כלל | סיבה |');
+P('|---|---|');
+ROUTE.unverified.forEach((u) => P('| ' + code(u.id) + ' | ' + md(u.reason) + ' |'));
+P();
+P('הם פעילים בבדיקה המעמיקה בדיוק כפי שהם פעילים בבדיקת התחום, ואינם מוצגים כמאומתים. בדשבורד, בפנייה של בדיקה מעמיקה, ממצא מכלל כזה מסומן ״כלל לא מאומת״.');
+P();
+P('### הנתיב דורש תוכן מסוים (requires), ומה קורה כשחסר');
+P();
+P('הנתיב מצהיר מה הוא דורש: עשרת התחומים וגם צורות שאלה של V6 (' + ROUTE.requires.filter((r) => r.indexOf('.') !== -1).map((r) => code(r)).join(', ') + '). אם משהו חסר, הבדיקה אינה זמינה (לציבור: כמו מתג כבוי; בדפדפן עם נתיב חסר: ״הבדיקה המעמיקה אינה זמינה כרגע״ + ״נסו שוב״). אין הרצה חלקית בייצור; מצב מצומצם קיים רק לבדיקות. כשהתוכן לא נטען (שגיאה, 15 שניות, תשובה לא תקינה): ״לא הצלחנו לטעון את הבדיקה״ + ״נסו שוב״ + קישור לדף הראשי; בלי תוכן או תוצאה חלקיים.');
 P();
 
-// ---- degraded ----
-P('## 10. התוכן שהבדיקה דורשת (requires), ומה קורה כשהוא חסר');
-P();
-P('הנתיב מצהיר מה הוא דורש: עשרת התחומים ' + ROUTE.requires.filter((r) => r.indexOf('.') === -1).length + ' וגם צורות שאלה של V6 (' + ROUTE.requires.filter((r) => r.indexOf('.') !== -1).map((r) => '`' + r + '`').join(', ') + '). **אם משהו מזה אינו מוגש, הבדיקה אינה זמינה:** לציבור זה כמו מתג כבוי (אין קובייה, עמוד ״בקרוב״, פנייה נדחית), ובדפדפן שמקבל נתיב שחסר לו חלק: ״הבדיקה המעמיקה אינה זמינה כרגע״ עם ״נסו שוב״. **אין הרצה חלקית בייצור.** מול עשרת התחומים המפורסמים כיום (לפני פרסום V6) הבדיקה אינה זמינה. מצב מצומצם קיים **רק לבדיקות** (שרת הבדיקות מגיש את הנתיב בלי requires): ' + cfg1.profileIds.length + ' שאלות פרופיל, ' + cfg1.derive.length + ' עובדות, ' + cfg1.skipped.length + ' חלקים מדולגים, אורך ' + s1.exactMin + ' עד ' + s1.exactMax + ' שאלות. תצוגת בקשות ישנות בדשבורד קוראת את הנתיב גם בלי requires (רק לקריאה).');
-P();
-P('## 10א. כשהתוכן לא נטען');
-P();
-P('כשהבקשה לשרת נכשלת (שגיאה, חריגת זמן של 15 שניות, תשובה לא תקינה או נתיב בלי פרופיל), מוצגת הודעה ״לא הצלחנו לטעון את הבדיקה״ (בשאר הבדיקות: ״לא הצלחנו לטעון את השאלון״, בלי שינוי בשאלות או בתוצאות), כפתור **״נסו שוב״** וקישור לדף הראשי. אין תוכן חלקי ואין תוצאה חלקית. שאלה שמורה מסשן קודם בצורה לא תואמת נזרקת (כמו קודם). הכל נבדק בדפדפן בארבעת הרוחבים.');
-P();
-P();
-P('V6 לא פורסם, ולכן הבדיקה המעמיקה, אם תודלק היום, תרוץ על עשרת התחומים. היא עובדת (נבדק, כולל בדפדפן), בגרסה מצומצמת: ' + cfg1.profileIds.length + ' שאלות פרופיל (' + cfg1.profileIds.map((id) => q1[id].text.replace(/\?$/, '')).join('; ') + '), ממלאות ' + cfg1.derive.length + ' עובדות (' + cfg1.derive.map((d) => d.id).join(', ') + '). חלקי הנתיב שדורשים את V6 (שאלות רגישות, קבוצות, שערים, כללים חלשים, שאלות המשפחה ושנות העבודה) **מדולגים** (' + cfg1.skipped.length + ' חלקים מדולגים). אורך מסלול: ' + s1.exactMin + ' עד ' + s1.exactMax + ' שאלות, חציון ' + s1.median + '. בעשרת התחומים אין רמה נמוכה ואין שאלות רגישות.');
-P();
-
-// ---- mybenefits ----
-P('## 11. מה נלקח כהשראה מהשאלון הממשלתי (mybenefits) ומה לא');
+// ---- 10 mybenefits ----
+P('## 10. מה נלקח כהשראה מהשאלון הממשלתי (mybenefits) ומה לא');
 P();
 P('יש לי הקלטה של **מסלול אחד** בלבד, בלי מיפוי הסתעפויות. לכן לקחתי רק רעיונות של חוויה, ולא נוסח.');
 P();
 P('| רעיון | איפה בבדיקה המעמיקה | הערה |');
 P('|---|---|---|');
-P('| שאלות המשך מותנות | `showIf` של שאלות התחום (קיים) | כל שאלה קיימת רק כי כלל שלנו תלוי בה |');
-P('| בחירה מרובה בקבוצות | `group` (תצוגה בלבד) | כותרות קבוצה מעל תשובות, ללא שינוי בלוגיקה |');
-P('| הסבר ליד תשובה | `hint` (תצוגה בלבד) | משפטים שכבר קיימים בטיוטת V6 |');
-P('| חזרה ודילוג | חזרה (קיים) + ״דילוג על השאלה״ = ״לא יודע/ת״ או ״מעדיפ/ה לא לענות״ | דילוג מוצג רק בשאלה שיש בה תשובה כזו |');
-P('| ספירה רצה של זכויות אפשריות | ״כרגע N נושאים שכדאי לבדוק״ | רק מרמת הסבירות הגבוהה, בלי סכום ובלי הבטחה, מתעדכן בעדינות ומכבד הפחתת תנועה |');
-P('| פיצול סופי לשלוש רמות | סבירות גבוהה / חסר מידע / סבירות נמוכה | רמה נמוכה רק מכלל חלש מוצהר |');
-P('| לכל זכות: מה מקבלים, איך, מי עוזר | שלושת חלקי הכרטיס | ממופים משדות קיימים, בלי נוסח חדש |');
+P('| שאלות המשך מותנות | showIf של שאלות התחום, ושאלות ״מי״ | כל שאלה קיימת כי כלל שלנו תלוי בה |');
+P('| בחירה מרובה בקבוצות | group (תצוגה בלבד) | כותרות קבוצה מעל תשובות |');
+P('| הסבר ליד תשובה | hint (תצוגה בלבד) | משפטים שכבר קיימים בטיוטת V6 |');
+P('| חזרה ודילוג | חזרה + ״דילוג על השאלה״ = ״לא יודע/ת״ או ״מעדיפ/ה לא לענות״ | מוצג רק כשיש תשובה כזו |');
+P('| ספירה רצה של זכויות אפשריות | ״כרגע N נושאים שכדאי לבדוק״ | מהרמה הגבוהה בלבד, בלי סכום ובלי הבטחה |');
+P('| פיצול סופי לרמות | סבירות גבוהה / חסר מידע / סבירות נמוכה (כבויה) | |');
+P('| לכל זכות: מה כדאי לבדוק, איך, מי עוזר | שלושת חלקי הכרטיס | ממופים משדות קיימים |');
+P('| בדיקה לכל המשפחה | שאלות ״מי״ וממצאים עם ״עבור: <אדם>״ | רק כללי V6 קיימים, לפי תנאיהם |');
 P();
-P('**מה לא הועתק:** אף שאלה, אף נוסח, אף סדר שאלות של השאלון הממשלתי. הנוסח כולו שלנו או קיים כבר בטיוטת V6 (ולא נבדק מול השאלון הממשלתי: אין לי ממנו אלא הקלטה של מסלול אחד).');
+P('**מה לא הועתק:** אף שאלה, אף נוסח, אף סדר שאלות של השאלון הממשלתי.');
 P();
 
-// ---- similar terms ----
-P('## 12. בדיקת מונחים דומים');
+// ---- 11 similar terms ----
+P('## 11. בדיקת מונחים דומים');
 P();
-P('לכל זוג: מה שונה, מה המנוע עושה (נבדק בהרצה או בקריאת הנתיב), ומה מומלץ.');
+const coll6 = E.idCollisions(V6);
+P('### 11.1 אותו מזהה, שאלות שונות');
 P();
-const coll6 = E.idCollisions(V6), coll1 = E.idCollisions(TEN);
-P('### 12.1 אותו מזהה, שאלות שונות');
-P();
-P('מזהים מקומיים שמופיעים בכמה תחומים ב־V6: ' + coll6.map((c) => '`' + c.id + '` (' + c.topics.join(', ') + ')' + (c.same ? ' [אותה שאלה]' : ' [שאלות שונות]')).join('; ') + '. בעשרת התחומים: ' + coll1.map((c) => '`' + c.id + '`').join(', ') + '. **המנוע לא ממזג אותם:** בבדיקה המעמיקה כל שאלה מזוהה כ־`תחום.שאלה`, ושיתוף בין תחומים קיים רק דרך עובדה מוצהרת (סעיף 2). הלינט נכשל אם יש התנגשות אחרי קידומת.');
-P();
-const pairs = [
-  ['12.2 ״מה מצבכם התעסוקתי״ כיום מול ״איך עבדתם בשש שנות המס האחרונות״', '`profile.worknow` (כיום) ו־`profile.workhist` (היסטוריה, שש שנים) הן שתי שאלות שונות במכוון. הראשונה ממלאת את `payslip-rights.emp` (שכיר ← כיום, עצמאי ← אחר), השנייה ממלאת את `tax-refunds.kind` ופותחת את השער של זכויות עובדים. אין מיפוי ביניהן: סטודנט שעבד ב־2022 עונה אחרת בכל אחת.', 'אין שינוי. אם נשמע מבלבל, אפשר לאחד לשאלה אחת ״עבדתי כשכיר/ה בשש השנים האחרונות״ ולוותר על ״כיום״ (אבל אז ״שכיר/ה כיום״ נגזר ממנה בלבד).'],
-  ['12.3 ״גמלאי/ת״ בפרופיל מול ״אדם שהגיע לגיל הפרישה״ במשפחה', '`worknow = גמלאי/ת` **אינו** ממלא את `national-insurance.now → retire`. בשאלת המשפחה, מי שבחר ״יש במשפחה אדם שהגיע לגיל הפרישה״ נשאל עכשיו ״מי״ (אני / בן/בת הזוג / הורה / מעדיפ/ה לא לענות): הורה בגיל פרישה לא הופך את המשיב/ה לגיבור/ת הכלל של קצבת זקנה, ורק ״אני״ הופך אותו לגבוה.', 'אין שינוי נוסף.'],
-
-  ['12.4 ״משכנתה״ בפרופיל מול ביטוח חיים דרך הבנק ומול ביטוח מבנה דרך הבנק', '`profile.mortgage` ממלאת רק את `mortgage.has`. ״ביטוח חיים יחד עם משכנתה״ (`insurance-pension.lifecov.bank`) ו״ביטוח מבנה דרך הבנק של המשכנתה״ (`household.homeins.mortgage`) הן שאלות על ביטוח, ואינן נגזרות מקיום משכנתה (אפשר שיש משכנתה בלי ביטוח כזה).', 'אין שינוי.'],
-  ['12.5 ילדים: גיל 18 מול גיל 19 מול ״ילד במעון״', 'ביטוח לאומי: ילדים מתחת לגיל 18; מענק עבודה: ילד מתחת לגיל 19 במהלך שנת המס (ובן/בת 21 ומעלה); דיור: ילד במעון. אלה שלושה גבולות שונים בחוק ולכן לא נגזרים משאלת פרופיל אחת על ילדים.', 'אין שינוי. זו הסיבה שאין שאלת פרופיל ״כמה ילדים״.'],
-  ['12.6 ״פטירה״ ב־3 מקומות', '`lost-funds.events.death` (קרוב משפחה נפטר, ירושה), `national-insurance.now.death` (בן/בת זוג או הורה של הילדים נפטר, קצבת שאירים) ו־`insurance-pension.lifeevents.death` (מאז שנפתחו הפוליסות). שלוש שאלות על שלושה כללים שונים.', 'אין שינוי. מי שהצהיר בשאלת המשפחה על פטירה עדיין נשאל על ירושה בתחום כספים אבודים, כי היא תלויה בקרוב אחר.'],
-  ['12.7 ״לא בטוח/ה״ מול ״לא יודע/ת״ מול ״מעדיפ/ה לא לענות״', 'שלושתן **לא ידוע** (חסר מידע), אבל בשאלות עובדה רגילות יש רק ״לא יודע/ת״ או ״לא בטוח/ה״ (הנוסח של V6), ובשאלה רגישה נוספה ״מעדיפ/ה לא לענות״. כלל שמפרט את התשובה ״לא יודע״ במפורש (למשל `tx-grant` עם הכנסה ״לא יודע/ת״) נשאר **ממצא מובהק** כפי שנכתב, כי זה מה שהכלל אומר.', 'אין שינוי. נקודה לאישור: ״לא בטוח/ה״ בשאלות הרגילות עדיין נראית כ״הצגה של חוסר ידיעה״ ולא כסירוב.'],
-  ['12.8 ״מילואים״ ב־3 מקומות', '`tax-refunds.events.reserve`, `national-insurance.now.reserve` ו־`national-insurance.reservefacts`: מס (נקודות זיכוי והחזר), תגמולי מילואים שלא שולמו, וסוג ההעסקה. אינן מתמזגות.', 'אין שינוי.'],
-  ['12.9 ״הכנסה״ בשלושה מקומות', '`tax-refunds.inc` (טווח שכר, למענק עבודה), `housing.household.income_low` (תיאור כללי של הכנסה נמוכה) ו־`national-insurance.stopfacts` (אין הכנסה מעבודה במשק הבית). שלושה מושגים שונים, ללא שאלה משותפת.', 'אין שינוי.']
-];
-pairs.forEach((p) => { P('### ' + p[0]); P(); P('- **מה שונה ומה המנוע עושה:** ' + p[1]); P('- **המלצה:** ' + p[2]); P(); });
-
-// ---- decisions ----
-P('## 11א. נוסח הבדיקה כולו (לעיון ולאישור)');
-P();
-P('**קובייה בדף הבית:** ״תבדקו אותי לעומק״ / ״' + ROUTE.tagline + '״. **כותרת הבדיקה:** ' + ROUTE.name + '. **פתיח:** ' + ROUTE.intro);
-P();
-P('| מפתח | נוסח |');
-P('|---|---|');
-Object.keys(ROUTE.messages).forEach((k) => P('| `' + k + '` | ' + md(ROUTE.messages[k]) + ' |'));
-P();
-P('**שלבים:** ' + ROUTE.phases.map((p) => p.label).join(' ← ') + '. **מתחת לתוצאה:** ״תוצאות ראשוניות בלבד״ (הסתייגות יחידה), ״אני רוצה עזרה בבדיקה״, ״הבדיקה הראשונית חינמית, והשארת פרטים אינה התחייבות.״, ״לבדוק תחום אחר״. **חלקי כרטיס:** מה אפשר לקבל / איך זה עובד / מי יכול לעזור (בכרטיס חסר מידע: איך לברר). **עמוד ״בקרוב״:** ״הבדיקה המעמיקה תיפתח בקרוב״. **כשל טעינה:** ״לא הצלחנו לטעון את הבדיקה״ + ״נסו שוב״ + ״חזרה לדף הראשי״.');
-P();
-P('**נוסח של כללי V6 עצמם (לא שלנו):** חמישה כללים משתמשים במילה ״מאושר״ במובן ניטרלי (למשל ״מסגרת אשראי מאושרת״, ״מוסד מאושר״): ' + ['banking-loans.bk-fees', 'banking-loans.bk-overdraft', 'education-work.ed-vet-prep', 'education-work.ed-haredi-academic'].map((x) => '`' + x + '`').join(', ') + '. אף כלל אינו טוען זכאות. בטסט רשימה זו קבועה, כך שכלל חדש עם מילה אסורה יעורר תשומת לב.');
-P();
-P('## 11ב. השאלות הרגישות: הסט הסופי');
-P();
-P('כולן רשות עם ״מעדיפ/ה לא לענות״ (= לא ידוע, לא ״לא״), עם שורה ניטרלית שמסבירה למה שואלים: ' + cfg6.questions.filter((q) => q.sensitive).map((q) => '`' + q.id + '`').join(', ') + '. **נוספו בסבב זה:** `national-insurance.survclaim`, `national-insurance.retirefacts`, `national-insurance.stopfacts`, וארבע שאלות ״מי״ (שהן עצמן אישיות). המחויבות: כלל פעיל תלוי בכל אחת (הלינט נכשל אחרת).');
-P();
-P('## 13. החלטות שלכם');
+P('מזהים מקומיים שמופיעים בכמה תחומים ב־V6: ' + coll6.map((c) => code(c.id) + ' (' + c.topics.join(', ') + ')' + (c.same ? ' [אותה שאלה]' : ' [שאלות שונות]')).join('; ') + '. **המנוע לא ממזג אותם:** כל שאלה מזוהה כ־תחום.שאלה, ושיתוף בין תחומים רק דרך עובדה מוצהרת. עותקי השאלות לפי אדם מקבלים סיומת ' + code('@אדם') + ' ואינם מתערבבים עם שאלות המשיב/ה.');
 P();
 [
-  '**אישור כל הנוסח** בסעיפים 1, 3א, 4, 5, 8 ו־11א: שאלות הפרופיל ושאלות ״מי״, שמות הקבוצות, שורות ״למה שואלים״, כותרות הרמות והכרטיסים.',
-  '**סיווג כללי ביטוח לאומי** (סעיף 3א): במיוחד שהבדיקה אינה מציגה כ״גבוה״ את האבטלה, המילואים, הפגיעה או הקצבה של בן/בת זוג, ילד/ה או הורה (רק כחסר מידע). האם גם כרטיס חסר מידע כזה צריך לומר במפורש ״ייתכן שהדבר נוגע לבן משפחה אחר״?',
-  '**מתי להדליק:** רק אחרי סגירת 13 הכללים החלקיים (סעיף 9) ופרסום V6. המתג בהגדרות הדשבורד, כבוי כברירת מחדל. כל עוד V6 לא מפורסם הבדיקה אינה זמינה גם אם המתג דלוק.',
-  '**זמן מילוי:** לא נמדד ולא מובטח. אורך: ' + s6.exactMin + ' עד ' + s6.exactMax + ' שאלות, חציון ' + s6.median + ' (משיבים מדומים). הוספת שאלות לא בוצעה.',
-  '**״מה אפשר לקבל״** ככותרת חלק בכרטיס (הנוסח שהוגדר בהתחלה): האם להחליף ל״מה כדאי לבדוק״ כדי שלא יישמע כהבטחה?'
+  ['11.2 ״מה מצבכם התעסוקתי״ כיום מול ״איך עבדתם בשש שנות המס האחרונות״', 'שתי שאלות שונות במכוון: הראשונה ממלאת את תלושי השכר (שכיר/ה כיום, עצמאי/ת אחר), השנייה את המסים ואת שער תלוש השכר. אין מיפוי ביניהן.'],
+  ['11.3 ״גמלאי/ת״ בפרופיל מול ״אדם שהגיע לגיל הפרישה״ במשפחה', '״גמלאי/ת״ בפרופיל אינו ממלא את שאלת המשפחה. מי שבחר ״יש במשפחה אדם בגיל פרישה״ נשאל ״מי״; ״אני״ הופך את הכלל לכלל על המשיב/ה, ו״בן/בת זוג״ או ״הורה״ מציגים ממצא עבורם.'],
+  ['11.4 ״הפסיק לעבוד״ מול ״פיטורים״ וסיום העסקה', 'האירוע בשאלת המשפחה (״הפסיק לעבוד כשכיר/ה או כעצמאי/ת״) מזין דמי אבטלה והבטחת הכנסה (ביטוח לאומי) ואת שאלות התלוש האחרון וימי החופשה (תלושי שכר) עבור האדם; המסים אינם מוזנים ממנו כי אין תשובה זהה בשאלת האירועים של המסים.'],
+  ['11.5 שירות מילואים ב־3 מקומות', 'האירוע המשפחתי ״שירת במילואים בשנה האחרונה״ הוא בהכרח גם התשובה ״שירתי במילואים״ בשאלת האירועים של המסים (שש שנים כוללות שנה אחת), ולכן מזין את כלל ההחזר ואת תגמולי המילואים לאדם.'],
+  ['11.6 ״ילדים״ בכמה גבולות גיל', 'ביטוח לאומי: מתחת ל־18; מענק עבודה: מתחת ל־19 בשנת המס; דיור: ילד במעון. שלושה גבולות שונים בחוק ולכן אין שאלת פרופיל אחת על ילדים.'],
+  ['11.7 ״לא בטוח/ה״ מול ״לא יודע/ת״ מול ״מעדיפ/ה לא לענות״', 'שלושתן לא ידוע (חסר מידע). בשאלות עובדה רגילות יש ״לא יודע/ת״ או ״לא בטוח/ה״ (הנוסח של V6), ובשאלה רגישה נוספה ״מעדיפ/ה לא לענות״.']
+].forEach((p) => { P('### ' + p[0]); P(); P('- ' + p[1]); P(); });
+
+// ---- 12 decisions ----
+P('## 12. החלטות שלכם');
+P();
+[
+  '**אישור הנוסח** בסעיפים 1, 2, 5 ו־6: שאלות הפרופיל ושאלות ״מי״, נוסח שאלות העובדות לבן משפחה (״עבור בן/בת הזוג: …״ והמשפט ״ענו לפי מצבו/ה…״), תוויות הכרטיס, כותרות הרמות.',
+  '**סיווג הכללים** (טבלת סעיף 2): במיוחד שדמי אבטלה, פגיעה בעבודה, נכות (ענף הבריאות), מילואים וקצבת זקנה נבדקים **לכל אדם שנבחר**, והחזר המס (tx-jobs) לבן משפחה רק כשהאירוע הוא מילואים.',
+  '**כללים שאין להם עותק לפי אדם** (מענק עבודה, תלוש נוכחי, ביטוחים, בנקאות, לימודים ועבודה): האם להוסיף שאלה שתאפשר זאת? זה ידרוש תנאי בכלל עצמו או שאלת סינון חדשה, ולכן לא נעשה בלי החלטה.',
+  '**חבילת הסקירה המקצועית** (התיקייה deep-review-by-domain): אילו אנשי מקצוע לשלוח לכל תחום (ההצעות בקבצים הן שלי).',
+  '**מוכנות להפעלה:** שלושת התנאים בסעיף 9. כל עוד ' + ROUTE.unverified.length + ' כללים לא מאומתים והנוסח לא אושר, אי אפשר להפעיל מהדשבורד.',
+  '**אורך מסלול:** מקסימום ' + s6.exactMax + ' שאלות במקרה הקיצוני (כל האירועים לכל האנשים); חציון ' + s6.median + ' (משיבים מדומים). **זמן מילוי לא נמדד ולא מובטח.**'
 ].forEach((d, i) => P((i + 1) + '. ' + d));
 P();
-
-fs.writeFileSync(out, lines.join('\n') + '\n');
-console.log('written', out, lines.length, 'lines; V6 questions', cfg6.questions.length, 'exact path', s6.exactMin + '..' + s6.exactMax);
+fs.writeFileSync(path.join(rawDir, 'DEEP-CHECK-CONTENT-REVIEW.md'), lines.join('\n') + '\n');
+console.log('written', rawDir, '| main', lines.length, 'lines | domains', V6.length + 1, 'files | V6 questions', cfg6.questions.length, '| exact path', s6.exactMin + '..' + s6.exactMax);

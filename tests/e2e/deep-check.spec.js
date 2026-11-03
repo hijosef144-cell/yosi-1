@@ -19,22 +19,24 @@ const noHScroll = async (page) => expect(await page.evaluate(() => document.docu
 const nothingSticksOut = async (page) => expect(await page.evaluate(() => { const vw = document.documentElement.clientWidth; return [].filter.call(document.querySelectorAll('body *'), (e) => { const r = e.getBoundingClientRect(); return r.width && (r.right > vw + 2.5 || r.left < -2.5) && !e.closest('#kp-defs') && !e.closest('.hp'); }).map((e) => e.tagName + '.' + String(e.className && e.className.baseVal !== undefined ? e.className.baseVal : e.className)); })).toEqual([]);
 
 // ---- servers ----
-let srv = null, base = '', content = null, origSeed = null, REAL_REQUIRES = null;
+let srv = null, base = '', content = null, origSeed = null, REAL_REQUIRES = null, REAL_READY = null;
 // `degrade` = TEST-ONLY reduced mode: the dev server serves the route without `requires`, so the check runs against the ten published topics. realMode() puts the requirements back.
 async function serve(ti, slot, set, flag, degrade) {
   process.env.TOPICS_FILE = set === 'v6' ? V6F : '';
   if (!process.env.TOPICS_FILE) delete process.env.TOPICS_FILE;
   content = require(path.join(ROOT, 'netlify', 'functions', '_kaspchem', 'content'));
-  if (origSeed === null) { origSeed = content.seed; REAL_REQUIRES = JSON.parse(JSON.stringify(content.routes.topics.find((t) => t.kind === 'deep').requires)); }
+  if (origSeed === null) { const rt = content.routes.topics.find((t) => t.kind === 'deep'); REAL_READY = { unverified: rt.unverified, approved: rt.approved }; origSeed = content.seed; REAL_REQUIRES = JSON.parse(JSON.stringify(content.routes.topics.find((t) => t.kind === 'deep').requires)); }
   content.setSeed(origSeed); // the published ten, unless the dev server swaps in the V6 draft below
   const { start } = require(path.join(ROOT, 'tests', 'dev-server'));
+  setReady(true); // TEST FIXTURE: the real route is not approved and lists unverified rules; the readiness gate is tested on its own below
   srv = await start(PORT0[ti.project.name] + slot, { degradeDeep: !!degrade });
   base = 'http://localhost:' + srv.server.address().port;
   delete process.env.TOPICS_FILE;
   if (flag !== undefined) await setFlag(flag);
 }
 const realMode = (on) => { const r = content.routes.topics.find((t) => t.kind === 'deep'); r.requires = on ? REAL_REQUIRES : []; };
-async function stop() { if (srv) { srv.server.close(); srv = null; } if (content && origSeed) content.setSeed(origSeed); delete process.env.TOPICS_FILE; }
+const setReady = (on) => { const r = content.routes.topics.find((t) => t.kind === 'deep'); r.unverified = on ? [] : REAL_READY.unverified; r.approved = on ? true : REAL_READY.approved; };
+async function stop() { if (content && REAL_READY) setReady(false); if (srv) { srv.server.close(); srv = null; } if (content && origSeed) content.setSeed(origSeed); delete process.env.TOPICS_FILE; }
 const setFlag = async (v) => { const r = await fetch(base + '/api/kaspchem/admin/settings', { method: 'PUT', headers: ADM, body: JSON.stringify({ key: 'public.deep_enabled', value: v }) }); expect(r.ok).toBe(true); };
 const adminGet = async (p) => (await fetch(base + '/api/kaspchem/admin' + p, { headers: ADM })).json();
 const configOf = async () => { const j = await (await fetch(base + '/api/kaspchem/config')).json(); const route = j.topics.find((t) => t.kind === 'deep'); return { json: j, route, cfg: route ? E.buildDeep(route, j.topics) : null }; };
@@ -272,31 +274,95 @@ test.describe('deep check on the V6 draft', () => {
     await expect(sec.locator('.dp-group-card')).toHaveCount(0);                              // the folded card is gone: its answer was given
   });
 
-  test('family question: a spouse or a parent who meets the condition is never "high" for the respondent: it asks WHOM, shows a missing-information card, and completing it with "me" turns it high', async ({ page }) => {
+  test('per person: the spouse meets a rule\'s conditions and the respondent does not → the question is asked FOR THE SPOUSE, a HIGH card is labelled for the spouse, nothing for the respondent', async ({ page }) => {
     const { cfg } = await configOf();
     await openDeep(page);
-    const policy = (q) => (q.id === 'profile.family' ? ['retire'] : q.id === 'profile.who_retire' ? ['parent'] : q.id === 'national-insurance.retirefacts' ? ['nopension'] : q.id === 'profile.worknow' ? 'employee' : q.id === 'profile.workhist' ? ['emp'] : nonePick(q));
+    const policy = (q) => (q.id === 'profile.family' ? ['retire'] : q.id === 'profile.who_retire' ? ['spouse'] : q.id === 'national-insurance.retirefacts@spouse' ? ['nopension'] : q.id === 'profile.worknow' ? 'employee' : q.id === 'profile.workhist' ? ['emp'] : nonePick(q));
     const run = await drive(page, cfg, policy, { stopAt: (q) => q.id === 'profile.who_retire' });
     const who = cfg.questions.find((x) => x.id === 'profile.who_retire');
     await expect(page.locator('.q h1')).toHaveText(who.text);
     await expect(page.locator('.q .help')).toContainText('יש במשפחה אדם שהגיע לגיל הפרישה');
     await expect(page.getByRole('checkbox')).toHaveText(['אני', 'בן/בת הזוג', 'הורה', 'מעדיפ/ה לא לענות']);
     await expect(page.locator('#dp-skip')).toBeVisible();
-    // the minimal flow: no "whom" screen for options whose meaning does not depend on the person (checked on the engine path)
-    expect(run.asked.filter((id) => /^profile\.who_/.test(id))).toEqual([]);
-    const answers = Object.assign({}, run.answers); const done = await drive(page, cfg, policy, { answers });
+    expect(run.asked.filter((id) => /^profile\.who_/.test(id))).toEqual([]);                   // the minimal flow: no "whom" screen before it is needed
+    const done = await drive(page, cfg, policy, { answers: Object.assign({}, run.answers) });
+    // the per-person fact question: the person is named in the question, and in a chip above it
+    const spouseQ = cfg.questions.find((x) => x.id === 'national-insurance.retirefacts@spouse');
+    expect(done.asked).toContain('national-insurance.retirefacts@spouse'); expect(done.asked).not.toContain('national-insurance.retirefacts'); // asked for the spouse only
+    expect(spouseQ.text.indexOf('עבור בן/בת הזוג: ')).toBe(0);
     const res = E.evaluateDeep(cfg, done.answers);
-    expect(done.asked).toContain('profile.who_retire');
-    expect(res.high.some((f) => f.localId === 'ni-oldage')).toBe(false); expect(res.missing.some((f) => f.localId === 'ni-oldage')).toBe(true);
-    await expect(page.locator('#dp-sec-high')).not.toContainText('קצבת זקנה');
-    const miss = page.locator('#dp-sec-missing'); await expect(miss).toContainText('מי הגיע לגיל הפרישה');
-    // complete the answer as "me": the same facts are now high
-    await miss.getByRole('button', { name: 'להשלמת התשובה' }).first().click();
-    await expect(page.locator('.q h1')).toHaveText(who.text);
-    await page.getByRole('checkbox', { name: 'אני', exact: true }).click(); await page.locator('#mgo').click();
-    await page.locator('#result h1').waitFor({ timeout: 8000 });
-    await expect(page.locator('#dp-sec-high')).toContainText('קצבת זקנה');
-    expect(E.evaluateDeep(cfg, Object.assign({}, done.answers, { 'profile.who_retire': ['me'] })).high.some((f) => f.localId === 'ni-oldage')).toBe(true);
+    expect(res.high.some((f) => f.base === 'national-insurance.ni-oldage' && f.subject === 'spouse')).toBe(true);
+    expect(res.high.some((f) => f.subject === 'me')).toBe(false);
+    const card = page.locator('#dp-sec-high .dp-card', { hasText: 'כדאי להגיש תביעה לקצבת זקנה' });
+    await expect(card).toHaveCount(1);
+    await expect(card.locator('.dp-chip')).toHaveText('עבור: בן/בת הזוג');
+    await expect(card.locator('.dp-subjnote')).toHaveText('ההתאמה נבדקה לפי התשובות שלכם על בן/בת הזוג, ולא לפי מצבכם.');
+    await expect(page.locator('#result .dp-chip', { hasText: 'עבור: אני' })).toHaveCount(0);   // nothing for the respondent
+    await nothingSticksOut(page); await noHScroll(page);
+  });
+
+  test('per person: me and the spouse both chosen → both sets of questions (the person is named), two separately labelled cards, the facts of one are never used for the other', async ({ page }) => {
+    const { cfg } = await configOf();
+    await openDeep(page);
+    const policy = (q) => (q.id === 'profile.family' ? ['stopped'] : q.id === 'profile.who_stopped' ? ['me', 'spouse'] : q.id === 'national-insurance.stopfacts' ? ['ok'] : q.id === 'national-insurance.stopfacts@spouse' ? ['emp_noreg'] : q.id === 'profile.worknow' ? 'employee' : q.id === 'profile.workhist' ? ['emp'] : q.id === 'payslip-rights.emp@spouse' ? 'other' : nonePick(q));
+    const run = await drive(page, cfg, policy);
+    const mine = run.asked.indexOf('national-insurance.stopfacts'), his = run.asked.indexOf('national-insurance.stopfacts@spouse');
+    expect(mine).toBeGreaterThan(-1); expect(his).toBeGreaterThan(mine);                       // the respondent's questions, then the spouse's
+    const res = E.evaluateDeep(cfg, run.answers);
+    expect(res.high.filter((f) => f.base === 'national-insurance.ni-unemp').map((f) => f.subject)).toEqual(['spouse']); // only the spouse meets it; the respondent said "ok"
+    await expect(page.locator('#dp-sec-high .dp-card', { hasText: 'כדאי להירשם בשירות התעסוקה' }).locator('.dp-chip')).toHaveText('עבור: בן/בת הזוג');
+  });
+
+  test('per person: a child stopped working and a parent served in the reserves → each is asked about separately (the person is named), each gets a card labelled for that person, nothing is attributed to the respondent', async ({ page }) => {
+    const { cfg } = await configOf();
+    await openDeep(page);
+    const policy = (q) => (q.id === 'profile.family' ? ['stopped', 'reserve'] : q.id === 'profile.who_stopped' ? ['child'] : q.id === 'profile.who_reserve' ? ['parent'] : q.id === 'national-insurance.stopfacts@child' ? ['emp_noreg'] : q.id === 'national-insurance.reservefacts@parent' ? ['emp_unpaid'] : q.id === 'profile.worknow' ? 'employee' : q.id === 'profile.workhist' ? ['emp'] : nonePick(q));
+    const run = await drive(page, cfg, policy);
+    expect(run.asked).toEqual(expect.arrayContaining(['national-insurance.stopfacts@child', 'national-insurance.reservefacts@parent', 'tax-refunds.kind@parent']));
+    for (const own of ['national-insurance.stopfacts', 'national-insurance.reservefacts', 'tax-refunds.kind']) expect(run.asked).not.toContain(own);   // nothing is asked about the respondent's own situation
+    expect(run.asked).not.toContain('national-insurance.stopfacts@parent'); expect(run.asked).not.toContain('national-insurance.reservefacts@child');
+    const res = E.evaluateDeep(cfg, run.answers);
+    expect(res.high.filter((f) => f.subject).map((f) => f.base + '@' + f.subject).sort()).toEqual(['national-insurance.ni-reserve-emp@parent', 'national-insurance.ni-unemp@child']);
+    expect(res.high.some((f) => f.subject === 'me')).toBe(false);
+    const child = page.locator('#dp-sec-high .dp-card', { hasText: 'כדאי להירשם בשירות התעסוקה' });
+    await expect(child.locator('.dp-chip')).toHaveText('עבור: ילד/ה');
+    await expect(child.locator('.dp-subjnote')).toHaveText('ההתאמה נבדקה לפי התשובות שלכם על הילד/ה, ולא לפי מצבכם.');
+    const parent = page.locator('#dp-sec-high .dp-card', { hasText: 'כדאי לבדוק תגמולי מילואים שלא שולמו (שכירים)' });
+    await expect(parent.locator('.dp-chip')).toHaveText('עבור: הורה');
+    await expect(parent.locator('.dp-subjnote')).toHaveText('ההתאמה נבדקה לפי התשובות שלכם על ההורה, ולא לפי מצבכם.');
+    await expect(page.locator('#result .dp-chip', { hasText: 'עבור: אני' })).toHaveCount(0);
+    await nothingSticksOut(page); await noHScroll(page);
+  });
+
+  test('per person: "prefer not to answer" on the whom question and on a person\'s fact question is unknown → missing information naming the question and the person, never high', async ({ page }) => {
+    const { cfg } = await configOf();
+    await openDeep(page);
+    const policy = (q) => (q.id === 'profile.family' ? ['retire', 'health'] : q.id === 'profile.who_retire' ? ['me', 'spouse'] : q.id === 'profile.who_health' ? ['pna'] : q.id === 'national-insurance.retirefacts' ? ['nopension'] : q.id === 'national-insurance.retirefacts@spouse' ? ['pna'] : q.id === 'profile.worknow' ? 'employee' : q.id === 'profile.workhist' ? ['emp'] : nonePick(q));
+    const run = await drive(page, cfg, policy);
+    const res = E.evaluateDeep(cfg, run.answers);
+    expect(res.high.filter((f) => f.base === 'national-insurance.ni-oldage').map((f) => f.subject)).toEqual(['me']);
+    const miss = page.locator('#dp-sec-missing');
+    await expect(miss).toContainText('עבור בן/בת הזוג: ');                                       // the missing answer names the person
+    await expect(miss).toContainText('חסר מידע: עבור בן/בת הזוג');
+    // the spouse's retirement card is NOT in the high tier
+    await expect(page.locator('#dp-sec-high .dp-chip', { hasText: 'עבור: בן/בת הזוג' })).toHaveCount(0);
+    // the whom question declined: one calm card (several rights wait for this one answer)
+    await expect(miss.locator('.dp-group-card')).toHaveCount(1);
+    await expect(miss.locator('.dp-group-card')).toContainText('מי נפגע או חולה');
+    await miss.locator('.dp-group-card').getByRole('button', { name: 'להשלמת התשובה' }).focus(); await page.keyboard.press('Enter');
+    await expect(page.locator('.q h1')).toHaveText(cfg.questions.find((x) => x.id === 'profile.who_health').text);
+  });
+
+  test('per person: the spouse stopped working → the final-slip and vacation questions are asked for the spouse (named), and the findings are for the spouse', async ({ page }) => {
+    const { cfg } = await configOf();
+    await openDeep(page);
+    const policy = (q) => (q.id === 'profile.family' ? ['stopped'] : q.id === 'profile.who_stopped' ? ['spouse'] : q.id === 'national-insurance.stopfacts@spouse' ? ['ok'] : q.id === 'payslip-rights.emp@spouse' ? 'past' : q.id === 'payslip-rights.lastslip@spouse' ? 'no' : q.id === 'payslip-rights.unused@spouse' ? 'no' : q.id === 'profile.worknow' ? 'employee' : q.id === 'profile.workhist' ? ['emp'] : nonePick(q));
+    const run = await drive(page, cfg, policy);
+    expect(run.asked).toEqual(expect.arrayContaining(['payslip-rights.emp@spouse', 'payslip-rights.lastslip@spouse', 'payslip-rights.unused@spouse']));
+    expect(run.asked).not.toContain('payslip-rights.finpay@spouse');                                         // not asked: nothing was left unused
+    const res = E.evaluateDeep(cfg, run.answers);
+    expect(res.high.filter((f) => f.subject === 'spouse').map((f) => f.base)).toEqual(['payslip-rights.ps-lastslip']);
+    await expect(page.locator('#dp-sec-high .dp-card', { hasText: 'כדאי לבקש תלוש אחרון וחישוב סופי' }).locator('.dp-chip')).toHaveText('עבור: בן/בת הזוג');
   });
 
   test('the running count: "now N topics worth checking" follows the answers, in words that promise nothing; progress of ring, jar and segments never goes down', async ({ page }) => {
@@ -331,13 +397,16 @@ test.describe('deep check on the V6 draft', () => {
     const res = E.evaluateDeep(cfg, run.answers), c = await counts(page);
     expect(res.counts.highCards).toBeGreaterThan(4); expect(res.counts.missingItems).toBeGreaterThan(0); expect(res.counts.lowCards).toBe(0);
     expect(c).toEqual({ high: res.counts.highCards, missing: res.counts.missingItems, low: 0 });
-    await expect(page.locator('#result h1')).toHaveText('מצאנו ' + res.counts.highCards + ' הזדמנויות בסבירות גבוהה שכדאי לבדוק');
+    await expect(page.locator('#result h1')).toHaveText('תוצאות הבדיקה המעמיקה');                              // a neutral page heading: the tier names are the section titles
+    await expect(page.locator('#result .dp-resultsub')).toHaveText(res.counts.highCards + ' נושאים בסבירות גבוהה שכדאי לבדוק');
     await expect(page.locator('#dp-low')).toHaveCount(0);                                   // the low tier is off: it never appears
     await expect(page.locator('#result')).not.toContainText('סבירות נמוכה');
     const y = (sel) => page.locator(sel).first().evaluate((e) => e.getBoundingClientRect().top + scrollY);
     expect(await y('#dp-sec-high')).toBeLessThan(await y('#dp-sec-missing')); expect(await y('#dp-sec-missing')).toBeLessThan(await y('#cta'));
-    await expect(page.locator('#dp-sec-high h2')).toContainText('מצאנו הזדמנויות בסבירות גבוהה שכדאי לבדוק'); await expect(page.locator('#dp-sec-high h2')).toContainText('(' + res.counts.highCards + ')');
-    await expect(page.locator('#dp-sec-missing h2')).toContainText('חסר מידע — כדאי להשלים בדיקה');
+    await expect(page.locator('#dp-sec-high h2')).toHaveText('סבירות גבוהה');                                  // the EXACT tier title, no other words
+    await expect(page.locator('#dp-sec-high .dp-tier-sub')).toHaveText('התאמה גבוהה לתנאי הסינון שנבדקו. זו אינה קביעה סופית של זכאות.');
+    await expect(page.locator('#dp-sec-high .dp-n')).toHaveText('(' + res.counts.highCards + ')');
+    await expect(page.locator('#dp-sec-missing h2')).toHaveText('חסר מידע — כדאי להשלים בדיקה');
     // four cards first, the rest behind an expander that works by keyboard; nothing is deleted
     await expect(page.locator('#dp-sec-high .dp-top .dp-card')).toHaveCount(4);
     await expect(page.locator('#dp-sec-high .dp-card:visible')).toHaveCount(4);
@@ -350,15 +419,17 @@ test.describe('deep check on the V6 draft', () => {
     await expect(page.locator('#dp-sec-high .dp-card')).toHaveCount(res.counts.highCards);
     // each high card: what you can get / how it works / who can help (with an official link)
     const card = page.locator('#dp-sec-high .dp-card').filter({ has: page.locator('a[href^="https://"]') }).first();
-    await expect(card.locator('.dp-pt')).toHaveText('מה אפשר לקבל');
+    await expect(card.locator('.dp-pt')).toHaveText('מה כדאי לבדוק');
     await expect(card.locator('summary')).toHaveText(['איך זה עובד', 'מי יכול לעזור']);
     await card.locator('details').nth(1).locator('summary').click();
     await expect(card.locator('details').nth(1).locator('a[href^="https://"]').first()).toBeVisible();
     // wording: the single caveat, nothing that claims an entitlement or a time, on the frame of this screen
     const text = await page.locator('#result').innerText();
     expect((text.match(/תוצאות ראשוניות בלבד/g) || []).length).toBe(1);
+    const APPROVED_LINE = 'התאמה גבוהה לתנאי הסינון שנבדקו. זו אינה קביעה סופית של זכאות.';   // the one sentence the owner approved under the high tier (it says what the tier is NOT)
     const frame = (await page.locator('#result .head, #result .dp-tier-h, #result .dp-tier-sub, #result .dp-cta').allInnerTexts()).join(' ');
-    expect(frame).not.toMatch(/מגיע(ים|ות)? לכם|זכאים|זכאי\b|זכאות|זכיתם|הוענק|בוודאות|אושר|דקות/);
+    expect(frame).toContain(APPROVED_LINE);
+    expect(frame.replace(APPROVED_LINE, '')).not.toMatch(/מגיע(ים|ות)? לכם|זכאים|זכאי\b|זכאות|זכיתם|הוענק|בוודאות|אושר|דקות/);
     await expect(page.locator('#lead')).toHaveCount(0);                                     // results first; the form only on request
     await nothingSticksOut(page); await noHScroll(page);
   });
@@ -525,9 +596,10 @@ test.describe('deep check switched on but not runnable (a required part is not s
   test.afterAll(stop);
 
   test('nothing about it is shown: no tile, the "coming soon" page, the lead refused, the code never loaded; the real requirements are what decides', async ({ page }) => {
+    // the switch was turned on while the content satisfied the route (the readiness gate refuses it otherwise); then the content no longer does
+    await setFlag(true);
     realMode(true);
     try {
-      await setFlag(true);
       const j = await (await fetch(base + '/api/kaspchem/config')).json();
       expect(j.topics.some((t) => t.kind === 'deep')).toBe(false); expect('deep_enabled' in j.settings).toBe(false);
       await Promise.all([page.waitForResponse((r) => r.url().endsWith('/api/kaspchem/config')), page.goto(base + '/kaspchem')]);
@@ -636,5 +708,73 @@ test.describe('content does not load: a clear message and a retry, never partial
     await page.evaluate(() => sessionStorage.setItem('kaspchem:deep', '{not json'));
     await page.reload();
     await expect(page.locator('.q h1')).toHaveText(cfg.questions.find((q) => q.id === 'profile.home').text);
+  });
+});
+
+// =====================================================================================================================
+// The dashboard: the deep check is not ready, so it cannot be switched on; the server refuses too.
+// =====================================================================================================================
+test.describe('dashboard readiness gate', () => {
+  test.beforeAll(async ({}, ti) => { await serve(ti, 5, 'v6', undefined, false); });
+  test.afterAll(stop);
+  test.beforeEach(() => { test.skip(!HAS_V6, 'V6 draft not available in this checkout (the private research folder is not linked)'); });
+  const AS_ADMIN = () => base + '/admin/kaspchem/?test=' + encodeURIComponent('yosi@example.test|admin');
+  const openSettings = async (page) => { await page.goto(AS_ADMIN()); await page.locator('#tabs button[data-t="settings"]').click(); await page.locator('#dp-panel').waitFor(); };
+
+  test('not ready (the real route: 13 unverified rules, wording not approved): a checklist, the switch is disabled with the explanation, the server refuses with the unmet reasons and writes nothing; nothing leaks to visitors', async ({ page }) => {
+    setReady(false);
+    await openSettings(page);
+    const panel = page.locator('#dp-panel');
+    await expect(panel).toContainText('הבדיקה המעמיקה אינה מוכנה להפעלה');
+    const items = panel.locator('.dp-check > li');
+    await expect(items).toHaveCount(3);
+    await expect(items.nth(0)).toContainText('תוכן V6 מפורסם והתחומים הנדרשים זמינים'); await expect(items.nth(0)).toContainText('מתקיים');
+    await expect(items.nth(1)).toContainText('כל כללי V6 הרלוונטיים אומתו מקצועית'); await expect(items.nth(1)).toContainText('לא מתקיים'); await expect(items.nth(1)).toContainText('13 כללים');
+    await expect(items.nth(2)).toContainText('נוסח הבדיקה אושר על ידי הבעלים'); await expect(items.nth(2)).toContainText('לא מתקיים');
+    await expect(panel.locator('#dp-state')).toHaveText('כבוי');
+    await expect(panel.locator('#dpe')).toBeDisabled();
+    // nothing of the panel itself sticks out (the admin tab bar scrolls sideways by design, so the whole page is not measured)
+    expect(await page.evaluate(() => { const vw = document.documentElement.clientWidth; return [].filter.call(document.querySelectorAll('#dp-panel, #dp-panel *'), (e) => { const r = e.getBoundingClientRect(); return r.width && (r.right > vw + 2.5 || r.left < -2.5); }).map((e) => e.tagName + '.' + e.className); })).toEqual([]);
+    // the server refuses (409) and writes nothing
+    const put = (v) => fetch(base + '/api/kaspchem/admin/settings', { method: 'PUT', headers: ADM, body: JSON.stringify({ key: 'public.deep_enabled', value: v }) });
+    const r = await put(true);
+    expect(r.status).toBe(409); const j = await r.json(); expect(j.error).toBe('deep_not_ready');
+    expect(j.message).toContain('הבדיקה המעמיקה אינה מוכנה להפעלה'); expect(j.message).toContain('כל כללי V6 הרלוונטיים אומתו מקצועית'); expect(j.message).toContain('נוסח הבדיקה אושר על ידי הבעלים');
+    const st = (await adminGet('/settings')).settings.filter((x) => x.key === 'public.deep_enabled'); expect(st.length).toBe(0);
+    const cfgj = await (await fetch(base + '/api/kaspchem/config')).json();
+    expect(cfgj.topics.some((t) => t.kind === 'deep')).toBe(false); expect('deep_enabled' in cfgj.settings).toBe(false);
+    expect((await put('yes')).status).toBe(400);                                                  // only a real boolean
+    // turning it OFF is always allowed
+    expect((await put(false)).status).toBe(200);
+  });
+
+  test('ready (test fixture: verified + approved): the switch can be turned on with a confirmation, shows the state, and turning it off is immediate', async ({ page }) => {
+    setReady(true);
+    try {
+      await openSettings(page);
+      const panel = page.locator('#dp-panel');
+      await expect(panel.locator('#dp-notready')).toHaveCount(0);
+      await expect(panel.locator('.dp-check > li.ok')).toHaveCount(3);
+      await expect(panel.locator('#dpe')).toBeEnabled();
+      page.once('dialog', (d) => d.accept());
+      await panel.locator('#dpe').check();
+      await expect(panel.locator('#dp-state')).toHaveText('דלוק (מוצגת לציבור)');
+      const cfgj = await (await fetch(base + '/api/kaspchem/config')).json();
+      expect(cfgj.topics.some((t) => t.kind === 'deep')).toBe(true); expect(cfgj.settings.deep_enabled).toBe(true);
+      await panel.locator('#dpe').uncheck();
+      await expect(panel.locator('#dp-state')).toHaveText('כבוי');
+      expect((await (await fetch(base + '/api/kaspchem/config')).json()).topics.some((t) => t.kind === 'deep')).toBe(false);
+    } finally { await setFlag(false); setReady(false); }
+  });
+
+  test('already on but no longer ready: it can still be turned OFF from the screen', async ({ page }) => {
+    setReady(true); await setFlag(true); setReady(false);
+    try {
+      await openSettings(page);
+      await expect(page.locator('#dp-state')).toHaveText('דלוק (מוצגת לציבור)');
+      await expect(page.locator('#dpe')).toBeEnabled();
+      await page.locator('#dpe').uncheck();
+      await expect(page.locator('#dp-state')).toHaveText('כבוי');
+    } finally { await setFlag(false); }
   });
 });

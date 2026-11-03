@@ -74,9 +74,11 @@ on('GET', '/requests/(\\d+)', async (c, id) => {
     findingDetails = (r.findings || []).map((s) => {
       const m = /^(high|missing|low):(.+)$/.exec(String(s)) || [null, 'high', String(s)];
       const rule = (deep && deep.rules.find((x) => x.id === m[2])) || {};
-      return { id: m[2], tier: m[1], tierLabel: TIER[m[1]], title: (rule.finding || {}).title || m[2], refer: (rule.finding || {}).refer || null, serviceTag: rule.serviceTag || null };
+      const sub = rule.subject && deep && deep.subjects && deep.subjects[rule.subject] ? deep.subjects[rule.subject].label : null;
+      const unv = !!(deep && (deep.unverified || []).some((u) => u.id === (rule.baseId || rule.id)));
+      return { id: m[2], tier: m[1], tierLabel: TIER[m[1]], title: (rule.finding || {}).title || m[2], subject: rule.subject || null, subjectLabel: sub, unverified: unv, refer: (rule.finding || {}).refer || null, serviceTag: rule.serviceTag || null };
     });
-    findings = findingDetails.map((d) => d.tierLabel + ': ' + d.title);
+    findings = findingDetails.map((d) => d.tierLabel + ': ' + d.title + (d.subjectLabel ? ' (עבור: ' + d.subjectLabel + ')' : ''));
   } else {
     readable = topic ? engine.visibleQuestions(topic, r.answers).map((q) => ({
       question: q.text, answer: [].concat(r.answers[q.id]).map((id) => (q.options.find((o) => o.id === id) || {}).label || id).join(' · ')
@@ -383,8 +385,17 @@ on('GET', '/settings', async () => {
   const rows = await db.query('SELECT key, value, updated_by, updated_at FROM settings ORDER BY key');
   return { settings: rows };
 });
+// The deep check's readiness panel (read only). The checklist is computed from the served content and the route; nothing is stored.
+on('GET', '/deep/readiness', async () => content.deepReadiness());
 on('PUT', '/settings', async (c) => {
   const key = String(c.body.key || '');
+  if (key === 'public.deep_enabled') { // OFF is always allowed and immediate; ON only when every readiness condition holds (409 with the unmet ones, nothing written)
+    if (typeof c.body.value !== 'boolean') throw new HttpError(400, 'bad_value');
+    if (c.body.value === true) {
+      const rd = await content.deepReadiness();
+      if (!rd.ready) throw new HttpError(409, 'deep_not_ready', 'הבדיקה המעמיקה אינה מוכנה להפעלה: ' + rd.items.filter((i) => !i.ok).map((i) => i.label).join('; '));
+    }
+  }
   if (!/^(public|private)\.[a-z_]{1,40}$/.test(key)) throw new HttpError(400, 'bad_key');
   if (impact.MANAGED_KEYS.includes(key)) throw new HttpError(400, 'use_impact_api'); // the impact counter, its cutoff and its approval change only through the validated, audited impact routes
   if (JSON.stringify(c.body.value).length > 4000) throw new HttpError(400, 'too_large');

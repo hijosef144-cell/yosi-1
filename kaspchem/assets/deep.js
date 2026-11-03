@@ -86,7 +86,7 @@
       '<div class="pmeta"><span class="dp-where">' + esc(where) + '</span><span class="dp-qn">שאלה ' + (p.done + 1) + '</span></div>' +
       '<p class="dp-count' + (bump ? ' dp-bump' : '') + '" id="dp-count" role="status" aria-live="polite" data-n="' + run.n + '">' + esc(run.text) + '</p>' +
       '<section class="q dp-q ' + (reduce ? '' : 'slide-in') + '" aria-labelledby="qt">' + (first ? '<p class="help" style="margin-bottom:1rem">' + esc(top.intro) + '</p>' : '') +
-      '<h1 id="qt">' + esc(q.text) + '</h1>' + (q.help ? '<p class="help">' + esc(q.help) + '</p>' : '') +
+      (q.subject && q.subject !== 'me' ? '<p class="dp-subj dp-subj-q"><span class="dp-chip">' + esc(M('subjectLine', 'עבור: {s}').replace('{s}', (((cfg.subjects || {})[q.subject] || {}).label) || q.subject)) + '</span></p>' : '') + '<h1 id="qt">' + esc(q.text) + '</h1>' + (q.help ? '<p class="help">' + esc(q.help) + '</p>' : '') +
       (q.sensitive ? '<p class="dp-why" id="dp-why"><b>למה שואלים?</b> ' + esc(q.sensitiveWhy || '') + ' ' + esc(M('sensitiveNote', 'אפשר לבחור ״מעדיפ/ה לא לענות״ ונמשיך. אז נציין בתוצאה שחסר מידע.')) + '</p>' : '') +
       (q.multi ? '<p class="multihint">אפשר לבחור יותר מתשובה אחת</p>' : '') +
       '<div class="opts dp-opts" role="' + (q.multi ? 'group' : 'radiogroup') + '" aria-labelledby="qt"' + (q.sensitive ? ' aria-describedby="dp-why"' : '') + '>' + optionsHtml(q, answers) + '</div>' +
@@ -133,7 +133,7 @@
       var more = (how.join('') + (helpH ? '<div class="dp-help">' + helpH + '</div>' : ''));
       return more ? '<details class="dp-part dp-det"><summary>איך לברר</summary>' + more + '</details>' : '';
     }
-    return (get.length ? '<div class="dp-part"><h3 class="dp-pt">' + esc(P('partGet', 'מה אפשר לקבל')) + '</h3>' + get.join('') + '</div>' : '') +
+    return (get.length ? '<div class="dp-part"><h3 class="dp-pt">' + esc(P('partGet', 'מה כדאי לבדוק')) + '</h3>' + get.join('') + '</div>' : '') +
       (how.length ? '<details class="dp-part dp-det"><summary>' + esc(P('partHow', 'איך זה עובד')) + '</summary>' + how.join('') + '</details>' : '') +
       (helpH ? '<details class="dp-part dp-det"><summary>' + esc(P('partHelp', 'מי יכול לעזור')) + '</summary><div class="dp-help">' + helpH + '</div></details>' : '');
   }
@@ -154,10 +154,17 @@
       '<button type="button" class="btn dp-fill dp-fill-main" data-ask="' + esc(m.ask || m.id || '') + '">' + esc(M('completeAnswer', 'להשלמת התשובה')) + '</button></div></li>';
   }
   function itemHtml(it, i, tier) { return it.folded ? groupHtml(it, i) : cardHtml(it.card || it, i, tier); }
+  // Whom a finding is about. Always named when the finding comes from a per-person rule; for another person the card also says that it is about that person, not about the respondent.
+  function subjectHtml(c) {
+    if (!c.subject || !c.subjectLabel) return '';
+    var meta = ((C.cfg() || {}).subjects || {})[c.subject] || {};
+    var chip = '<p class="dp-subj"><span class="dp-chip">' + esc(M('subjectLine', 'עבור: {s}').replace('{s}', c.subjectLabel)) + '</span></p>';
+    return chip + (c.subject !== 'me' ? '<p class="dp-subjnote">' + esc(M('subjectNote', 'ההתאמה נבדקה לפי התשובות שלכם על {to}, ולא לפי מצבכם.').replace('{to}', meta.to || c.subjectLabel)) + '</p>' : '');
+  }
   function cardHtml(c, i, tier) {
     var title = c.parts ? c.title : c.title;
     var weak = tier === 'low' ? (c.parts ? c.parts[0] : c).weakNote : '';
-    return '<li class="find dp-card dp-card-' + tier + '" style="animation-delay:' + (reduce ? 0 : 300 + i * 140) + 'ms"><i class="mk" aria-hidden="true"></i><div><b>' + esc(title) + '</b>' +
+    return '<li class="find dp-card dp-card-' + tier + (c.subject ? ' dp-card-for' : '') + '" style="animation-delay:' + (reduce ? 0 : 300 + i * 140) + 'ms"><i class="mk" aria-hidden="true"></i><div><b>' + esc(title) + '</b>' + subjectHtml(c) +
       (tier === 'missing' ? missingLine(c) : '') + (weak ? '<p class="dp-weak">' + esc(weak) + '</p>' : '') + partsHtml(c, tier) + '</div></li>';
   }
   function tierHtml(tier, cards, title, sub) {
@@ -167,9 +174,9 @@
       (more.length ? '<ul class="finds dp-rest" id="' + id + '-more" hidden>' + more.map(function (c, i) { return itemHtml(c, i, tier); }).join('') + '</ul>' +
         '<div class="dp-tog-row"><button type="button" class="btn dp-tog" id="' + id + '-tog" aria-expanded="false" aria-controls="' + id + '-more" data-n="' + more.length + '">הצגת כל הנושאים (' + more.length + ')</button></div>' : '');
     if (tier === 'low') { // collapsed by default
-      return '<details class="dp-tier dp-low" id="dp-low"><summary class="dp-tier-h"><span>' + esc(title) + '</span> <span class="dp-n">(' + cards.length + ')</span></summary><p class="dp-tier-sub">' + esc(sub) + '</p>' + body + '</details>';
+      return '<details class="dp-tier dp-low" id="dp-low"><summary class="dp-tier-h"><span class="dp-tt">' + esc(title) + '</span> <span class="dp-n">(' + cards.length + ')</span></summary><p class="dp-tier-sub">' + esc(sub) + '</p>' + body + '</details>';
     }
-    return '<section class="dp-tier dp-' + tier + '" id="dp-sec-' + tier + '" aria-labelledby="' + id + '-h"><h2 class="dp-tier-h" id="' + id + '-h"><span>' + esc(title) + '</span> <span class="dp-n">(' + cards.length + ')</span></h2><p class="dp-tier-sub">' + esc(sub) + '</p>' + body + '</section>';
+    return '<section class="dp-tier dp-' + tier + '" id="dp-sec-' + tier + '" aria-labelledby="' + id + '-h"><div class="dp-tier-h"><h2 class="dp-tt" id="' + id + '-h">' + esc(title) + '</h2> <span class="dp-n" aria-label="' + cards.length + ' פריטים">(' + cards.length + ')</span></div><p class="dp-tier-sub">' + esc(sub) + '</p>' + body + '</section>';
   }
 
   function result() {
@@ -187,13 +194,13 @@
   function reveal() {
     var box = document.getElementById('result'); if (!box) return;
     var hi = res.highCards, mi = res.missingItems, lo = res.lowCards, n = hi.length, html = '';
-    var title = n ? (n === 1 ? M('foundOne', 'זיהינו נושא אחד בסבירות גבוהה שכדאי לבדוק') : M('found', 'זיהינו {n} נושאים בסבירות גבוהה שכדאי לבדוק').replace('{n}', n))
-      : mi.length ? M('insufficient', 'חסר לנו מידע כדי להצביע על נושא') : M('none', 'לא עלה נושא מיוחד לבדיקה כרגע');
-    html += '<div class="head"><div class="goldline" aria-hidden="true"></div><h1 id="rt">' + esc(title) + '</h1>' +
-      (!n && mi.length ? '<p class="sub">' + esc(M('insufficientBody', '')) + '</p>' : '') + (!n && !mi.length ? '<p class="sub">' + esc(M('noneBody', '')) + '</p>' : '') +
-      '<p class="prelim">תוצאות ראשוניות בלבד</p></div>';
+    // The page heading is neutral; the tier names are the section titles. The count (or the reason for no result) is the line under the heading.
+    var sub = n ? (n === 1 ? M('foundOne', 'נושא אחד בסבירות גבוהה שכדאי לבדוק') : M('found', '{n} נושאים בסבירות גבוהה שכדאי לבדוק').replace('{n}', n))
+      : mi.length ? M('insufficient', 'חסר לנו מידע כדי להצביע על הזדמנות לבדיקה') + '. ' + M('insufficientBody', '') : M('none', 'לא עלה נושא מיוחד לבדיקה כרגע') + '. ' + M('noneBody', '');
+    html += '<div class="head"><div class="goldline" aria-hidden="true"></div><h1 id="rt">' + esc(M('resultTitle', 'תוצאות הבדיקה המעמיקה')) + '</h1>' +
+      '<p class="sub dp-resultsub">' + esc(sub) + '</p><p class="prelim">תוצאות ראשוניות בלבד</p></div>';
     html += tierHtml('high', hi, M('highTitle', 'סבירות גבוהה'), M('highSub', ''));
-    html += tierHtml('missing', mi, M('missingTitle', 'חסר מידע — כדאי להמשיך לבדיקה'), M('missingSub', ''));
+    html += tierHtml('missing', mi, M('missingTitle', 'חסר מידע — כדאי להשלים בדיקה'), M('missingSub', ''));
     html += tierHtml('low', lo, M('lowTitle', 'סבירות נמוכה'), M('lowSub', ''));
     html += '<div class="cta-row dp-cta"><button type="button" class="btn" id="cta">אני רוצה עזרה בבדיקה</button><p class="reassure">הבדיקה הראשונית חינמית, והשארת פרטים אינה התחייבות.</p>' +
       (!n ? '<button type="button" class="btn link" id="fix">לחזור ולתקן תשובות</button>' : '') + '<a class="btn link" href="/kaspchem">לבדוק תחום אחר</a></div><div id="lead-slot"></div>';

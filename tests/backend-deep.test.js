@@ -16,6 +16,9 @@ const origSeed = content.seed;
 // The real route requires V6 shapes. The published ten run it only in the TEST-ONLY reduced mode (the dev server serves the route without `requires`); `realMode(true)` switches back.
 const ROUTE_DEEP = content.routes.topics.find((t) => t.kind === 'deep'), REAL_REQUIRES = JSON.parse(JSON.stringify(ROUTE_DEEP.requires));
 const realMode = (on) => { ROUTE_DEEP.requires = on ? REAL_REQUIRES : []; };
+// The real route is NOT ready (13 unverified rules, wording not approved). The tests switch it on with a fixture; `setReady(false)` restores the real state.
+const READY0 = { unverified: ROUTE_DEEP.unverified, approved: ROUTE_DEEP.approved };
+const setReady = (on) => { ROUTE_DEEP.unverified = on ? [] : READY0.unverified; ROUTE_DEEP.approved = on ? true : READY0.approved; };
 let srv, base; const sent = [];
 const ADMIN = { 'x-test-user': 'yosi@example.test|admin', 'x-kaspchem': '1' };
 const A = '/api/kaspchem/admin';
@@ -38,7 +41,7 @@ async function path_(overrides, pick) {
   return a;
 }
 
-test.before(async () => { srv = await start(0, { degradeDeep: true }); base = 'http://localhost:' + srv.server.address().port; ops.setSender(async (m) => { sent.push(m); }); });
+test.before(async () => { setReady(true); srv = await start(0, { degradeDeep: true }); base = 'http://localhost:' + srv.server.address().port; ops.setSender(async (m) => { sent.push(m); }); });
 test.after(async () => { ops.setSender(null); content.setSeed(origSeed); srv.server.close(); });
 
 test('switched off (the default): the deep route and the flag are not in the public config, and a lead for it is refused like an unknown topic; nothing is stored', async () => {
@@ -61,9 +64,10 @@ test('switched off (the default): the deep route and the flag are not in the pub
 });
 
 test('switched on but the content lacks what the route requires (the real route against the published ten): nothing is served, the flag is not revealed, the lead is refused, nothing is stored', async () => {
+  // the flag was switched on while the content was available (the readiness gate does not allow switching on otherwise); the content then no longer satisfies the route
+  assert.equal((await setFlag(true)).status, 200);
   realMode(true);
   try {
-    assert.equal((await setFlag(true)).status, 200);
     const cfg = (await call('GET', '/api/kaspchem/config')).body;
     assert.ok(!cfg.topics.some((t) => t.kind === 'deep')); assert.ok(!('deep_enabled' in cfg.settings));
     assert.equal((await content.loadDeepConfig()).unavailable, true);
@@ -71,6 +75,37 @@ test('switched on but the content lacks what the route requires (the real route 
     const r = await call('POST', '/api/kaspchem/lead', lead({ answers: {}, phone: '0504440011' }));
     assert.equal(r.body.error, 'bad_topic'); assert.equal((await rows()).length, before);
   } finally { realMode(false); await setFlag(false); }
+});
+
+test('readiness gate: not ready (unverified rules, wording not approved) → the checklist says so, switching ON is refused with 409 and the unmet reasons, nothing is written, OFF is always allowed; ready → it can be switched on', async () => {
+  setReady(false);
+  try {
+    const rd = (await call('GET', A + '/deep/readiness', null, ADMIN)).body;
+    assert.equal(rd.ready, false); assert.equal(rd.on, false);
+    assert.deepEqual(rd.items.map((i) => [i.id, i.ok]), [['content', true], ['verified', false], ['approved', false]]); // degraded test content satisfies the content item; the other two are real
+    assert.equal(rd.items[1].detail.length, 13); assert.ok(rd.items[1].label === 'כל כללי V6 הרלוונטיים אומתו מקצועית');
+    const flagRow = async () => (await srv.pg.query("SELECT value FROM settings WHERE key = 'public.deep_enabled'")).rows.map((x) => JSON.stringify(x.value));
+    const stored0 = await flagRow();
+    const r = await setFlag(true);
+    assert.equal(r.status, 409); assert.equal(r.body.error, 'deep_not_ready'); assert.match(r.body.message, /הבדיקה המעמיקה אינה מוכנה להפעלה/); assert.match(r.body.message, /אומתו מקצועית/); assert.match(r.body.message, /אושר על ידי הבעלים/);
+    assert.deepEqual(await flagRow(), stored0, 'nothing written');
+    assert.ok(!(await call('GET', '/api/kaspchem/config')).body.topics.some((t) => t.kind === 'deep'));
+    assert.equal((await call('PUT', A + '/settings', { key: 'public.deep_enabled', value: 'yes' }, ADMIN)).status, 400);       // only a real boolean
+    assert.equal((await setFlag(false)).status, 200);                                                                        // OFF is always allowed
+    // the content item follows the served content: the real requirements against the published ten are not met
+    realMode(true);
+    const rd2 = (await call('GET', A + '/deep/readiness', null, ADMIN)).body; assert.equal(rd2.items[0].ok, false); realMode(false);
+    // visitors and non-admins cannot read or use it
+    assert.ok([401, 403].includes((await call('GET', A + '/deep/readiness')).status));
+    // ready (fixture): it can be switched on and off
+    setReady(true);
+    assert.equal((await call('GET', A + '/deep/readiness', null, ADMIN)).body.ready, true);
+    assert.equal((await setFlag(true)).status, 200); assert.equal((await call('GET', A + '/deep/readiness', null, ADMIN)).body.on, true);
+    assert.equal((await setFlag(false)).status, 200);
+    // already on, then no longer ready: turning OFF still works
+    setReady(true); await setFlag(true); setReady(false);
+    assert.equal((await setFlag(false)).status, 200);
+  } finally { setReady(true); await setFlag(false); }
 });
 
 test('switched on: the route (profile, facts, gates) is served with the flag; the questions of the sections are the served topics', async () => {
@@ -94,7 +129,7 @@ test('a deep lead is stored in the existing table: topic deep, the outcome and t
   const cfg = await content.loadDeepConfig(), expect = E.evaluateDeep(cfg, a);
   assert.equal(row.outcome, expect.outcome);
   assert.deepEqual([...row.findings], E.deepFindingIds(expect));
-  assert.ok(row.findings.every((f) => /^(high|missing|low):[a-z-]+\.[A-Za-z0-9_-]+$/.test(f)));
+  assert.ok(row.findings.every((f) => /^(high|missing|low):[a-z-]+\.[A-Za-z0-9_#@-]+$/.test(f)));
   assert.deepEqual(row.answers, a);
   assert.ok(!Object.keys(row.answers).includes('housing.status'), 'derived answers are not stored as typed');
   assert.equal(row.consent_contact, true); assert.equal(row.consent_marketing, false);

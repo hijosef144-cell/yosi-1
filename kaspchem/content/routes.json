@@ -821,8 +821,8 @@
       "tagline": "בדיקה מקיפה ומעמיקה יותר, עם שאלות המשך לפי התשובות שלכם",
       "intro": "בדיקה מקיפה ומעמיקה יותר. קודם כמה שאלות על המצב שלכם, ואחר כך שאלות המשך רק בתחומים שרלוונטיים אליכם. בסוף נציג מה כדאי לבדוק, לפי סבירות. אפשר לחזור לשאלה הקודמת, ובשאלות אישיות אפשר לבחור ״מעדיפ/ה לא לענות״.",
       "messages": {
-        "found": "מצאנו {n} הזדמנויות בסבירות גבוהה שכדאי לבדוק",
-        "foundOne": "מצאנו הזדמנות אחת בסבירות גבוהה שכדאי לבדוק",
+        "found": "{n} נושאים בסבירות גבוהה שכדאי לבדוק",
+        "foundOne": "נושא אחד בסבירות גבוהה שכדאי לבדוק",
         "insufficient": "חסר לנו מידע כדי להצביע על הזדמנות לבדיקה",
         "none": "לא עלה נושא מיוחד לבדיקה כרגע",
         "insufficientBody": "על חלק מהשאלות ענית ״לא יודע/ת״ או ״מעדיפ/ה לא לענות״, ואין לנו די בסיס כדי להצביע על נושא. אפשר לחזור ולהשלים תשובות.",
@@ -830,13 +830,13 @@
         "running": "כרגע {n} נושאים שכדאי לבדוק",
         "runningOne": "כרגע נושא אחד שכדאי לבדוק",
         "runningNone": "עוד לא זיהינו נושא לבדיקה",
-        "highTitle": "מצאנו הזדמנויות בסבירות גבוהה שכדאי לבדוק",
-        "highSub": "לפי התשובות שלכם, כדאי להתחיל מהנושאים האלה. זו הזדמנות לבדיקה בלבד, ולא קביעה שיש הטבה או החזר.",
+        "highTitle": "סבירות גבוהה",
+        "highSub": "התאמה גבוהה לתנאי הסינון שנבדקו. זו אינה קביעה סופית של זכאות.",
         "missingTitle": "חסר מידע — כדאי להשלים בדיקה",
         "missingSub": "בנושאים האלה אין לנו די מידע כדי לומר אם כדאי לבדוק. אפשר להשלים את התשובה החסרה ולראות את התוצאה מחדש.",
         "lowTitle": "סבירות נמוכה",
         "lowSub": "נושאים שעלו מסימן חלש בלבד. כדאי להכיר אותם, אך הם פחות בעדיפות.",
-        "partGet": "מה אפשר לקבל",
+        "partGet": "מה כדאי לבדוק",
         "partHow": "איך זה עובד",
         "partHelp": "מי יכול לעזור",
         "missingLine": "חסר מידע:",
@@ -847,7 +847,10 @@
         "loadFailTitle": "לא הצלחנו לטעון את הבדיקה",
         "loadFailBody": "נסו שוב בעוד רגע. אם זה חוזר, אפשר לחזור לדף הראשי.",
         "unavailableTitle": "הבדיקה המעמיקה אינה זמינה כרגע",
-        "unavailableBody": "חלק מהתוכן שהבדיקה זקוקה לו אינו זמין כרגע, ולכן לא נריץ אותה בצורה חלקית. נסו שוב מאוחר יותר, או עשו בדיקה מהירה."
+        "unavailableBody": "חלק מהתוכן שהבדיקה זקוקה לו אינו זמין כרגע, ולכן לא נריץ אותה בצורה חלקית. נסו שוב מאוחר יותר, או עשו בדיקה מהירה.",
+        "resultTitle": "תוצאות הבדיקה המעמיקה",
+        "subjectLine": "עבור: {s}",
+        "subjectNote": "ההתאמה נבדקה לפי התשובות שלכם על {to}, ולא לפי מצבכם."
       },
       "phases": [
         {
@@ -1034,18 +1037,15 @@
               },
               {
                 "id": "spouse",
-                "label": "בן/בת הזוג",
-                "unknown": true
+                "label": "בן/בת הזוג"
               },
               {
                 "id": "child",
-                "label": "ילד/ה",
-                "unknown": true
+                "label": "ילד/ה"
               },
               {
                 "id": "parent",
-                "label": "הורה",
-                "unknown": true
+                "label": "הורה"
               },
               {
                 "id": "pna",
@@ -1074,18 +1074,15 @@
               },
               {
                 "id": "spouse",
-                "label": "בן/בת הזוג",
-                "unknown": true
+                "label": "בן/בת הזוג"
               },
               {
                 "id": "child",
-                "label": "ילד/ה",
-                "unknown": true
+                "label": "ילד/ה"
               },
               {
                 "id": "parent",
-                "label": "הורה",
-                "unknown": true
+                "label": "הורה"
               },
               {
                 "id": "pna",
@@ -1114,18 +1111,15 @@
               },
               {
                 "id": "spouse",
-                "label": "בן/בת הזוג",
-                "unknown": true
+                "label": "בן/בת הזוג"
               },
               {
                 "id": "child",
-                "label": "ילד/ה",
-                "unknown": true
+                "label": "ילד/ה"
               },
               {
                 "id": "parent",
-                "label": "הורה",
-                "unknown": true
+                "label": "הורה"
               },
               {
                 "id": "pna",
@@ -1154,13 +1148,11 @@
               },
               {
                 "id": "spouse",
-                "label": "בן/בת הזוג",
-                "unknown": true
+                "label": "בן/בת הזוג"
               },
               {
                 "id": "parent",
-                "label": "הורה",
-                "unknown": true
+                "label": "הורה"
               },
               {
                 "id": "pna",
@@ -1555,14 +1547,65 @@
       "persons": {
         "fedBy": "profile.family",
         "target": "national-insurance.now",
-        "guards": [
+        "subjects": {
+          "me": {
+            "label": "אני",
+            "to": "לכם",
+            "prefix": "",
+            "note": ""
+          },
+          "spouse": {
+            "label": "בן/בת הזוג",
+            "to": "בן/בת הזוג",
+            "prefix": "עבור בן/בת הזוג: ",
+            "note": "ענו לפי מצבו/ה של בן/בת הזוג, לא לפי מצבכם."
+          },
+          "child": {
+            "label": "ילד/ה",
+            "to": "הילד/ה",
+            "prefix": "עבור ילד/ה: ",
+            "note": "ענו לפי מצבו/ה של הילד/ה, לא לפי מצבכם."
+          },
+          "parent": {
+            "label": "הורה",
+            "to": "ההורה",
+            "prefix": "עבור הורה: ",
+            "note": "ענו לפי מצבו/ה של ההורה, לא לפי מצבכם."
+          }
+        },
+        "split": [
+          "national-insurance.ni-disability"
+        ],
+        "groups": [
           {
             "id": "pg-stopped",
             "question": "national-insurance.now",
             "option": "stopped",
             "who": "profile.who_stopped",
+            "subjects": [
+              "me",
+              "spouse",
+              "child",
+              "parent"
+            ],
+            "factQuestions": [
+              "national-insurance.stopfacts"
+            ],
+            "copyOnly": [
+              "payslip-rights.emp",
+              "payslip-rights.lastslip",
+              "payslip-rights.unused",
+              "payslip-rights.finpay"
+            ],
+            "rules": [
+              "national-insurance.ni-unemp",
+              "national-insurance.ni-selfclosed",
+              "payslip-rights.ps-lastslip",
+              "payslip-rights.ps-vac"
+            ],
             "needs": [
-              "national-insurance.now#stopped"
+              "national-insurance.now#stopped",
+              "payslip-rights.emp#past"
             ]
           },
           {
@@ -1570,6 +1613,19 @@
             "question": "national-insurance.now",
             "option": "health",
             "who": "profile.who_health",
+            "subjects": [
+              "me",
+              "spouse",
+              "child",
+              "parent"
+            ],
+            "factQuestions": [
+              "national-insurance.healthfacts"
+            ],
+            "rules": [
+              "national-insurance.ni-workinjury",
+              "national-insurance.ni-disability#1"
+            ],
             "needs": [
               "national-insurance.now#health"
             ]
@@ -1579,8 +1635,33 @@
             "question": "national-insurance.now",
             "option": "reserve",
             "who": "profile.who_reserve",
+            "subjects": [
+              "me",
+              "spouse",
+              "child",
+              "parent"
+            ],
+            "factQuestions": [
+              "national-insurance.reservefacts"
+            ],
+            "copyOnly": [
+              "tax-refunds.kind",
+              "tax-refunds.letters"
+            ],
+            "implies": {
+              "tax-refunds.events": [
+                "reserve"
+              ]
+            },
+            "rules": [
+              "national-insurance.ni-reserve-emp",
+              "national-insurance.ni-reserve-self",
+              "national-insurance.ni-reserve-other",
+              "tax-refunds.tx-jobs"
+            ],
             "needs": [
-              "national-insurance.now#reserve"
+              "national-insurance.now#reserve",
+              "tax-refunds.events#reserve"
             ]
           },
           {
@@ -1588,73 +1669,276 @@
             "question": "national-insurance.now",
             "option": "retire",
             "who": "profile.who_retire",
+            "subjects": [
+              "me",
+              "spouse",
+              "parent"
+            ],
+            "factQuestions": [
+              "national-insurance.retirefacts"
+            ],
+            "rules": [
+              "national-insurance.ni-oldage",
+              "national-insurance.ni-supplement"
+            ],
             "needs": [
               "national-insurance.now#retire"
             ]
           }
         ],
         "classes": {
+          "lost-funds.lf-savings": {
+            "class": "respondent",
+            "why": "כספים ופוליסות על שם המשיב/ה (מקומות עבודה, חשבונות, הצעות שקיבל/ה). אין בשאלת המשפחה אירוע שמזין אותם לבן משפחה אחר."
+          },
+          "lost-funds.lf-bank": {
+            "class": "respondent",
+            "why": "כספים ופוליסות על שם המשיב/ה (מקומות עבודה, חשבונות, הצעות שקיבל/ה). אין בשאלת המשפחה אירוע שמזין אותם לבן משפחה אחר."
+          },
+          "lost-funds.lf-solicit": {
+            "class": "respondent",
+            "why": "כספים ופוליסות על שם המשיב/ה (מקומות עבודה, חשבונות, הצעות שקיבל/ה). אין בשאלת המשפחה אירוע שמזין אותם לבן משפחה אחר."
+          },
+          "lost-funds.lf-inherit-open": {
+            "class": "household",
+            "why": "עיזבון של קרוב/ת משפחה שנפטר/ה: נושא של המשפחה (היורשים). שאלת ״האם הוצא צו ירושה״ נוגעת לנפטר/ת עצמו/ה."
+          },
+          "lost-funds.lf-inherit-search": {
+            "class": "household",
+            "why": "עיזבון של קרוב/ת משפחה שנפטר/ה: נושא של המשפחה (היורשים). שאלת ״האם הוצא צו ירושה״ נוגעת לנפטר/ת עצמו/ה."
+          },
+          "tax-refunds.tx-self": {
+            "class": "respondent",
+            "why": "דוח שנתי של עצמאי/ת: מסתמך על ההיסטוריה התעסוקתית של המשיב/ה. אין אירוע משפחתי שמזין אותו לבן משפחה אחר."
+          },
+          "tax-refunds.tx-jobs": {
+            "class": "event-person",
+            "why": "החזר מס לשכיר/ה. לבן משפחה אחר הוא נבדק רק כשהאירוע הוא שירות מילואים (האירוע זהה לתשובה ״שירתי במילואים״ בשאלת האירועים של המסים). שאר האירועים אינם זהים לתשובות בשאלה ההיא, ולכן לא נניח אותם."
+          },
+          "tax-refunds.tx-grant-2024": {
+            "class": "respondent",
+            "why": "מענק עבודה: תלוי בילדים, בגיל, בהכנסה ובשנות עבודה של המשיב/ה. אין אירוע משפחתי שמתאים לתנאי הכלל, ולכן אין עותק לבן/בת זוג."
+          },
+          "tax-refunds.tx-grant-2025": {
+            "class": "respondent",
+            "why": "מענק עבודה: תלוי בילדים, בגיל, בהכנסה ובשנות עבודה של המשיב/ה. אין אירוע משפחתי שמתאים לתנאי הכלל, ולכן אין עותק לבן/בת זוג."
+          },
+          "housing.hs-disc": {
+            "class": "household",
+            "why": "משק הבית ונכסיו. שאלות הדיור כבר שואלות על כל המתגוררים ביחד (״מישהו מהמתגוררים איתכם״)."
+          },
+          "housing.hs-rentaid": {
+            "class": "household",
+            "why": "משק הבית ונכסיו. שאלות הדיור כבר שואלות על כל המתגוררים ביחד (״מישהו מהמתגוררים איתכם״)."
+          },
+          "housing.hs-empty": {
+            "class": "household",
+            "why": "משק הבית ונכסיו. שאלות הדיור כבר שואלות על כל המתגוררים ביחד (״מישהו מהמתגוררים איתכם״)."
+          },
+          "housing.hs-damaged": {
+            "class": "household",
+            "why": "משק הבית ונכסיו. שאלות הדיור כבר שואלות על כל המתגוררים ביחד (״מישהו מהמתגוררים איתכם״)."
+          },
+          "housing.hs-daycare": {
+            "class": "household",
+            "why": "משק הבית ונכסיו. שאלות הדיור כבר שואלות על כל המתגוררים ביחד (״מישהו מהמתגוררים איתכם״)."
+          },
+          "mortgage.mg-refi": {
+            "class": "household",
+            "why": "המשכנתה של משק הבית."
+          },
+          "mortgage.mg-offers": {
+            "class": "household",
+            "why": "המשכנתה של משק הבית."
+          },
+          "insurance-pension.ip-dup": {
+            "class": "respondent",
+            "why": "הכיסויים והחיסכון של המשיב/ה (השאלה אומרת ״ענו לגבי אדם אחד: אתם עצמכם״). אין אירוע משפחתי שמזין אותם."
+          },
+          "insurance-pension.ip-fees": {
+            "class": "respondent",
+            "why": "הכיסויים והחיסכון של המשיב/ה (השאלה אומרת ״ענו לגבי אדם אחד: אתם עצמכם״). אין אירוע משפחתי שמזין אותם."
+          },
+          "insurance-pension.ip-family": {
+            "class": "respondent",
+            "why": "הכיסויים והחיסכון של המשיב/ה (השאלה אומרת ״ענו לגבי אדם אחד: אתם עצמכם״). אין אירוע משפחתי שמזין אותם."
+          },
+          "payslip-rights.ps-noslip": {
+            "class": "respondent",
+            "why": "תלוש השכר ושעות העבודה בעבודה הנוכחית של המשיב/ה. אירוע ״הפסיק לעבוד״ אינו מתאים לתנאי הכללים האלה (עבודה נוכחית)."
+          },
+          "payslip-rights.ps-pen": {
+            "class": "respondent",
+            "why": "תלוש השכר ושעות העבודה בעבודה הנוכחית של המשיב/ה. אירוע ״הפסיק לעבוד״ אינו מתאים לתנאי הכללים האלה (עבודה נוכחית)."
+          },
+          "payslip-rights.ps-bal": {
+            "class": "respondent",
+            "why": "תלוש השכר ושעות העבודה בעבודה הנוכחית של המשיב/ה. אירוע ״הפסיק לעבוד״ אינו מתאים לתנאי הכללים האלה (עבודה נוכחית)."
+          },
+          "payslip-rights.ps-hrs": {
+            "class": "respondent",
+            "why": "תלוש השכר ושעות העבודה בעבודה הנוכחית של המשיב/ה. אירוע ״הפסיק לעבוד״ אינו מתאים לתנאי הכללים האלה (עבודה נוכחית)."
+          },
+          "payslip-rights.ps-lastslip": {
+            "class": "event-person",
+            "why": "זכויות בסיום העסקה: נבדקות לאדם שהפסיק לעבוד כשכיר/ה. לבן משפחה אחר נשאלות אותן שאלות התלוש האחרון, ימי החופשה והתשלום עליהם, בנוסח עבורו/ה."
+          },
+          "payslip-rights.ps-vac": {
+            "class": "event-person",
+            "why": "זכויות בסיום העסקה: נבדקות לאדם שהפסיק לעבוד כשכיר/ה. לבן משפחה אחר נשאלות אותן שאלות התלוש האחרון, ימי החופשה והתשלום עליהם, בנוסח עבורו/ה."
+          },
+          "national-insurance.ni-unemp": {
+            "class": "event-person",
+            "why": "דמי אבטלה והבטחת הכנסה: למי שהפסיק לעבוד. נבדק לכל אדם שנבחר, לפי תשובותיו/ה לשאלת העובדות."
+          },
+          "national-insurance.ni-selfclosed": {
+            "class": "event-person",
+            "why": "דמי אבטלה והבטחת הכנסה: למי שהפסיק לעבוד. נבדק לכל אדם שנבחר, לפי תשובותיו/ה לשאלת העובדות."
+          },
+          "national-insurance.ni-workinjury": {
+            "class": "event-person",
+            "why": "פגיעה בעבודה ונכות כללית (ענף הבריאות): נבדק לכל אדם שנבחר, לפי תשובותיו/ה לשאלת העובדות."
+          },
+          "national-insurance.ni-disability#1": {
+            "class": "event-person",
+            "why": "פגיעה בעבודה ונכות כללית (ענף הבריאות): נבדק לכל אדם שנבחר, לפי תשובותיו/ה לשאלת העובדות."
+          },
+          "national-insurance.ni-reserve-emp": {
+            "class": "event-person",
+            "why": "תגמולי מילואים: נבדקים לכל אדם ששירת, לפי תשובותיו/ה לשאלת העובדות."
+          },
+          "national-insurance.ni-reserve-self": {
+            "class": "event-person",
+            "why": "תגמולי מילואים: נבדקים לכל אדם ששירת, לפי תשובותיו/ה לשאלת העובדות."
+          },
+          "national-insurance.ni-reserve-other": {
+            "class": "event-person",
+            "why": "תגמולי מילואים: נבדקים לכל אדם ששירת, לפי תשובותיו/ה לשאלת העובדות."
+          },
+          "national-insurance.ni-oldage": {
+            "class": "event-person",
+            "why": "קצבת זקנה והשלמת הכנסה: נבדקות לכל אדם שהגיע לגיל הפרישה (אני, בן/בת זוג או הורה), לפי תשובותיו/ה לשאלת העובדות."
+          },
+          "national-insurance.ni-supplement": {
+            "class": "event-person",
+            "why": "קצבת זקנה והשלמת הכנסה: נבדקות לכל אדם שהגיע לגיל הפרישה (אני, בן/בת זוג או הורה), לפי תשובותיו/ה לשאלת העובדות."
+          },
           "national-insurance.ni-birth-claim": {
             "class": "household",
-            "why": "הלידה היא של המשפחה, ושאלת ההמשך עצמה שואלת על האם שעבדה. אין בכלל טענה על מצבכם האישי."
+            "why": "ילדים ולידות במשפחה, וקצבת שאירים של ילדי המשפחה: הילדים והמשפחה הם הנוגעים בדבר."
           },
           "national-insurance.ni-birth-save": {
             "class": "household",
-            "why": "חיסכון לכל ילד שנולד במשפחה: הילד הוא הנוגע בדבר."
+            "why": "ילדים ולידות במשפחה, וקצבת שאירים של ילדי המשפחה: הילדים והמשפחה הם הנוגעים בדבר."
           },
           "national-insurance.ni-kids": {
             "class": "household",
-            "why": "קצבת ילדים: הילדים במשפחה הם הנוגעים בדבר."
-          },
-          "national-insurance.ni-unemp": {
-            "class": "respondent",
-            "why": "דמי אבטלה שייכים למי שהפסיק לעבוד. נדרש שהתשובה תהיה על המשיב/ה."
-          },
-          "national-insurance.ni-selfclosed": {
-            "class": "respondent",
-            "why": "הבטחת הכנסה למי שהפסיק לעבוד: נדרש שהתשובה תהיה על המשיב/ה."
-          },
-          "national-insurance.ni-workinjury": {
-            "class": "respondent",
-            "why": "תביעה בגין פגיעה בעבודה היא של הנפגע/ת: נדרש שהתשובה תהיה על המשיב/ה."
-          },
-          "national-insurance.ni-disability": {
-            "class": "respondent",
-            "why": "נכות כללית: בענף הבריאות נדרש שהתשובה תהיה על המשיב/ה. הענף של מי שזקוק לעזרה (מבוגר בן 18 עד גיל הפרישה) עוסק באדם שתואר בשאלת העזרה עצמה ולא במשיב/ה."
-          },
-          "national-insurance.ni-reserve-emp": {
-            "class": "respondent",
-            "why": "תגמולי מילואים הם של מי ששירת/ה: נדרש שהתשובה תהיה על המשיב/ה."
-          },
-          "national-insurance.ni-reserve-self": {
-            "class": "respondent",
-            "why": "תגמולי מילואים הם של מי ששירת/ה: נדרש שהתשובה תהיה על המשיב/ה."
-          },
-          "national-insurance.ni-reserve-other": {
-            "class": "respondent",
-            "why": "תגמולי מילואים הם של מי ששירת/ה: נדרש שהתשובה תהיה על המשיב/ה."
-          },
-          "national-insurance.ni-oldage": {
-            "class": "respondent",
-            "why": "תביעה לקצבת זקנה היא של מי שהגיע/ה לגיל הפרישה: נדרש שהתשובה תהיה על המשיב/ה (הורה בגיל פרישה אינו הופך את המשיב/ה לזכאי/ת)."
-          },
-          "national-insurance.ni-supplement": {
-            "class": "respondent",
-            "why": "השלמת הכנסה לקצבת זקנה היא של מקבל/ת הקצבה: נדרש שהתשובה תהיה על המשיב/ה."
-          },
-          "national-insurance.ni-ltc": {
-            "class": "other-person",
-            "why": "גמלת סיעוד נוגעת לאדם הקשיש שזקוק לעזרה, כפי שתואר בשאלת העזרה, ולא למשיב/ה."
-          },
-          "national-insurance.ni-child-disabled": {
-            "class": "other-person",
-            "why": "קצבת ילד נכה נוגעת לילד, כפי שתואר בשאלת העזרה."
+            "why": "ילדים ולידות במשפחה, וקצבת שאירים של ילדי המשפחה: הילדים והמשפחה הם הנוגעים בדבר."
           },
           "national-insurance.ni-survivors": {
             "class": "household",
-            "why": "קצבת שאירים של ילדי המשפחה: בן/בת הזוג או ההורה של הילדים שנפטר/ה."
+            "why": "ילדים ולידות במשפחה, וקצבת שאירים של ילדי המשפחה: הילדים והמשפחה הם הנוגעים בדבר."
+          },
+          "national-insurance.ni-disability#2": {
+            "class": "other-person",
+            "why": "האדם שזקוק לעזרה: מתואר בשאלת העזרה עצמה (בגיל פרישה, מבוגר או ילד/ה). אין צורך בשאלת ״מי״, והכרטיס עוסק בו ולא במשיב/ה."
+          },
+          "national-insurance.ni-ltc": {
+            "class": "other-person",
+            "why": "האדם שזקוק לעזרה: מתואר בשאלת העזרה עצמה (בגיל פרישה, מבוגר או ילד/ה). אין צורך בשאלת ״מי״, והכרטיס עוסק בו ולא במשיב/ה."
+          },
+          "national-insurance.ni-child-disabled": {
+            "class": "other-person",
+            "why": "האדם שזקוק לעזרה: מתואר בשאלת העזרה עצמה (בגיל פרישה, מבוגר או ילד/ה). אין צורך בשאלת ״מי״, והכרטיס עוסק בו ולא במשיב/ה."
+          },
+          "banking-loans.bk-fees": {
+            "class": "respondent",
+            "why": "חשבון הבנק והאשראי של המשיב/ה. אין אירוע משפחתי שמזין אותם."
+          },
+          "banking-loans.bk-overdraft": {
+            "class": "respondent",
+            "why": "חשבון הבנק והאשראי של המשיב/ה. אין אירוע משפחתי שמזין אותם."
+          },
+          "banking-loans.bk-credit-overview": {
+            "class": "respondent",
+            "why": "חשבון הבנק והאשראי של המשיב/ה. אין אירוע משפחתי שמזין אותם."
+          },
+          "banking-loans.bk-nonbank": {
+            "class": "respondent",
+            "why": "חשבון הבנק והאשראי של המשיב/ה. אין אירוע משפחתי שמזין אותם."
+          },
+          "household.hh-dup": {
+            "class": "household",
+            "why": "חשבונות הבית והביטוח של הדירה: נושא של משק הבית."
+          },
+          "household.hh-stuck": {
+            "class": "household",
+            "why": "חשבונות הבית והביטוח של הדירה: נושא של משק הבית."
+          },
+          "household.hh-unused": {
+            "class": "household",
+            "why": "חשבונות הבית והביטוח של הדירה: נושא של משק הבית."
+          },
+          "household.hh-unrecog": {
+            "class": "household",
+            "why": "חשבונות הבית והביטוח של הדירה: נושא של משק הבית."
+          },
+          "household.hh-ins-mortgage": {
+            "class": "household",
+            "why": "חשבונות הבית והביטוח של הדירה: נושא של משק הבית."
+          },
+          "education-work.ed-deposit": {
+            "class": "household",
+            "why": "שאלת הלימודים והעבודה כבר שואלת על המשפחה כולה (״מישהו מבני המשפחה״), בלי לציין מי. אין בנתיב שאלת ״מי״ לשאלה הזו, ולכן אין עותק לפי אדם: התוצאה היא של המשפחה."
+          },
+          "education-work.ed-vet-prep": {
+            "class": "household",
+            "why": "שאלת הלימודים והעבודה כבר שואלת על המשפחה כולה (״מישהו מבני המשפחה״), בלי לציין מי. אין בנתיב שאלת ״מי״ לשאלה הזו, ולכן אין עותק לפי אדם: התוצאה היא של המשפחה."
+          },
+          "education-work.ed-vet-degree": {
+            "class": "household",
+            "why": "שאלת הלימודים והעבודה כבר שואלת על המשפחה כולה (״מישהו מבני המשפחה״), בלי לציין מי. אין בנתיב שאלת ״מי״ לשאלה הזו, ולכן אין עותק לפי אדם: התוצאה היא של המשפחה."
+          },
+          "education-work.ed-aid": {
+            "class": "household",
+            "why": "שאלת הלימודים והעבודה כבר שואלת על המשפחה כולה (״מישהו מבני המשפחה״), בלי לציין מי. אין בנתיב שאלת ״מי״ לשאלה הזו, ולכן אין עותק לפי אדם: התוצאה היא של המשפחה."
+          },
+          "education-work.ed-voucher": {
+            "class": "household",
+            "why": "שאלת הלימודים והעבודה כבר שואלת על המשפחה כולה (״מישהו מבני המשפחה״), בלי לציין מי. אין בנתיב שאלת ״מי״ לשאלה הזו, ולכן אין עותק לפי אדם: התוצאה היא של המשפחה."
+          },
+          "education-work.ed-ui-training": {
+            "class": "household",
+            "why": "שאלת הלימודים והעבודה כבר שואלת על המשפחה כולה (״מישהו מבני המשפחה״), בלי לציין מי. אין בנתיב שאלת ״מי״ לשאלה הזו, ולכן אין עותק לפי אדם: התוצאה היא של המשפחה."
+          },
+          "education-work.ed-es": {
+            "class": "household",
+            "why": "שאלת הלימודים והעבודה כבר שואלת על המשפחה כולה (״מישהו מבני המשפחה״), בלי לציין מי. אין בנתיב שאלת ״מי״ לשאלה הזו, ולכן אין עותק לפי אדם: התוצאה היא של המשפחה."
+          },
+          "education-work.ed-haredi-employment": {
+            "class": "household",
+            "why": "שאלת הלימודים והעבודה כבר שואלת על המשפחה כולה (״מישהו מבני המשפחה״), בלי לציין מי. אין בנתיב שאלת ״מי״ לשאלה הזו, ולכן אין עותק לפי אדם: התוצאה היא של המשפחה."
+          },
+          "education-work.ed-haredi-academic": {
+            "class": "household",
+            "why": "שאלת הלימודים והעבודה כבר שואלת על המשפחה כולה (״מישהו מבני המשפחה״), בלי לציין מי. אין בנתיב שאלת ״מי״ לשאלה הזו, ולכן אין עותק לפי אדם: התוצאה היא של המשפחה."
+          },
+          "education-work.ed-haredi-vet": {
+            "class": "household",
+            "why": "שאלת הלימודים והעבודה כבר שואלת על המשפחה כולה (״מישהו מבני המשפחה״), בלי לציין מי. אין בנתיב שאלת ״מי״ לשאלה הזו, ולכן אין עותק לפי אדם: התוצאה היא של המשפחה."
+          },
+          "education-work.ed-grad": {
+            "class": "household",
+            "why": "שאלת הלימודים והעבודה כבר שואלת על המשפחה כולה (״מישהו מבני המשפחה״), בלי לציין מי. אין בנתיב שאלת ״מי״ לשאלה הזו, ולכן אין עותק לפי אדם: התוצאה היא של המשפחה."
           }
-        }
+        },
+        "monotone": [
+          "profile.family",
+          "profile.who_stopped",
+          "profile.who_health",
+          "profile.who_reserve",
+          "profile.who_retire"
+        ]
       },
       "requires": [
         "lost-funds",
@@ -1672,8 +1956,66 @@
         "housing.status#renter_owns",
         "national-insurance.now#care",
         "national-insurance.survclaim",
-        "household.homeins#mortgage"
-      ]
+        "household.homeins#mortgage",
+        "payslip-rights.emp#past",
+        "tax-refunds.events#reserve"
+      ],
+      "unverified": [
+        {
+          "id": "tax-refunds.tx-grant-2024",
+          "reason": "סינון טווחי ההכנסה ושנות הלידה הוא סינון גס של המחקר; הבודק הרשמי לא נפתח מחדש; אדם לא קרא את המדריך."
+        },
+        {
+          "id": "tax-refunds.tx-grant-2025",
+          "reason": "כמו מענק העבודה ל־2024, ובנוסף מועד ההגשה ל־2025 (31.12.2027)."
+        },
+        {
+          "id": "lost-funds.lf-inherit-open",
+          "reason": "זרימת החיפוש על שם נפטר מאחורי הזדהות ממשלתית לא נפתחה."
+        },
+        {
+          "id": "lost-funds.lf-inherit-search",
+          "reason": "זרימת החיפוש על שם נפטר מאחורי הזדהות ממשלתית לא נפתחה."
+        },
+        {
+          "id": "tax-refunds.tx-jobs",
+          "reason": "דף ההסבר על מס בפרישה ובמשיכת כספים לא נפתח; בסיס החוק לכל סוג תשלום לא נבדק."
+        },
+        {
+          "id": "housing.hs-empty",
+          "reason": "טופס הבקשה בירושלים והנוהל במועצות לא נבדקו."
+        },
+        {
+          "id": "housing.hs-damaged",
+          "reason": "מאומת לעיריות בלבד, לא למועצות מקומיות ואזוריות."
+        },
+        {
+          "id": "housing.hs-daycare",
+          "reason": "מבחני התמיכה לתשפ״ז (PDF) לא נקראו."
+        },
+        {
+          "id": "payslip-rights.ps-bal",
+          "reason": "הנוסח המלא של התוספת לחוק הגנת השכר נקרא בתקציר."
+        },
+        {
+          "id": "national-insurance.ni-disability",
+          "reason": "עמוד התנאים לנכות כללית לא נפתח; הטווח מגיל 18 עד גיל פרישה נלקח מתקציר."
+        },
+        {
+          "id": "national-insurance.ni-supplement",
+          "reason": "עמוד התנאים להשלמת הכנסה לא נפתח במלואו."
+        },
+        {
+          "id": "household.hh-ins-mortgage",
+          "reason": "אין מקור רשמי על כיסוי פוליסת הבנק; הנוסח זהיר בכוונה."
+        },
+        {
+          "id": "education-work.ed-haredi-employment",
+          "reason": "מי מפעיל כיום את מרכזי ההכוונה, רשימת הסניפים ותנאי הפנייה לא נבדקו."
+        }
+      ],
+      "approved": false,
+      "maxPath": 90
     }
   ]
 }

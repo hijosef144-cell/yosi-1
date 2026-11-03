@@ -286,7 +286,7 @@
     (topics || []).forEach(function (t) { if (t && t.questions && t.kind !== 'router' && t.kind !== 'deep') served[t.id || t.topic] = t; });
     var included = (route.topics || []).filter(function (id) { return served[id]; });
     var cfg = { id: route.id || 'deep', topic: route.id || 'deep', kind: 'deep', title: route.name, name: route.name, icon: route.icon, intro: route.intro, messages: route.messages || {},
-      phases: route.phases || [], topics: included, questions: [], rules: [], derive: [], gates: [], guards: [], skipped: [], profileIds: [], unavailable: false, requiresMissing: [] };
+      phases: route.phases || [], topics: included, questions: [], rules: [], derive: [], gates: [], personGroups: [], subjects: {}, skipped: [], profileIds: [], unavailable: false, requiresMissing: [] };
     var parts = [qualifyTopic({ id: 'profile', name: 'profile', questions: (route.profile && route.profile.questions) || [], rules: [] })];
     included.forEach(function (id) { parts.push(qualifyTopic(served[id])); });
     parts.forEach(function (p) { cfg.questions = cfg.questions.concat(p.questions); cfg.rules = cfg.rules.concat(p.rules); });
@@ -311,11 +311,16 @@
       });
     });
 
+    // persons: per-person copies of questions and rules (see expandPersons). Done before the gates: a copy is about someone else and is not gated by the respondent's own status.
+    cfg.unverified = (route.unverified || []).slice(); cfg.approved = route.approved === true;
+    expandPersons(cfg, route);
+    byId = dById(cfg);
+
     // gates: a topic (or single questions) is shown only when a condition on profile answers holds
     (route.gates || []).forEach(function (g) {
       var targets = [];
-      if (g.topic) cfg.questions.forEach(function (q) { if (q.topicId === g.topic) targets.push(q); });
-      (g.questions || []).forEach(function (qid) { if (byId[qid] && targets.indexOf(byId[qid]) === -1) targets.push(byId[qid]); });
+      if (g.topic) cfg.questions.forEach(function (q) { if (q.topicId === g.topic && !q.noGate) targets.push(q); });
+      (g.questions || []).forEach(function (qid) { if (byId[qid] && !byId[qid].noGate && targets.indexOf(byId[qid]) === -1) targets.push(byId[qid]); });
       if (!targets.length || !guardsOk(byId, g.needs)) { cfg.skipped.push({ kind: 'gate', id: g.id, reason: 'no-target' }); return; }
       targets.forEach(function (q) { var s = dClone(g.show); q.showIf = q.showIf ? { all: [s, q.showIf] } : s; (q.gatedBy = q.gatedBy || []).push(g.id); });
       cfg.gates.push({ id: g.id, targets: targets.map(function (q) { return q.id; }), show: g.show, why: g.why });
@@ -328,21 +333,6 @@
       if (!ok) cfg.requiresMissing.push(r);
     });
     if (cfg.requiresMissing.length && !opts.ignoreRequires) cfg.unavailable = true;
-
-    // person guards: an option of a family-level question whose meaning depends on WHO it concerns (e.g. "someone stopped working"). A rule that is about the respondent
-    // themselves must not fire because ANOTHER person meets the condition: every positive atom on that option is rewritten to "option AND the follow-up question says it is me".
-    // Any other answer of the follow-up (a spouse, a child, a parent, "prefer not to answer") makes the atom UNKNOWN, so such a rule can only be missing information, never high.
-    ((route.persons && route.persons.guards) || []).forEach(function (g) {
-      if (!byId[g.question] || !dOpt(byId[g.question], g.option) || !byId[g.who] || !guardsOk(byId, g.needs)) { cfg.skipped.push({ kind: 'person', id: g.id, reason: 'target-missing' }); return; }
-      var hits = 0;
-      cfg.rules.forEach(function (r) {
-        if (r.weak) return;
-        var changed = false;
-        r.when = guardAtoms(r.when, g, false, function (unsafe) { if (unsafe) r.personUnsafe = true; else { changed = true; hits++; } });
-        if (changed) (r.personGuards = r.personGuards || []).push(g.id);
-      });
-      cfg.guards.push({ id: g.id, question: g.question, option: g.option, who: g.who, rules: hits });
-    });
 
     // facts: profile answer → equivalent answer(s) of topic questions. Applies only when every target question exists and the guards hold.
     (route.facts || []).forEach(function (f) {
@@ -376,6 +366,91 @@
     });
     cfg.profileIds = cfg.profileIds.filter(function (id) { return usedProfile[id]; });
     return cfg;
+  }
+
+  /**
+   * PER-PERSON EXPANSION. The family question's options say that something happened to "someone in the family"; the follow-up question `who` says to whom (me / spouse /
+   * child / parent, several allowed). For every group the route declares:
+   *   - the rules that are about "the person who had the event" (g.rules) are evaluated once PER SUBJECT, with that subject's own facts: the respondent keeps the original
+   *     questions and rules (the event atom is guarded by "who includes me"); every other subject gets COPIES with qualified ids (`topic.question@spouse`, `topic.rule@spouse`),
+   *     whose texts name the person, whose showIf requires that person among the `who` answers, and whose conditions refer only to the copies of the questions;
+   *   - g.factQuestions are the follow-up questions of the event (asked per subject, the respondent's original asked only when "me" was chosen);
+   *   - g.copyOnly are further questions of a rule that exist only as copies (the respondent's original flow is unchanged);
+   *   - g.implies says which options of another question the event itself makes true (e.g. serving in the reserves is the answer "reserve" of the tax events question).
+   * No condition is added or invented: a copy's conditions are the original rule's conditions, rewritten to the copies. Anything the copy would need from the respondent's
+   * own answers makes the copy invalid (personUnsafe, a lint error). The engine core is untouched: copies are ordinary questions and rules.
+   */
+  function expandPersons(cfg, route) {
+    var P = route.persons; if (!P) return;
+    cfg.subjects = P.subjects || {};
+    // split a rule whose condition is an "any" into one rule per branch (same finding), so each branch can be classified and expanded on its own
+    (P.split || []).forEach(function (id) {
+      var i = -1; cfg.rules.forEach(function (r, k) { if (r.id === id && !r.weak) i = k; });
+      if (i < 0 || !cfg.rules[i].when || !cfg.rules[i].when.any) return;
+      var r = cfg.rules[i], parts = r.when.any.map(function (c, k) { var p = dClone(r); p.id = id + '#' + (k + 1); p.localId = r.localId + '#' + (k + 1); p.baseId = r.baseId || r.id; p.when = c; return p; });
+      cfg.rules.splice.apply(cfg.rules, [i, 1].concat(parts));
+    });
+    (P.groups || []).forEach(function (g) {
+      var byId = dById(cfg), skip = function (why) { cfg.skipped.push({ kind: 'person', id: g.id, reason: why }); };
+      var qIds = (g.factQuestions || []).concat(g.copyOnly || []);
+      if (!byId[g.question] || !dOpt(byId[g.question], g.option) || !byId[g.who] || !guardsOk(byId, g.needs) || !qIds.every(function (id) { return byId[id]; })) return skip('target-missing');
+      var rules = []; var ruleMissing = false;
+      (g.rules || []).forEach(function (id) { var r = null; cfg.rules.forEach(function (x) { if (x.id === id && !x.weak) r = x; }); if (r) rules.push(r); else ruleMissing = true; });
+      if (ruleMissing) return skip('rule-missing');
+      var ev = { q: g.question, in: [g.option] }, subs = (g.subjects || []).filter(function (s) { return dOpt(byId[g.who], s); });
+      var copiesAfter = {}, newRules = [], nCopyQ = 0;
+      // copies for every subject but the respondent (made from the pristine originals)
+      subs.filter(function (s) { return s !== 'me'; }).forEach(function (S) {
+        var meta = (cfg.subjects || {})[S] || { label: S, prefix: '', note: '' }, map = {}, w = { q: g.who, in: [S] };
+        qIds.forEach(function (id) { map[id] = id + '@' + S; });
+        qIds.forEach(function (id) {
+          var o = byId[id], c = dClone(o), unsafe = false;
+          c.id = map[id]; c.localId = o.localId + '@' + S; c.subject = S; c.copyOf = o.id; c.noGate = true; delete c.gatedBy; delete c.derivedBy;
+          c.text = (meta.prefix || '') + o.text; c.help = [meta.note, o.help].filter(Boolean).join(' ');
+          c.showIf = andC(rewriteCond(o.showIf, map, g.implies, ev, function () { unsafe = true; }), w);
+          if (unsafe) c.personUnsafe = true;
+          (copiesAfter[o.id] = copiesAfter[o.id] || []).push(c); nCopyQ++;
+        });
+        rules.forEach(function (r) {
+          var c = dClone(r), unsafe = false;
+          c.id = r.id + '@' + S; c.localId = r.localId + '@' + S; c.baseId = r.baseId || r.id; c.subject = S; delete c.personGuards;
+          c.when = { all: [w, rewriteCond(r.when, map, g.implies, ev, function () { unsafe = true; })] };
+          if (unsafe) c.personUnsafe = true;
+          newRules.push(c);
+        });
+      });
+      // the respondent: the follow-up questions are asked only when "me" was chosen, and the rules that are about the event person need "me" among the persons
+      var me = subs.indexOf('me') !== -1, wMe = { q: g.who, in: ['me'] };
+      if (me) {
+        (g.factQuestions || []).forEach(function (id) { var q = byId[id]; q.showIf = andC(q.showIf, wMe); q.subject = 'me'; });
+        rules.forEach(function (r) {
+          var touched = false;
+          r.when = guardAtoms(r.when, { question: g.question, option: g.option, who: g.who, as: ['me'] }, false, function (unsafe) { if (unsafe) r.personUnsafe = true; else touched = true; });
+          if (touched) { r.subject = 'me'; (r.personGuards = r.personGuards || []).push(g.id); }
+        });
+      }
+      // insert the copies right after their originals
+      var out = []; cfg.questions.forEach(function (q) { out.push(q); (copiesAfter[q.id] || []).forEach(function (c) { out.push(c); }); });
+      cfg.questions = out;
+      cfg.rules = cfg.rules.concat(newRules);
+      cfg.personGroups.push({ id: g.id, option: g.option, subjects: subs, questions: nCopyQ, rules: newRules.length });
+    });
+  }
+  function andC(a, b) { return a ? { all: [a, b] } : b; }
+  // the condition of a rule or question rewritten for one subject: atoms on questions that have a copy point at the copy; atoms on a question the event itself answers are
+  // true (when the implied options meet the atom) or false; the event atom stays; any other question would be the respondent's own answer: not allowed (reported by unsafe()).
+  function rewriteCond(cond, map, implies, ev, unsafe) {
+    if (!cond) return cond;
+    if (cond.all) return { all: cond.all.map(function (c) { return rewriteCond(c, map, implies, ev, unsafe); }) };
+    if (cond.any) return { any: cond.any.map(function (c) { return rewriteCond(c, map, implies, ev, unsafe); }) };
+    if (cond.not) return { not: rewriteCond(cond.not, map, implies, ev, unsafe) };
+    if (cond.q) {
+      if (map[cond.q]) return { q: map[cond.q], in: cond.in };
+      if (cond.q === ev.q) return cond;
+      if (implies && implies[cond.q]) return (cond.in || []).some(function (x) { return implies[cond.q].indexOf(x) !== -1; }) ? { all: [] } : { any: [] };
+      unsafe(); return cond;
+    }
+    return cond;
   }
 
   function guardAtoms(cond, g, neg, note) {
@@ -561,6 +636,7 @@
       group: f.group, groupTitle: f.groupTitle, groupIntro: f.groupIntro, groupStep: f.groupStep, section: f.section };
     if (r.weak) o.weak = true;
     if (f.weakNote) o.weakNote = f.weakNote;
+    o.base = r.baseId || r.id; if (r.subject) o.subject = r.subject;
     return o;
   }
   function dCards(list) {
@@ -607,14 +683,15 @@
   function evaluateDeep(cfg, answers, opts) {
     var includeInactive = !!(opts && opts.includeInactive);
     var e = deepEffective(cfg, answers), ctx = makeCtx(cfg, e.merged), byId = ctx.byId;
-    var high = [], missing = [], low = [];
+    var high = [], missing = [], low = [], unv = {}; (cfg.unverified || []).forEach(function (u) { unv[u.id || u] = true; });
+    function dec(f) { var m = (cfg.subjects || {})[f.subject]; if (m) f.subjectLabel = m.label; if (unv[f.base]) f.unverified = true; return f; }
     (cfg.rules || []).forEach(function (r) {
       if (r.status === 'inactive' && !includeInactive) return;
       var res = ev3(r.when, ctx);
-      if (r.weak) { if (res.v === true) low.push(findingOf(r)); return; }
-      if (res.v === true) high.push(findingOf(r));
+      if (r.weak) { if (res.v === true) low.push(dec(findingOf(r))); return; }
+      if (res.v === true) high.push(dec(findingOf(r)));
       else if (res.v === null) {
-        var f = findingOf(r);
+        var f = dec(findingOf(r));
         var askSeen = {};
         f.missing = dUniq(res.miss).map(function (id) { var q = byId[id], ask = id; (cfg.derive || []).forEach(function (d) { if (ask === id && d.targets.indexOf(id) !== -1 && isAnswered(e.answers[d.from])) ask = d.from; }); return { id: id, ask: ask, text: q ? q.text : id, topicId: q ? q.topicId : null, sensitive: !!(q && q.sensitive) }; }).filter(function (m) { if (askSeen[m.ask]) return false; askSeen[m.ask] = true; return true; }); // one entry per question the visitor would have to answer
         missing.push(f);

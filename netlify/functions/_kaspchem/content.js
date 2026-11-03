@@ -64,4 +64,21 @@ async function loadDeepConfig(opts) {
   return cfg;
 }
 
-module.exports = { loadTopics, loadTopic, seed, routes, seedTopic, setSeed, routeProblems, deepEnabled, loadDeepConfig };
+// Is the deep check ready to be switched on? Three conditions, all read from the content (nothing is stored): the content the route requires is served, no rule of the
+// route is still listed as not professionally verified, and the owners approved the wording (route.approved, changed only by editing the route as an explicit change).
+// Switching it OFF never depends on this.
+async function deepReadiness() {
+  const all = await loadTopics();
+  const route = all.find((t) => t.kind === 'deep');
+  let contentOk = false;
+  if (route) { try { const d = await loadDeepConfig(); contentOk = !!d && !d.unavailable; } catch (e) { contentOk = false; } }
+  const unverified = route ? (route.unverified || []) : [];
+  const items = [
+    { id: 'content', ok: contentOk, label: 'תוכן V6 מפורסם והתחומים הנדרשים זמינים' },
+    { id: 'verified', ok: !!route && unverified.length === 0, label: 'כל כללי V6 הרלוונטיים אומתו מקצועית', detail: unverified.map((u) => u.id + ': ' + u.reason) },
+    { id: 'approved', ok: !!route && route.approved === true, label: 'נוסח הבדיקה אושר על ידי הבעלים' }
+  ];
+  return { ready: items.every((i) => i.ok), items, on: await deepEnabled() };
+}
+
+module.exports = { loadTopics, loadTopic, seed, routes, seedTopic, setSeed, routeProblems, deepEnabled, loadDeepConfig, deepReadiness };
