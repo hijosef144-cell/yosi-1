@@ -152,7 +152,9 @@ test("the tab opens on the owner's existing numbers (6 families, 201,653, switch
   await expect(page.locator('#ia-badge')).toHaveText('מוצג כרגע באתר');
   await expect(page.locator('#ia-prev')).toContainText('6'); await expect(page.locator('#ia-prev')).toContainText('201,653 ₪'); await expect(page.locator('#ia-prev')).toContainText('נכון ל־');
   await expect(page.locator('#ia-quiet')).toContainText('נוספו אוטומטית מטיפולים שהושלמו');
-  await expect(page.locator('#ia-quiet')).toContainText('הטיפולים שהושלמו עד היום כלולים כבר במספרים שהזנתם');
+  await expect(page.locator('#ia-quiet')).toContainText('טיפולים שהושלמו לפני נקודת ההתחלה כלולים כבר במספרים שהזנתם');
+  await expect(page.locator('#ia-quiet')).toContainText('אם משפחה שכבר נכללת במספר ההתחלה חוזרת עם טיפול חדש, היא תיספר שוב אלא אם יש לה רשומה קודמת במערכת.');
+  expect(await page.locator('#ia-quiet').innerText()).not.toMatch(/d{4}|d{1,2}[./-]d{1,2}[./-]d{2,4}|עד היום/);   // no date anywhere
   await expect(page.locator('#ia-quiet')).toContainText('מכאן ואילך טיפול שמסומן ״הושלם״ ויש בו סכום יתווסף אוטומטית');
   // exactly: two text fields, one switch, one save button. Nothing about kinds, cutoff, approval, verification, statuses, tables, lists.
   const view = page.locator('#view');
@@ -357,4 +359,85 @@ test('nothing about the old applicant erase has returned (no button, route still
   const applicant = (await (await request.get(A + '/requests/' + id, { headers: ADM })).json()).request.applicant_id;
   const r = await request.post(A + `/applicants/${applicant}/erase`, { headers: ADM, data: { confirm: 'ERASE' } });
   expect(r.status()).toBe(410);
+});
+
+// ---------------- the scenario, the fixed reference point, legacy amounts ----------------
+const settingValue = async (request, key) => { const s = (await (await request.get(A + '/settings', { headers: ADM })).json()).settings.find((x) => x.key === key); return s ? s.value : undefined; };
+const publicTotals = async (request) => { const p = await (await request.get('/api/kaspchem/impact')).json(); return p.enabled ? [p.families, p.amount] : p; };
+
+test("SCENARIO from the owner's numbers: two new families complete treatments, the owner edits the starting numbers, one amount is corrected, the switch goes off; the reference point never moves", async ({ page, request }, ti) => {
+  // the owner's figures (6 families, 201,653 ₪); the reference date is set well before today so that treatments completed today count automatically
+  await seed(request, { baseline: { kind: 'ongoing_saving', amount: '201653.00', family_count: 6 }, cutoff: '2026-01-01', flag: true, approval: true });
+  const a = await lead(request, phoneFor(ti), 'בדיקת תרחיש א'), b = await lead(request, phoneFor(ti), 'בדיקת תרחיש ב');
+  await adm(request, 'patch', '/requests/' + a, { status: 'done' }); await adm(request, 'patch', '/requests/' + b, { status: 'done' });
+  expect(await publicTotals(request)).toEqual([6, 201653]);
+  await adm(request, 'put', `/requests/${a}/outcome`, { amount: '1000' }); await adm(request, 'put', `/requests/${b}/outcome`, { amount: '2500' });   // fake amounts
+  expect(await publicTotals(request)).toEqual([8, 205153]);
+
+  await openTab(page);
+  await expect(page.locator('#ia-fam')).toHaveValue('6'); await expect(page.locator('#ia-amt')).toHaveValue('201,653.00');          // the starting numbers are the typed ones
+  await expect(page.locator('#ia-prev')).toContainText('205,153 ₪'); await expect(page.locator('#ia-quiet')).toContainText('2 משפחות, 3,500 ₪');
+  await page.locator('#ia-fam').fill('7'); await page.locator('#ia-amt').fill('200000');
+  await page.getByRole('button', { name: 'שמירה' }).click();
+  await expect(page.locator('#toast')).toContainText('נשמר');
+  await expect(page.locator('#ia-prev')).toContainText('203,500 ₪'); await expect(page.locator('#ia-prev .imp-num').first()).toHaveText('9');
+  await expect(page.locator('#ia-quiet')).toContainText('2 משפחות, 3,500 ₪');                                                     // the automatic part is untouched
+  expect(await publicTotals(request)).toEqual([9, 203500]);
+  expect(await settingValue(request, 'private.impact_baseline_cutoff')).toBe('2026-01-01');                                           // not moved by the save
+  expect(await settingValue(request, 'private.impact_reference_at')).toBeUndefined();
+  await shot(page, ti, 'tab-after-scenario');
+
+  // correct one automatic amount from the request
+  await page.getByRole('button', { name: 'בקשות טיפול' }).click();
+  await page.locator('tr.click', { hasText: 'בדיקת תרחיש א' }).first().click();
+  await page.locator('.drawer #oedit').click();
+  const ed = page.getByRole('dialog', { name: 'סכום שנחסך או הושג' }); await ed.locator('#io-amt').fill('1200'); await ed.getByRole('button', { name: 'שמירה' }).click();
+  await expect(page.locator('.drawer')).toContainText('1,200 ₪');
+  expect(await publicTotals(request)).toEqual([9, 203700]);
+  expect(await settingValue(request, 'private.impact_baseline_cutoff')).toBe('2026-01-01');
+  await page.keyboard.press('Escape');
+
+  // the switch off: the very next request says so
+  await page.getByRole('button', { name: 'השפעה' }).click();
+  await page.locator('#ia-sw').click(); await expect(page.locator('#toast')).toHaveText('המונה כבוי באתר');
+  expect(await publicTotals(request)).toEqual({ ok: true, enabled: false });
+  expect(await settingValue(request, 'private.impact_baseline_cutoff')).toBe('2026-01-01');
+});
+
+test('a new family with several treatments is counted once (all of its amounts are added)', async ({ request }, ti) => {
+  await seed(request, fake({ baseline: { amount: '1000', family_count: 2 }, cutoff: '2026-01-01' }));
+  const phone = phoneFor(ti);
+  for (const amt of ['400', '100']) { const id = await lead(request, phone, 'בדיקת משפחה'); await adm(request, 'patch', '/requests/' + id, { status: 'done' }); await adm(request, 'put', `/requests/${id}/outcome`, { amount: amt }); }
+  expect(await publicTotals(request)).toEqual([3, 1500]);
+});
+
+test('old data with two amounts on one request: the drawer shows the total with the plain line, no edit, one removal (with its own confirmation) that voids all; marking done on a request that already has amounts opens no dialog', async ({ page, request }, ti) => {
+  const id = await lead(request, phoneFor(ti), 'בדיקת ישן'); await adm(request, 'patch', '/requests/' + id, { status: 'done' });
+  await seed(request, Object.assign(fake({ baseline: { amount: '1000', family_count: 2 } }), { outcomes: [{ request_id: id, kind: 'one_time_refund', amount: '900' }, { request_id: id, kind: 'ongoing_saving', amount: '250.5' }] }));
+  expect(await publicTotals(request)).toEqual([3, 2150.5]);
+  await page.goto(AS_ADMIN); await page.getByRole('button', { name: 'בקשות טיפול' }).click();
+  await page.locator('tr.click', { hasText: 'בדיקת ישן' }).first().click();
+  const dr = page.locator('.drawer');
+  await expect(dr).toContainText('1,150.50 ₪');
+  await expect(dr).toContainText('הסכום מורכב מכמה רישומים ישנים; אפשר להסיר אותם, אך לא לערוך מכאן');
+  await expect(dr.locator('#oedit')).toHaveCount(0); await expect(dr.locator('#orem')).toHaveText('הסרה');
+  await shot(page, ti, 'drawer-legacy');
+  const r = await request.put(A + `/requests/${id}/outcome`, { headers: ADM, data: { amount: '5' } });
+  expect(r.status()).toBe(409); expect((await r.json()).error).toBe('several_outcomes');
+  expect(await publicTotals(request)).toEqual([3, 2150.5]);                                        // nothing lost
+  let msg = ''; page.once('dialog', (d) => { msg = d.message(); d.accept(); });
+  await dr.locator('#orem').click();
+  await expect(page.locator('.drawer')).toContainText('לא נרשם סכום');
+  expect(msg).toBe('להסיר את כל הסכומים של הטיפול?');
+  expect(await publicTotals(request)).toEqual([2, 1000]);
+  // a request that already has amounts: marking it done opens no dialog (nothing hidden is overwritten)
+  const id2 = await lead(request, phoneFor(ti), 'בדיקת בלי חלון');
+  await seed(request, Object.assign(fake({ baseline: { amount: '1000', family_count: 2 } }), { outcomes: [{ request_id: id2, kind: 'located_funds', amount: '300' }] }));
+  await page.keyboard.press('Escape');
+  await page.locator('tr.click', { hasText: 'בדיקת בלי חלון' }).first().click();
+  await page.locator('#ds').selectOption('done'); await page.locator('#dsave').click();
+  await expect(page.locator('.drawer #ds')).toHaveValue('done');
+  await expect(page.locator('.drawer')).toContainText('300 ₪');
+  await expect(page.getByRole('dialog', { name: /הושלמה/ })).toHaveCount(0);
+  expect(await publicTotals(request)).toEqual([3, 1300]);
 });

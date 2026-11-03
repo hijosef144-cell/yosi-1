@@ -59,7 +59,7 @@ on('GET', '/requests/(\\d+)', async (c, id) => {
     db.query('SELECT kind, granted, text_version, created_at FROM consents WHERE request_id = $1 ORDER BY id', [rid]),
     db.query('SELECT * FROM revenues WHERE request_id = $1 ORDER BY created_at', [rid]),
     content.loadTopic(r.topic),
-    db.query("SELECT id, amount::text AS amount FROM outcomes WHERE request_id = $1 AND source = 'system' AND voided_at IS NULL ORDER BY id DESC LIMIT 1", [rid])
+    db.query("SELECT id, amount::text AS amount, amount_basis FROM outcomes WHERE request_id = $1 AND source = 'system' AND voided_at IS NULL ORDER BY id", [rid])
   ]);
   // Show the answers with their original wording so staff don't need to decode ids.
   const readable = topic ? engine.visibleQuestions(topic, r.answers).map((q) => ({
@@ -70,7 +70,7 @@ on('GET', '/requests/(\\d+)', async (c, id) => {
   const findings = topic ? (r.findings || []).map((fid) => fTitle(topic.rules.find((x) => x.id === fid), fid)) : r.findings;
   const findingDetails = topic ? (r.findings || []).map((fid) => { const rule = topic.rules.find((x) => x.id === fid) || {}; return { id: fid, title: fTitle(rule, fid), refer: (rule.finding || {}).refer || null, serviceTag: rule.serviceTag || null }; }) : [];
   await audit(c.me.email, 'request.view', 'request', rid, {}); // who looked at personal details, not only who changed something
-  return { request: Object.assign({}, r, { readable, findingTitles: findings, findingDetails }), notes, consents, revenues, outcome: outcomeRows.length ? { id: Number(outcomeRows[0].id), amount: Number(outcomeRows[0].amount) } : null };
+  return { request: Object.assign({}, r, { readable, findingTitles: findings, findingDetails }), notes, consents, revenues, outcome: (() => { const own = outcomeRows.filter((o) => o.amount_basis === 'documented' && Number(o.amount) > 0); return { any: outcomeRows.length, count: own.length, id: own.length === 1 ? Number(own[0].id) : null, amount: own.reduce((t, o) => t + Math.round(Number(o.amount) * 100), 0) / 100 }; })() };
 });
 
 on('PATCH', '/requests/(\\d+)', async (c, id) => {
@@ -287,8 +287,8 @@ const upsertSetting = (key, value, email) => db.query('INSERT INTO settings (key
 
 on('GET', '/impact', async () => {
   const now = new Date();
-  const [rows, cfg] = await Promise.all([impact.loadRows(), impact.loadConfig()]);
-  const ev = impact.evaluate(rows, cfg);
+  const [rows, cfg, done] = await Promise.all([impact.loadRows(), impact.loadConfig(), impact.loadDoneRequests()]);
+  const ev = impact.evaluate(rows, cfg, done);
   return {
     enabled: cfg.flag,
     start: { families: ev.start.families, amount: ev.start.amount, split: ev.start.rows > 1 }, // what the owners typed (the sum, read-only, if old data is split over several rows)
@@ -299,22 +299,27 @@ on('GET', '/impact', async () => {
   };
 });
 
-// The starting numbers. Saving them is the owners' explicit approval: it updates the one starting row (or creates it) and moves the internal cutoff to today,
-// because everything completed up to today is taken to be inside the numbers they typed. More than one starting row is never merged silently.
+// The starting numbers. Saving them is the owners' explicit approval. It updates the one starting row (or creates it). The reference point (the cutoff) is
+// FIXED: it is written only when it does not exist yet (the first save: today, plus the exact moment) and is never moved by a later save, so editing these
+// numbers never changes what has been added automatically. More than one starting row is never merged silently.
 on('PUT', '/impact', async (c) => {
   const families = impact.parseFamilies(c.body.families), amount = impact.parseAmount(c.body.amount, true);
   const [rows, cfg] = await Promise.all([impact.loadRows(), impact.loadConfig()]);
   const start = rows.filter((r) => r.source === 'baseline' && !r.voided);
   if (start.length > 1) throw new HttpError(409, 'split_baseline');
-  const today = impact.todayIL();
   const was = start.length ? { families: start[0].family_count, amount: Number(start[0].amount) } : null;
   if (start.length) {
     await db.query("UPDATE outcomes SET family_count = $1, amount = $2, amount_basis = 'documented', evidence_note = COALESCE(NULLIF(evidence_note, ''), $3), updated_at = now() WHERE id = $4", [families, amount, impact.START_NOTE, start[0].id]);
   } else {
     await db.query("INSERT INTO outcomes (source, kind, amount, amount_basis, family_count, evidence_note, entered_by) VALUES ('baseline', $1, $2, 'documented', $3, $4, $5)", [impact.AUTO_KIND, amount, families, impact.START_NOTE, c.me.email]);
   }
-  await upsertSetting(impact.KEY.cutoff, today, c.me.email);
-  await audit(c.me.email, 'impact.start.save', 'outcome', start.length ? start[0].id : '', { families, amount: Number(amount), from: was, cutoff: today, previous_cutoff: cfg.cutoff, created: !start.length });
+  let cutoff = cfg.cutoff, set = false;
+  if (!cutoff) { // first ever save: fix the reference point
+    cutoff = impact.todayIL(); set = true;
+    await upsertSetting(impact.KEY.cutoff, cutoff, c.me.email);
+    await upsertSetting(impact.KEY.reference, new Date().toISOString(), c.me.email);
+  }
+  await audit(c.me.email, 'impact.start.save', 'outcome', start.length ? start[0].id : '', { families, amount: Number(amount), from: was, cutoff, cutoff_set: set, created: !start.length });
   return { ok: true };
 });
 
@@ -326,16 +331,19 @@ on('POST', '/impact/counter', async (c) => {
   return { ok: true, enabled: c.body.enabled };
 });
 
-// The amount saved or obtained in one completed treatment. One outcome per request: setting it again corrects the same one.
+// The amount saved or obtained in one completed treatment. Normally one outcome per request: setting it again corrects that one. Old data may hold several
+// (one per kind): they are all summed, are never overwritten or dropped, and cannot be edited from here (only removed, all together).
+const OWN_AMOUNTS = "request_id = $1 AND source = 'system' AND voided_at IS NULL AND amount_basis = 'documented' AND amount > 0";
 on('PUT', '/requests/(\\d+)/outcome', async (c, id) => {
   const rid = idOf(id), amount = impact.parseAmount(c.body.amount, false);
   const [r] = await db.query('SELECT status FROM treatment_requests WHERE id = $1', [rid]);
   if (!r) throw new HttpError(404, 'not_found');
   if (r.status !== 'done') throw new HttpError(409, 'request_not_done'); // only a completed treatment can carry an amount
-  const [old] = await db.query("SELECT id, amount::text AS amount FROM outcomes WHERE request_id = $1 AND source = 'system' AND voided_at IS NULL ORDER BY id DESC LIMIT 1", [rid]);
-  if (old) {
-    await db.query("UPDATE outcomes SET amount = $1, amount_basis = 'documented', updated_at = now() WHERE id = $2", [amount, old.id]);
-    await audit(c.me.email, 'impact.outcome.update', 'request', rid, { amount: Number(amount), from: Number(old.amount) });
+  const old = await db.query('SELECT id, amount::text AS amount FROM outcomes WHERE ' + OWN_AMOUNTS + ' ORDER BY id', [rid]);
+  if (old.length > 1) throw new HttpError(409, 'several_outcomes');
+  if (old.length) {
+    await db.query("UPDATE outcomes SET amount = $1, updated_at = now() WHERE id = $2", [amount, old[0].id]);
+    await audit(c.me.email, 'impact.outcome.update', 'request', rid, { amount: Number(amount), from: Number(old[0].amount) });
   } else {
     try {
       await db.query("INSERT INTO outcomes (source, kind, amount, amount_basis, request_id, completed_on, evidence_note, entered_by) VALUES ('system', $1, $2, 'documented', $3, $4, $5, $6)", [impact.AUTO_KIND, amount, rid, impact.todayIL(), impact.AUTO_NOTE, c.me.email]);
@@ -344,11 +352,12 @@ on('PUT', '/requests/(\\d+)/outcome', async (c, id) => {
   }
   return { ok: true };
 });
+// Removing voids ALL of the treatment's amounts (one audit entry per row, figures only).
 on('POST', '/requests/(\\d+)/outcome/remove', async (c, id) => {
   const rid = idOf(id);
-  const rows = await db.query("UPDATE outcomes SET voided_at = now(), voided_by = $1, updated_at = now() WHERE request_id = $2 AND source = 'system' AND voided_at IS NULL RETURNING amount::text AS amount", [c.me.email, rid]);
+  const rows = await db.query('UPDATE outcomes SET voided_at = now(), voided_by = $2, updated_at = now() WHERE ' + OWN_AMOUNTS + ' RETURNING amount::text AS amount', [rid, c.me.email]);
   if (!rows.length) throw new HttpError(404, 'no_outcome');
-  await audit(c.me.email, 'impact.outcome.remove', 'request', rid, { amount: Number(rows[0].amount) });
+  for (const row of rows) await audit(c.me.email, 'impact.outcome.remove', 'request', rid, { amount: Number(row.amount) });
   return { ok: true };
 });
 

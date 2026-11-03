@@ -31,7 +31,7 @@ async function request(phone, status) {
 const TODAY = () => impact.todayIL();
 const shift = (n) => { const d = new Date(TODAY() + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 const q = async (sql, p) => (await srv.pg.query(sql, p)).rows;
-const KEYS = "('public.counter_enabled','private.impact_baseline_cutoff','private.impact_baseline_approval')";
+const KEYS = "('public.counter_enabled','private.impact_baseline_cutoff','private.impact_baseline_approval','private.impact_reference_at')";
 // put the tables and settings into an exact state
 async function seed(o) {
   o = o || {};
@@ -55,7 +55,9 @@ test.beforeEach(async () => { await seed(); });
 
 test("the owner's existing state is shown as it is and loading it writes NOTHING (baseline ongoing_saving 201653 / 6 families, cutoff, approval, switch on)", async () => {
   await seed({ baseline: [{ kind: 'ongoing_saving', amount: '201653.00', family_count: 6 }], cutoff: '2026-11-03', flag: true, approval: true });
+  // deploying this code over that state: the (idempotent) schema is applied again and nothing in the owner's data changes
   const before = await snapshot();
+  await srv.pg.exec(fs.readFileSync(path.join(__dirname, '..', 'db', 'kaspchem-schema.sql'), 'utf8'));
   const a = await adm('GET', '/impact');
   assert.equal(a.status, 200);
   assert.deepEqual(a.body.start, { families: 6, amount: 201653, split: false });
@@ -83,7 +85,7 @@ test('the counter is OFF by default and never cached; on with nothing to show is
   assert.equal((await adm('GET', '/impact')).body.shown, false);
 });
 
-test('saving the starting numbers creates the one hidden row, sets the cutoff to today and is audited', async () => {
+test('the first save of the starting numbers creates the one hidden row, fixes the reference point (cutoff today) and is audited', async () => {
   const r = await adm('PUT', '/impact', { families: 12, amount: 3000 });
   assert.equal(r.status, 200);
   const rows = await q('SELECT source, kind, amount::text AS amount, amount_basis, family_count, evidence_note, voided_at, request_id FROM outcomes');
@@ -94,7 +96,7 @@ test('saving the starting numbers creates the one hidden row, sets the cutoff to
   assert.deepEqual(g.start, { families: 12, amount: 3000, split: false });
   const log = await q("SELECT actor, action, detail FROM audit_log WHERE action = 'impact.start.save'");
   assert.equal(log.length, 1); assert.equal(log[0].actor, 'yosi@example.test');
-  assert.deepEqual([log[0].detail.families, log[0].detail.amount, log[0].detail.created, log[0].detail.cutoff, log[0].detail.from], [12, 3000, true, TODAY(), null]);
+  assert.deepEqual([log[0].detail.families, log[0].detail.amount, log[0].detail.created, log[0].detail.cutoff, log[0].detail.cutoff_set, log[0].detail.from], [12, 3000, true, TODAY(), true, null]);
 });
 
 test('saving again updates the same row (its kind and note stay), an empty note gets the neutral default, a typed format with commas is understood', async () => {
@@ -103,6 +105,7 @@ test('saving again updates the same row (its kind and note stay), an empty note 
   let rows = await q('SELECT kind, amount::text AS amount, family_count, evidence_note, amount_basis FROM outcomes');
   assert.deepEqual(rows, [{ kind: 'ongoing_saving', amount: '202000.50', family_count: 7, evidence_note: 'הערה פנימית של הבעלים', amount_basis: 'documented' }]);
   assert.equal((await q("SELECT value FROM settings WHERE key = 'public.counter_enabled'"))[0].value, true, 'the switch is untouched by saving numbers');
+  assert.equal((await q("SELECT value FROM settings WHERE key = 'private.impact_baseline_cutoff'"))[0].value, '2026-11-03', 'the reference point is not moved');
   await seed({ baseline: [{ kind: 'one_time_refund', amount: '5', family_count: 1, note: '' }], flag: false });
   assert.equal((await adm('PUT', '/impact', { families: 0, amount: '₪ 12.5' })).status, 200);   // zero families is allowed, and a ₪ sign is understood
   rows = await q('SELECT kind, amount::text AS amount, family_count, evidence_note FROM outcomes');
@@ -157,23 +160,42 @@ test('marking done and recording an amount adds it automatically; the server fil
   assert.deepEqual(o, { source: 'system', kind: 'located_funds', amount: '500.00', amount_basis: 'documented', completed_on: TODAY(), evidence_note: impact.AUTO_NOTE, starts_on: null, ends_on: null, last_verified_at: null, family_count: null });
   for (const bad of ['', '0', '-3', 'abc', '1.234', null]) assert.equal((await setOutcome(id, bad)).body.error, 'bad_amount', String(bad));
   const d = (await adm('GET', '/requests/' + id)).body;
-  assert.equal(d.outcome.amount, 500); assert.ok(d.outcome.id > 0);
-  assert.equal((await adm('GET', '/requests/' + (await request(null, 'new')))).body.outcome, null);
+  assert.equal(d.outcome.amount, 500); assert.equal(d.outcome.count, 1); assert.ok(d.outcome.id > 0);
+  assert.deepEqual((await adm('GET', '/requests/' + (await request(null, 'new')))).body.outcome, { any: 0, count: 0, id: null, amount: 0 });
 });
 
-test('no double counting: one active outcome per request (a second set corrects the same one), a legacy second row is not added, a duplicate kind is refused by the database', async () => {
+// two kinds on one request is legitimate legacy data (stage 3 allowed one outcome per kind): both are summed, none is ever dropped
+async function legacyTwo(id) {
+  await srv.pg.query("INSERT INTO outcomes (source, kind, amount, amount_basis, request_id, completed_on, entered_by) VALUES ('system','one_time_refund',900,'documented',$1,$2,'old'), ('system','ongoing_saving',250.5,'documented',$1,$2,'old')", [id, shift(0)]);
+}
+
+test('no double counting: one outcome per request through the dashboard (a second set corrects the same one); a duplicate kind is refused by the database', async () => {
   await seed({ baseline: [{ amount: '1000', family_count: 2 }], cutoff: '2026-01-01', flag: true });
   const id = await request();
   await setOutcome(id, 300); await setOutcome(id, 400);
   assert.equal((await q('SELECT count(*)::int n FROM outcomes WHERE request_id = $1 AND voided_at IS NULL', [id]))[0].n, 1);
   assert.equal((await pub()).body.amount, 1400);
-  // old data with a second outcome (another kind) on the same request: only the newest counts
-  await srv.pg.query("INSERT INTO outcomes (source, kind, amount, amount_basis, request_id, completed_on, entered_by) VALUES ('system','one_time_refund',900,'documented',$1,'2026-03-01','old')", [id]);
-  const p = (await pub()).body;
-  assert.equal(p.amount, 1900); assert.equal(p.families, 3);   // 1000 + the newest (900), the 400 is not added on top
-  assert.equal((await setOutcome(id, 950)).status, 200);        // editing corrects the newest one
-  assert.equal((await pub()).body.amount, 1950);
-  await assert.rejects(srv.pg.query("INSERT INTO outcomes (source, kind, amount, amount_basis, request_id, completed_on, entered_by) VALUES ('system','one_time_refund',5,'documented',$1,'2026-03-01','x')", [id]));
+  await assert.rejects(srv.pg.query("INSERT INTO outcomes (source, kind, amount, amount_basis, request_id, completed_on, entered_by) VALUES ('system','located_funds',5,'documented',$1,'2026-03-01','x')", [id]));
+});
+
+test('legacy data with two amounts on one request (two kinds): both are summed and the family is counted once; editing from here is refused with a readable error and changes nothing; removing voids all of them, with one audit entry per row', async () => {
+  await seed({ baseline: [{ amount: '1000', family_count: 2 }], cutoff: '2026-01-01', flag: true });
+  const id = await request(); await legacyTwo(id);
+  let p = (await pub()).body; assert.deepEqual([p.families, p.amount], [3, 1000 + 900 + 250.5]);
+  const d = (await adm('GET', '/requests/' + id)).body.outcome;
+  assert.deepEqual(d, { any: 2, count: 2, id: null, amount: 1150.5 });                    // the drawer shows the total, no single id to edit
+  const before = await snapshot();
+  const e = await setOutcome(id, 5);
+  assert.equal(e.status, 409); assert.equal(e.body.error, 'several_outcomes');
+  assert.equal(await snapshot(), before, 'nothing was overwritten or lost');
+  assert.equal((await adm('POST', `/requests/${id}/outcome/remove`, {})).status, 200);
+  p = (await pub()).body; assert.deepEqual([p.families, p.amount], [2, 1000]);
+  assert.equal((await q('SELECT count(*)::int n FROM outcomes WHERE request_id = $1 AND voided_at IS NULL', [id]))[0].n, 0);
+  assert.equal((await q('SELECT count(*)::int n FROM outcomes WHERE request_id = $1 AND voided_at IS NOT NULL', [id]))[0].n, 2, 'the rows are voided, not deleted');
+  const log = await q("SELECT entity, entity_id, detail FROM audit_log WHERE action = 'impact.outcome.remove' ORDER BY id");
+  assert.deepEqual(log.map((l) => l.detail.amount).sort((a, b) => a - b), [250.5, 900]);
+  assert.ok(log.every((l) => String(l.entity_id) === String(id)));
+  assert.equal((await adm('GET', '/requests/' + id)).body.outcome.any, 0);
 });
 
 test('a correction, a removal or moving the request out of done changes the totals immediately', async () => {
@@ -190,34 +212,118 @@ test('a correction, a removal or moving the request out of done changes the tota
   assert.equal((await adm('POST', `/requests/${id}/outcome/remove`, {})).status, 200);
   assert.deepEqual(await now(), [2, 1000]);
   assert.equal((await adm('POST', `/requests/${id}/outcome/remove`, {})).body.error, 'no_outcome');
-  assert.equal((await adm('GET', '/requests/' + id)).body.outcome, null);
+  assert.deepEqual((await adm('GET', '/requests/' + id)).body.outcome, { any: 0, count: 0, id: null, amount: 0 });
   assert.equal((await setOutcome(id, 700)).status, 200);        // after a removal the amount can be entered again
   assert.deepEqual(await now(), [3, 1700]);
 });
 
-test('outcomes completed on or before the cutoff are not counted (they are inside the typed numbers); without a cutoff and with a starting row the automatic part waits', async () => {
+test('the reference point is FIXED: written once at the first save (today, plus the exact moment), never moved by later saves; the automatic part does not depend on the starting numbers', async () => {
+  assert.equal((await q("SELECT count(*)::int n FROM settings WHERE key LIKE 'private.impact_%'"))[0].n, 0);
+  assert.equal((await adm('PUT', '/impact', { families: 12, amount: 3000 })).status, 200);
+  const cut = async () => (await q("SELECT value FROM settings WHERE key = 'private.impact_baseline_cutoff'"))[0].value;
+  const ref = async () => (await q("SELECT value, updated_at FROM settings WHERE key = 'private.impact_reference_at'"))[0];
+  assert.equal(await cut(), TODAY());
+  const r1 = await ref(); assert.ok(Math.abs(Date.parse(r1.value) - Date.now()) < 60000);
+  await new Promise((r) => setTimeout(r, 30));
+  const c1 = (await q("SELECT updated_at FROM settings WHERE key = 'private.impact_baseline_cutoff'"))[0].updated_at.toISOString();
+  await adm('PUT', '/impact', { families: 13, amount: 3500 }); await adm('PUT', '/impact', { families: 14, amount: 4000.5 });
+  assert.equal(await cut(), TODAY()); assert.deepEqual(await ref(), r1);
+  assert.equal((await q("SELECT updated_at FROM settings WHERE key = 'private.impact_baseline_cutoff'"))[0].updated_at.toISOString(), c1, 'the cutoff row is not even rewritten');
+  const log = await q("SELECT detail FROM audit_log WHERE action = 'impact.start.save' ORDER BY id");
+  assert.deepEqual(log.map((l) => [l.detail.cutoff_set, l.detail.cutoff]), [[true, TODAY()], [false, TODAY()], [false, TODAY()]]);
+  assert.ok(log.every((l) => !('previous_cutoff' in l.detail)));
+});
+
+test("saving over the owner's existing state does not touch the reference point (no cutoff rewrite, no reference key, switch untouched)", async () => {
+  await seed({ baseline: [{ kind: 'ongoing_saving', amount: '201653.00', family_count: 6 }], cutoff: '2026-11-03', flag: true, approval: true });
+  const settingsBefore = JSON.stringify(await q("SELECT * FROM settings WHERE key <> 'public.legal_approved' ORDER BY key"));
+  assert.equal((await adm('PUT', '/impact', { families: 7, amount: '200000' })).status, 200);
+  const rows = await q("SELECT * FROM settings WHERE key <> 'public.legal_approved' ORDER BY key");
+  assert.equal(JSON.stringify(rows), settingsBefore, 'every setting, including updated_at, is exactly as it was');
+  assert.equal(rows.some((r) => r.key === 'private.impact_reference_at'), false);
+  assert.equal(rows.find((r) => r.key === 'private.impact_baseline_cutoff').value, '2026-11-03');
+  assert.deepEqual((await q('SELECT kind, amount::text AS amount, family_count FROM outcomes')), [{ kind: 'ongoing_saving', amount: '200000.00', family_count: 7 }]);
+});
+
+test('same-day refinement: with a reference moment, an outcome completed on the cutoff day counts only if it was recorded after the starting numbers were first saved; without one the plain strictly-after rule applies', async () => {
+  const early = await request(); await setOutcome(early, 100);              // recorded today, before the first save
+  await adm('PUT', '/impact', { families: 2, amount: 1000 });               // first save: cutoff = today, reference moment = now
+  await adm('POST', '/impact/counter', { enabled: true });
+  const now = async () => { const b = (await pub()).body; return [b.families, b.amount]; };
+  assert.deepEqual(await now(), [2, 1000], 'recorded before the first save: inside the starting numbers');
+  await new Promise((r) => setTimeout(r, 40));
+  const late = await request(); await setOutcome(late, 300);                // completed on the cutoff day, but after the first save
+  assert.deepEqual(await now(), [3, 1300]);
+  await adm('PUT', '/impact', { families: 5, amount: 2000 });               // editing the numbers later changes only the starting part
+  assert.deepEqual(await now(), [6, 2300]);
+  // owner's data has a cutoff but no reference moment: strictly after the date
+  await srv.pg.exec("DELETE FROM settings WHERE key = 'private.impact_reference_at'");
+  assert.deepEqual(await now(), [5, 2000]);
+  await srv.pg.query('UPDATE outcomes SET completed_on = $1 WHERE request_id = $2', [shift(1), late]);
+  assert.deepEqual(await now(), [6, 2300]);
+});
+
+test('returning families: an applicant with an earlier done request is not counted as a new family (her new amount still counts); a new applicant counts once however many treatments; a family with no record in the system is counted (documented limit)', async () => {
+  await seed({ baseline: [{ amount: '1000', family_count: 2 }], cutoff: '2026-06-01', flag: true });
+  const post = async (id, amount) => { await setOutcome(id, amount); await srv.pg.query('UPDATE outcomes SET completed_on = $1 WHERE request_id = $2', ['2026-07-01', id]); };
+  const now = async () => { const b = (await pub()).body; return [b.families, b.amount]; };
+  // returning applicant: an older done request, created before the cutoff, with no amount recorded
+  const phone = nextPhone(); const old = await request(phone);
+  await srv.pg.query("UPDATE treatment_requests SET created_at = '2026-02-01T10:00:00Z' WHERE id = $1", [old]);
+  const again = await request(phone); await post(again, 400);
+  assert.deepEqual(await now(), [2, 1400], 'not a new family, but the amount is counted');
+  // a second returning applicant recognised by an old OUTCOME that predates the cutoff
+  const phone2 = nextPhone(); const old2 = await request(phone2); await setOutcome(old2, 50);
+  await srv.pg.query("UPDATE outcomes SET completed_on = '2026-03-01' WHERE request_id = $1", [old2]);
+  const again2 = await request(phone2); await post(again2, 100);
+  assert.deepEqual(await now(), [2, 1500]);
+  // a brand-new applicant with three treatments: one family, all amounts
+  const phone3 = nextPhone(); for (const amt of [10, 20, 30]) await post(await request(phone3), amt);
+  assert.deepEqual(await now(), [3, 1560]);
+  // not evidence: an old request that is not done, or a done request created after the cutoff
+  const phone4 = nextPhone(); await request(phone4, 'closed'); const x4 = await request(phone4); await post(x4, 5);
+  assert.deepEqual(await now(), [4, 1565]);
+  // a returning family that is inside the starting number but has no record here cannot be recognised: counted again (documented limitation)
+  const ghost = await request(); await post(ghost, 7);
+  assert.deepEqual(await now(), [5, 1572]);
+  // the same rules in the dashboard answer
+  const g = (await adm('GET', '/impact')).body; assert.deepEqual(g.auto, { families: 3, amount: 572 }); assert.deepEqual(g.total, { families: 5, amount: 1572 });
+});
+
+test('SCENARIO from the owner\'s state: two new families complete treatments, the owner edits the starting numbers, an amount is corrected, the switch goes off', async () => {
+  await seed({ baseline: [{ kind: 'ongoing_saving', amount: '201653.00', family_count: 6 }], cutoff: '2026-11-03', flag: true, approval: true });
+  const cutoff = async () => (await q("SELECT value FROM settings WHERE key = 'private.impact_baseline_cutoff'"))[0].value;
+  const now = async () => { const b = (await pub()).body; return b.enabled === false ? b : [b.families, b.amount]; };
+  assert.deepEqual(await now(), [6, 201653]);
+  const a = await request(), b = await request();                          // two different new applicants
+  await setOutcome(a, 1000); await setOutcome(b, 2500);                     // fake amounts
+  await srv.pg.query("UPDATE outcomes SET completed_on = '2026-12-01' WHERE source = 'system'");   // completed after the cutoff (the API stamps today)
+  assert.deepEqual(await now(), [8, 201653 + 3500]);
+  assert.equal(await cutoff(), '2026-11-03');
+  assert.equal((await adm('PUT', '/impact', { families: 7, amount: 200000 })).status, 200);
+  assert.equal(await cutoff(), '2026-11-03');
+  assert.deepEqual(await now(), [9, 203500], 'only the starting part changed; the automatic part is untouched and nothing is counted twice');
+  assert.equal((await setOutcome(a, 1200)).status, 200);
+  assert.equal(await cutoff(), '2026-11-03');
+  assert.deepEqual(await now(), [9, 203700]);
+  assert.equal((await adm('POST', '/impact/counter', { enabled: false })).status, 200);
+  assert.deepEqual(await now(), { ok: true, enabled: false });             // the very next request
+  assert.equal((await q("SELECT count(*)::int n FROM settings WHERE key = 'private.impact_reference_at'"))[0].n, 0);
+});
+
+test('outcomes completed on or before the cutoff are not counted (they are inside the typed numbers); a starting row without any saved cutoff makes the automatic part wait; with no starting row everything counts', async () => {
   await seed({ baseline: [{ amount: '1000', family_count: 2 }], cutoff: '2026-06-01', flag: true });
   const a = await request(), b = await request(), c = await request();
   await setOutcome(a, 10); await setOutcome(b, 20); await setOutcome(c, 30);
   await srv.pg.query("UPDATE outcomes SET completed_on = '2026-05-31' WHERE request_id = $1", [a]);
-  await srv.pg.query("UPDATE outcomes SET completed_on = '2026-06-01' WHERE request_id = $1", [b]);   // the cutoff day itself belongs to the typed numbers
+  await srv.pg.query("UPDATE outcomes SET completed_on = '2026-06-01' WHERE request_id = $1", [b]);   // the cutoff day itself (no reference moment): inside the typed numbers
   await srv.pg.query("UPDATE outcomes SET completed_on = '2026-06-02' WHERE request_id = $1", [c]);
   const now = async () => { const x = (await pub()).body; return [x.families, x.amount]; };
   assert.deepEqual(await now(), [3, 1030]);
-  // saving the starting numbers moves the cutoff to today: everything completed so far is taken to be inside them
-  await srv.pg.query('UPDATE outcomes SET completed_on = $1 WHERE request_id = $2', [shift(-1), c]);
-  await adm('PUT', '/impact', { families: 5, amount: 2000 });
-  assert.deepEqual(await now(), [5, 2000]);
-  const d = await request(); await setOutcome(d, 40);                      // completed today = the cutoff day: inside the numbers, counted from tomorrow
-  assert.deepEqual(await now(), [5, 2000]);
-  await srv.pg.query('UPDATE outcomes SET completed_on = $1 WHERE request_id = $2', [shift(1), d]);
-  assert.deepEqual(await now(), [6, 2040]);
-  // a starting row but no cutoff ever saved: the automatic part is not counted
   await srv.pg.exec("DELETE FROM settings WHERE key = 'private.impact_baseline_cutoff'");
-  assert.deepEqual(await now(), [5, 2000]);
-  // no starting row at all and no cutoff: everything completed counts
+  assert.deepEqual(await now(), [2, 1000]);
   await srv.pg.exec("DELETE FROM outcomes WHERE source = 'baseline'");
-  assert.deepEqual(await now(), [4, 100]);
+  assert.deepEqual(await now(), [3, 60]);
 });
 
 test('estimates, voided rows and zero amounts never count', async () => {
@@ -275,7 +381,7 @@ test('every impact route is admin-only and needs the CSRF header; the generic se
   assert.equal((await call('POST', A + '/impact/counter', { enabled: true }, { 'x-test-user': 'yosi@example.test|', 'x-kaspchem': '1' })).status, 403);
   delete process.env.KASPCHEM_REQUIRE_ROLE;
   assert.equal((await snapshot()).replace(/"created_at":"[^"]*"/g, ''), before.replace(/"created_at":"[^"]*"/g, ''), 'every refused call changed nothing (the alert for the stranger is not an audit entry)');
-  for (const key of ['public.counter_enabled', 'private.impact_baseline_cutoff', 'private.impact_baseline_approval']) {
+  for (const key of ['public.counter_enabled', 'private.impact_baseline_cutoff', 'private.impact_baseline_approval', 'private.impact_reference_at']) {
     const r = await adm('PUT', '/settings', { key, value: true }); assert.equal(r.status, 400); assert.equal(r.body.error, 'use_impact_api');
   }
   for (const [m, u] of [['POST', '/impact/baseline'], ['PATCH', '/impact/outcomes/1'], ['POST', '/impact/outcomes/1/void'], ['PUT', '/impact/baseline-cutoff'], ['POST', '/impact/approve-baseline'], ['POST', `/requests/${id}/outcomes`], ['POST', `/requests/${id}/outcome-none`]])

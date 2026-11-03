@@ -11,7 +11,7 @@
   var ERR_IMPACT = {
     bad_families: 'יש להזין מספר שלם של משפחות (0 או יותר)', bad_amount: 'יש להזין סכום בשקלים (מספר, עד שתי ספרות אחרי הנקודה)',
     split_baseline: 'נתוני ההתחלה מפוצלים לכמה שורות; פנו אליי לאיחוד', request_not_done: 'אפשר לרשום סכום רק לבקשה בסטטוס הושלם',
-    outcome_exists: 'כבר נרשם סכום לבקשה הזו', no_outcome: 'לא נרשם סכום לבקשה הזו', use_impact_api: 'הגדרה זו משתנה רק מלשונית ״השפעה״', bad_value: 'ערך לא תקין'
+    outcome_exists: 'כבר נרשם סכום לבקשה הזו', no_outcome: 'לא נרשם סכום לבקשה הזו', several_outcomes: 'הסכום מורכב מכמה רישומים ישנים; אפשר להסיר אותם, אך לא לערוך מכאן', use_impact_api: 'הגדרה זו משתנה רק מלשונית ״השפעה״', bad_value: 'ערך לא תקין'
   };
 
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -151,10 +151,11 @@
         var toDone = dr.querySelector('#ds').value === 'done' && r.status !== 'done';
         var p = api('PATCH', '/requests/' + id, { status: dr.querySelector('#ds').value, assignee: dr.querySelector('#da').value, service_id: dr.querySelector('#dv').value, professional_id: dr.querySelector('#dp').value });
         if (!toDone) { act(p); return; }
+        var dialogNeeded = d.outcome.any === 0; // a request that already has recorded amounts never gets a dialog: nothing recorded is overwritten or hidden
         // Marked completed: the status is already saved. The dialog records the outcome (or "nothing to count"); cancelling it leaves the status as it is.
         p.then(function () {
           toast('נשמר'); close();
-          return detail(id, done).then(function () { amountDialog({ requestId: id, current: null, fromDone: true, onSaved: function () { [].forEach.call(document.querySelectorAll('.drawer'), function (x) { x.remove(); }); detail(id, done); } }); });
+          return detail(id, done).then(function () { if (dialogNeeded) amountDialog({ requestId: id, current: null, fromDone: true, onSaved: function () { [].forEach.call(document.querySelectorAll('.drawer'), function (x) { x.remove(); }); detail(id, done); } }); });
         }).catch(fail);
       };
       dr.querySelector('#aexp').onclick = function () {
@@ -169,8 +170,8 @@
       dr.querySelector('#nadd').onclick = function () { var v = dr.querySelector('#nb').value.trim(); if (v) act(api('POST', '/requests/' + id + '/notes', { body: v })); };
       dr.querySelector('#radd').onclick = function () { var a = dr.querySelector('#ra').value; if (a !== '') act(api('POST', '/requests/' + id + '/revenues', { amount: a, cost: dr.querySelector('#rc').value || 0 })); };
       var refresh = function () { dr.remove(); detail(id, done); };
-      var oedit = dr.querySelector('#oedit'); if (oedit) oedit.onclick = function () { amountDialog({ requestId: id, current: d.outcome ? d.outcome.amount : null, onSaved: refresh }); };
-      var orem = dr.querySelector('#orem'); if (orem) orem.onclick = function () { if (confirm('להסיר את הסכום מהמונה?')) api('POST', '/requests/' + id + '/outcome/remove', {}).then(function () { toast('הסכום הוסר'); refresh(); }).catch(fail); };
+      var oedit = dr.querySelector('#oedit'); if (oedit) oedit.onclick = function () { amountDialog({ requestId: id, current: d.outcome.count === 1 ? d.outcome.amount : null, onSaved: refresh }); };
+      var orem = dr.querySelector('#orem'); if (orem) orem.onclick = function () { if (confirm(d.outcome.count > 1 ? 'להסיר את כל הסכומים של הטיפול?' : 'להסיר את הסכום מהמונה?')) api('POST', '/requests/' + id + '/outcome/remove', {}).then(function () { toast('הסכום הוסר'); refresh(); }).catch(fail); };
       [].forEach.call(dr.querySelectorAll('[data-rv]'), function (b) { b.onclick = function () { act(api('POST', '/revenues/' + b.dataset.rv + '/decide', { status: b.dataset.s })); }; });
     }).catch(fail);
   }
@@ -264,7 +265,8 @@
   }
   // In the request drawer: the recorded amount, with edit and remove, nothing more.
   function outcomeBlock(o, status) {
-    if (o) return '<div class="qa"><b style="display:inline">' + imoney(o.amount) + '</b></div><p><button class="btn mini sec" id="oedit">עריכה</button> <button class="btn mini sec" id="orem">הסרה</button></p>';
+    if (o.count > 1) return '<div class="qa"><b style="display:inline">' + imoney(o.amount) + '</b></div><p class="ia-small">הסכום מורכב מכמה רישומים ישנים; אפשר להסיר אותם, אך לא לערוך מכאן</p><p><button class="btn mini sec" id="orem">הסרה</button></p>';
+    if (o.count === 1) return '<div class="qa"><b style="display:inline">' + imoney(o.amount) + '</b></div><p><button class="btn mini sec" id="oedit">עריכה</button> <button class="btn mini sec" id="orem">הסרה</button></p>';
     return status === 'done' ? '<p>לא נרשם סכום.</p><p><button class="btn mini sec" id="oedit">רישום סכום</button></p>' : '<p class="ia-small">אפשר לרשום סכום כשהבקשה בסטטוס ״הושלם״.</p>';
   }
 
@@ -314,7 +316,8 @@
         (t.amount > 0 ? '<p class="imp-fam imp-money"><span class="imp-num">' + esc(imoney(t.amount)) + '</span> <span class="imp-cap">נחסכו או הושגו עבור משפחות</span></p>' : '') + '</div><p class="imp-upd">נכון ל־' + hhmm + '</p>'
       : '<p class="imp-upd">אין עדיין מספרים להצגה.</p>';
     document.getElementById('ia-quiet').innerHTML = 'מתוך הסכום: נוספו אוטומטית מטיפולים שהושלמו &mdash; ' + esc(Number(r.auto.families).toLocaleString('he-IL')) + ' משפחות, ' + esc(imoney(r.auto.amount)) + '.<br>' +
-      'הטיפולים שהושלמו עד היום כלולים כבר במספרים שהזנתם. מכאן ואילך טיפול שמסומן ״הושלם״ ויש בו סכום יתווסף אוטומטית.';
+      'טיפולים שהושלמו לפני נקודת ההתחלה כלולים כבר במספרים שהזנתם. מכאן ואילך טיפול שמסומן ״הושלם״ ויש בו סכום יתווסף אוטומטית.<br>' +
+      'אם משפחה שכבר נכללת במספר ההתחלה חוזרת עם טיפול חדש, היא תיספר שוב אלא אם יש לה רשומה קודמת במערכת.';
   }
 
   /* ---------- questionnaire editor ---------- */
