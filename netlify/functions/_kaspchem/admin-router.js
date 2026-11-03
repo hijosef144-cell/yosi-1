@@ -62,13 +62,30 @@ on('GET', '/requests/(\\d+)', async (c, id) => {
     db.query("SELECT id, amount::text AS amount, amount_basis FROM outcomes WHERE request_id = $1 AND source = 'system' AND voided_at IS NULL ORDER BY id", [rid])
   ]);
   // Show the answers with their original wording so staff don't need to decode ids.
-  const readable = topic ? engine.visibleQuestions(topic, r.answers).map((q) => ({
-    question: q.text, answer: [].concat(r.answers[q.id]).map((id) => (q.options.find((o) => o.id === id) || {}).label || id).join(' · ')
-  })) : [];
-  // The quick check's findings point at other topics: show "topic: reason" so staff see which topics were recommended.
-  const fTitle = (rule, fid) => { const f = (rule || {}).finding || {}; const t = f.title || fid; return topic && topic.kind === 'router' && f.groupTitle ? f.groupTitle + ': ' + t + (f.needsInfo ? ' (חסר מידע)' : '') : t; };
-  const findings = topic ? (r.findings || []).map((fid) => fTitle(topic.rules.find((x) => x.id === fid), fid)) : r.findings;
-  const findingDetails = topic ? (r.findings || []).map((fid) => { const rule = topic.rules.find((x) => x.id === fid) || {}; return { id: fid, title: fTitle(rule, fid), refer: (rule.finding || {}).refer || null, serviceTag: rule.serviceTag || null }; }) : [];
+  let readable, findings, findingDetails;
+  if (topic && topic.kind === 'deep') {
+    // The deep check: answers are profile + topic questions (qualified ids), findings are stored as "tier:ruleId" and shown grouped by tier.
+    const deep = await content.loadDeepConfig();
+    const eff = deep ? engine.deepEffective(deep, r.answers) : { answers: {}, visible: {} };
+    readable = deep ? deep.questions.filter((q) => eff.answers[q.id] != null).map((q) => ({
+      question: q.text, answer: [].concat(r.answers[q.id]).map((id) => (q.options.find((o) => o.id === id) || {}).label || id).join(' · ')
+    })) : [];
+    const TIER = { high: 'סבירות גבוהה', missing: 'חסר מידע', low: 'סבירות נמוכה' };
+    findingDetails = (r.findings || []).map((s) => {
+      const m = /^(high|missing|low):(.+)$/.exec(String(s)) || [null, 'high', String(s)];
+      const rule = (deep && deep.rules.find((x) => x.id === m[2])) || {};
+      return { id: m[2], tier: m[1], tierLabel: TIER[m[1]], title: (rule.finding || {}).title || m[2], refer: (rule.finding || {}).refer || null, serviceTag: rule.serviceTag || null };
+    });
+    findings = findingDetails.map((d) => d.tierLabel + ': ' + d.title);
+  } else {
+    readable = topic ? engine.visibleQuestions(topic, r.answers).map((q) => ({
+      question: q.text, answer: [].concat(r.answers[q.id]).map((id) => (q.options.find((o) => o.id === id) || {}).label || id).join(' · ')
+    })) : [];
+    // The quick check's findings point at other topics: show "topic: reason" so staff see which topics were recommended.
+    const fTitle = (rule, fid) => { const f = (rule || {}).finding || {}; const t = f.title || fid; return topic && topic.kind === 'router' && f.groupTitle ? f.groupTitle + ': ' + t + (f.needsInfo ? ' (חסר מידע)' : '') : t; };
+    findings = topic ? (r.findings || []).map((fid) => fTitle(topic.rules.find((x) => x.id === fid), fid)) : r.findings;
+    findingDetails = topic ? (r.findings || []).map((fid) => { const rule = topic.rules.find((x) => x.id === fid) || {}; return { id: fid, title: fTitle(rule, fid), refer: (rule.finding || {}).refer || null, serviceTag: rule.serviceTag || null }; }) : [];
+  }
   await audit(c.me.email, 'request.view', 'request', rid, {}); // who looked at personal details, not only who changed something
   return { request: Object.assign({}, r, { readable, findingTitles: findings, findingDetails }), notes, consents, revenues, outcome: (() => { const own = outcomeRows.filter((o) => o.amount_basis === 'documented' && Number(o.amount) > 0); return { any: outcomeRows.length, count: own.length, id: own.length === 1 ? Number(own[0].id) : null, amount: own.reduce((t, o) => t + Math.round(Number(o.amount) * 100), 0) / 100 }; })() };
 });
@@ -229,17 +246,17 @@ on('POST', '/revenues/(\\d+)/decide', async (c, id) => {
 on('GET', '/questionnaires', async () => {
   const topics = await content.loadTopics();
   const rows = await db.query('SELECT id, topic, version, status, note, created_by, created_at, published_at FROM questionnaire_versions ORDER BY topic, version DESC');
-  return { topics: topics.map((t) => ({ id: t.id, name: t.name, live: t.versionLabel, versions: rows.filter((r) => r.topic === t.id) })) };
+  return { topics: topics.map((t) => ({ id: t.id, name: t.name, kind: t.kind || null, live: t.versionLabel, versions: rows.filter((r) => r.topic === t.id) })) };
 });
 on('GET', '/questionnaires/([a-z-]+)', async (c, topic) => {
   const live = await content.loadTopic(topic);
-  if (!live) throw new HttpError(404, 'not_found');
+  if (!live || live.kind === 'deep') throw new HttpError(404, 'not_found'); // the deep route (profile, facts, gates) is edited in the content file, not in the questionnaire editor
   const draft = (await db.query("SELECT id, version, content, note FROM questionnaire_versions WHERE topic = $1 AND status = 'draft' ORDER BY version DESC LIMIT 1", [topic]))[0] || null;
   return { live, draft };
 });
 on('PUT', '/questionnaires/([a-z-]+)/draft', async (c, topic) => {
   const seedT = content.seedTopic(topic);
-  if (!seedT) throw new HttpError(404, 'not_found');
+  if (!seedT || seedT.kind === 'deep') throw new HttpError(404, 'not_found');
   const cfg = c.body.content;
   if (!cfg || typeof cfg !== 'object' || JSON.stringify(cfg).length > 120000) throw new HttpError(400, 'bad_content');
   const errors = engine.lint(cfg);

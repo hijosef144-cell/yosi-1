@@ -10,7 +10,7 @@ const GM = require('../scripts/golden-master.js');
 
 const CONTENT = path.join(__dirname, '..', 'kaspchem', 'content');
 const TEN = JSON.parse(fs.readFileSync(path.join(CONTENT, 'topics.json'), 'utf8')).topics;        // topics.json: exactly the ten check topics
-const ROUTES = JSON.parse(fs.readFileSync(path.join(CONTENT, 'routes.json'), 'utf8')).topics;     // routes.json: entry routes (the quick check)
+const ROUTES = JSON.parse(fs.readFileSync(path.join(CONTENT, 'routes.json'), 'utf8')).topics.filter((t) => t.kind !== 'deep');     // routes.json: entry routes (the quick check; the deep check has its own tests)
 const Q = ROUTES.find((t) => t.id === 'quick');
 const TEN_IDS = TEN.map((t) => t.id);
 const PRIORITY = ['lost-funds', 'tax-refunds', 'national-insurance', 'mortgage', 'insurance-pension', 'banking-loans', 'household', 'housing', 'payslip-rights', 'education-work'];

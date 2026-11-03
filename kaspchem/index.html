@@ -15,6 +15,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@500;700;900&family=Heebo:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/kaspchem/assets/kaspchem.css">
 <script src="/kaspchem/assets/impact-hint.js"></script>
+<script>try{if(localStorage.getItem('kasp:dp')==='1')document.documentElement.classList.add('dp-expect')}catch(e){}</script>
 <script src="/kaspchem/assets/impact.js" defer></script>
 </head>
 <body>
@@ -41,11 +42,19 @@
       <p class="lede">בחרו תחום, ענו על שלוש עד חמש שאלות קצרות וקבלו מיד תמונה של מה שכדאי לבדוק. בלי להשאיר פרטים לפני התוצאה.</p>
       <ul class="chips"><li>עשרה תחומים</li><li>כמה דקות בלבד</li><li>התוצאה מוצגת במלואה</li></ul>
       <!-- stage 4: the featured quick-check tile. NOT one of the ten .tile cubes (own class, outside #tiles), so the ring of light and the tile tests are unaffected. -->
+      <div class="dp-feat" id="dp-feat">
       <a class="qk-tile" href="/kaspchem/check/quick">
         <span class="qk-face"><svg class="ico" width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M24 4v40"/><path d="M16 44h16"/><path d="M24 9h14l4 5.5-4 5.5H24"/><path class="a" d="M24 25H10l-4 5.5 4 5.5h14"/></svg></span>
         <span class="qk-txt"><span class="qk-h">אני לא יודע מה מגיע לי — תבדקו אותי</span><span class="qk-sub">עד עשר שאלות קצרות</span></span>
         <svg class="qk-arrow" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M15 5l-7 7 7 7"/></svg>
       </a>
+      <!-- stage 5: the deep check tile. Hidden until /api/kaspchem/config says public.deep_enabled is true; with it off nothing here is shown or reserved. -->
+      <a class="dp-tile" id="dp-tile" href="/kaspchem/check/deep" hidden>
+        <span class="qk-face"><svg class="ico" width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M24 5l19 9.5L24 24 5 14.5z"/><path d="M5 24l19 9.5L43 24"/><path class="a" d="M5 33.5L24 43l19-9.5"/></svg></span>
+        <span class="qk-txt"><span class="qk-h">תבדקו אותי לעומק</span><span class="qk-sub">בדיקה מקיפה של עד 15 דקות, עם שאלות שמתאימות את עצמן אליכם</span></span>
+        <svg class="qk-arrow" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M15 5l-7 7 7 7"/></svg>
+      </a>
+      </div>
       <h2 class="tiles-title" id="pick">איזה תחום תרצו לבדוק קודם?</h2>
       <ul class="tiles" id="tiles" aria-labelledby="pick">
 <!--tiles:start-->

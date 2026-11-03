@@ -44,6 +44,12 @@
   fetch('/api/kaspchem/config').then(function (r) { return r.ok ? r.json() : null; })
     .then(function (c) {
       if (!c) return;
+      // The deep check tile (stage 5): shown only when the config says it is switched on. This browser remembers that (a flag, nothing personal) so the next visit reserves the tile's place before the answer arrives.
+      var dpTile = document.getElementById('dp-tile'), dpFeat = document.getElementById('dp-feat'), dpOn = !!(c.settings && c.settings.deep_enabled === true && (c.topics || []).some(function (t) { return t.kind === 'deep'; }));
+      if (dpTile && dpFeat) {
+        dpTile.hidden = !dpOn; dpFeat.classList.toggle('dp-on', dpOn); document.documentElement.classList.remove('dp-expect');
+        try { if (dpOn) localStorage.setItem('kasp:dp', '1'); else localStorage.removeItem('kasp:dp'); } catch (e) {}
+      }
       // Legal-entity details are shown only if an admin entered them (nothing is assumed about registration or who receives payments).
       var d = c.settings && c.settings.org_details;
       if (d) ['org-details', 'org-details-foot'].forEach(function (id) { var el = document.getElementById(id); if (el) { el.textContent = d; el.hidden = false; } });

@@ -12,6 +12,8 @@
     'household': '<path d="M24 5a12 12 0 0 0-6.5 22v6h13v-6A12 12 0 0 0 24 5z"/><path d="M19 38h10M21 43h6"/><path class="a" d="M21 27l3-7 3 7"/>',
     'education-work': '<path d="M3 18L24 7l21 11-21 11z"/><path d="M12 23.5v9c0 3 5.5 6 12 6s12-3 12-6v-9"/><path class="a" d="M45 18v12"/>',
     // the quick check: a signpost (it points you to the right topic)
+    // the deep check: stacked layers (it goes below the surface)
+    'deep': '<path d="M24 5l19 9.5L24 24 5 14.5z"/><path d="M5 24l19 9.5L43 24"/><path class="a" d="M5 33.5L24 43l19-9.5"/>',
     'quick': '<path d="M24 4v40"/><path d="M16 44h16"/><path d="M24 9h14l4 5.5-4 5.5H24"/><path class="a" d="M24 25H10l-4 5.5 4 5.5h14"/>'
   };
   window.KaspIcon = function (name, size) {

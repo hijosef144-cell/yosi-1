@@ -5,6 +5,7 @@
   var main = document.getElementById('main');
   var topicId = (location.pathname.match(/\/kaspchem\/check\/([a-z-]+)/) || [])[1];
   var settings = {}, busy = false, topics = [], topic = null, answers = {}, order = [], enc = '', goingBack = false;
+  var dcfg = null, D = null; // the deep check (kind "deep") only: its composed config, and its screens (assets/deep.js, loaded on demand). Both stay null for every other check.
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var STORE = 'kaspchem:' + topicId;
   var GENERIC_ENC = ['מצוין, ממשיכים.', 'עוד קצת ואנחנו שם.', 'כמעט סיימנו.'];
@@ -18,13 +19,19 @@
   function fetchJson(u) { return fetch(u).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }); }
   fetchJson('/api/kaspchem/config').catch(function () { // fallback when the API is down: the ten topics and the entry routes (quick check), both static files
       return Promise.all([fetchJson('/kaspchem/content/topics.json'), fetchJson('/kaspchem/content/routes.json').catch(function () { return { topics: [] }; })])
-        .then(function (r) { return { topics: r[0].topics.concat(r[1].topics || []) }; });
+        .then(function (r) { return { topics: r[0].topics.concat((r[1].topics || []).filter(function (t) { return t.kind !== 'deep'; })) }; }); // API down: the deep check is never shown (its switch is unknown)
     })
     .then(function (c) {
       topics = c.topics; settings = c.settings || {};
       topic = topics.filter(function (t) { return t.id === topicId; })[0];
+      if (!topic && topicId === 'deep') { // switched off (or unknown): a friendly page, nothing about the check itself is loaded or computed
+        document.title = 'בדיקה מעמיקה – בקרוב – כספכם';
+        app.innerHTML = '<div class="dp-soon"><h1>הבדיקה המעמיקה תיפתח בקרוב</h1><p>אנחנו עדיין מכינים אותה. בינתיים אפשר לעשות בדיקה מהירה של כמה דקות, או לבדוק תחום מסוים.</p><div class="cta-row dp-soon-row"><a class="btn" href="/kaspchem/check/quick">לבדיקה מהירה</a><a class="btn link" href="/kaspchem">חזרה לכל התחומים</a></div></div>';
+        return;
+      }
       if (!topic) { app.innerHTML = '<h1>התחום לא נמצא</h1><p><a href="/kaspchem">חזרה לכל התחומים</a></p>'; return; }
       document.title = topic.kind === 'router' ? topic.name + ' – כספכם' : topic.name + ' – בדיקה בכספכם';
+      if (topic.kind === 'deep') return startDeep();
       load();
       answers = E.pruneAnswers(topic, answers);
       Object.keys(answers).forEach(function (k) { var qd = topic.questions.filter(function (x) { return x.id === k; })[0]; if (!qd || !!qd.multi !== Array.isArray(answers[k]) || [].concat(answers[k]).some(function (id) { return !qd.options.some(function (o) { return o.id === id; }); })) delete answers[k]; }); // stale shape or a removed option after a questionnaire edit
@@ -34,6 +41,48 @@
       step();
     })
     .catch(function () { app.innerHTML = '<h1>לא הצלחנו לטעון את השאלון</h1><p>נסו לרענן את הדף, או <a href="/kaspchem">חזרו לדף הראשי</a>.</p>'; });
+
+  /* ---------- the deep check: composed here from the route and the served topics; its screens live in assets/deep.js ---------- */
+  function findQ(id) { return (dcfg || topic).questions.filter(function (x) { return x.id === id; })[0]; }
+  function prune(a) { return dcfg ? E.deepPrune(dcfg, a) : E.pruneAnswers(topic, a); }
+  function startDeep() {
+    dcfg = E.buildDeep(topic, topics);
+    var sc = document.createElement('script');
+    sc.src = '/kaspchem/assets/deep.js';
+    sc.onload = function () {
+      D = window.KaspDeep; D.init(ctx);
+      load();
+      answers = prune(answers);
+      Object.keys(answers).forEach(function (k) { var qd = findQ(k); if (!qd || !!qd.multi !== Array.isArray(answers[k]) || [].concat(answers[k]).some(function (id) { return !qd.options.some(function (o) { return o.id === id; }); })) delete answers[k]; }); // stale shape or a removed option
+      answers = prune(answers);
+      order = order.filter(function (id) { return answers[id] != null; });
+      history.replaceState({ n: order.length }, '');
+      step();
+    };
+    sc.onerror = function () { app.innerHTML = '<h1>לא הצלחנו לטעון את הבדיקה</h1><p>נסו לרענן את הדף, או <a href="/kaspchem">חזרו לדף הראשי</a>.</p>'; };
+    document.head.appendChild(sc);
+  }
+  // what the deep screens may use of this file (they never touch the lead form or the stored answers except through these)
+  var ctx = {
+    app: app, E: E, esc: esc, reduce: reduce,
+    topic: function () { return topic; }, cfg: function () { return dcfg; }, topics: function () { return topics; }, settings: function () { return settings; },
+    answers: function () { return answers; }, order: function () { return order; }, goingBack: function () { var g = goingBack; goingBack = false; return g; },
+    onPick: function (ev) { return onPick(ev); }, onToggle: function (ev) { return onToggle(ev); }, commitMulti: function (q) { return commitMulti(q); },
+    crumb: function () { return crumb(); }, focusMain: function () { return focusMain(); }, findingExtras: function (f) { return findingExtras(f); },
+    back: function () { history.back(); },
+    fixLast: function () { var last = order.pop(); delete answers[last]; save(); goingBack = true; step(); },
+    goTo: function (id) { // complete an earlier answer: only that answer is taken back (and whatever depended on it is dropped by pruning); every other answer is kept
+      if (answers[id] == null) return false;
+      delete answers[id]; answers = prune(answers); order = order.filter(function (k) { return answers[k] != null; });
+      save(); goingBack = true; history.pushState({ n: order.length }, ''); step(); return true;
+    },
+    wireCta: function (onFix) { // the lead gate and the button, exactly as on every other result screen
+      var cta = document.getElementById('cta');
+      if (cta && settings.legal_approved !== true) { var closed = document.createElement('p'); closed.className = 'note'; closed.textContent = 'השארת פרטים תיפתח בקרוב. בינתיים אפשר לבדוק תחומים נוספים.'; cta.replaceWith(closed); cta = null; }
+      if (cta) cta.addEventListener('click', openForm);
+      var fix = document.getElementById('fix'); if (fix && onFix) fix.addEventListener('click', onFix);
+    }
+  };
 
   /* ---------- question screen ---------- */
   function crumb() { return '<div class="crumb">' + KaspIcon(topic.icon, 28) + '<span>' + esc(topic.name) + '</span><span class="kp-mini" aria-hidden="true">' + KaspProgress.miniHtml() + '</span></div>'; }
@@ -52,6 +101,7 @@
 
   function step() {
     busy = false;
+    if (D) return D.step(); // the deep check draws its own screens
     var q = E.nextQuestion(topic, answers);
     if (!q) return result();
     var p = E.progress(topic, answers);
@@ -86,9 +136,9 @@
     var changed = JSON.stringify(answers[q]) !== JSON.stringify(o);
     answers[q] = o;
     if (order.indexOf(q) === -1) order.push(q);
-    if (changed) { answers = E.pruneAnswers(topic, answers); order = order.filter(function (id) { return answers[id] != null; }); }
-    var qdef = topic.questions.filter(function (x) { return x.id === q; })[0];
-    enc = qdef.encourage || GENERIC_ENC[Math.min(order.length - 1, GENERIC_ENC.length - 1)];
+    if (changed) { answers = prune(answers); order = order.filter(function (id) { return answers[id] != null; }); }
+    var qdef = findQ(q);
+    enc = dcfg ? '' : (qdef.encourage || GENERIC_ENC[Math.min(order.length - 1, GENERIC_ENC.length - 1)]);
     save();
     history.pushState({ n: order.length }, '');
     setTimeout(step, reduce ? 0 : 180); // brief confirmation of the tap before moving on
@@ -113,8 +163,8 @@
     var changed = JSON.stringify(answers[q.id]) !== JSON.stringify(picked);
     answers[q.id] = picked;
     if (order.indexOf(q.id) === -1) order.push(q.id);
-    if (changed) { answers = E.pruneAnswers(topic, answers); order = order.filter(function (id) { return answers[id] != null; }); }
-    enc = q.encourage || GENERIC_ENC[Math.min(order.length - 1, GENERIC_ENC.length - 1)];
+    if (changed) { answers = prune(answers); order = order.filter(function (id) { return answers[id] != null; }); }
+    enc = dcfg ? '' : (q.encourage || GENERIC_ENC[Math.min(order.length - 1, GENERIC_ENC.length - 1)]);
     save();
     history.pushState({ n: order.length }, '');
     step();
@@ -129,6 +179,7 @@
   var res = null;
   var PRELIM = '<p class="prelim">תוצאות ראשוניות בלבד</p>'; // the only caveat on the result screen; the lead form's consent text and the legal pages are unchanged
   function result() {
+    if (D) return D.result();
     res = E.evaluate(topic, answers);
     enc = '';
     app.innerHTML = crumb() + '<div class="progress segs" aria-hidden="true">' + segs({ done: E.progress(topic, answers).total, total: E.progress(topic, answers).total }) + '</div><div style="height:1.2rem"></div>' +
@@ -299,7 +350,7 @@
 
   function thanks() {
     try { sessionStorage.removeItem(STORE); } catch (e) {}
-    var others = topics.filter(function (t) { return t.id !== topic.id && t.kind !== 'router'; }); // the quick check is not offered as "another topic"
+    var others = topics.filter(function (t) { return t.id !== topic.id && t.kind !== 'router' && t.kind !== 'deep'; }); // the quick and deep checks are not offered as "another topic"
     var slot = document.getElementById('lead-slot');
     slot.innerHTML = '<div class="lead done" id="done" tabindex="-1"><div class="tick"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"/></svg></div>' +
       '<h2>הפנייה התקבלה, תודה</h2><p>נחזור אליכם בנושא <strong>' + esc(topic.name) + '</strong>. בינתיים, אפשר להמשיך לבדוק תחומים נוספים:</p>' +

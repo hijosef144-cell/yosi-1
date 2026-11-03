@@ -1,5 +1,6 @@
 'use strict';
 const db = require('./db');
+const engine = require('../../../kaspchem/assets/engine.js');
 let seed = require('../../../kaspchem/content/topics.json');
 // Entry routes (stage 4: the quick check; later the deep check) live in their own file, never in topics.json: topics.json is the ten check topics and may be
 // replaced wholesale (e.g. by a V6 publish); routes.json is separate so nothing that regenerates topics.json can drop a route.
@@ -43,4 +44,23 @@ async function loadTopic(id) {
   return (await loadTopics()).find((t) => t.id === id) || null;
 }
 
-module.exports = { loadTopics, loadTopic, seed, routes, seedTopic, setSeed, routeProblems };
+// Stage 5, the deep check. It ships gated OFF: nothing about it is served, and no lead for it is accepted, unless the public setting `deep_enabled` is true.
+// An unreadable setting or no database means "off".
+async function deepEnabled() {
+  if (!db.configured()) return false;
+  try { const r = await db.query("SELECT value FROM settings WHERE key = 'public.deep_enabled'"); return r.length > 0 && r[0].value === true; }
+  catch (e) { return false; }
+}
+
+// The deep route composed with the topics that are served right now (the ten, or whatever replaced them). Same builder as in the browser.
+async function loadDeepConfig() {
+  const all = await loadTopics();
+  const route = all.find((t) => t.kind === 'deep');
+  if (!route) return null;
+  const served = all.filter((t) => t.kind !== 'router' && t.kind !== 'deep');
+  const cfg = engine.buildDeep(route, served);
+  cfg.versionLabel = ('deep:' + route.versionLabel + '+' + Array.from(new Set(served.map((t) => t.versionLabel))).sort().join(',')).slice(0, 60);
+  return cfg;
+}
+
+module.exports = { loadTopics, loadTopic, seed, routes, seedTopic, setSeed, routeProblems, deepEnabled, loadDeepConfig };

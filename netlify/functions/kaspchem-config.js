@@ -11,7 +11,7 @@ exports.handler = async (event) => {
     catch (e) { logError('health', e); return json(503, { ok: false }, { 'Cache-Control': 'no-store' }); } // only ok/not ok: no reason, no configuration state
   }
   try {
-    const topics = await content.loadTopics();
+    let topics = await content.loadTopics();
     let settings = {}, prices = [];
     if (db.configured()) {
       try {
@@ -19,6 +19,8 @@ exports.handler = async (event) => {
         prices = await db.query("SELECT p.id, p.label, p.price, s.topic FROM pricing p LEFT JOIN services s ON s.id = p.service_id WHERE p.approved AND p.public AND p.price IS NOT NULL");
       } catch (e) { logError('config', e); }
     }
+    // The deep check is served only when switched on (public.deep_enabled === true). Off: the route is not in the answer at all, and neither is the flag.
+    if (settings.deep_enabled !== true) { topics = topics.filter((t) => t.kind !== 'deep'); delete settings.deep_enabled; }
     return json(200, { ok: true, topics, settings, prices }, { 'Cache-Control': 'public, max-age=60' });
   } catch (e) { logError('config', e); return fail(500, 'server_error'); }
 };

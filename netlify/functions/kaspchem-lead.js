@@ -28,6 +28,13 @@ exports.handler = async (event) => {
 
     const topic = await content.loadTopic(String(b.topic || ''));
     if (!topic) throw new HttpError(400, 'bad_topic');
+    // The deep check is accepted only while it is switched on (public.deep_enabled). Switched off, it is an unknown topic: visitors cannot use it.
+    let deep = null;
+    if (topic.kind === 'deep') {
+      if (!(await content.deepEnabled())) throw new HttpError(400, 'bad_topic');
+      deep = await content.loadDeepConfig();
+      if (!deep) throw new HttpError(400, 'bad_topic');
+    }
 
     const name = cleanText(b.name, 2, 80);
     const phone = normalizePhone(b.phone);
@@ -39,8 +46,18 @@ exports.handler = async (event) => {
 
     // The outcome is recomputed here from the stored rules; whatever the browser claims is ignored.
     const answers = b.answers;
-    if (!engine.validateAnswers(topic, answers)) throw new HttpError(400, 'bad_answers');
-    const result = engine.evaluate(topic, answers);
+    let outcome, findingIds;
+    if (deep) {
+      // Same shared engine, three tiers. Stored in the existing columns: outcome (found = at least one high-likelihood item, insufficient = only missing-information
+      // items, none) and findings = "tier:ruleId" strings. The profile and topic answers are stored as typed.
+      if (!engine.deepValidate(deep, answers)) throw new HttpError(400, 'bad_answers');
+      const r = engine.evaluateDeep(deep, answers);
+      outcome = r.outcome; findingIds = engine.deepFindingIds(r);
+    } else {
+      if (!engine.validateAnswers(topic, answers)) throw new HttpError(400, 'bad_answers');
+      const result = engine.evaluate(topic, answers);
+      outcome = result.outcome; findingIds = result.findings.map((f) => f.id);
+    }
 
     const hash = ipHash(clientIp(event));
     if (db.configured()) {
@@ -73,8 +90,8 @@ exports.handler = async (event) => {
          SELECT applicant_id, id, 'marketing', $10::boolean, $11, $12 FROM r
          RETURNING 1)
        SELECT id FROM r`,
-      [name, phone, email, topic.id, topic.questionnaireId, topic.versionLabel, JSON.stringify(answers), result.outcome,
-        JSON.stringify(result.findings.map((f) => f.id)), b.consentMarketing === true, CONSENT_VERSION, hash]);
+      [name, phone, email, topic.id, topic.questionnaireId, deep ? deep.versionLabel : topic.versionLabel, JSON.stringify(answers), outcome,
+        JSON.stringify(findingIds), b.consentMarketing === true, CONSENT_VERSION, hash]);
 
     // Every successfully received lead alerts everyone in KASPCHEM_NOTIFY_EMAILS. Only a request number and the field of the check: no name, phone, e-mail or answers.
     await opsAlert('התקבלה פנייה חדשה', 'התקבלה פנייה חדשה בתחום "' + topic.name + '" (מספר פנייה ' + rows[0].id + '). הפרטים זמינים בדשבורד בלבד.');

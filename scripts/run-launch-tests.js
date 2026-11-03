@@ -9,7 +9,7 @@ const root = path.join(__dirname, '..');
 const repeat = Math.max(1, Number((process.argv.find((a) => /^--repeat=?/.test(a)) || '').split('=')[1]) || (process.argv.includes('--repeat') ? Number(process.argv[process.argv.indexOf('--repeat') + 1]) : 1));
 const privateDir = path.join(root, 'docs', 'research', 'private-tests');
 const allWidths = process.argv.includes('--all-widths'); // run the width-restricted specs at all four widths too (no skip is then expected)
-const ALLOWED_SKIP = allWidths ? [] : [/checked on desktop and one phone width/, /admin checked on desktop and one phone width/];
+const ALLOWED_SKIP = (allWidths ? [] : [/checked on desktop and one phone width/, /admin checked on desktop and one phone width/]).concat([/the private research folder is not linked/]); // the deep-check tests on the V6 draft need the local research folder; without it they skip with that reason
 const sh = (cmd, args, opts) => spawnSync(cmd, args, Object.assign({ cwd: root, encoding: 'utf8', maxBuffer: 200 * 1024 * 1024, shell: process.platform === 'win32' }, opts || {}));
 
 function playwrightRun(label, configArgs) {
@@ -31,7 +31,7 @@ function playwrightRun(label, configArgs) {
 let exit = 0;
 for (let n = 1; n <= repeat; n++) {
   console.log(`\n=== run ${n}/${repeat}  ${new Date().toISOString()} ===`);
-  const u = sh('node', ['--test', '--test-concurrency=1', 'tests/backend.test.js', 'tests/backend-launch-prep.test.js', 'tests/backend-ops-alerts.test.js', 'tests/backend-impact.test.js', 'tests/engine.test.js', 'tests/engine-identity.test.js', 'tests/engine-quick.test.js', 'tests/quick-alignment.test.js', 'tests/backend-quick.test.js', 'tests/routes.test.js', 'tests/launch-smoke.test.js']);
+  const u = sh('node', ['--test', '--test-concurrency=1', 'tests/backend.test.js', 'tests/backend-launch-prep.test.js', 'tests/backend-ops-alerts.test.js', 'tests/backend-impact.test.js', 'tests/engine.test.js', 'tests/engine-identity.test.js', 'tests/engine-quick.test.js', 'tests/quick-alignment.test.js', 'tests/backend-quick.test.js', 'tests/engine-deep.test.js', 'tests/deep-alignment.test.js', 'tests/backend-deep.test.js', 'tests/routes.test.js', 'tests/launch-smoke.test.js']);
   const pass = Number((/ℹ pass (\d+)/.exec(u.stdout) || [])[1] || 0), fail = Number((/ℹ fail (\d+)/.exec(u.stdout) || [])[1] || 0);
   console.log(`server + engine tests: ${pass} passed, ${fail} failed`);
   const results = [playwrightRun('public', [])];

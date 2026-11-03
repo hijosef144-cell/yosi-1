@@ -810,6 +810,644 @@
         "insufficientBody": "ענית ״לא בטוח/ה״ על חלק מהשאלות ואין לנו די בסיס להמלצה. אפשר לחזור ולתקן, או לבחור תחום ולבדוק אותו ישירות.",
         "noneBody": "לפי התשובות לא עלה תחום שבולט כנקודת התחלה. אפשר לבדוק כל אחד מעשרת התחומים בנפרד, הבדיקה קצרה."
       }
+    },
+    {
+      "id": "deep",
+      "slug": "deep",
+      "icon": "deep",
+      "kind": "deep",
+      "name": "בדיקה מעמיקה",
+      "order": 12,
+      "tagline": "בדיקה מקיפה של כ־15 דקות, עם שאלות שמתאימות את עצמן אליכם",
+      "intro": "בדיקה מקיפה של כ־15 דקות. קודם כמה שאלות על המצב שלכם, ואחר כך שאלות רק בתחומים שרלוונטיים אליכם. בסוף נציג מה כדאי לבדוק, לפי סבירות. אפשר לחזור לשאלה הקודמת, ובשאלות אישיות אפשר לבחור ״מעדיפ/ה לא לענות״.",
+      "messages": {
+        "found": "זיהינו {n} נושאים בסבירות גבוהה שכדאי לבדוק",
+        "foundOne": "זיהינו נושא אחד בסבירות גבוהה שכדאי לבדוק",
+        "insufficient": "חסר לנו מידע כדי להצביע על נושא",
+        "none": "לא עלה נושא מיוחד לבדיקה כרגע",
+        "insufficientBody": "על חלק מהשאלות ענית ״לא יודע/ת״ או ״מעדיפ/ה לא לענות״, ואין לנו די בסיס כדי להצביע על נושא. אפשר לחזור ולהשלים תשובות.",
+        "noneBody": "לפי התשובות לא עלה נושא ממוקד. תוצאה כזו אינה הוכחה שאין מה לבדוק. אפשר לבדוק כל אחד מהתחומים בנפרד.",
+        "running": "כרגע {n} נושאים שכדאי לבדוק",
+        "runningOne": "כרגע נושא אחד שכדאי לבדוק",
+        "runningNone": "עוד לא זיהינו נושא לבדיקה",
+        "highTitle": "סבירות גבוהה",
+        "highSub": "לפי התשובות שלכם, אלה הנושאים שהכי כדאי לבדוק קודם. זו אינה קביעה שיש זכאות.",
+        "missingTitle": "חסר מידע — כדאי להמשיך לבדיקה",
+        "missingSub": "בנושאים האלה אין לנו די מידע כדי לומר אם יש מה לבדוק. אפשר לחזור להשלים את התשובה, או להמשיך לבדיקה.",
+        "lowTitle": "סבירות נמוכה",
+        "lowSub": "נושאים שעלו מסימן חלש בלבד. כדאי להכיר אותם, אך הם פחות בעדיפות.",
+        "partGet": "מה אפשר לקבל",
+        "partHow": "איך זה עובד",
+        "partHelp": "מי יכול לעזור",
+        "missingLine": "חסר מידע:",
+        "completeAnswer": "השלמת התשובה",
+        "sensitiveNote": "אפשר לבחור ״מעדיפ/ה לא לענות״ ונמשיך. אז נציין בתוצאה שחסר מידע."
+      },
+      "phases": [
+        {
+          "id": "profile",
+          "label": "פרופיל"
+        },
+        {
+          "id": "topics",
+          "label": "תחומים"
+        },
+        {
+          "id": "summary",
+          "label": "סיכום"
+        }
+      ],
+      "topics": [
+        "lost-funds",
+        "tax-refunds",
+        "payslip-rights",
+        "housing",
+        "mortgage",
+        "national-insurance",
+        "insurance-pension",
+        "banking-loans",
+        "household",
+        "education-work"
+      ],
+      "profile": {
+        "questions": [
+          {
+            "id": "home",
+            "text": "מה מצב המגורים שלכם?",
+            "help": "נשאל את זה פעם אחת ולא נחזור על זה בהמשך.",
+            "options": [
+              {
+                "id": "owner",
+                "label": "דירה בבעלותנו, וגרים בה"
+              },
+              {
+                "id": "renter",
+                "label": "שוכרים דירה, ואין לנו דירה בבעלות"
+              },
+              {
+                "id": "renter_owns",
+                "label": "שוכרים דירה, ויש לנו דירה בבעלות (למשל מושכרת לאחרים)"
+              },
+              {
+                "id": "other_bill",
+                "label": "דיור ציבורי או מקום אחר, וחשבון הארנונה על שמנו"
+              },
+              {
+                "id": "other",
+                "label": "גרים אצל משפחה או במקום אחר, ואין חיוב ארנונה על שמנו"
+              }
+            ]
+          },
+          {
+            "id": "mortgage",
+            "text": "מה מצבכם לגבי משכנתה?",
+            "help": "נשאל את זה פעם אחת ולא נחזור על זה בהמשך.",
+            "options": [
+              {
+                "id": "yes",
+                "label": "יש לנו משכנתה"
+              },
+              {
+                "id": "plan",
+                "label": "מתכננים לקחת משכנתה"
+              },
+              {
+                "id": "no",
+                "label": "אין ואין תכנון"
+              }
+            ]
+          },
+          {
+            "id": "worknow",
+            "text": "מה מצבכם התעסוקתי כיום?",
+            "help": "בחרו את מה שמתאים ביותר.",
+            "options": [
+              {
+                "id": "employee",
+                "label": "שכיר/ה"
+              },
+              {
+                "id": "self",
+                "label": "עצמאי/ת"
+              },
+              {
+                "id": "notworking",
+                "label": "לא עובד/ת כרגע"
+              },
+              {
+                "id": "retired",
+                "label": "גמלאי/ת"
+              },
+              {
+                "id": "student",
+                "label": "סטודנט/ית, חייל/ת או משוחרר/ת"
+              }
+            ]
+          },
+          {
+            "id": "workhist",
+            "text": "איך עבדתם בשש שנות המס האחרונות?",
+            "help": "שש שנות המס האחרונות הן 2020 עד 2025. אפשר לסמן יותר מאפשרות אחת.",
+            "multi": true,
+            "options": [
+              {
+                "id": "emp",
+                "label": "כשכיר/ה (גם חלק מהשנים או חלק מהשנה)"
+              },
+              {
+                "id": "self",
+                "label": "כעצמאי/ת (גם חלק מהשנים)"
+              },
+              {
+                "id": "none",
+                "label": "לא עבדתי",
+                "exclusive": true
+              }
+            ]
+          },
+          {
+            "id": "family",
+            "text": "מה מתאים למשפחה שלכם עכשיו או בשנה האחרונה?",
+            "help": "אפשר לסמן כמה אפשרויות. הכוונה לבני המשפחה שבאחריותכם, כולל הורים מבוגרים. לכל מצב שתסמנו תיוחד שאלה קצרה אחת. אם שום דבר לא מתאים, סמנו ״אף אחד מאלה״.",
+            "multi": true,
+            "options": [
+              {
+                "id": "birth",
+                "label": "נולד או אומץ ילד בשנה האחרונה, או שאישה במשפחה בהריון"
+              },
+              {
+                "id": "kids",
+                "label": "יש ילדים מתחת לגיל 18 במשפחה"
+              },
+              {
+                "id": "stopped",
+                "label": "מישהו מבני המשפחה הפסיק לעבוד בשנה האחרונה (כשכיר/ה או כעצמאי/ת)"
+              },
+              {
+                "id": "health",
+                "label": "מישהו מבני המשפחה נפגע או חולה, והדבר מקשה עליו/ה לעבוד"
+              },
+              {
+                "id": "reserve",
+                "label": "מישהו מבני המשפחה שירת במילואים בשנה האחרונה"
+              },
+              {
+                "id": "retire",
+                "label": "יש במשפחה אדם שהגיע לגיל הפרישה או מעליו (כולל הורים)"
+              },
+              {
+                "id": "care",
+                "label": "מישהו מבני המשפחה זקוק לעזרה של אדם אחר בפעולות יומיומיות, בגלל גיל או מוגבלות"
+              },
+              {
+                "id": "death",
+                "label": "בן/בת זוג או הורה של ילדי המשפחה נפטרו (גם לפני יותר משנה)"
+              },
+              {
+                "id": "none",
+                "label": "אף אחד מאלה",
+                "exclusive": true
+              }
+            ]
+          }
+        ]
+      },
+      "facts": [
+        {
+          "id": "f-home",
+          "from": "profile.home",
+          "needs": [
+            "housing.status#renter_owns"
+          ],
+          "map": {
+            "owner": {
+              "housing.status": "owner"
+            },
+            "renter": {
+              "housing.status": "renter"
+            },
+            "renter_owns": {
+              "housing.status": "renter_owns"
+            },
+            "other_bill": {
+              "housing.status": "other_bill"
+            },
+            "other": {
+              "housing.status": "other"
+            }
+          }
+        },
+        {
+          "id": "f-home-v1",
+          "from": "profile.home",
+          "needs": [
+            "!housing.status#renter_owns",
+            "housing.status#other"
+          ],
+          "map": {
+            "owner": {
+              "housing.status": "owner"
+            },
+            "renter": {
+              "housing.status": "renter"
+            },
+            "other": {
+              "housing.status": "other"
+            }
+          }
+        },
+        {
+          "id": "f-mortgage",
+          "from": "profile.mortgage",
+          "needs": [
+            "mortgage.has#plan"
+          ],
+          "map": {
+            "yes": {
+              "mortgage.has": "yes"
+            },
+            "plan": {
+              "mortgage.has": "plan"
+            },
+            "no": {
+              "mortgage.has": "no"
+            }
+          }
+        },
+        {
+          "id": "f-work-payslip",
+          "from": "profile.worknow",
+          "needs": [
+            "payslip-rights.emp#now"
+          ],
+          "map": {
+            "employee": {
+              "payslip-rights.emp": "now"
+            },
+            "self": {
+              "payslip-rights.emp": "other"
+            }
+          }
+        },
+        {
+          "id": "f-work-payslip-v1",
+          "from": "profile.worknow",
+          "needs": [
+            "payslip-rights.emp#employee"
+          ],
+          "map": {
+            "employee": {
+              "payslip-rights.emp": "employee"
+            },
+            "self": {
+              "payslip-rights.emp": "self"
+            },
+            "notworking": {
+              "payslip-rights.emp": "none"
+            },
+            "retired": {
+              "payslip-rights.emp": "none"
+            }
+          }
+        },
+        {
+          "id": "f-work-ni-v1",
+          "from": "profile.worknow",
+          "needs": [
+            "national-insurance.work#unemployed"
+          ],
+          "map": {
+            "employee": {
+              "national-insurance.work": "employee"
+            },
+            "self": {
+              "national-insurance.work": "self"
+            },
+            "retired": {
+              "national-insurance.work": "retired"
+            }
+          }
+        },
+        {
+          "id": "f-workhist-tax",
+          "from": "profile.workhist",
+          "needs": [
+            "tax-refunds.kind#emp"
+          ],
+          "map": {
+            "emp": {
+              "tax-refunds.kind": [
+                "emp"
+              ]
+            },
+            "self": {
+              "tax-refunds.kind": [
+                "self"
+              ]
+            },
+            "none": {
+              "tax-refunds.kind": [
+                "none"
+              ]
+            }
+          }
+        },
+        {
+          "id": "f-family-ni",
+          "from": "profile.family",
+          "needs": [
+            "national-insurance.now#care"
+          ],
+          "map": {
+            "birth": {
+              "national-insurance.now": [
+                "birth"
+              ]
+            },
+            "kids": {
+              "national-insurance.now": [
+                "kids"
+              ]
+            },
+            "stopped": {
+              "national-insurance.now": [
+                "stopped"
+              ]
+            },
+            "health": {
+              "national-insurance.now": [
+                "health"
+              ]
+            },
+            "reserve": {
+              "national-insurance.now": [
+                "reserve"
+              ]
+            },
+            "retire": {
+              "national-insurance.now": [
+                "retire"
+              ]
+            },
+            "care": {
+              "national-insurance.now": [
+                "care"
+              ]
+            },
+            "death": {
+              "national-insurance.now": [
+                "death"
+              ]
+            },
+            "none": {
+              "national-insurance.now": [
+                "none"
+              ]
+            },
+            "pna": {
+              "national-insurance.now": [
+                "pna"
+              ]
+            }
+          }
+        }
+      ],
+      "gates": [
+        {
+          "id": "g-payslip",
+          "topic": "payslip-rights",
+          "needs": [
+            "payslip-rights.emp#now"
+          ],
+          "show": {
+            "any": [
+              {
+                "q": "profile.workhist",
+                "in": [
+                  "emp"
+                ]
+              },
+              {
+                "q": "profile.worknow",
+                "in": [
+                  "employee"
+                ]
+              }
+            ]
+          },
+          "why": "זכויות עובדים נבדקות למי שעבד כשכיר/ה בשש השנים האחרונות או עובד/ת כשכיר/ה כיום."
+        },
+        {
+          "id": "g-homeins",
+          "questions": [
+            "household.homeins"
+          ],
+          "needs": [
+            "household.homeins#mortgage"
+          ],
+          "show": {
+            "not": {
+              "q": "profile.home",
+              "in": [
+                "other"
+              ]
+            }
+          },
+          "why": "ביטוח דירה ותכולה נבדק למי שיש חיוב ארנונה על שמו או דירה בבעלותו."
+        }
+      ],
+      "tune": {
+        "profile.family": {
+          "sensitive": {
+            "why": "שואלים כי זכויות מסוימות בביטוח הלאומי תלויות בכך, למשל בלידה, בפגיעה, בצורך בעזרה ובפטירה."
+          },
+          "groups": {
+            "birth": "ילדים ומשפחה",
+            "kids": "ילדים ומשפחה",
+            "death": "ילדים ומשפחה",
+            "stopped": "עבודה והכנסה",
+            "reserve": "עבודה והכנסה",
+            "health": "בריאות, גיל ועזרה",
+            "care": "בריאות, גיל ועזרה",
+            "retire": "בריאות, גיל ועזרה"
+          },
+          "hints": {
+            "care": "כולל הורים מבוגרים שבאחריותכם.",
+            "retire": "כולל הורים."
+          }
+        },
+        "national-insurance.now": {
+          "needs": [
+            "national-insurance.now#care"
+          ],
+          "sensitive": {
+            "why": "שואלים כי זכויות מסוימות בביטוח הלאומי תלויות בכך."
+          }
+        },
+        "national-insurance.healthfacts": {
+          "sensitive": {
+            "why": "שואלים כדי לבדוק אם כדאי להגיש תביעה בגין פגיעה או מחלה."
+          }
+        },
+        "national-insurance.carefacts": {
+          "sensitive": {
+            "why": "שואלים כדי לבדוק קצבאות למי שזקוק לעזרה של אדם אחר."
+          }
+        },
+        "housing.bti": {
+          "sensitive": {
+            "why": "שואלים כי גמלאות מסוימות נזכרות בכללי ההנחה בארנונה ובסיוע בשכר דירה."
+          }
+        },
+        "housing.household": {
+          "sensitive": {
+            "why": "שואלים כי חלק מהפרטים קובעים אם כדאי לבדוק הנחה בארנונה, סיוע בשכר דירה או סבסוד מעון."
+          },
+          "groups": {
+            "single_parent": "משפחה",
+            "daycare": "משפחה",
+            "new_immigrant": "מעמד",
+            "service": "מעמד",
+            "special": "מעמד",
+            "income_low": "הכנסה"
+          },
+          "hints": {
+            "income_low": "תיאור כללי בלבד: הטבלה הרשמית תלויה במספר הנפשות ומתעדכנת מדי שנה.",
+            "daycare": "סבסוד המעון נפרד ואינו תלוי בדיור."
+          }
+        },
+        "tax-refunds.grantfam": {
+          "sensitive": {
+            "why": "שואלים כי מענק עבודה תלוי בנתונים האלה."
+          },
+          "hints": {
+            "kids12": "ילד נחשב אם טרם מלאו לו 19 במהלך שנת המס.",
+            "kids3": "ילד נחשב אם טרם מלאו לו 19 במהלך שנת המס."
+          }
+        },
+        "tax-refunds.inc": {
+          "sensitive": {
+            "why": "שואלים כי טווח ההכנסה משמש לסינון גס של מענק העבודה, וההכרעה נעשית בבודק הרשמי."
+          }
+        },
+        "tax-refunds.events": {
+          "groups": {
+            "jobs": "עבודה",
+            "gap": "עבודה",
+            "retire": "עבודה",
+            "reserve": "שירות ושינויים",
+            "newstat": "שירות ושינויים",
+            "family": "משפחה ותשלומים",
+            "pay": "משפחה ותשלומים"
+          }
+        },
+        "education-work.vetlen": {
+          "sensitive": {
+            "why": "שואלים כי הפיקדון האישי של חייל משוחרר מותנה בתקופת השירות."
+          }
+        },
+        "education-work.ew": {
+          "sensitive": {
+            "why": "שואלים כדי להציג מימון, הכשרות והטבות שמתאימים למצבכם. האפשרות לגבי מסלולים נוספים היא רשות לגמרי."
+          },
+          "groups": {
+            "vet": "שירות ולימודים",
+            "study": "שירות ולימודים",
+            "deg": "שירות ולימודים",
+            "work": "עבודה",
+            "haredi": "מסלולים נוספים"
+          },
+          "hints": {
+            "haredi": "אופציונלי. אין כאן שאלה על מעמד או שירות."
+          }
+        },
+        "lost-funds.events": {
+          "groups": {
+            "death": "ירושה",
+            "jobs": "מקומות עבודה",
+            "selfemp": "מקומות עבודה",
+            "policy": "חסכונות וחשבונות",
+            "bank": "חסכונות וחשבונות",
+            "offer": "הצעות שקיבלתם"
+          }
+        }
+      },
+      "weak": [
+        {
+          "id": "ps-hrs-mgr",
+          "like": "payslip-rights.ps-hrs",
+          "needs": [
+            "payslip-rights.hours#mgr"
+          ],
+          "when": {
+            "all": [
+              {
+                "q": "payslip-rights.emp",
+                "in": [
+                  "now"
+                ]
+              },
+              {
+                "q": "payslip-rights.hours",
+                "in": [
+                  "ot",
+                  "rest"
+                ]
+              },
+              {
+                "q": "payslip-rights.hours",
+                "in": [
+                  "mgr"
+                ]
+              },
+              {
+                "not": {
+                  "q": "payslip-rights.hours",
+                  "in": [
+                    "glob"
+                  ]
+                }
+              },
+              {
+                "not": {
+                  "q": "payslip-rights.lines",
+                  "in": [
+                    "otline",
+                    "unk"
+                  ]
+                }
+              }
+            ]
+          },
+          "note": "תפקיד ניהול בכיר או אמון אישי: החוק אינו חל על חלק מהתפקידים האלה, ולכן הסימן חלש."
+        },
+        {
+          "id": "bk-credit-some",
+          "like": "banking-loans.bk-credit-overview",
+          "needs": [
+            "banking-loans.overdraft#some"
+          ],
+          "when": {
+            "all": [
+              {
+                "q": "banking-loans.overdraft",
+                "in": [
+                  "some"
+                ]
+              },
+              {
+                "q": "banking-loans.credit",
+                "in": [
+                  "bank",
+                  "card",
+                  "nonbank"
+                ]
+              }
+            ]
+          },
+          "note": "מינוס בכמה חודשים בשנה (ולא ביותר ממחצית), יחד עם הלוואות: סימן חלש יותר מהכלל הרגיל."
+        }
+      ]
     }
   ]
 }

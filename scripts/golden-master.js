@@ -19,6 +19,7 @@ function args() {
   for (let i = 0; i < a.length; i++) {
     if (a[i] === '--engine') o.engine = a[++i];
     else if (a[i] === '--scenarios') o.scenarios.push(a[++i]);
+    else if (a[i] === '--topics-only') o.topicsOnly = true; // compare the per-topic digests only (the file may have grown: e.g. routes.json gained the deep route)
     else o._.push(a[i]);
   }
   return o;
@@ -95,7 +96,7 @@ function scenarioResults(E, topics, spec) {
 function build(engineFile, contentFile, scenarioSpecs) {
   const E = require(path.resolve(engineFile));
   const raw = fs.readFileSync(contentFile);
-  const topics = JSON.parse(raw.toString('utf8')).topics;
+  const topics = JSON.parse(raw.toString('utf8')).topics.filter((t) => t.kind !== 'deep'); // the deep check is composed from topics, it is not a questionnaire: it has its own golden master (golden-deep.js)
   const byId = Object.fromEntries(topics.map((t) => [t.id, t]));
   const snap = { content: path.basename(contentFile), contentSha256: crypto.createHash('sha256').update(raw).digest('hex'), cap: CAP, topics: {}, scenarios: {} };
   topics.forEach((t) => { snap.topics[t.id] = topicSnapshot(E, t); });
@@ -119,7 +120,7 @@ function main() {
   const specs = o.scenarios.length ? o.scenarios : [];
   const got = build(engineFile, content, specs);
   let bad = 0;
-  if (got.contentSha256 !== want.contentSha256) { console.log('CONTENT DIFFERS from the recorded one (' + want.content + ') - the comparison below is not like for like'); bad++; }
+  if (got.contentSha256 !== want.contentSha256 && !o.topicsOnly) { console.log('CONTENT DIFFERS from the recorded one (' + want.content + ') - the comparison below is not like for like'); bad++; }
   Object.keys(want.topics).forEach((id) => {
     const a = want.topics[id], b = got.topics[id];
     if (!b) { console.log('MISSING topic ' + id); bad++; return; }

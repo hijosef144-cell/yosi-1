@@ -21,9 +21,9 @@ const origSeed = content.seed;
 
 test.after(() => content.setSeed(origSeed));
 
-test('topics.json is exactly the ten check topics; routes.json holds the quick check; ids never overlap', () => {
+test('topics.json is exactly the ten check topics; routes.json holds the quick check and the deep check; ids never overlap', () => {
   assert.equal(topics.topics.length, 10); assert.ok(topics.topics.every((t) => t.kind === undefined));
-  assert.deepEqual(routes.topics.map((t) => t.id), ['quick']); assert.equal(routes.topics[0].kind, 'router');
+  assert.deepEqual(routes.topics.map((t) => t.id), ['quick', 'deep']); assert.equal(routes.topics[0].kind, 'router'); assert.equal(routes.topics[1].kind, 'deep');
   assert.deepEqual(content.routeProblems(topics, routes), []);
 });
 
@@ -38,7 +38,7 @@ test('a route that points at a topic missing from the topics file is reported, l
 test('the server serves the ten topics and then the routes (config order), and resolves a route like any topic', async () => {
   content.setSeed(topics);
   const all = await content.loadTopics();
-  assert.deepEqual(all.map((t) => t.id), topics.topics.map((t) => t.id).concat(['quick']));
+  assert.deepEqual(all.map((t) => t.id), topics.topics.map((t) => t.id).concat(['quick', 'deep']));
   assert.equal((await content.loadTopic('quick')).kind, 'router');
   assert.ok(content.seedTopic('quick') && content.seedTopic('mortgage'));
 });
@@ -48,11 +48,11 @@ test('V6: replacing topics.json by the V6 publishable draft still serves quick, 
   assert.deepEqual(content.routeProblems(v6, routes), [], 'quick points at a topic that the V6 topics file does not have');
   content.setSeed(v6);
   const all = await content.loadTopics();
-  assert.equal(all.length, v6.topics.length + 1);
+  assert.equal(all.length, v6.topics.length + 2);
   const q = all.find((t) => t.id === 'quick');
   assert.ok(q && q.kind === 'router' && q.rules.length === routes.topics[0].rules.length);
   // the V6 topics are the ones served, quick is untouched
-  assert.deepEqual(all.filter((t) => t.id !== 'quick').map((t) => t.name), v6.topics.map((t) => t.name));
+  assert.deepEqual(all.filter((t) => t.id !== 'quick' && t.id !== 'deep').map((t) => t.name), v6.topics.map((t) => t.name));
   const ids = new Set(all.map((t) => t.id));
   q.rules.forEach((r) => assert.ok(ids.has(r.finding.topic)));
   content.setSeed(origSeed);
@@ -68,13 +68,17 @@ test('no script that writes or regenerates topics.json can touch routes.json: on
   });
 });
 
-test('golden master for routes: the quick check still returns exactly what was recorded (sampled paths), and the recorded snapshot matches the file', () => {
-  const r = spawnSync('node', [path.join(root, 'scripts', 'golden-master.js'), 'check', ROUTES, path.join(__dirname, 'fixtures', 'golden', 'routes-v1.json')], { encoding: 'utf8' });
+test('golden master for routes: the quick check still returns exactly what was recorded (sampled paths), before and after the deep route was added to the file', () => {
+  // routes-v1.json was recorded when routes.json held only the quick check: compare per-topic digests only (the file has grown). routes-v2.json is the recorded snapshot of the file as it is now.
+  const old = spawnSync('node', [path.join(root, 'scripts', 'golden-master.js'), 'check', ROUTES, path.join(__dirname, 'fixtures', 'golden', 'routes-v1.json'), '--topics-only'], { encoding: 'utf8' });
+  assert.equal(old.status, 0, old.stdout + old.stderr);
+  const r = spawnSync('node', [path.join(root, 'scripts', 'golden-master.js'), 'check', ROUTES, path.join(__dirname, 'fixtures', 'golden', 'routes-v2.json')], { encoding: 'utf8' });
   assert.equal(r.status, 0, r.stdout + r.stderr);
-  const snap = read(path.join(__dirname, 'fixtures', 'golden', 'routes-v1.json'));
-  assert.equal(require('crypto').createHash('sha256').update(fs.readFileSync(ROUTES)).digest('hex'), snap.contentSha256, 'routes content changed: re-record routes-v1.json on purpose');
+  const snap = read(path.join(__dirname, 'fixtures', 'golden', 'routes-v2.json')), snap1 = read(path.join(__dirname, 'fixtures', 'golden', 'routes-v1.json'));
+  assert.equal(require('crypto').createHash('sha256').update(fs.readFileSync(ROUTES)).digest('hex'), snap.contentSha256, 'routes content changed: re-record routes-v2.json on purpose');
   const got = GM.topicSnapshot(E, routes.topics[0]);
   assert.equal(got.digest, snap.topics.quick.digest);
+  assert.equal(got.digest, snap1.topics.quick.digest, 'the quick check must give exactly what it gave before the deep route existed');
 });
 
 test('the published ten keep their original golden master (the snapshot file is the one recorded before the quick check existed)', () => {
