@@ -2,6 +2,8 @@
  * Home headline, typed one sentence after another. The h1 keeps plain text for no-JS, search engines and screen readers (one stable
  * sr-only copy of every enabled sentence); the typed layer is aria-hidden. Sentence 3 needs a real number and stays OFF unless the impact
  * counter (impact.js) reports a measured integer n >= 1 through KaspHeadline.impact(n) / setThird(n). Nothing in this file contains a count.
+ * Since the counter became two plain totals there is no honest "currently saving" number, so impact.js always reports null and sentence 3 stays off;
+ * the hook stays so that a future, properly defined number can switch it on.
  *
  * Timing: the h1 is always painted at once with sentence 1 (the same text as without JS). Typing starts 300 ms after load, as before. If the page
  * carries impact.js, typing waits for its answer but never longer than 700 ms after load; an answer that comes later is ignored, so sentence 3
@@ -15,9 +17,6 @@
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var third = null, started = false, finished = false, timer = null, vis, txt, meas;
   var minPassed = false, capPassed = false, settled = false;
-  // A returning visitor who last saw sentence 3 (impact.js remembered its number in this browser): reserve its height right away so that, when the
-  // answer confirms it, nothing moves. It is only RESERVED space; sentence 3 is typed only once the answer confirms a real number.
-  var hintT = (function () { try { var x = JSON.parse(localStorage.getItem('kasp:imp') || 'null'); return x && typeof x.t === 'number' && x.t >= 1 && Math.floor(x.t) === x.t ? x.t : null; } catch (e) { return null; } })();
   function expectsImpact() { return !!document.querySelector('script[src*="/kaspchem/assets/impact.js"]'); }
   // Start (or, with reduced motion, close the window for sentence 3) once the minimum time has passed and impact.js answered or the cap ran out.
   function maybeRun() {
@@ -54,9 +53,7 @@
   function measure() {
     if (!meas) return;
     var max = 0;
-    var list = sentences();
-    if (!third && hintT) list = list.concat([thirdSentence(hintT)]);
-    list.forEach(function (s) { meas.textContent = s; max = Math.max(max, meas.offsetHeight); });
+    sentences().forEach(function (s) { meas.textContent = s; max = Math.max(max, meas.offsetHeight); });
     meas.textContent = '';
     h.style.minHeight = max + 'px';
   }
@@ -107,7 +104,7 @@
     thirdSentence: thirdSentence,
     // Allowed only before the animation starts; a non-integer or n < 1 keeps sentence 3 off.
     setThird: function (n) { var s = thirdSentence(n); if (!s || started) return false; third = s; build(); return true; },
-    // Called once by impact.js with active_now (or null when the counter is off, empty or failed). Never throws, never blocks.
-    impact: function (n) { if (settled) return; settled = true; if (n != null) this.setThird(n); if (!third && hintT) { hintT = null; measure(); } /* the switch is off now: give the reserved line back */ maybeRun(); }
+    // Called once by impact.js with a number (always null at present: see the note at the top). Never throws, never blocks.
+    impact: function (n) { if (settled) return; settled = true; if (n != null) this.setThird(n); maybeRun(); }
   };
 })();

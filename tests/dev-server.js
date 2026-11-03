@@ -25,6 +25,19 @@ async function start(port) {
     try {
       const url = new URL(req.url, 'http://localhost');
       let p = decodeURIComponent(url.pathname);
+      // TEST ONLY (this file is never deployed): put the impact tables and settings into an exact known state, so browser tests can start from
+      // "the owner's state" without any other route. Body: { baseline: {kind, amount, family_count} (or a list of them)|null, cutoff: 'YYYY-MM-DD'|null, flag: true|false|null, approval: bool }
+      if (p === '/__test/impact-seed' && req.method === 'POST') {
+        const chunks = []; for await (const c of req) chunks.push(c);
+        const b = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
+        await pg.exec("DELETE FROM outcomes; DELETE FROM settings WHERE key IN ('public.counter_enabled','private.impact_baseline_cutoff','private.impact_baseline_approval')");
+        for (const r of [].concat(b.baseline || [])) await pg.query("INSERT INTO outcomes (source, kind, amount, amount_basis, family_count, evidence_note, entered_by) VALUES ('baseline', $1, $2, 'documented', $3, 'test', 'test')", [r.kind || 'located_funds', r.amount, r.family_count]);
+        const put = (k, v) => pg.query("INSERT INTO settings (key, value, updated_by) VALUES ($1, $2::jsonb, 'test')", [k, JSON.stringify(v)]);
+        if (b.cutoff) await put('private.impact_baseline_cutoff', b.cutoff);
+        if (typeof b.flag === 'boolean') await put('public.counter_enabled', b.flag);
+        if (b.approval) await put('private.impact_baseline_approval', { at: '2026-11-03T10:00:00.000Z', by: 'test', fp: 'test', rows: 1 });
+        res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end('{"ok":true}');
+      }
       const m = p.match(/^\/api\/kaspchem\/(config|lead|impact|admin)(\/.*)?$/);
       if (m) {
         const chunks = []; for await (const c of req) chunks.push(c);

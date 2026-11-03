@@ -1,9 +1,9 @@
 /*
- * Impact counter on the home page. Reads the public aggregate (/api/kaspchem/impact) and fills the section that is baked into the page as
- * hidden. Without JavaScript, when the counter is switched off, when the answer is empty or when anything fails, the section simply stays hidden:
- * no zeros, no placeholder. Nothing in this file contains a figure; every number comes from the endpoint.
+ * Impact counter on the home page. Reads the public totals (/api/kaspchem/impact: families, amount, as_of) and fills the section that is baked into
+ * the page as hidden. Without JavaScript, when the counter is switched off, when the answer is empty or when anything fails, the section simply stays
+ * hidden: no zeros, no placeholder. Nothing in this file contains a figure; every number comes from the endpoint.
  *
- * It also tells the headline (headline.js) once whether a real "active now" number arrived, so sentence 3 can be typed. See KaspHeadline.impact().
+ * There is no honest "currently saving" number any more, so the headline's sentence 3 stays off: the headline is always told "no number" (see settle()).
  */
 (function () {
   'use strict';
@@ -13,24 +13,21 @@
   // Remember (this browser only, no personal data) whether the counter was shown and how tall the section was at this width, so that the next
   // visit can reserve exactly that space before the answer arrives (see impact-hint.js). Forgotten as soon as the counter is off.
   function collapse() { sec.classList.add('imp-off'); document.documentElement.classList.remove('imp-expect'); } // give back reserved space when there is nothing to show
-  var active = null; // active_now of the last good answer, remembered so the headline can reserve sentence 3's height next time (never shown from here)
-  function remember(on) { try { if (on) localStorage.setItem(HINT, JSON.stringify({ w: window.innerWidth, h: Math.round(sec.getBoundingClientRect().height), t: active })); else localStorage.removeItem(HINT); } catch (e) {} }
-  function settle(n) { if (done) return; done = true; try { if (window.KaspHeadline && window.KaspHeadline.impact) window.KaspHeadline.impact(n); } catch (e) {} }
-  if (!sec || !window.fetch) { settle(null); return; }
+  function remember(on) { try { if (on) localStorage.setItem(HINT, JSON.stringify({ w: window.innerWidth, h: Math.round(sec.getBoundingClientRect().height) })); else localStorage.removeItem(HINT); } catch (e) {} }
+  // Always "no number": sentence 3 of the headline stays off. The call only lets the headline stop waiting.
+  function settle() { if (done) return; done = true; try { if (window.KaspHeadline && window.KaspHeadline.impact) window.KaspHeadline.impact(null); } catch (e) {} }
+  if (!sec || !window.fetch) { settle(); return; }
 
-  var KINDS = ['ongoing_saving', 'one_time_refund', 'located_funds'];
   var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var num = function (v) { return typeof v === 'number' && isFinite(v) && v >= 0; };
 
   function valid(d) {
-    if (!d || d.ok !== true || d.enabled !== true || !d.amounts || !num(d.families_helped) || Math.floor(d.families_helped) !== d.families_helped) return false;
-    if (!KINDS.every(function (k) { return num(d.amounts[k]); })) return false;
+    if (!d || d.ok !== true || d.enabled !== true || !num(d.families) || Math.floor(d.families) !== d.families || !num(d.amount)) return false;
     if (isNaN(Date.parse(d.as_of))) return false;
-    return d.families_helped > 0 || KINDS.some(function (k) { return d.amounts[k] > 0; }); // never present an empty counter as a claim
+    return d.families > 0 || d.amount > 0; // never present an empty counter as a claim
   }
   // Exact amounts: whole shekels have no decimals; any agorot are shown in full (never rounded).
   function fmt(v, dec) { return v.toLocaleString('he-IL', { minimumFractionDigits: dec, maximumFractionDigits: dec }); }
-  var shekel = function (v, dec) { return fmt(v, dec) + ' ₪'; };
   var decimals = function (v) { return Math.round(v * 100) % 100 === 0 ? 0 : 2; };
 
   // A number is two stacked copies: .imp-fin is the real text (read once by screen readers, fixes the width), .imp-v is the animated decoration.
@@ -52,33 +49,26 @@
 
   function render(d) {
     var jobs = [];
-    var fam = document.getElementById('imp-fam');
-    if (d.families_helped > 0) {
-      var n = d.families_helped, box = fam.querySelector('.imp-num');
-      var r = function (v) { return fmt(v, 0); };
-      put(box, r(n));
+    var fam = document.getElementById('imp-fam'), money = document.getElementById('imp-money');
+    if (d.families > 0) {
+      var n = d.families, box = fam.querySelector('.imp-num'), rf = function (v) { return fmt(v, 0); };
+      put(box, rf(n));
       fam.querySelector('.imp-cap').textContent = n === 1 ? 'משפחה נעזרה' : 'משפחות נעזרו';
       fam.hidden = false;
-      jobs.push({ box: box, run: function () { countUp(box, n, 0, r); } });
+      jobs.push({ box: box, run: function () { countUp(box, n, 0, rf); } });
     } else fam.hidden = true;
+    if (d.amount > 0) {
+      var v = d.amount, dec = decimals(v), mbox = money.querySelector('.imp-num'), rm = function (x) { return fmt(x, dec) + ' ₪'; };
+      put(mbox, rm(v));
+      money.hidden = false;
+      jobs.push({ box: mbox, run: function () { countUp(mbox, v, dec, rm); } });
+    } else money.hidden = true;
 
-    KINDS.forEach(function (k) {
-      var li = sec.querySelector('[data-kind="' + k + '"]'), v = d.amounts[k];
-      if (!li) return;
-      if (!(v > 0)) { li.hidden = true; return; }
-      var dec = decimals(v), r = function (x) { return shekel(x, dec); };
-      put(li.querySelector('.imp-amt'), r(v));
-      li.hidden = false;
-      var amt = li.querySelector('.imp-amt');
-      jobs.push({ box: amt, run: function () { countUp(amt, v, dec, r); } });
-    });
-
-    var when = new Date(d.as_of), upd = document.getElementById('imp-upd');
-    var hhmm = new Intl.DateTimeFormat('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Jerusalem' }).format(when);
+    var upd = document.getElementById('imp-upd');
+    var hhmm = new Intl.DateTimeFormat('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Jerusalem' }).format(new Date(d.as_of));
     upd.textContent = 'נכון ל־' + hhmm;
     upd.setAttribute('data-as-of', d.as_of);
 
-    active = (typeof d.active_now === 'number' && d.active_now >= 1 && Math.floor(d.active_now) === d.active_now) ? d.active_now : null;
     sec.classList.remove('imp-off');
     // measured once the web fonts are in, so the remembered height is the settled one
     (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(function () { requestAnimationFrame(function () { remember(true); }); });
@@ -92,15 +82,15 @@
   }
 
   var ctl = window.AbortController ? new AbortController() : null;
-  var timer = setTimeout(function () { if (ctl) ctl.abort(); collapse(); settle(null); }, 4000);
+  var timer = setTimeout(function () { if (ctl) ctl.abort(); collapse(); settle(); }, 4000);
   fetch('/api/kaspchem/impact', { cache: 'no-store', headers: { Accept: 'application/json' }, credentials: 'same-origin', signal: ctl ? ctl.signal : undefined })
     .then(function (r) { return r.ok ? r.json() : { __failed: true }; })
     .then(function (d) {
       clearTimeout(timer);
-      if (d && d.__failed) { collapse(); settle(null); return; }                // a failed answer says nothing about the switch: keep the hint
-      if (!valid(d)) { remember(false); collapse(); settle(null); return; }   // an answer that says "off" (or is empty): forget the hint
-      settle(d.active_now);   // the headline decides for itself whether this is a usable integer >= 1
+      if (d && d.__failed) { collapse(); settle(); return; }                // a failed answer says nothing about the switch: keep the hint
+      if (!valid(d)) { remember(false); collapse(); settle(); return; }     // an answer that says "off" (or is empty): forget the hint
+      settle();
       render(d);
     })
-    .catch(function () { clearTimeout(timer); collapse(); settle(null); }); // the hint is kept: a failed answer says nothing about the switch
+    .catch(function () { clearTimeout(timer); collapse(); settle(); });    // the hint is kept: a failed answer says nothing about the switch
 })();

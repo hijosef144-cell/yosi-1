@@ -59,7 +59,7 @@ on('GET', '/requests/(\\d+)', async (c, id) => {
     db.query('SELECT kind, granted, text_version, created_at FROM consents WHERE request_id = $1 ORDER BY id', [rid]),
     db.query('SELECT * FROM revenues WHERE request_id = $1 ORDER BY created_at', [rid]),
     content.loadTopic(r.topic),
-    db.query("SELECT id, kind, amount::text AS amount, amount_basis, evidence_note, to_char(completed_on,'YYYY-MM-DD') AS completed_on, to_char(starts_on,'YYYY-MM-DD') AS starts_on, to_char(ends_on,'YYYY-MM-DD') AS ends_on, to_char(last_verified_at,'YYYY-MM-DD') AS last_verified_at, voided_at IS NOT NULL AS voided FROM outcomes WHERE request_id = $1 ORDER BY id", [rid])
+    db.query("SELECT id, amount::text AS amount FROM outcomes WHERE request_id = $1 AND source = 'system' AND voided_at IS NULL ORDER BY id DESC LIMIT 1", [rid])
   ]);
   // Show the answers with their original wording so staff don't need to decode ids.
   const readable = topic ? engine.visibleQuestions(topic, r.answers).map((q) => ({
@@ -70,7 +70,7 @@ on('GET', '/requests/(\\d+)', async (c, id) => {
   const findings = topic ? (r.findings || []).map((fid) => fTitle(topic.rules.find((x) => x.id === fid), fid)) : r.findings;
   const findingDetails = topic ? (r.findings || []).map((fid) => { const rule = topic.rules.find((x) => x.id === fid) || {}; return { id: fid, title: fTitle(rule, fid), refer: (rule.finding || {}).refer || null, serviceTag: rule.serviceTag || null }; }) : [];
   await audit(c.me.email, 'request.view', 'request', rid, {}); // who looked at personal details, not only who changed something
-  return { request: Object.assign({}, r, { readable, findingTitles: findings, findingDetails }), notes, consents, revenues, outcomes: outcomeRows.map((o) => Object.assign({}, o, { amount: Number(o.amount) })) };
+  return { request: Object.assign({}, r, { readable, findingTitles: findings, findingDetails }), notes, consents, revenues, outcome: outcomeRows.length ? { id: Number(outcomeRows[0].id), amount: Number(outcomeRows[0].amount) } : null };
 });
 
 on('PATCH', '/requests/(\\d+)', async (c, id) => {
@@ -280,133 +280,76 @@ on('POST', '/questionnaires/([a-z-]+)/discard', async (c, topic) => {
   return { ok: true };
 });
 
-// Impact outcomes (stage 3): what the public counter is computed from. The rules live in ./impact.js; this is only the dashboard's way in.
-// Every create, edit, void, approval and switch is written to audit_log (ids, kinds and amounts only: never the internal evidence text, never names).
+// Impact counter, simple model (the rules and the hidden logic live in ./impact.js). The dashboard shows only: families, shekels, an on/off switch and a preview.
+// Every change is written to audit_log (figures only, never personal data). Reading (GET) never writes anything.
 const isDup = (e) => e && (e.code === '23505' || /duplicate key|unique/i.test(String(e.message)));
-const OUTCOME_COLS = 'source, kind, amount, amount_basis, request_id, family_count, completed_on, starts_on, ends_on, last_verified_at, evidence_note, entered_by';
-const OUTCOME_FIELDS = ['kind', 'amount', 'amount_basis', 'evidence_note', 'completed_on', 'starts_on', 'ends_on', 'last_verified_at', 'family_count'];
-async function insertOutcome(v, requestId, email) {
-  const r = await db.query(`INSERT INTO outcomes (${OUTCOME_COLS}) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`,
-    [v.source, v.kind, v.amount, v.amount_basis, requestId, v.family_count, v.completed_on, v.starts_on, v.ends_on, v.last_verified_at, v.evidence_note, email]);
-  return Number(r[0].id);
-}
-const MISSING_AMOUNT_SQL = `SELECT r.id, r.topic, to_char(r.updated_at AT TIME ZONE 'Asia/Jerusalem', 'YYYY-MM-DD') AS updated_on
-  FROM treatment_requests r
-  WHERE r.status = 'done'
-    AND NOT EXISTS (SELECT 1 FROM outcomes o WHERE o.request_id = r.id AND o.voided_at IS NULL)
-    AND NOT EXISTS (SELECT 1 FROM audit_log a WHERE a.action = 'outcome.none' AND a.entity = 'request' AND a.entity_id = r.id::text)
-  ORDER BY r.updated_at DESC LIMIT 200`;
+const upsertSetting = (key, value, email) => db.query('INSERT INTO settings (key, value, updated_by) VALUES ($1,$2::jsonb,$3) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_by = EXCLUDED.updated_by, updated_at = now()', [key, JSON.stringify(value), email]);
 
 on('GET', '/impact', async () => {
-  const now = new Date(), today = impact.todayIL(now);
-  const [rows, cfg, missing] = await Promise.all([impact.loadRows(true), impact.loadConfig(), db.query(MISSING_AMOUNT_SQL)]);
-  const ev = impact.evaluate(rows, cfg, today, false);
-  const draft = impact.evaluate(rows, cfg, today, true); // the opening data as it would count once approved
-  const real = {}; ev.detail.forEach((d) => { real[d.id] = d; });
-  const dr = {}; draft.detail.forEach((d) => { dr[d.id] = d; });
-  const shape = (r) => Object.assign({}, r, { applicant_id: undefined, amount: Number(r.amount), counted: real[r.id].counted, reason: real[r.id].reason, active: real[r.id].active, inactive_reason: real[r.id].inactive_reason });
-  const warn = impact.addMonths(today, -impact.WARN_MONTHS), expire = impact.addMonths(today, -impact.VERIFY_MONTHS);
-  const expiring = rows.filter((r) => dr[r.id].counted && r.kind === 'ongoing_saving' && !['ended', 'not_started'].includes(dr[r.id].inactive_reason) && r.last_verified_at && r.last_verified_at <= warn)
-    .map((r) => ({ id: r.id, source: r.source, request_id: r.request_id, topic: r.topic || null, amount: Number(r.amount), family_count: r.family_count, last_verified_at: r.last_verified_at, expires_on: impact.addMonths(r.last_verified_at, impact.VERIFY_MONTHS), expired: r.last_verified_at < expire }));
-  const decision = impact.publicDecision(ev, cfg), ifOn = impact.publicDecision(ev, Object.assign({}, cfg, { flag: true }));
+  const now = new Date();
+  const [rows, cfg] = await Promise.all([impact.loadRows(), impact.loadConfig()]);
+  const ev = impact.evaluate(rows, cfg);
   return {
-    today,
-    config: { counter_enabled: cfg.flag, cutoff: cfg.cutoff, approval: cfg.approval ? { at: cfg.approval.at, by: cfg.approval.by, rows: cfg.approval.rows } : null, approval_valid: ev.approvalValid, baseline_exists: ev.baselineExists },
-    blocked_reason: ifOn, // why the public would see nothing even with the switch on (null = it would be shown)
-    baseline: rows.filter((r) => r.source === 'baseline').map(shape),
-    outcomes: rows.filter((r) => r.source === 'system').map(shape),
-    missing_amount: missing, expiring,
-    preview: { public_now: decision ? { enabled: false, reason: decision } : Object.assign({ enabled: true }, impact.aggregate(ev, now)), draft: impact.aggregate(draft, now) }
+    enabled: cfg.flag,
+    start: { families: ev.start.families, amount: ev.start.amount, split: ev.start.rows > 1 }, // what the owners typed (the sum, read-only, if old data is split over several rows)
+    auto: ev.auto,                                                                              // added automatically from completed treatments
+    total: { families: ev.families, amount: ev.amount },                                        // exactly what the public counter shows when it is on
+    shown: impact.visible(ev, cfg),
+    as_of: now.toISOString()
   };
 });
 
-on('POST', '/requests/(\\d+)/outcomes', async (c, id) => {
-  const rid = idOf(id);
-  const [r] = await db.query('SELECT id, status FROM treatment_requests WHERE id = $1', [rid]);
-  if (!r) throw new HttpError(404, 'not_found');
-  if (r.status !== 'done') throw new HttpError(409, 'request_not_done'); // only a completed treatment can have a counted outcome
-  const v = impact.normalize('system', c.body, impact.todayIL());
-  let oid;
-  try { oid = await insertOutcome(v, rid, c.me.email); } catch (e) { if (isDup(e)) throw new HttpError(409, 'outcome_exists'); throw e; }
-  await audit(c.me.email, 'impact.outcome.create', 'outcome', oid, { request_id: rid, kind: v.kind, amount: Number(v.amount), basis: v.amount_basis });
-  return { id: oid };
-});
-// "Completed, but nothing to count": a deliberate decision, so the request stops being listed as "completed without an amount".
-on('POST', '/requests/(\\d+)/outcome-none', async (c, id) => {
-  const rid = idOf(id);
-  const [r] = await db.query('SELECT status FROM treatment_requests WHERE id = $1', [rid]);
-  if (!r) throw new HttpError(404, 'not_found');
-  if (r.status !== 'done') throw new HttpError(409, 'request_not_done');
-  await audit(c.me.email, 'outcome.none', 'request', rid, {});
+// The starting numbers. Saving them is the owners' explicit approval: it updates the one starting row (or creates it) and moves the internal cutoff to today,
+// because everything completed up to today is taken to be inside the numbers they typed. More than one starting row is never merged silently.
+on('PUT', '/impact', async (c) => {
+  const families = impact.parseFamilies(c.body.families), amount = impact.parseAmount(c.body.amount, true);
+  const [rows, cfg] = await Promise.all([impact.loadRows(), impact.loadConfig()]);
+  const start = rows.filter((r) => r.source === 'baseline' && !r.voided);
+  if (start.length > 1) throw new HttpError(409, 'split_baseline');
+  const today = impact.todayIL();
+  const was = start.length ? { families: start[0].family_count, amount: Number(start[0].amount) } : null;
+  if (start.length) {
+    await db.query("UPDATE outcomes SET family_count = $1, amount = $2, amount_basis = 'documented', evidence_note = COALESCE(NULLIF(evidence_note, ''), $3), updated_at = now() WHERE id = $4", [families, amount, impact.START_NOTE, start[0].id]);
+  } else {
+    await db.query("INSERT INTO outcomes (source, kind, amount, amount_basis, family_count, evidence_note, entered_by) VALUES ('baseline', $1, $2, 'documented', $3, $4, $5)", [impact.AUTO_KIND, amount, families, impact.START_NOTE, c.me.email]);
+  }
+  await upsertSetting(impact.KEY.cutoff, today, c.me.email);
+  await audit(c.me.email, 'impact.start.save', 'outcome', start.length ? start[0].id : '', { families, amount: Number(amount), from: was, cutoff: today, previous_cutoff: cfg.cutoff, created: !start.length });
   return { ok: true };
 });
 
-on('POST', '/impact/baseline', async (c) => {
-  const v = impact.normalize('baseline', c.body, impact.todayIL());
-  const oid = await insertOutcome(v, null, c.me.email);
-  await audit(c.me.email, 'impact.baseline.create', 'outcome', oid, { kind: v.kind, amount: Number(v.amount), family_count: v.family_count, basis: v.amount_basis });
-  return { id: oid };
-});
-on('PATCH', '/impact/outcomes/(\\d+)', async (c, id) => {
-  const oid = idOf(id);
-  const [old] = await db.query(`SELECT source, kind, amount::text AS amount, amount_basis, family_count, evidence_note, voided_at IS NOT NULL AS voided,
-      to_char(completed_on,'YYYY-MM-DD') AS completed_on, to_char(starts_on,'YYYY-MM-DD') AS starts_on, to_char(ends_on,'YYYY-MM-DD') AS ends_on, to_char(last_verified_at,'YYYY-MM-DD') AS last_verified_at
-    FROM outcomes WHERE id = $1`, [oid]);
-  if (!old) throw new HttpError(404, 'not_found');
-  if (old.voided) throw new HttpError(409, 'voided');
-  const given = OUTCOME_FIELDS.filter((f) => c.body[f] !== undefined);
-  if (!given.length) throw new HttpError(400, 'nothing_to_update');
-  const merged = Object.assign({}, old); given.forEach((f) => { merged[f] = c.body[f]; });
-  const v = impact.normalize(old.source, merged, impact.todayIL());
-  try {
-    await db.query('UPDATE outcomes SET kind=$1, amount=$2, amount_basis=$3, family_count=$4, completed_on=$5, starts_on=$6, ends_on=$7, last_verified_at=$8, evidence_note=$9, updated_at=now() WHERE id=$10',
-      [v.kind, v.amount, v.amount_basis, v.family_count, v.completed_on, v.starts_on, v.ends_on, v.last_verified_at, v.evidence_note, oid]);
-  } catch (e) { if (isDup(e)) throw new HttpError(409, 'outcome_exists'); throw e; }
-  await audit(c.me.email, old.source === 'baseline' ? 'impact.baseline.update' : 'impact.outcome.update', 'outcome', oid,
-    { fields: given, before: { kind: old.kind, amount: Number(old.amount), basis: old.amount_basis, family_count: old.family_count }, after: { kind: v.kind, amount: Number(v.amount), basis: v.amount_basis, family_count: v.family_count } });
-  return { ok: true };
-});
-on('POST', '/impact/outcomes/(\\d+)/void', async (c, id) => {
-  const oid = idOf(id);
-  const reason = c.body.reason == null || c.body.reason === '' ? null : text(c.body.reason, 200);
-  const rows = await db.query('UPDATE outcomes SET voided_at = now(), voided_by = $1, void_reason = $2, updated_at = now() WHERE id = $3 AND voided_at IS NULL RETURNING source, kind, amount::text AS amount', [c.me.email, reason, oid]);
-  if (!rows.length) { const [x] = await db.query('SELECT id FROM outcomes WHERE id = $1', [oid]); throw new HttpError(x ? 409 : 404, x ? 'voided' : 'not_found'); }
-  await audit(c.me.email, rows[0].source === 'baseline' ? 'impact.baseline.void' : 'impact.outcome.void', 'outcome', oid, { kind: rows[0].kind, amount: Number(rows[0].amount) });
-  return { ok: true };
-});
-
-// The baseline cutoff: system outcomes count only when the treatment was completed AFTER this date, so history is never counted twice.
-on('PUT', '/impact/baseline-cutoff', async (c) => {
-  const d = c.body.date;
-  if (d !== null && !(impact.isDate(d) && d <= impact.todayIL())) throw new HttpError(400, 'bad_date');
-  const cfg = await impact.loadConfig();
-  if (d === null) await db.query('DELETE FROM settings WHERE key = $1', [impact.KEY.cutoff]);
-  else await db.query('INSERT INTO settings (key, value, updated_by) VALUES ($1,$2::jsonb,$3) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_by = EXCLUDED.updated_by, updated_at = now()', [impact.KEY.cutoff, JSON.stringify(d), c.me.email]);
-  await audit(c.me.email, 'impact.baseline.cutoff', 'settings', impact.KEY.cutoff, { from: cfg.cutoff, to: d });
-  return { ok: true };
-});
-// The single explicit "approve publishing opening data" action. It approves the opening rows exactly as they are now; changing any of them later
-// (or the cutoff) makes the approval stale, and the opening data stays out of the public numbers until it is approved again.
-on('POST', '/impact/approve-baseline', async (c) => {
-  if (c.body.confirm !== true) throw new HttpError(400, 'confirm_required');
-  const [rows, cfg] = await Promise.all([impact.loadRows(false), impact.loadConfig()]);
-  const base = rows.filter((r) => r.source === 'baseline' && !r.voided);
-  if (!base.length) throw new HttpError(400, 'no_baseline');
-  if (!cfg.cutoff) throw new HttpError(400, 'cutoff_required');
-  const fp = impact.fingerprint(rows, cfg.cutoff);
-  if (cfg.approval && cfg.approval.fp === fp) throw new HttpError(409, 'already_approved');
-  const value = { fp, at: new Date().toISOString(), by: c.me.email, rows: base.length };
-  await db.query('INSERT INTO settings (key, value, updated_by) VALUES ($1,$2::jsonb,$3) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_by = EXCLUDED.updated_by, updated_at = now()', [impact.KEY.approval, JSON.stringify(value), c.me.email]);
-  await audit(c.me.email, 'impact.baseline.approve', 'settings', impact.KEY.approval, { rows: base.length, cutoff: cfg.cutoff, figures: base.map((r) => ({ kind: r.kind, amount: Number(r.amount), family_count: r.family_count, basis: r.amount_basis })) });
-  return { ok: true };
-});
-// The public switch for the counter (default off). Turning it on with unapproved opening data is allowed but shows nothing publicly until approved.
+// The switch. Takes effect for the very next visitor (the public endpoint is never cached).
 on('POST', '/impact/counter', async (c) => {
   if (typeof c.body.enabled !== 'boolean') throw new HttpError(400, 'bad_value');
-  await db.query('INSERT INTO settings (key, value, updated_by) VALUES ($1,$2::jsonb,$3) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_by = EXCLUDED.updated_by, updated_at = now()', [impact.KEY.flag, JSON.stringify(c.body.enabled), c.me.email]);
+  await upsertSetting(impact.KEY.flag, c.body.enabled, c.me.email);
   await audit(c.me.email, c.body.enabled ? 'impact.counter.enable' : 'impact.counter.disable', 'settings', impact.KEY.flag, {});
-  const [rows, cfg] = await Promise.all([impact.loadRows(false), impact.loadConfig()]);
-  return { ok: true, blocked_reason: impact.publicDecision(impact.evaluate(rows, cfg, impact.todayIL(), false), cfg) };
+  return { ok: true, enabled: c.body.enabled };
+});
+
+// The amount saved or obtained in one completed treatment. One outcome per request: setting it again corrects the same one.
+on('PUT', '/requests/(\\d+)/outcome', async (c, id) => {
+  const rid = idOf(id), amount = impact.parseAmount(c.body.amount, false);
+  const [r] = await db.query('SELECT status FROM treatment_requests WHERE id = $1', [rid]);
+  if (!r) throw new HttpError(404, 'not_found');
+  if (r.status !== 'done') throw new HttpError(409, 'request_not_done'); // only a completed treatment can carry an amount
+  const [old] = await db.query("SELECT id, amount::text AS amount FROM outcomes WHERE request_id = $1 AND source = 'system' AND voided_at IS NULL ORDER BY id DESC LIMIT 1", [rid]);
+  if (old) {
+    await db.query("UPDATE outcomes SET amount = $1, amount_basis = 'documented', updated_at = now() WHERE id = $2", [amount, old.id]);
+    await audit(c.me.email, 'impact.outcome.update', 'request', rid, { amount: Number(amount), from: Number(old.amount) });
+  } else {
+    try {
+      await db.query("INSERT INTO outcomes (source, kind, amount, amount_basis, request_id, completed_on, evidence_note, entered_by) VALUES ('system', $1, $2, 'documented', $3, $4, $5, $6)", [impact.AUTO_KIND, amount, rid, impact.todayIL(), impact.AUTO_NOTE, c.me.email]);
+    } catch (e) { if (isDup(e)) throw new HttpError(409, 'outcome_exists'); throw e; }
+    await audit(c.me.email, 'impact.outcome.create', 'request', rid, { amount: Number(amount) });
+  }
+  return { ok: true };
+});
+on('POST', '/requests/(\\d+)/outcome/remove', async (c, id) => {
+  const rid = idOf(id);
+  const rows = await db.query("UPDATE outcomes SET voided_at = now(), voided_by = $1, updated_at = now() WHERE request_id = $2 AND source = 'system' AND voided_at IS NULL RETURNING amount::text AS amount", [c.me.email, rid]);
+  if (!rows.length) throw new HttpError(404, 'no_outcome');
+  await audit(c.me.email, 'impact.outcome.remove', 'request', rid, { amount: Number(rows[0].amount) });
+  return { ok: true };
 });
 
 // Settings & audit ----------------------------------------------------------------------------------------------

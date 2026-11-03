@@ -86,12 +86,35 @@
 /* ---- stage 3: impact tab and outcome dialog (classes start with ia-) ---- */
 .adm input[type=date] { width: 100%; font: inherit; padding: .5rem .65rem; border: 1.5px solid #b6cecb; border-radius: 10px; background: #fff; color: var(--ink); min-height: 2.6rem; }
 .ia-small { color: #3e5f63; font-size: .92rem; margin: .4rem 0 0; }
-.ia-prev { list-style: none; margin: .4rem 0 .2rem; padding: 0; display: grid; gap: .5rem; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
-.ia-prev li { background: var(--deep); color: #fff; border-radius: 12px; padding: .7rem .9rem; display: flex; flex-direction: column; }
-.ia-prev b { font-family: var(--font-display); font-size: 1.5rem; color: var(--gold-l); font-variant-numeric: tabular-nums; }
-.ia-prev span { font-size: .9rem; color: #cfe3e0; }
 .ia-modal { position: fixed; inset: 0; z-index: 60; background: rgba(8,38,43,.55); display: flex; align-items: center; justify-content: center; padding: 1rem; }
 .ia-modal > form { background: #fff; width: min(600px, 100%); max-height: 100%; overflow: auto; border-radius: 16px; padding: 1.25rem; }
 .ia-modal h2 { font-size: 1.35rem; margin-bottom: .3rem; }
 .ia-actions { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: .8rem; }
 .ia-modal .row { margin-top: .7rem; }
+
+/* impact tab: one clean card, big touch targets (classes start with ia-) */
+.ia-card { max-width: 40rem; padding: 1.25rem; }
+.ia-card .field { margin-top: 0; margin-bottom: 1.1rem; }
+.ia-card .field label { font-size: 1.05rem; margin-bottom: .4rem; }
+.adm .ia-card input[type=text], .adm .ia-modal input[type=text] { min-height: 3.25rem; font-size: 1.25rem; padding: .55rem .9rem; }
+.ia-money { position: relative; }
+.adm .ia-money input[type=text] { padding-inline-end: 2.6rem; }
+.ia-cur { position: absolute; inset-inline-end: .9rem; top: 50%; transform: translateY(-50%); font-size: 1.2rem; color: #4a6a6e; pointer-events: none; }
+.ia-card input[readonly] { background: #eef3f2; }
+.adm .ia-save, .adm .ia-modal .btn { min-height: 3.25rem; width: 100%; font-size: 1.1rem; }
+@media (min-width: 560px) { .adm .ia-save { width: auto; min-width: 10rem; } .adm .ia-modal .btn { width: auto; min-width: 8rem; } }
+.ia-swrow { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 3.25rem; }
+.ia-swlabel { font-weight: 700; font-size: 1.15rem; }
+.adm .ia-sw { display: inline-flex; align-items: center; justify-content: space-between; gap: .6rem; min-width: 7.5rem; min-height: 3.25rem; padding: .25rem .5rem .25rem 1.1rem; border-radius: 999px; border: 2px solid #8fb0ac; background: #e4ecea; color: var(--ink); font: inherit; font-size: 1.1rem; font-weight: 700; cursor: pointer; }
+.adm .ia-sw[aria-checked="true"] { background: var(--teal-d); border-color: var(--teal-d); color: #fff; flex-direction: row-reverse; padding: .25rem 1.1rem .25rem .5rem; }
+.ia-knob { flex: none; width: 2.3rem; height: 2.3rem; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.35); }
+.ia-h { font-size: 1.4rem; margin-bottom: .5rem; }
+.ia-badge { display: inline-block; margin: 0 0 .8rem; padding: .15rem .8rem; border-radius: 999px; background: #e9eeee; color: #3e5f63; font-size: .92rem; font-weight: 700; }
+.ia-badge.on { background: #d6efdc; color: #14583f; }
+.ia-prevbox { background: var(--deep-2); color: #fff; border-radius: 16px; padding: 1rem; }
+.ia-prevbox .imp-grid { gap: .8rem; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); }
+.ia-prevbox .imp-fam { padding: .9rem 1.1rem; }
+.ia-prevbox .imp-num { font-size: clamp(2.6rem, 9vw, 3.2rem); }
+.ia-prevbox .imp-money .imp-num { font-size: clamp(1.9rem, 7vw, 2.5rem); overflow-wrap: normal; }
+.ia-prevbox .imp-cap { font-size: 1rem; }
+.ia-prevbox .imp-upd { margin: .9rem 0 0; }
