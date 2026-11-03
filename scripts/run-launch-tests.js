@@ -12,7 +12,17 @@ const allWidths = process.argv.includes('--all-widths'); // run the width-restri
 const ALLOWED_SKIP = (allWidths ? [] : [/checked on desktop and one phone width/, /admin checked on desktop and one phone width/]).concat([/the private research folder is not linked/]); // the deep-check tests on the V6 draft need the local research folder; without it they skip with that reason
 const sh = (cmd, args, opts) => spawnSync(cmd, args, Object.assign({ cwd: root, encoding: 'utf8', maxBuffer: 200 * 1024 * 1024, shell: process.platform === 'win32' }, opts || {}));
 
+// Keeps the traces, screenshots and the JSON report of a failed browser run under test-results-failed/<time>-<label>, right away: the next browser run
+// (private tests) empties test-results, which used to erase the public run's failure details.
 function playwrightRun(label, configArgs) {
+  const res = playwrightRunInner(label, configArgs);
+  if (res.failed.length || res.crashed) {
+    const dest = path.join(root, 'test-results-failed', new Date().toISOString().replace(/[:.]/g, '-') + '-' + label);
+    try { fs.mkdirSync(dest, { recursive: true }); fs.cpSync(path.join(root, 'test-results'), dest, { recursive: true }); fs.writeFileSync(path.join(dest, 'FAILED.txt'), res.failed.join('\n') + (res.crashText ? '\n' + res.crashText : '') + '\n'); res.keptIn = path.relative(root, dest); } catch (e) { res.keptIn = 'could not copy artifacts: ' + e.message; }
+  }
+  return res;
+}
+function playwrightRunInner(label, configArgs) {
   const out = path.join(root, 'test-results', 'json-' + label + '.json');
   fs.mkdirSync(path.dirname(out), { recursive: true });
   const r = sh('npx', ['--no-install', 'playwright', 'test', ...configArgs, '--workers=1', '--retries=0', '--reporter=json'], { env: Object.assign({}, process.env, { PLAYWRIGHT_JSON_OUTPUT_NAME: out }, allWidths ? { ALL_WIDTHS: '1' } : {}) });
@@ -42,6 +52,7 @@ for (let n = 1; n <= repeat; n++) {
     console.log(`browser tests (${r.label}): ${r.passed} passed, ${r.failed.length} failed, ${skTotal} skipped${r.crashed ? '  (RUNNER CRASHED)' : ''}`);
     sk.forEach(([why, c]) => { const ok = ALLOWED_SKIP.some((re) => re.test(why)); console.log(`   skipped ${c}: ${why}${ok ? '  (by design)' : '  <-- UNEXPECTED REASON'}`); if (!ok) bad = true; });
     r.failed.forEach((f) => console.log('   FAILED ' + f));
+    if (r.keptIn) console.log('   failure details (trace, screenshot, report) kept in ' + r.keptIn);
     if (r.failed.length || r.crashed) { bad = true; if (r.crashText) console.log('   ' + r.crashText.replace(/\n/g, ' ')); }
   }
   if (bad) {
