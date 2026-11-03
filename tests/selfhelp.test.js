@@ -45,7 +45,7 @@ test('all 40 rules: a next step in plain Hebrew and an official https link on a 
     const more = f.officialMore || [];
     assert.ok(Array.isArray(more) && more.length <= 4, id + ' officialMore');
     more.forEach((o) => checkLink(id + ' more', o));
-    if (more.length) assert.ok(paras.length >= 2, id + ' has several links, so the step must say which is for whom');
+    const labels = [f.official].concat(more).map((o) => o.label); assert.equal(new Set(labels).size, labels.length, id + ' links must have different labels, each saying what it is or who it is for');
   });
 });
 

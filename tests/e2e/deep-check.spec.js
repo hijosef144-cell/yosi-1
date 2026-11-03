@@ -88,6 +88,18 @@ async function drive(page, cfg, policy, opt) {
 const cardsIn = (page, tier) => page.locator('#result .dp-' + tier + ' .dp-card');
 async function counts(page) { return { high: await cardsIn(page, 'high').count(), missing: await cardsIn(page, 'missing').count(), low: await cardsIn(page, 'low').count() }; }
 const phone = () => '0505' + String(Math.floor(Math.random() * 900000) + 100000);
+// Version 1.0: a result screen has no call to action and no contact form; the only way on is the link "לבדוק תחום אחר" (at least 44px tall).
+const noHelpOffer = async (page) => {
+  for (const sel of ['#cta', '#lead', '#lead-slot', '#send', '#f-name', '#f-phone', '#f-email', '#c-contact', '#c-mkt', '#done', '#result .more']) await expect(page.locator(sel), sel).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'אני רוצה עזרה בבדיקה' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'אני רוצה עזרה בבדיקה' })).toHaveCount(0);
+  const text = await page.locator('#app').innerText();
+  expect(text).not.toContain('נחזור'); expect(text).not.toContain('השארת פרטים');
+  const other = page.getByRole('link', { name: 'לבדוק תחום אחר', exact: true });
+  await expect(other).toBeVisible();
+  await expect(other).toHaveAttribute('href', '/kaspchem');
+  expect((await other.boundingBox()).height).toBeGreaterThanOrEqual(44);
+};
 
 // =====================================================================================================================
 // The published ten, switched on: the content that is live today. The deep check must work (degraded but valid).
@@ -121,7 +133,7 @@ test.describe('deep check on the published ten', () => {
     await expect(page.locator('.crumb')).toContainText('בדיקה מעמיקה');
   });
 
-  test('flow on the published ten: phases, progress that never goes down, the profile once, results before the form, a request of topic deep', async ({ page }) => {
+  test('flow on the published ten: phases, progress that never goes down, the profile once, a result with no help button or contact form, a request of topic deep stored through the API', async ({ page, request }) => {
     const { cfg } = await configOf();
     await recordProgress(page);
     await openDeep(page);
@@ -139,29 +151,26 @@ test.describe('deep check on the published ten', () => {
     expect(run.asked).not.toContain('housing.status'); expect(run.asked).not.toContain('mortgage.has'); expect(run.asked).not.toContain('payslip-rights.emp');
     await expect(page.locator('.dp-ph-cur')).toHaveText('3סיכום');
     expect(Number(await page.locator('.dp-segs').getAttribute('data-frac'))).toBe(1);
-    // results first, then the form
+    // the result: the counts the engine gives, and no help button or contact form
     const res = E.evaluateDeep(cfg, run.answers), c = await counts(page);
     expect(c.high).toBe(res.counts.highCards); expect(c.missing).toBe(res.counts.missingItems); expect(c.low).toBe(res.counts.lowCards);
-    await expect(page.locator('#lead')).toHaveCount(0);
+    await noHelpOffer(page);
     const y = (sel) => page.locator(sel).first().evaluate((e) => e.getBoundingClientRect().top + scrollY);
-    expect(await y('#result h1')).toBeLessThan(await y('#cta'));
+    expect(await y('#result h1')).toBeLessThan(await y('.dp-cta'));
     await expect(page.locator('#result')).toContainText('תוצאות ראשוניות בלבד');
     await nothingSticksOut(page); await noHScroll(page);
-    // the form: refusals, then success
-    await page.locator('#cta').click(); await expect(page.locator('#lead')).toBeVisible();
-    await page.locator('#send').click();
-    await expect(page.locator('#e-name')).not.toBeEmpty(); await expect(page.locator('#e-phone')).not.toBeEmpty(); await expect(page.locator('#e-consent')).not.toBeEmpty();
-    await page.locator('#f-name').fill('בדיקת עומק'); await page.locator('#f-phone').fill('12345'); await page.locator('#send').click();
-    await expect(page.locator('#e-phone')).not.toBeEmpty(); await expect(page.locator('#e-name')).toBeEmpty();
-    await page.locator('#f-phone').fill(phone()); await page.locator('#send').click();
-    await expect(page.locator('#e-consent')).not.toBeEmpty();
-    await page.locator('#c-contact').check(); await page.locator('#send').click();
-    await expect(page.locator('#done')).toBeVisible();
+    // the backend is unchanged: the request the form used to send is posted directly. Refusals first (they store nothing), then success.
+    const badPhone = await request.post(base + '/api/kaspchem/lead', { data: { topic: 'deep', answers: run.answers, name: 'בדיקת עומק', phone: '12345', email: '', website: '', consentContact: true, consentMarketing: false } });
+    expect(badPhone.status()).toBe(400); expect((await badPhone.json()).error).toBe('bad_phone');
+    const noConsent = await request.post(base + '/api/kaspchem/lead', { data: { topic: 'deep', answers: run.answers, name: 'בדיקת עומק', phone: phone(), email: '', website: '', consentContact: false, consentMarketing: false } });
+    expect(noConsent.status()).toBe(400); expect((await noConsent.json()).error).toBe('consent_required');
+    expect((await adminGet('/requests?topic=deep')).requests.length).toBe(0);
+    const sent = await request.post(base + '/api/kaspchem/lead', { data: { topic: 'deep', answers: run.answers, name: 'בדיקת עומק', phone: phone(), email: '', website: '', consentContact: true, consentMarketing: false } });
+    expect(sent.status()).toBe(200); expect((await sent.json()).ok).toBe(true);
     const list = (await adminGet('/requests?topic=deep')).requests;
     expect(list.length).toBe(1); expect(list[0].topic).toBe('deep');
     const d = (await adminGet('/requests/' + list[0].id)).request;
     expect(d.findings).toEqual(E.deepFindingIds(res));
-    expect(await page.evaluate(() => sessionStorage.getItem('kaspchem:deep'))).toBeNull(); // cleared after sending
   });
 
   test('back goes to the previous question and may lower the progress; a reload resumes where the visitor was; stale saved answers are dropped', async ({ page }) => {
@@ -382,7 +391,7 @@ test.describe('deep check on the V6 draft', () => {
     expect((await page.evaluate(() => window.__ring)).pop()).toBe(1);
   });
 
-  test('result: high and missing-information sections in order with the approved headings, four cards first with an expander, three-part cards, no low tier, results before the form', async ({ page }) => {
+  test('result: high and missing-information sections in order with the approved headings, four cards first with an expander, three-part cards, no low tier, no help button or contact form', async ({ page }) => {
     const { cfg } = await configOf();
     await openDeep(page);
     // a long result (many high-likelihood topics) and a missing one (an unknown answer)
@@ -402,7 +411,7 @@ test.describe('deep check on the V6 draft', () => {
     await expect(page.locator('#dp-low')).toHaveCount(0);                                   // the low tier is off: it never appears
     await expect(page.locator('#result')).not.toContainText('סבירות נמוכה');
     const y = (sel) => page.locator(sel).first().evaluate((e) => e.getBoundingClientRect().top + scrollY);
-    expect(await y('#dp-sec-high')).toBeLessThan(await y('#dp-sec-missing')); expect(await y('#dp-sec-missing')).toBeLessThan(await y('#cta'));
+    expect(await y('#dp-sec-high')).toBeLessThan(await y('#dp-sec-missing')); expect(await y('#dp-sec-missing')).toBeLessThan(await y('.dp-cta'));
     await expect(page.locator('#dp-sec-high h2')).toHaveText('סבירות גבוהה');                                  // the EXACT tier title, no other words
     await expect(page.locator('#dp-sec-high .dp-tier-sub')).toHaveText('התאמה גבוהה לתנאי הסינון שנבדקו. זו אינה קביעה סופית של זכאות.');
     await expect(page.locator('#dp-sec-high .dp-n')).toHaveText('(' + res.counts.highCards + ')');
@@ -430,7 +439,7 @@ test.describe('deep check on the V6 draft', () => {
     const frame = (await page.locator('#result .head, #result .dp-tier-h, #result .dp-tier-sub, #result .dp-cta').allInnerTexts()).join(' ');
     expect(frame).toContain(APPROVED_LINE);
     expect(frame.replace(APPROVED_LINE, '')).not.toMatch(/מגיע(ים|ות)? לכם|זכאים|זכאי\b|זכאות|זכיתם|הוענק|בוודאות|אושר|דקות/);
-    await expect(page.locator('#lead')).toHaveCount(0);                                     // results first; the form only on request
+    await noHelpOffer(page);                                                                // no help button, no contact form, only "check another topic"
     await nothingSticksOut(page); await noHScroll(page);
   });
 
@@ -449,7 +458,7 @@ test.describe('deep check on the V6 draft', () => {
     await expect(page.locator('#dp-sec-missing')).toContainText('חסר מידע');
   });
 
-  test('keyboard only: the whole first screens, the expander and the form can be used without a mouse', async ({ page }) => {
+  test('keyboard only: the first screens (a single and a multi-select question) can be used without a mouse', async ({ page }) => {
     const { cfg } = await configOf();
     await openDeep(page);
     // first question (single): Tab to the first option, Enter picks it
@@ -482,14 +491,14 @@ test.describe('deep check on the V6 draft', () => {
     await ctx.close();
   });
 
-  test('a request from the V6 draft is stored with topic deep and its findings by tier, and the dashboard shows them', async ({ page }) => {
+  test('a request from the V6 draft, posted to the API, is stored with topic deep and its findings by tier, and the dashboard shows them', async ({ page, request }) => {
     const { cfg } = await configOf();
     await openDeep(page);
     const policy = (q) => (q.id === 'profile.family' ? ['pna'] : firstPick(q));
     const run = await drive(page, cfg, policy);
-    await page.locator('#cta').click();
-    await page.locator('#f-name').fill('בדיקת טיוטה'); await page.locator('#f-phone').fill(phone()); await page.locator('#c-contact').check();
-    await page.locator('#send').click(); await expect(page.locator('#done')).toBeVisible();
+    await noHelpOffer(page);                                                                // the result has nothing to press; the request is posted directly
+    const sent = await request.post(base + '/api/kaspchem/lead', { data: { topic: 'deep', answers: run.answers, name: 'בדיקת טיוטה', phone: phone(), email: '', website: '', consentContact: true, consentMarketing: false } });
+    expect(sent.status()).toBe(200); expect((await sent.json()).ok).toBe(true);
     const res = E.evaluateDeep(cfg, run.answers);
     const list = (await adminGet('/requests?topic=deep')).requests; const mine = list[0];
     const d = (await adminGet('/requests/' + mine.id)).request;

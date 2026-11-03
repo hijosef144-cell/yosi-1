@@ -39,7 +39,8 @@ for (const t of topics) {
       await expect(page.locator('#result .find')).toHaveCount(res.cards.length);
       for (const f of res.findings) {
         const rule = t.rules.find((r) => r.id === f.id), fin = rule.finding;
-        const card = page.locator('#result .find', { hasText: fin.title }).first();
+        // the card whose TITLE is exactly this finding's title (a title can appear inside another card's text, e.g. "דמי כרטיס")
+        const card = page.locator('#result .find').filter({ has: page.getByText(fin.title, { exact: true }) });
         await expect(card).toBeVisible();
         await expect(card).toContainText('הצעד הבא');
         for (const para of fin.step.split('\n')) await expect(card).toContainText(para.slice(0, 40));

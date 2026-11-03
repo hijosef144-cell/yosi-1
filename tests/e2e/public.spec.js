@@ -14,6 +14,18 @@ const noHScroll = async (page) => {
   const over = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(over, 'horizontal overflow').toBeLessThanOrEqual(0);
 };
+// Version 1.0: a result screen has no call to action and no contact form; the only way on is the link "לבדוק תחום אחר" (at least 44px tall).
+const noHelpOffer = async (page) => {
+  for (const sel of ['#cta', '#lead', '#lead-slot', '#send', '#f-name', '#f-phone', '#f-email', '#c-contact', '#c-mkt', '#done', '#result .more']) await expect(page.locator(sel), sel).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'אני רוצה עזרה בבדיקה' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'אני רוצה עזרה בבדיקה' })).toHaveCount(0);
+  const text = await page.locator('#app').innerText();
+  expect(text).not.toContain('נחזור'); expect(text).not.toContain('השארת פרטים');
+  const other = page.getByRole('link', { name: 'לבדוק תחום אחר', exact: true });
+  await expect(other).toBeVisible();
+  await expect(other).toHaveAttribute('href', '/kaspchem');
+  expect((await other.boundingBox()).height).toBeGreaterThanOrEqual(44);
+};
 
 test('landing: ten tiles, RTL, no horizontal scroll, light travels clockwise', async ({ page }, ti) => {
   await page.goto('/kaspchem');
@@ -42,7 +54,7 @@ test('landing: reduced motion keeps tiles static', async ({ browser, baseURL }, 
   await ctx.close();
 });
 
-test('wizard: found result, back/forward, branching, lead submit, thanks', async ({ page }, ti) => {
+test('wizard: found result, back/forward, branching; the result has no help button, contact form or thank-you panel', async ({ page }, ti) => {
   await page.goto('/kaspchem/check/mortgage');
   await expect(page.locator('h1')).toContainText('משכנתה');
   await expect(page.locator('.pmeta')).toContainText('שאלה 1');
@@ -61,22 +73,7 @@ test('wizard: found result, back/forward, branching, lead submit, thanks', async
   await page.waitForTimeout(1500);
   await shot(page, ti, 'result');
   await noHScroll(page);
-
-  await page.getByRole('button', { name: 'אני רוצה עזרה בבדיקה' }).click();
-  await page.getByRole('button', { name: 'שליחה' }).click();
-  await expect(page.locator('#e-name')).toContainText('שם');
-  await expect(page.locator('#e-phone')).toContainText('טלפון');
-  await expect(page.locator('#e-consent')).toContainText('לאשר');
-  await page.fill('#f-name', 'בדיקה אוטומטית');
-  await page.fill('#f-phone', '0501234567');
-  await page.check('#c-contact');
-  await shot(page, ti, 'form');
-  await page.getByRole('button', { name: 'שליחה' }).click();
-  await expect(page.locator('#done')).toContainText('הפנייה התקבלה');
-  await expect(page.locator('.more a')).toHaveCount(9);
-  await page.waitForTimeout(700);
-  await shot(page, ti, 'thanks');
-  await noHScroll(page);
+  await noHelpOffer(page);   // nothing to press, no form, no "we will call back": only "check another topic"
 });
 
 test('wizard: insufficient and none outcomes', async ({ page }) => {
@@ -88,6 +85,7 @@ test('wizard: insufficient and none outcomes', async ({ page }) => {
   await expect(page.locator('#result h1')).toBeVisible({ timeout: 8000 });
   // first answer 'never' already yields a finding, so this path must be 'found'
   await expect(page.locator('#result h1')).toContainText('זיהינו');
+  await noHelpOffer(page);
 
   await page.goto('/kaspchem/check/lost-funds');
   await page.evaluate(() => sessionStorage.clear());
@@ -97,6 +95,7 @@ test('wizard: insufficient and none outcomes', async ({ page }) => {
   await pick(page, 'לא');
   await pick(page, 'לא');
   await expect(page.locator('#result h1')).toContainText('לא זיהינו', { timeout: 8000 });
+  await noHelpOffer(page);
 
   await page.goto('/kaspchem/check/lost-funds');
   await page.evaluate(() => sessionStorage.clear());
@@ -106,6 +105,7 @@ test('wizard: insufficient and none outcomes', async ({ page }) => {
   await pick(page, 'לא');
   await pick(page, 'לא');
   await expect(page.locator('#result h1')).toContainText('חסר לנו מידע', { timeout: 8000 });
+  await noHelpOffer(page);
 });
 
 test('wizard: keyboard only', async ({ page }) => {
@@ -151,5 +151,4 @@ test('result: never a big zero; gold moment only when something was identified; 
   await expect(page.locator('#result .goldline')).toHaveCount(1);
   await expect(page.locator('#result .burst, #result .coin')).toHaveCount(0);
   await expect(page.locator('#result')).toContainText('תוצאות ראשוניות בלבד');
-  await expect(page.locator('#result')).toContainText('חינמית');
 });
