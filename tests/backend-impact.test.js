@@ -257,10 +257,25 @@ test('same-day refinement: with a reference moment, an outcome completed on the 
   await adm('PUT', '/impact', { families: 5, amount: 2000 });               // editing the numbers later changes only the starting part
   assert.deepEqual(await now(), [6, 2300]);
   // owner's data has a cutoff but no reference moment: strictly after the date
-  await srv.pg.exec("DELETE FROM settings WHERE key = 'private.impact_reference_at'");
+  await srv.pg.exec("DELETE FROM settings WHERE key = 'private.impact_reference_at'; DELETE FROM audit_log WHERE action LIKE 'impact.%'");   // no stored moment and no audit trail of it either
   assert.deepEqual(await now(), [5, 2000]);
   await srv.pg.query('UPDATE outcomes SET completed_on = $1 WHERE request_id = $2', [shift(1), late]);
   assert.deepEqual(await now(), [6, 2300]);
+});
+
+test('legacy cutoff with no stored reference moment: the moment is read from the audit log (read only), so a treatment completed on the cutoff day AFTER it counts and one recorded before it does not', async () => {
+  await seed({ baseline: [{ kind: 'ongoing_saving', amount: '201653.00', family_count: 6 }], cutoff: TODAY(), flag: true });
+  const before = await request(); await setOutcome(before, 100);            // completed on the cutoff day, recorded before the cutoff was set (backdated below)
+  await srv.pg.query("UPDATE outcomes SET created_at = now() - interval '2 hours' WHERE request_id = $1", [before]);
+  await srv.pg.query("INSERT INTO audit_log (actor, action, entity, entity_id, detail, created_at) VALUES ('owner','impact.baseline.cutoff','settings','private.impact_baseline_cutoff','{}'::jsonb, now() - interval '1 hour')");
+  const settings0 = JSON.stringify(await q('SELECT * FROM settings ORDER BY key')), audit0 = JSON.stringify(await q('SELECT * FROM audit_log ORDER BY id'));
+  const now = async () => { const b = (await pub()).body; return [b.families, b.amount]; };
+  assert.deepEqual(await now(), [6, 201653], 'recorded before the moment the cutoff was set: inside the typed numbers');
+  const after = await request(); await setOutcome(after, 300);              // completed on the cutoff day, recorded after it
+  assert.deepEqual(await now(), [7, 201953], 'the owner\'s data (6 / 201,653) plus the new treatment');
+  assert.equal(JSON.stringify(await q('SELECT * FROM settings ORDER BY key')), settings0, 'no setting was written (the moment is derived, not stored)');
+  assert.equal((await q("SELECT count(*)::int n FROM audit_log WHERE action LIKE 'impact.baseline.%' OR action = 'impact.start.save'"))[0].n, JSON.parse(audit0).filter((a) => /^impact\.(baseline\.|start\.save)/.test(a.action)).length);
+  assert.deepEqual(await pub().then((r) => Object.keys(r.body).sort()), ['amount', 'as_of', 'enabled', 'families', 'ok']);
 });
 
 test('returning families: an applicant with an earlier done request is not counted as a new family (her new amount still counts); a new applicant counts once however many treatments; a family with no record in the system is counted (documented limit)', async () => {

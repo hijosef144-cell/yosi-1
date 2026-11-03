@@ -44,7 +44,13 @@ async function loadRows() {
 async function loadConfig() {
   const rows = await db.query('SELECT key, value FROM settings WHERE key = ANY($1::text[])', [MANAGED_KEYS]);
   const m = {}; rows.forEach((r) => { m[r.key] = r.value; });
-  const ref = m[KEY.reference] ? new Date(m[KEY.reference]) : null;
+  let ref = m[KEY.reference] ? new Date(m[KEY.reference]) : null;
+  if ((!ref || isNaN(ref)) && isDate(m[KEY.cutoff])) {
+    // Data whose cutoff was saved before the exact moment was kept in settings: the moment the cutoff was set is in the audit log. READ ONLY: the
+    // derived moment is used for the calculation and is never written anywhere (the owners' data stays exactly as it is).
+    const a = await db.query("SELECT created_at FROM audit_log WHERE action = 'impact.baseline.cutoff' OR (action = 'impact.start.save' AND detail->>'cutoff_set' = 'true') ORDER BY id DESC LIMIT 1");
+    if (a.length) ref = new Date(a[0].created_at);
+  }
   return { flag: m[KEY.flag] === true, cutoff: isDate(m[KEY.cutoff]) ? m[KEY.cutoff] : null, referenceAt: ref && !isNaN(ref) ? ref : null };
 }
 // Requests in status 'done' (used only to recognise a returning family; tiny table).
