@@ -36,9 +36,11 @@ test('multi-select: explicit continue, exclusive option, several findings with s
   await expect(page.locator('#result h1')).toContainText('2 נושאים', { timeout: 8000 });
   await expect(page.locator('.find')).toHaveCount(2);                            // inactive draft rule did not fire
   await expect(page.locator('#result')).not.toContainText('כלל טיוטה');
+  await expect(page.locator('#cta, #lead')).toHaveCount(0);                       // no help button or contact form on the result
   const first = page.locator('.find').first();
-  await expect(first).toContainText('צעד מעשי');
-  await expect(first.locator('a[href="https://itur.mof.gov.il/"]')).toHaveAttribute('target', '_blank');
+  await expect(first).toContainText('הצעד הבא');
+  await expect(first.locator('.fx', { hasText: 'הצעד הבא:' })).toHaveCount(1);
+  await expect(first.locator('.fx', { hasText: 'איפה:' }).locator('a[href="https://itur.mof.gov.il/"]')).toHaveAttribute('target', '_blank');   // "where:" label, then the official link
   await expect(first).toContainText('הקישור נבדק 01.11.2026');
   await expect(first.locator('details summary')).toContainText('להמשך טיפול');
   await page.waitForTimeout(1500);

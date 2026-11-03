@@ -2,7 +2,6 @@ const { test, expect } = require('@playwright/test');
 
 // Stage 4: the quick check. Runs at 360 / 390 / 768 / 1440 (all projects) against the local test server (in-memory database); nothing real is touched.
 const ADM = { 'x-test-user': 'yosi@example.test|admin', 'x-kaspchem': '1' };
-const TEN = ['lost-funds', 'tax-refunds', 'housing', 'mortgage', 'insurance-pension', 'payslip-rights', 'national-insurance', 'banking-loans', 'household', 'education-work'];
 
 const L = {
   employee: 'שכיר/ה', self: 'עצמאי/ת', seeking: 'לא עובד/ת כרגע', retired: 'גמלאי/ת', student: 'סטודנט/ית, חייל/ת או משוחרר/ת',
@@ -20,6 +19,18 @@ const nothingSticksOut = async (page) => expect(await page.evaluate(() => { cons
 const frac = (page) => page.locator('.kp-ring:visible').first().getAttribute('data-frac').then(Number);
 const coins = (page) => page.locator('.kp-jar:visible').first().getAttribute('data-coins').then(Number);
 const h1 = (page) => page.locator('.q h1').first().textContent();
+// Version 1.0: a result screen has no call to action and no contact form; the only way on (besides the topic cards) is the link "לבדוק תחום אחר" (at least 44px tall).
+const noHelpOffer = async (page) => {
+  for (const sel of ['#cta', '#lead', '#lead-slot', '#send', '#f-name', '#f-phone', '#f-email', '#c-contact', '#c-mkt', '#done', '#result .more']) await expect(page.locator(sel), sel).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'אני רוצה עזרה בבדיקה' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'אני רוצה עזרה בבדיקה' })).toHaveCount(0);
+  const text = await page.locator('#app').innerText();
+  expect(text).not.toContain('נחזור'); expect(text).not.toContain('השארת פרטים');
+  const other = page.getByRole('link', { name: 'לבדוק תחום אחר', exact: true });
+  await expect(other).toBeVisible();
+  await expect(other).toHaveAttribute('href', '/kaspchem');
+  expect((await other.boundingBox()).height).toBeGreaterThanOrEqual(44);
+};
 
 async function open(page) {
   await page.goto('/kaspchem/check/quick');
@@ -208,7 +219,7 @@ test('wide screens: the progress ring and the coin jar sit beside the card; narr
   await nothingSticksOut(page);
 });
 
-test('result: personal heading and one sentence, a card per topic with a real link to that topic\'s check, the caveat once, and no form before the click', async ({ page }) => {
+test('result: personal heading and one sentence, a card per topic with a real link to that topic\'s check, the caveat once, and no help button or contact form', async ({ page }) => {
   await open(page);
   await answer(page, BIG_PATH);
   await result(page);
@@ -237,11 +248,8 @@ test('result: personal heading and one sentence, a card per topic with a real li
   await expect(page.locator('#result .fxd, #result .fx, #result .big, #result a[target=_blank]')).toHaveCount(0); // no cost details, steps, official links, big number
   const txt = await page.locator('#result').innerText();
   expect((txt.match(/תוצאות ראשוניות בלבד/g) || []).length).toBe(1);
-  // results come first: the contact form is not there until the call to action is clicked
-  await expect(page.locator('#lead')).toHaveCount(0);
-  await expect(page.locator('#cta')).toBeVisible();
-  await expect(page.locator('#cta')).toHaveText('אני רוצה עזרה בבדיקה');
-  expect(await page.locator('#cta').evaluate((e) => e.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
+  // version 1.0: no help button and no contact form at all; the row at the end only offers "check another topic"
+  await noHelpOffer(page);
   for (const b of await page.locator('a.qk-go').all()) expect((await b.boundingBox()).height).toBeGreaterThanOrEqual(44);
   await expect(page.locator('#result a.btn.link')).toHaveAttribute('href', '/kaspchem');
   await noHScroll(page); await nothingSticksOut(page);
@@ -297,32 +305,26 @@ test('result: "not sure" about the tax report with nothing else leaves "insuffic
   await expect(page.locator('.q h1')).toContainText('תלוש השכר');
 });
 
-test('lead form: opens only after the click; refuses empty name/phone and no consent; accepts an empty e-mail; the request reaches the dashboard with the recommended topics', async ({ page, request }, ti) => {
+test('no help button or contact form on the result; the server still refuses a request without consent or with a bad e-mail and accepts an empty e-mail; the request reaches the dashboard with the recommended topics', async ({ page, request }, ti) => {
   await open(page);
   await answer(page, BIG_PATH);
   await result(page);
-  await page.locator('#cta').click();
-  await expect(page.locator('#lead')).toBeVisible();
-  await expect(page.locator('#c-mkt')).not.toBeChecked();                                // marketing consent: separate and unchecked
-  await expect(page.locator('#c-contact')).not.toBeChecked();
-  await page.getByRole('button', { name: 'שליחה' }).click();
-  await expect(page.locator('#e-name')).toContainText('שם'); await expect(page.locator('#e-phone')).toContainText('טלפון'); await expect(page.locator('#e-consent')).toContainText('לאשר');
+  await noHelpOffer(page);                                                               // nothing to press: no #cta, no #lead, no thank-you panel
+  await nothingSticksOut(page); await noHScroll(page);
+  // the backend is unchanged: post the request the browser form used to send, with the answers the visitor just gave
+  const answers = await page.evaluate(() => JSON.parse(sessionStorage.getItem('kaspchem:quick')).a);
+  expect(Object.keys(answers).length).toBeGreaterThanOrEqual(8);
   const name = 'בודק מהיר ' + ti.project.name + ' ' + Math.floor(Math.random() * 1e9);
   const phone = '05' + (2 + (ti.project.name.length % 6)) + String(Math.floor(1e6 + Math.random() * 9e6));
-  await page.fill('#f-name', name); await page.fill('#f-phone', phone);
-  await page.getByRole('button', { name: 'שליחה' }).click();                              // no consent
-  await expect(page.locator('#e-consent')).toContainText('לאשר'); await expect(page.locator('#done')).toHaveCount(0);
-  await page.fill('#f-email', 'not-an-email'); await page.check('#c-contact');
-  await page.getByRole('button', { name: 'שליחה' }).click();
-  await expect(page.locator('#e-email')).toContainText('אינה תקינה');
-  await page.fill('#f-email', '');                                                       // e-mail is optional
-  await nothingSticksOut(page);
-  await page.getByRole('button', { name: 'שליחה' }).click();
-  await expect(page.locator('#done')).toContainText('הפנייה התקבלה');
-  await expect(page.locator('#done')).toContainText('בדיקה מהירה');
-  const more = await page.locator('.more a').evaluateAll((as) => as.map((a) => a.getAttribute('href')));
-  expect(more.sort()).toEqual(TEN.map((t) => '/kaspchem/check/' + t).sort());           // the ten topics only, never the quick check itself
-  await noHScroll(page);
+  const send = (over) => request.post('/api/kaspchem/lead', { data: Object.assign({ topic: 'quick', answers, name, phone, email: '', website: '', consentContact: true, consentMarketing: false }, over) });
+  const noConsent = await send({ consentContact: false });                               // no consent
+  expect(noConsent.status()).toBe(400); expect((await noConsent.json()).error).toBe('consent_required');
+  const badMail = await send({ email: 'not-an-email' });
+  expect(badMail.status()).toBe(400); expect((await badMail.json()).error).toBe('bad_email');
+  const none = await (await request.get('/api/kaspchem/admin/requests?topic=quick&q=' + encodeURIComponent(name), { headers: ADM })).json();
+  expect(none.requests.length).toBe(0);                                                  // the refusals stored nothing
+  const sent = await send({});                                                           // e-mail is optional
+  expect(sent.status()).toBe(200); expect((await sent.json()).ok).toBe(true);
   // the dashboard side
   const list = await (await request.get('/api/kaspchem/admin/requests?topic=quick&q=' + encodeURIComponent(name), { headers: ADM })).json();
   expect(list.requests.length).toBe(1);
@@ -390,15 +392,15 @@ test('result: firm cards first, then a separate "needs information" section with
   expect(await page.locator('#result').innerText()).toContain('זיהינו');
   expect(((await page.locator('#result').innerText()).match(/זיהינו/g) || []).length).toBe(1);        // only in the heading
   expect(((await page.locator('#result').innerText()).match(/תוצאות ראשוניות בלבד/g) || []).length).toBe(1);
-  // order on the page: firm cards, then the needs-info section, then the call to action
+  // order on the page: firm cards, then the needs-info section, then the closing "check another topic" row (and no help button or form)
   const y = (sel) => page.locator(sel).first().evaluate((e) => e.getBoundingClientRect().top + scrollY);
-  expect(await y('.qk-top')).toBeLessThan(await y('.qk-info')); expect(await y('.qk-info')).toBeLessThan(await y('#cta'));
-  await expect(page.locator('#lead')).toHaveCount(0);
+  expect(await y('.qk-top')).toBeLessThan(await y('.qk-info')); expect(await y('.qk-info')).toBeLessThan(await y('.cta-row'));
+  await noHelpOffer(page);
   await nothingSticksOut(page); await noHScroll(page);
   for (const b of await page.locator('a.qk-go').all()) expect((await b.boundingBox()).height).toBeGreaterThanOrEqual(44);
 });
 
-test('result: long results show four topics, the expander works by keyboard, nothing is lost, and the needs-info section and the call to action stay in order', async ({ page }) => {
+test('result: long results show four topics, the expander works by keyboard, nothing is lost, and the needs-info section and the "check another topic" row stay in order, with no help button or form', async ({ page }) => {
   await open(page);
   await answer(page, Object.assign({}, BIG_PATH, { hb: L.hbUnk }));        // eight firm topics (housing becomes needs-info)
   await result(page);
@@ -408,19 +410,19 @@ test('result: long results show four topics, the expander works by keyboard, not
   const tog = page.locator('#qk-tog');
   await expect(tog).toHaveText('הצגת כל התחומים שזוהו (4)');
   const y = (sel) => page.locator(sel).first().evaluate((e) => e.getBoundingClientRect().top + scrollY);
-  expect(await y('#qk-tog')).toBeLessThan(await y('.qk-info')); expect(await y('.qk-info')).toBeLessThan(await y('#cta'));
+  expect(await y('#qk-tog')).toBeLessThan(await y('.qk-info')); expect(await y('.qk-info')).toBeLessThan(await y('.cta-row'));
   // keyboard: Tab to the expander, Enter opens, Enter again closes; focus stays on the button
   await page.locator('#qk-tog').focus();
   await page.keyboard.press('Enter');
   await expect(tog).toHaveAttribute('aria-expanded', 'true'); await expect(page.locator('#qk-more')).toBeVisible();
   await expect(page.locator('#result .find:visible')).toHaveCount(8 + 1);
   expect(await page.evaluate(() => document.activeElement.id)).toBe('qk-tog');
-  expect(await y('#qk-more')).toBeLessThan(await y('#qk-tog')); expect(await y('#qk-tog')).toBeLessThan(await y('.qk-info')); expect(await y('.qk-info')).toBeLessThan(await y('#cta'));
+  expect(await y('#qk-more')).toBeLessThan(await y('#qk-tog')); expect(await y('#qk-tog')).toBeLessThan(await y('.qk-info')); expect(await y('.qk-info')).toBeLessThan(await y('.cta-row'));
   await nothingSticksOut(page);
   await page.keyboard.press('Space');
   await expect(tog).toHaveAttribute('aria-expanded', 'false'); await expect(page.locator('#qk-more')).toBeHidden();
   await expect(tog).toHaveText('הצגת כל התחומים שזוהו (4)');
   await expect(page.locator('#result .find')).toHaveCount(8 + 1);                                  // never deleted
-  // the call to action still works after expanding
-  await page.locator('#cta').click(); await expect(page.locator('#lead')).toBeVisible();
+  // still no help button or contact form after expanding and collapsing
+  await noHelpOffer(page);
 });
