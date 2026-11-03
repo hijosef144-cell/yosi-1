@@ -320,7 +320,7 @@ test.describe('deep check on the V6 draft', () => {
     // low likelihood: collapsed by default, only weak rules, with the reason the sign is weak
     const low = page.locator('#dp-low');
     expect(await low.evaluate((e) => e.open)).toBe(false);
-    await low.locator('summary').click();
+    await low.locator(':scope > summary').click();
     await expect(low.locator('.dp-card').first()).toContainText('החוק אינו חל על חלק מהתפקידים האלה');
     await expect(low.locator('.dp-weak').first()).toBeVisible();
     // wording: the single caveat, no claim of entitlement anywhere on the page
@@ -442,15 +442,18 @@ test.describe('deep check switched off (the default)', () => {
   test('switching it on later is seen by the next visitor: the tile appears, and a returning visitor gets its place reserved with no shift at all', async ({ page }) => {
     await setFlag(true);
     await watchShifts(page);
+    await page.addInitScript(() => { window.__sawExpect = false; new MutationObserver(() => { if (document.documentElement && document.documentElement.classList.contains('dp-expect')) window.__sawExpect = true; }).observe(document, { subtree: true, attributes: true, attributeFilter: ['class'] }); });
     await page.goto(base + '/kaspchem');
     await expect(page.locator('#dp-tile')).toBeVisible();
+    expect(await page.evaluate(() => window.__sawExpect)).toBe(false); // first visit: nothing is remembered yet
     await page.waitForLoadState('load'); await page.waitForTimeout(300);
     const first = await page.evaluate(() => window.__mine);
     expect(await page.evaluate(() => localStorage.getItem('kasp:dp'))).toBe('1');
     // returning visit (this browser remembers): the place is reserved before the answer arrives, nothing moves
     await page.reload();
-    expect(await page.evaluate(() => document.documentElement.classList.contains('dp-expect'))).toBe(true);
     await expect(page.locator('#dp-tile')).toBeVisible();
+    expect(await page.evaluate(() => window.__sawExpect)).toBe(true); // the place was reserved before the answer arrived (recorded as an event, not polled)
+    expect(await page.evaluate(() => document.documentElement.classList.contains('dp-expect'))).toBe(false); // and handed back once the real tile is shown
     await page.waitForLoadState('load'); await page.waitForTimeout(300);
     const second = await page.evaluate(() => window.__mine);
     test.info().annotations.push({ type: 'cls', description: 'deep tile: first visit ' + first.toFixed(4) + ', returning visit ' + second.toFixed(4) });
@@ -459,6 +462,8 @@ test.describe('deep check switched off (the default)', () => {
     expect(first).toBeLessThan(0.2);
     // switching it off again: the next visitor sees nothing and the reservation is forgotten
     await setFlag(false);
+    // the config answer may be cached by the browser for up to 60 s (public, max-age=60) like every config read: this visitor asks again explicitly
+    await page.route('**/api/kaspchem/config', (r) => r.continue({ headers: Object.assign({}, r.request().headers(), { 'cache-control': 'no-cache' }) }));
     await Promise.all([page.waitForResponse((r) => r.url().endsWith('/api/kaspchem/config')), page.reload()]);
     await expect(page.locator('#dp-tile')).toBeHidden();
     expect(await page.evaluate(() => document.documentElement.classList.contains('dp-expect'))).toBe(false);

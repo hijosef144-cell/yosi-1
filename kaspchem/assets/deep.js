@@ -138,7 +138,7 @@
       (helpH ? '<details class="dp-part dp-det"><summary>' + esc(P('partHelp', 'מי יכול לעזור')) + '</summary><div class="dp-help">' + helpH + '</div></details>' : '');
   }
   function missingLine(c, given) {
-    var items = c.parts || [c], seen = {}, list = given || [];
+    var items = c ? (c.parts || [c]) : [], seen = {}, list = given || [];
     if (!given) { list = []; items.forEach(function (f) { (f.missing || []).forEach(function (m) { if (!seen[m.id]) { seen[m.id] = true; list.push(m); } }); }); }
     return '<ul class="dp-miss">' + list.map(function (m) {
       return '<li><span class="dp-mq">' + esc(M('missingLine', 'חסר מידע:')) + ' ' + esc(m.text) + '</span> <button type="button" class="btn link dp-fill" data-ask="' + esc(m.ask || m.id) + '">' + esc(M('completeAnswer', 'השלמת התשובה')) + '</button></li>';
