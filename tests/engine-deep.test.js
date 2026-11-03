@@ -471,7 +471,7 @@ test('missing items that wait for the same question are folded into one item (3 
   assert.equal(r.counts.missingItems, 1); assert.equal(r.missingItems[0].folded, true); assert.equal(r.missingItems[0].cards.length, r.missingCards.length);
 });
 
-test('deep golden master: the composed deep check gives exactly what was recorded on 20,000 seeded paths (published ten, and V6 when present)', () => {
+test('deep golden master: the composed deep check gives exactly what was recorded on 3,000 seeded paths (published ten, and V6 when present)', () => {
   const G = require('../scripts/golden-deep.js'), dir = path.join(root, 'tests', 'fixtures', 'golden');
   assert.ok(G.check(path.join(root, 'kaspchem', 'content', 'topics.json'), path.join(dir, 'deep-published-v1.json')).same, 'published ten: the deep check changed; re-record on purpose');
   if (!SKIP_V6) assert.ok(G.check(V6F, path.join(dir, 'deep-v6.json')).same, 'V6: the deep check changed; re-record on purpose');

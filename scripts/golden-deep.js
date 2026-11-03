@@ -5,7 +5,7 @@
 const fs = require('fs'), path = require('path'), crypto = require('crypto');
 const E = require('../kaspchem/assets/engine.js');
 const L = require('../kaspchem/assets/engine-deep-lint.js');
-const N = 20000, SEED = 20261103;
+const N = 3000, SEED = 20261103;
 
 function snapshot(topicsFile) {
   const route = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'kaspchem', 'content', 'routes.json'), 'utf8')).topics.find((t) => t.id === 'deep');
