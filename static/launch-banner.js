@@ -106,28 +106,39 @@
   function uiIcon(id, vb) { return '<svg viewBox="' + (vb || '0 0 16 16') + '" aria-hidden="true" focusable="false"><use href="#lb-i-' + id + '"/></svg>'; }
 
   /* ---------- which presentation fits this screen ---------- */
-  // הרוחב הפנוי בצד ימין (שם הכרזה יושבת): המרחק בין קצה הדף לקצה הימני של התוכן הנראה בפועל.
-  // נמדד על העמוד עצמו, כי חלק מהעמודים (מחשבונים, מדריכים) רחבים מהאתר הראשי.
+  // הרוחב הפנוי בצד ימין (שם הכרזה יושבת): המרחק בין קצה הדף לקצה הימני של התוכן שמתחת לכרזה, נמדד על העמוד עצמו.
+  // - טקסט נמדד לפי הטקסט עצמו ולא לפי תיבת הבלוק (כותרת ממורכזת רחבה כמו המיכל, אבל הטקסט שלה צר);
+  // - כל מה שנמצא מעל תחילת הכרזה (הכותרת העליונה של האתר, שהכרזה תלויה מתחתיה) לא נחשב.
   var SKIP = '#cookie-banner,#a11y-btn,#a11y-panel,#legalDisclaimer,#questionBanner,#faqSmartPopup,[aria-modal="true"],[role="dialog"],.fx-overlay,.lb-root';
+  var TEXT_TAGS = /^(H[1-6]|P|LI|LABEL|SUMMARY|TD|TH)$/;
   function contentRight() {
-    var w = docEl.clientWidth, max = 0, nodes = D.querySelectorAll('a,button,input,select,textarea,label,h1,h2,h3,h4,h5,p,li,img,td,th,summary');
+    var w = docEl.clientWidth, max = 0, top = topOffset() - W.scrollY * 0, sy = W.scrollY || 0,
+        nodes = D.querySelectorAll('a,button,input,select,textarea,label,h1,h2,h3,h4,h5,p,li,img,canvas,td,th,summary'), rg = null;
     for (var i = 0; i < nodes.length; i++) {
       var el = nodes[i], r = el.getBoundingClientRect();
       if (r.width < 2 || r.height < 2 || r.left < 0 || r.right <= max) continue;
+      if (r.bottom + sy <= top) continue;                                   // מעל הכרזה: לא יכול להיות מכוסה
       if (el.closest(SKIP) || el.closest('[hidden],.hidden')) continue;
       var cs = W.getComputedStyle(el);
       if (cs.display === 'none' || cs.visibility === 'hidden' || cs.position === 'fixed' || parseFloat(cs.opacity) === 0) continue;
-      max = Math.min(r.right, w);
+      var right = r.right;
+      if (TEXT_TAGS.test(el.tagName)) {                                     // הקצה הימני של הטקסט עצמו
+        try { rg = rg || D.createRange(); rg.selectNodeContents(el); var tr = rg.getBoundingClientRect(); if (tr.width > 0) right = Math.min(right, tr.right); } catch (e) {}
+      }
+      if (right > max) max = Math.min(right, w);
     }
     return max;
   }
+  var SCROLL_W = 312, SCROLL_MIN = 230, EDGE = 16, GAP = 6;                // רוחב מלא, רוחב מינימלי, מרחק מקצה המסך, מרווח מהתוכן
   function tierFor(w) {
     var coarse = false;
     try { coarse = W.matchMedia('(pointer: coarse)').matches; } catch (e) {}
+    S.scrollW = SCROLL_W;
     if (w < 1100) return 'bar';                // טאבלט ונייד: פס תחתון + חלונית
     if (coarse && w < 1420) return 'bar';      // מכשירי מגע ברוחב בינוני: פס תחתון
     var room = w - contentRight();             // מקום פנוי בצד ימין, מעבר לתוכן
-    if (room >= 360) return 'full';            // מגילה מלאה (312px + שוליים) בלי לחפוף תוכן
+    if (room >= SCROLL_W + EDGE + GAP) return 'full';                       // מגילה גדולה (312px)
+    if (room >= SCROLL_MIN + EDGE + GAP) { S.scrollW = room - EDGE - GAP; return 'full'; }   // מגילה בינונית (230-311px), עם הכותרת, המסרים והטופס
     if (room >= 94) return 'totem';            // מגילה קטנה (68px)
     if (room >= 30) return 'tab';              // לשונית צד (28px)
     return 'bar';                              // אין מקום בצד: פס תחתון, כדי לא לכסות תוכן
@@ -309,7 +320,10 @@
     var n = ++S.uid, el = D.createElement('section');
     el.className = 'lb-scroll'; el.setAttribute('data-on', '0');
     if (overlay) { el.setAttribute('data-overlay', '1'); el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'הרשמה לעדכון על המיזם החדש'); }
-    else { el.setAttribute('role', 'complementary'); el.setAttribute('aria-labelledby', 'lb-h' + n); }
+    else {
+      el.setAttribute('role', 'complementary'); el.setAttribute('aria-labelledby', 'lb-h' + n);
+      el.style.setProperty('--lb-w', S.scrollW + 'px'); if (S.scrollW < 292) el.setAttribute('data-narrow', '1');   // רוחב המגילה לפי המקום הפנוי
+    }
     el.innerHTML = '<div class="lb-rod" aria-hidden="true"></div><div class="lb-sheet"><div class="lb-body">' +
       '<button type="button" class="lb-min" aria-label="' + (overlay ? 'סגירת החלונית' : 'מזעור ללשונית') + '">' + uiIcon('min') + '</button>' +
       '<button type="button" class="lb-x" aria-label="' + (overlay ? 'סגירת ההודעה לשבעה ימים' : 'סגירת ההודעה') + '">' + uiIcon('x') + '</button>' +
@@ -551,11 +565,12 @@
     ['--lb-lift', '--lb-bar-h', '--lb-cookie-h', '--lb-top'].forEach(function (p) { docEl.style.removeProperty(p); });
   }
   // top offset: just under a sticky/fixed site header, else a fixed gap
-  function setTop() {
+  function topOffset() {
     var top = 96, h = D.querySelector('header');
     if (h) { var cs = W.getComputedStyle(h); var r = h.getBoundingClientRect(); if ((cs.position === 'sticky' || cs.position === 'fixed') && r.height) top = Math.round(r.bottom) + 16; else if (r.height && r.top < 4) top = Math.max(top, Math.round(r.bottom + W.scrollY) + 16); }
-    docEl.style.setProperty('--lb-top', Math.min(Math.max(top, 64), 150) + 'px');
+    return Math.min(Math.max(top, 64), 150);
   }
+  function setTop() { docEl.style.setProperty('--lb-top', topOffset() + 'px'); }
 
   function rebuild() {
     var wasPanel = S.panel;

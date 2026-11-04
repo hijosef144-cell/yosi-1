@@ -8,7 +8,7 @@ const VIEWS = [
   { name: 'mobile', viewport: { width: 390, height: 844 }, mobile: true, source: 'mobile' },
   { name: 'wide', viewport: { width: 2000, height: 1100 }, mobile: false, source: 'desktop' },
   { name: 'totem', viewport: { width: 1440, height: 900 }, mobile: false, source: 'compact' },
-  { name: 'tab', viewport: { width: 1366, height: 768 }, mobile: false, source: 'tab' }
+  { name: 'tab', viewport: { width: 1300, height: 800 }, mobile: false, source: 'tab' }
 ];
 
 test.beforeEach(async ({ request }) => { await resetCrm(request); });

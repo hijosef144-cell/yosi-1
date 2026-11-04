@@ -11,6 +11,13 @@ const h = require(path.join(CRM, 'server', 'tests', 'helpers', 'harness.js'));
 const { buildTargetClause } = require(path.join(CRM, 'server', 'services', 'campaignSender.js'));
 const waitlist = require(path.join(CRM, 'server', 'routes', 'emailInitiativeWaitlist.js'));
 const { db, pool, mail } = h;
+// The CRM harness allows the origin http://localhost:4180 in CORS (hard-coded). The page under test is served by the static server on
+// http://127.0.0.1:4190 (4180 is used by other work on this machine), so rebuild the app with that origin allowed too. Test-only:
+// WAITLIST_TEST_ORIGINS is ignored by the CRM when NODE_ENV is 'production'. Mail stubs and the in-memory pool stay in place (module cache).
+process.env.WAITLIST_TEST_ORIGINS = 'http://localhost:4180,http://127.0.0.1:4190';
+const appPath = require.resolve(path.join(CRM, 'server', 'app.js'));
+delete require.cache[appPath];
+const app = require(appPath);
 
 const rows = async (sql, p) => (await db.query(sql, p || [])).rows;
 const json = (res, code, body) => { res.writeHead(code, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type' }); res.end(JSON.stringify(body)); };
@@ -36,7 +43,7 @@ async function state() {
   await h.migrateBase();
   await h.applyConsentMigration();
   // the CRM app, exactly as deployed (CORS allows http://localhost:4180 in the harness)
-  http.createServer(h.app).listen(4192, '127.0.0.1');
+  http.createServer(app).listen(4192, '127.0.0.1');
 
   http.createServer((req, res) => {
     if (req.method === 'OPTIONS') { res.writeHead(204, { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Allow-Methods': 'GET,POST,OPTIONS' }); return res.end(); }
