@@ -37,7 +37,6 @@
   var DAYS7 = 7 * 24 * 3600 * 1000;
   var CONSENT_VERSION = '2026-11-v1';
   var CONSENT_TEXT = 'אני מסכים/ה לקבל בדוא״ל עדכון על השקת המיזם החדש בשיתוף מצפן כלכלי. ניתן לבטל את ההרשמה בכל עת.';
-  var PROD_HOSTS = { 'matzpenkalkali.com': 1, 'www.matzpenkalkali.com': 1 };
   var DEFAULT_API = 'https://matzpen-crm.netlify.app';
   var ENDPOINT = '/api/email/initiative-waitlist';
   var FIRST_DELAY = 3000;
@@ -78,19 +77,24 @@
   var saved = lget();
   if (saved.closedUntil && saved.closedUntil > Date.now()) return; // סגור: לא נפתח אוטומטית במשך 7 ימים
 
-  /* ---------- test hooks (never on the production domain) ---------- */
+  /* ---------- test hooks ----------
+     ?lbDemo (תשובת שרת מדומה) ו־?lbApi (כתובת CRM לבדיקה) פועלים רק ברשימה סגורה של כתובות שאינן ייצור:
+     מחשב מקומי, ותצוגות מקדימה/ענפי בדיקה של האתר ב־Netlify. כל כתובת אחרת, כולל matzpenkalkali.com,
+     www, matzpenkalkali.netlify.app (אותה פריסה חיה) ודומיין מותאם, היא ייצור: אין הדמיה ואין כתובת חלופית. */
+  var LOCAL_HOST = /^(localhost|127\.0\.0\.1)$/;
+  var PREVIEW_HOST = /^[a-z0-9-]+--matzpenkalkali\.netlify\.app$/;   // deploy-preview-N--… ו־branch--…
+  function isLocalHost() { return LOCAL_HOST.test(String(loc.hostname).toLowerCase()); }
+  function isTestHost() { var h = String(loc.hostname).toLowerCase(); return LOCAL_HOST.test(h) || PREVIEW_HOST.test(h); }
   function cfg() { var s = ss(); return s ? rd(s, CFG) : {}; }
   (function readTestParams() {
-    var s = ss(); if (!s) return;
+    var s = ss(); if (!s || !isTestHost()) return;
     var c = cfg(), m;
-    if (!PROD_HOSTS[loc.hostname]) {
-      if ((m = /[?&]lbDemo=(ok|err|verify)(&|$)/.exec(loc.search))) c.demo = m[1];
-      if ((loc.hostname === 'localhost' || loc.hostname === '127.0.0.1') && (m = /[?&]lbApi=([^&]+)/.exec(loc.search))) c.api = decodeURIComponent(m[1]);
-      wr(s, CFG, c);
-    }
+    if ((m = /[?&]lbDemo=(ok|err|verify)(&|$)/.exec(loc.search))) c.demo = m[1];
+    if (isLocalHost() && (m = /[?&]lbApi=([^&]+)/.exec(loc.search))) c.api = decodeURIComponent(m[1]);
+    wr(s, CFG, c);
   })();
-  function apiBase() { var c = cfg(); return (c.api && (loc.hostname === 'localhost' || loc.hostname === '127.0.0.1')) ? c.api : DEFAULT_API; }
-  function demoMode() { return PROD_HOSTS[loc.hostname] ? null : (cfg().demo || null); }
+  function apiBase() { var c = cfg(); return (c.api && isLocalHost()) ? c.api : DEFAULT_API; }
+  function demoMode() { return isTestHost() ? (cfg().demo || null) : null; }
 
   /* ---------- small helpers ---------- */
   function $(s, r) { return (r || D).querySelector(s); }
@@ -268,7 +272,7 @@
       var t = $('.lb-thanks', root); t.hidden = false; t.classList.toggle('lb-static', !fresh);
       $('h3', t).textContent = kind === 'verify' ? 'כמעט סיימנו' : 'תודה, אתם ברשימה';
       $('.lb-thanks-p', t).textContent = kind === 'verify'
-        ? 'שלחנו אליכם מייל אימות. לחצו על הקישור בו כדי להשלים את ההרשמה.'
+        ? 'שלחנו מייל אימות לכתובת שהזנתם. ההרשמה תיכנס לתוקף רק אחרי שתלחצו על הקישור שבו. אם הוא לא הגיע, כדאי לבדוק גם בתיקיית הספאם.'
         : 'נשלח לכם עדכון במייל ברגע שהמיזם ייחשף. אפשר להסיר את ההרשמה בכל עת.';
     }
     var ctl = {

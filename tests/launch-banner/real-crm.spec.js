@@ -95,6 +95,9 @@ for (const v of VIEWS) {
       const { ctx, page, box } = await open(browser, v);
       await submit(box, 'gone@example.com');
       await expect(box.locator('.lb-thanks h3')).toHaveText('כמעט סיימנו', { timeout: 15000 });
+      await expect(box.locator('.lb-thanks-p')).toContainText('ההרשמה תיכנס לתוקף רק אחרי שתלחצו על הקישור');   // a request to verify, not "you are registered"
+      await expect(box.locator('.lb-thanks-p')).not.toContainText('ברשימה');
+      await expect(box.locator('.lb-thanks h3')).not.toContainText('תודה');
       const s = await state(request);
       const c = byEmail(s, 'gone@example.com');
       expect(c.id).toBe(seeded.id); expect(c.status).toBe('unsubscribed');

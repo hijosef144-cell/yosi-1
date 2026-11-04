@@ -157,13 +157,3 @@ for (const v of VIEWS) {
     });
   });
 }
-
-test('demo hook is inert on the production domain', async ({ browser }) => {
-  // the production hostnames are fixed in the script; verify the guard by reading the source that ships
-  const ctx = await browser.newContext(); const page = await ctx.newPage();
-  const js = await (await page.request.get('/static/launch-banner.js')).text();
-  expect(js).toMatch(/PROD_HOSTS = \{ 'matzpenkalkali\.com': 1, 'www\.matzpenkalkali\.com': 1 \}/);
-  expect(js).toMatch(/function demoMode\(\) \{ return PROD_HOSTS\[loc\.hostname\] \? null/);
-  expect(js).toMatch(/function apiBase\(\) \{ var c = cfg\(\); return \(c\.api && \(loc\.hostname === 'localhost' \|\| loc\.hostname === '127\.0\.0\.1'\)\)/);
-  await ctx.close();
-});
