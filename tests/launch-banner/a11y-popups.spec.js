@@ -81,8 +81,8 @@ test('mobile: floating buttons and the cookie banner are lifted above the bar (n
 });
 
 test('desktop keyboard: tab reaches the side tab and Enter opens the panel, Escape closes it, focus returns', async ({ browser }) => {
-  const ctx = await browser.newContext({ viewport: { width: 1366, height: 768 } }); const page = await ctx.newPage();
-  await page.goto('/knowledge/', { waitUntil: 'domcontentloaded' });
+  const ctx = await browser.newContext({ viewport: { width: 1300, height: 800 } }); const page = await ctx.newPage();
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
   await waitBanner(page);
   expect(await currentMode(page)).toBe('tab');
   await page.locator('.lb-tab').focus(); await page.keyboard.press('Enter');

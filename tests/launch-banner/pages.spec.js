@@ -33,10 +33,10 @@ for (const f of internalPages) {
   });
 }
 
-for (const [label, viewport, mobile, allowed] of [['390 phone', { width: 390, height: 844 }, true, ['bar']], ['1440 desktop', { width: 1440, height: 900 }, false, ['totem', 'tab', 'bar']], ['2000 wide', { width: 2000, height: 1100 }, false, ['full', 'totem', 'tab', 'bar']]]) {
+for (const [label, viewport, mobile, allowed] of [['390 phone', { width: 390, height: 844 }, true, ['bar']], ['1440 desktop', { width: 1440, height: 900 }, false, ['full', 'totem', 'tab', 'bar']], ['1650 wide', { width: 1650, height: 1000 }, false, ['full', 'totem', 'tab', 'bar']], ['1920 wide', { width: 1920, height: 1080 }, false, ['full', 'totem', 'tab', 'bar']], ['2000 wide', { width: 2000, height: 1100 }, false, ['full', 'totem', 'tab', 'bar']]]) {
   test.describe(`sweep ${label}`, () => {
     // the very wide screen: every non-dictionary page plus a handful of dictionary terms (the term pages share one template)
-    const list = label.startsWith('2000') ? publicPages.filter((f, i) => !f.startsWith('knowledge/dictionary/') || i % 16 === 0) : publicPages;
+    const list = /^(1650|1920|2000)/.test(label) ? publicPages.filter((f, i) => !f.startsWith('knowledge/dictionary/') || i % 16 === 0) : publicPages;
     for (const f of list) {
       test(f, async ({ browser }) => {
         const ctx = await browser.newContext({ viewport, isMobile: mobile, hasTouch: mobile });

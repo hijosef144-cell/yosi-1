@@ -6,8 +6,9 @@ const { closedContext, waitBanner, currentMode, overlaps, lastContentAboveBar, M
 // page leaves on the right (measured on the page itself), so wide-content pages get a smaller one instead of being covered.
 const CASES = [
   [360, 740, ['bar'], 'bar'], [390, 844, ['bar'], 'bar'], [768, 1024, ['bar'], 'bar'],
-  [1100, 800, ['bar', 'tab', 'totem', 'full'], 'bar'], [1366, 768, ['bar', 'tab', 'totem', 'full'], 'tab'],
-  [1425, 900, ['bar', 'tab', 'totem', 'full'], 'totem'], [1440, 900, ['bar', 'tab', 'totem', 'full'], 'totem'], [2000, 1100, ['bar', 'tab', 'totem', 'full'], 'full']
+  [1100, 800, ['bar', 'tab', 'totem', 'full'], 'tab'], [1366, 768, ['bar', 'tab', 'totem', 'full'], 'totem'],
+  [1425, 900, ['bar', 'tab', 'totem', 'full'], 'totem'], [1440, 900, ['bar', 'tab', 'totem', 'full'], 'totem'],
+  [1650, 1000, ['bar', 'tab', 'totem', 'full'], 'full'], [1920, 1080, ['bar', 'tab', 'totem', 'full'], 'full'], [2000, 1100, ['bar', 'tab', 'totem', 'full'], 'full']
 ];
 const PAGES = ['/', '/knowledge/', '/knowledge/dictionary/aktuar/', '/מחשבון-שכר-ברוטו-נטו', '/pension-calc', '/privacy'];
 
@@ -20,8 +21,12 @@ for (const [w, h, allowed, homeMode] of CASES) {
         const base = await closedContext(browser, { viewport: { width: w, height: h }, isMobile: touch, hasTouch: touch });
         const bp = await base.newPage();
         await bp.goto(url, { waitUntil: 'domcontentloaded' });
-        await bp.waitForTimeout(5500); // same settle time as the banner run (Tailwind CDN re-lays out the page after load)
-        const baseW = await bp.evaluate(() => document.documentElement.scrollWidth);
+        // The pages use the Tailwind CDN runtime, which re-lays the page out a few seconds after load; take the widest value seen.
+        await bp.waitForTimeout(3000);
+        const w1 = await bp.evaluate(() => document.documentElement.scrollWidth);
+        await bp.waitForTimeout(4500);
+        const w2 = await bp.evaluate(() => document.documentElement.scrollWidth);
+        const baseW = Math.max(w1, w2);
         await base.close();
 
         const ctx = await browser.newContext({ viewport: { width: w, height: h }, isMobile: touch, hasTouch: touch });
@@ -33,6 +38,11 @@ for (const [w, h, allowed, homeMode] of CASES) {
         const expected = await currentMode(page);
         expect(allowed, `mode ${expected} for ${url}`).toContain(expected);
         if (url === '/') expect(expected).toBe(homeMode);
+        if (expected === 'full') {                       // the scroll is big whenever it is shown: 312px when there is room, never below 230px
+          const sw = await page.locator('.lb-scroll[data-on="1"]').evaluate(e => Math.round(e.getBoundingClientRect().width));
+          expect(sw).toBeGreaterThanOrEqual(230); expect(sw).toBeLessThanOrEqual(312);
+          if (w >= 1920) expect(sw).toBe(312);
+        }
         console.log(`${w}px ${url} -> ${expected}`);
 
         // the banner never makes the page wider

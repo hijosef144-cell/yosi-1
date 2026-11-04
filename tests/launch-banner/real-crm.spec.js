@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 const { waitBanner, openForm } = require('./helpers');
 
 const CTL = 'http://127.0.0.1:4193';
-const URL = '/?lbApi=' + encodeURIComponent('http://127.0.0.1:4192');
+const PAGE_URL = 'http://127.0.0.1:4190/?lbApi=' + encodeURIComponent('http://127.0.0.1:4192');
 const TAG = 'new-initiative-waitlist';
 const LIST = 'ממתינים למיזם החדש';
 const GUIDE = 'נרשמי מדריך חינם';
@@ -22,7 +22,7 @@ const VIEWS = [
 async function open(browser, v) {
   const ctx = await browser.newContext({ viewport: v.viewport, isMobile: v.mobile, hasTouch: v.mobile });
   const page = await ctx.newPage();
-  await page.goto(URL, { waitUntil: 'domcontentloaded' });
+  await page.goto(PAGE_URL, { waitUntil: 'domcontentloaded' });
   await waitBanner(page);
   return { ctx, page, box: await openForm(page) };
 }

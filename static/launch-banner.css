@@ -80,9 +80,9 @@
 @keyframes lb-pulse{0%,100%{box-shadow:0 0 0 0 rgba(236,210,138,.55)}60%{box-shadow:0 0 0 10px rgba(236,210,138,0)}}
 
 /* ---------- the scroll (docked on very wide screens, overlay panel elsewhere) ---------- */
-.lb-scroll{position:fixed;top:var(--lb-top,96px);right:24px;width:312px;z-index:900;visibility:hidden}
+.lb-scroll{position:fixed;top:var(--lb-top,96px);right:16px;width:var(--lb-w,312px);z-index:900;visibility:hidden}
 .lb-scroll[data-on="1"]{visibility:visible}
-.lb-scroll[data-overlay="1"]{right:28px}
+.lb-scroll[data-overlay="1"]{right:28px;width:312px}
 .lb-scroll[data-overlay="1"] .lb-sheet{box-shadow:inset 0 16px 16px -12px rgba(0,0,0,.6),inset 0 -16px 16px -12px rgba(0,0,0,.6),0 0 0 100vmax rgba(2,6,18,0),0 26px 60px rgba(0,0,0,.55)}
 .lb-rod{position:relative;height:18px;margin:0 -6px;border-radius:9px;z-index:2;
   background:linear-gradient(180deg,#fff3c4 0%,var(--lb-gold-300) 24%,var(--lb-gold-500) 58%,var(--lb-gold-700) 84%,var(--lb-gold-500) 100%);
@@ -97,11 +97,26 @@
     linear-gradient(180deg,#0e2250 0%,#081431 55%,#060f26 100%);
   box-shadow:inset 0 16px 16px -12px rgba(0,0,0,.6),inset 0 -16px 16px -12px rgba(0,0,0,.6),0 22px 50px rgba(0,0,0,.45);
   border-left:1px solid rgba(236,210,138,.35);border-right:1px solid rgba(236,210,138,.35)}
-.lb-scroll .lb-sheet{max-height:calc(100vh - var(--lb-top,96px) - 52px)}
+/* the docked scroll stays above the site's own floating buttons (accessibility button: 132px from the bottom); the panel opened by a click may go lower */
+.lb-scroll .lb-sheet{max-height:calc(100vh - var(--lb-top,96px) - 176px)}
+.lb-scroll[data-overlay="1"] .lb-sheet{max-height:calc(100vh - var(--lb-top,96px) - 52px)}
 .lb-scroll .lb-body{overflow-y:auto;overscroll-behavior:contain}
 .lb-sheet::before{content:"";position:absolute;inset:8px;border:1px solid rgba(236,210,138,.22);border-radius:4px;pointer-events:none}
 .lb-sp{position:absolute;width:12px;height:12px;color:var(--lb-gold-200);pointer-events:none;opacity:0;animation:lb-tw var(--d,3.2s) var(--dl,0s) ease-in-out infinite;left:var(--x);top:var(--y);transform:scale(var(--s,1))}
 .lb-sp svg{width:100%;height:100%;display:block}
+
+/* medium scroll (240-291px): same content, a little tighter */
+.lb-scroll[data-narrow="1"] .lb-body{padding:38px 18px 20px}
+.lb-scroll[data-narrow="1"] .lb-h{font-size:27px}
+.lb-scroll[data-narrow="1"] .lb-sub{font-size:13px}
+.lb-scroll[data-narrow="1"] .lb-p{font-size:13px;margin-bottom:12px}
+.lb-scroll[data-narrow="1"] .lb-slide span{font-size:15px}
+.lb-scroll[data-narrow="1"] .lb-slide svg{flex-basis:30px;width:30px;height:30px}
+.lb-scroll[data-narrow="1"] .lb-cta{font-size:16.5px}
+.lb-scroll[data-narrow="1"] .lb-check{font-size:12px}
+.lb-scroll[data-narrow="1"] .lb-btn{font-size:15px}
+.lb-scroll[data-narrow="1"] .lb-fine{font-size:11px}
+.lb-scroll[data-narrow="1"] .lb-sp{display:none}
 
 /* ---------- side tab ---------- */
 .lb-root .lb-tab{position:fixed;top:calc(var(--lb-top,96px) + 54px);right:0;z-index:900;appearance:none;border:1px solid rgba(236,210,138,.6);border-right:0;border-radius:12px 0 0 12px;
@@ -173,15 +188,25 @@ html.lb-lift :is(#a11y-btn,#a11y-panel,.fx-launcher-btn,.ai-bot-launcher,.ai-bot
   translate:0 calc(var(--lb-lift,0px) * -1);transition:translate .35s ease}
 html.lb-lift body{padding-bottom:calc(var(--lb-bar-h,0px) + var(--lb-cookie-h,0px))}
 
-/* short screens: shrink the docked scroll instead of covering the page */
+/* short screens: tighten the docked scroll instead of covering the page or the site's buttons */
 @media (max-height:900px){
   .lb-scroll .lb-body{padding-top:36px}
   .lb-scroll .lb-h{font-size:28px}
 }
-@media (max-height:780px){
+@media (max-height:830px){
   .lb-scroll .lb-p{display:none}
+  .lb-scroll .lb-body{padding:34px 22px 16px}
+  .lb-scroll .lb-h{font-size:26px;margin-bottom:8px}
+  .lb-scroll .lb-sub{margin-bottom:8px}
+  .lb-scroll .lb-teaser{min-height:58px;margin-bottom:10px;padding:6px 10px 4px}
+  .lb-scroll .lb-slides{height:36px}
+  .lb-scroll .lb-cta{margin-bottom:6px;font-size:16px}
+  .lb-scroll .lb-form{gap:8px}
+  .lb-scroll .lb-in{height:44px}
+  .lb-scroll .lb-btn{height:46px}
+  .lb-scroll .lb-fine{display:none}
 }
-@media (max-height:640px){
+@media (max-height:700px){
   .lb-scroll .lb-teaser{display:none}
 }
 @media (max-width:380px){
