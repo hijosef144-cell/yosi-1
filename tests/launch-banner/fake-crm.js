@@ -1,8 +1,9 @@
 // A stand-in for the CRM that implements only the waitlist contract, for front-end tests.
-// Modes are switched with POST /__mode {"mode": "ok|server_error|slow|abort|mismatch|bad_email|rate|verify"}.
+// Modes are switched with POST /__mode {"mode": "ok|server_error|slow|hold|abort|mismatch|bad_email|rate|verify"}.
 const http = require('http');
 let mode = 'ok';
 let log = [];
+let held = []; // responses waiting for /__release (mode 'hold')
 const seen = new Set();
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Allow-Methods': 'POST, GET, OPTIONS' };
 function send(res, code, body) { res.writeHead(code, { 'Content-Type': 'application/json', ...CORS }); res.end(JSON.stringify(body)); }
@@ -14,7 +15,9 @@ http.createServer((req, res) => {
   req.on('data', d => raw += d);
   req.on('end', () => {
     if (req.url === '/__mode') { mode = JSON.parse(raw).mode; return send(res, 200, { mode }); }
-    if (req.url === '/__reset') { log = []; seen.clear(); mode = 'ok'; return send(res, 200, { ok: true }); }
+    if (req.url === '/__reset') { log = []; seen.clear(); mode = 'ok'; held.forEach(f => f()); held = []; return send(res, 200, { ok: true }); }
+    if (req.url === '/__release') { const n = held.length; held.forEach(f => f()); held = []; return send(res, 200, { released: n }); }
+    if (req.url === '/__held') return send(res, 200, { held: held.length });
     if (req.url === '/api/email/initiative-waitlist' && req.method === 'POST') {
       let body = {}; try { body = JSON.parse(raw); } catch (e) {}
       log.push({ body, ts: Date.now(), origin: req.headers.origin || null });
@@ -30,6 +33,7 @@ http.createServer((req, res) => {
         return send(res, 201, { ok: true, status: 'registered' }); // duplicates look identical
       };
       if (mode === 'slow') return setTimeout(reply, 1500);
+      if (mode === 'hold') { held.push(() => { mode = 'ok'; reply(); }); return; }  // answered only when the test says so
       return reply();
     }
     send(res, 404, { error: 'not found' });

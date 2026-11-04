@@ -1,6 +1,6 @@
 // Registration against a fake CRM that implements the waitlist contract (the real CRM app is covered by the CRM branch's own tests).
 const { test, expect } = require('@playwright/test');
-const { CRM, waitBanner, openForm, setMode, resetCrm, crmLog } = require('./helpers');
+const { CRM, waitBanner, openForm, setMode, resetCrm, crmLog, releaseCrm, crmHeld } = require('./helpers');
 
 const CONSENT = 'אני מסכים/ה לקבל בדוא״ל עדכון על השקת המיזם החדש בשיתוף מצפן כלכלי. ניתן לבטל את ההרשמה בכל עת.';
 const API = '/?lbApi=' + encodeURIComponent(CRM);
@@ -8,7 +8,7 @@ const VIEWS = [
   { name: 'mobile', viewport: { width: 390, height: 844 }, mobile: true, source: 'mobile' },
   { name: 'wide', viewport: { width: 2000, height: 1100 }, mobile: false, source: 'desktop' },
   { name: 'totem', viewport: { width: 1440, height: 900 }, mobile: false, source: 'compact' },
-  { name: 'tab', viewport: { width: 1100, height: 800 }, mobile: false, source: 'tab' }
+  { name: 'tab', viewport: { width: 1366, height: 768 }, mobile: false, source: 'tab' }
 ];
 
 test.beforeEach(async ({ request }) => { await resetCrm(request); });
@@ -44,15 +44,17 @@ for (const v of VIEWS) {
     });
 
     test('success is shown only after the server confirms; payload is right', async ({ browser, request }) => {
-      await setMode(request, 'slow');
+      await setMode(request, 'hold');                                 // the server keeps the request open until the test releases it
       const { ctx, page, box } = await start(browser);
       await box.locator('input[type=email]').fill('Ron@Example.com');
       await box.locator('input[type=checkbox]').check();
       await box.locator('.lb-btn').click();
-      await page.waitForTimeout(500);                                // request in flight (server answers after 1.5 s)
-      await expect(box.locator('.lb-thanks')).toBeHidden();
+      await expect.poll(() => crmHeld(request), { timeout: 10000 }).toBe(1);   // the request reached the server and is unanswered
+      await expect(box.locator('.lb-thanks')).toBeHidden();           // so no success message yet
       await expect(box.locator('.lb-btn')).toBeDisabled();
-      await expect(box.locator('.lb-thanks')).toBeVisible({ timeout: 4000 });
+      await expect(box.locator('.lb-signup')).toBeVisible();
+      await releaseCrm(request);                                      // now the server answers 201
+      await expect(box.locator('.lb-thanks')).toBeVisible({ timeout: 10000 });
       await expect(box.locator('.lb-thanks h3')).toHaveText('תודה, אתם ברשימה');
       await expect(box.locator('.lb-signup')).toBeHidden();
       const log = await crmLog(request);

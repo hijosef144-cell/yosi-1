@@ -5,16 +5,23 @@ const ANY_VISIBLE = Object.values(MODE_SEL).join(',');
 
 async function setMode(request, mode) { await request.post(CRM + '/__mode', { data: { mode } }); }
 async function resetCrm(request) { await request.post(CRM + '/__reset', { data: {} }); }
+async function releaseCrm(request) { return (await request.post(CRM + '/__release', { data: {} })).json(); }
+async function crmHeld(request) { return (await (await request.get(CRM + '/__held')).json()).held; }
 async function crmLog(request) { return (await request.get(CRM + '/__log')).json(); }
 
 /** Context that already has "closed for 7 days", so the page runs with the banner off (baseline). */
-async function closedContext(browser, opts) {
+async function closedContext(browser, opts, dummyFont = true) {
   const ctx = await browser.newContext(opts);
-  await ctx.addInitScript(() => { try { localStorage.setItem('lb.v1', JSON.stringify({ closedUntil: Date.now() + 6e8 })); } catch (e) {} });
+  await ctx.addInitScript((dummy) => {
+    try { localStorage.setItem('lb.v1', JSON.stringify({ closedUntil: Date.now() + 6e8 })); } catch (e) {}
+    // Adding the banner's font stylesheet link nudges this (already horizontally overflowing at 768px) page by a few px in the
+    // test browser, where fonts are blocked. The baseline adds the same link so that only the banner's own UI is compared.
+    if (dummy) document.addEventListener('DOMContentLoaded', () => { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@700;900&family=Heebo:wght@400;500;600;700&display=swap'; document.head.appendChild(l); });
+  }, dummyFont);
   return ctx;
 }
 
-async function waitBanner(page, timeout = 20000) {
+async function waitBanner(page, timeout = 30000) {
   await page.waitForSelector(ANY_VISIBLE, { state: 'attached', timeout });
   await page.waitForTimeout(1800); // let the unfurl/slide finish
 }
@@ -79,4 +86,4 @@ async function lastContentAboveBar(page) {
   });
 }
 
-module.exports = { CRM, MODE_SEL, ANY_VISIBLE, setMode, resetCrm, crmLog, closedContext, waitBanner, currentMode, openForm, overlaps, lastContentAboveBar };
+module.exports = { CRM, MODE_SEL, ANY_VISIBLE, setMode, resetCrm, crmLog, releaseCrm, crmHeld, closedContext, waitBanner, currentMode, openForm, overlaps, lastContentAboveBar };

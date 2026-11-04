@@ -102,14 +102,31 @@
   function uiIcon(id, vb) { return '<svg viewBox="' + (vb || '0 0 16 16') + '" aria-hidden="true" focusable="false"><use href="#lb-i-' + id + '"/></svg>'; }
 
   /* ---------- which presentation fits this screen ---------- */
+  // הרוחב הפנוי בצד ימין (שם הכרזה יושבת): המרחק בין קצה הדף לקצה הימני של התוכן הנראה בפועל.
+  // נמדד על העמוד עצמו, כי חלק מהעמודים (מחשבונים, מדריכים) רחבים מהאתר הראשי.
+  var SKIP = '#cookie-banner,#a11y-btn,#a11y-panel,#legalDisclaimer,#questionBanner,#faqSmartPopup,[aria-modal="true"],[role="dialog"],.fx-overlay,.lb-root';
+  function contentRight() {
+    var w = docEl.clientWidth, max = 0, nodes = D.querySelectorAll('a,button,input,select,textarea,label,h1,h2,h3,h4,h5,p,li,img,td,th,summary');
+    for (var i = 0; i < nodes.length; i++) {
+      var el = nodes[i], r = el.getBoundingClientRect();
+      if (r.width < 2 || r.height < 2 || r.left < 0 || r.right <= max) continue;
+      if (el.closest(SKIP) || el.closest('[hidden],.hidden')) continue;
+      var cs = W.getComputedStyle(el);
+      if (cs.display === 'none' || cs.visibility === 'hidden' || cs.position === 'fixed' || parseFloat(cs.opacity) === 0) continue;
+      max = Math.min(r.right, w);
+    }
+    return max;
+  }
   function tierFor(w) {
     var coarse = false;
     try { coarse = W.matchMedia('(pointer: coarse)').matches; } catch (e) {}
-    if (w >= 1960) return 'full';              // יש שוליים רחבים מספיק למגילה מלאה בלי לחפוף תוכן
-    if (coarse && w < 1420) return 'bar';      // מגע: תמיד פס תחתון
-    if (w >= 1420) return 'totem';             // שוליים דקים (כ־90px): מגילה קטנה בשוליים, בלי לחפוף תוכן
-    if (w >= 1100) return 'tab';               // אין מקום: לשונית צד
-    return 'bar';                              // טאבלט ונייד
+    if (w < 1100) return 'bar';                // טאבלט ונייד: פס תחתון + חלונית
+    if (coarse && w < 1420) return 'bar';      // מכשירי מגע ברוחב בינוני: פס תחתון
+    var room = w - contentRight();             // מקום פנוי בצד ימין, מעבר לתוכן
+    if (room >= 360) return 'full';            // מגילה מלאה (312px + שוליים) בלי לחפוף תוכן
+    if (room >= 94) return 'totem';            // מגילה קטנה (68px)
+    if (room >= 30) return 'tab';              // לשונית צד (28px)
+    return 'bar';                              // אין מקום בצד: פס תחתון, כדי לא לכסות תוכן
   }
 
   /* ---------- state ---------- */
@@ -484,8 +501,8 @@
       if (r.bottom > W.innerHeight - 300) el.classList.add('lb-lift-me');
     });
   }
-  function updateLift() {
-    var on = S.mode === 'bar' && S.root && S.els.bar && S.els.bar.getAttribute('data-on') === '1';
+  function updateLift(force) {
+    var on = S.mode === 'bar' && S.root && S.els.bar && (force || S.els.bar.getAttribute('data-on') === '1');
     var cb = D.getElementById('cookie-banner'), ch = 0;
     if (cb) { var cs = W.getComputedStyle(cb); if (cs.display !== 'none' && cs.position === 'fixed') ch = cb.offsetHeight; }
     docEl.style.setProperty('--lb-cookie-h', (on ? ch : 0) + 'px');
@@ -545,10 +562,16 @@
     S.panel = false;
     S.mode = tierFor(docEl.clientWidth);
     buildUI(true);
+    updateLift(true);
     apply({ instant: true });
     afterMount();
     setTimeout(function () { if (S.root) S.root.classList.remove('lb-notrans'); }, 60);
     if (wasPanel) { /* a resize closes an open panel */ }
+  }
+  function recheck() {
+    if (!S.root || S.panel) return;
+    var m = tierFor(docEl.clientWidth);
+    if (m !== S.mode) rebuild(); else setTop();
   }
 
   function afterMount() {
@@ -572,7 +595,7 @@
       link.id = 'lb-css'; link.rel = 'stylesheet'; link.href = '/static/launch-banner.css';
       function fin(ok) { if (!done) { done = true; resolve(ok); } }
       link.onload = function () { fin(true); }; link.onerror = function () { fin(false); };
-      setTimeout(function () { fin(false); }, 6000);
+      setTimeout(function () { fin(false); }, 10000);
       D.head.appendChild(link);
       if (!D.getElementById('lb-font')) {
         var f = D.createElement('link'); f.id = 'lb-font'; f.rel = 'stylesheet';
@@ -593,6 +616,7 @@
         S.mode = tierFor(docEl.clientWidth);
         S.view = sess.min && (S.mode === 'full' || S.mode === 'totem') ? 'min' : 'open';
         buildUI(!first);
+        updateLift(true);   // לפני ההצגה: גובה באנר העוגיות ידוע כבר בפריסה הראשונה, בלי קפיצה
         S.entered = true;
         sset({ unfurled: true });
         track('shown');
@@ -603,6 +627,8 @@
         afterMount();
         if (!first) setTimeout(function () { if (S.root) S.root.classList.remove('lb-notrans'); }, 60);
         bindGlobal();
+        setTimeout(recheck, 2500);   // הפריסה של העמוד עוד יכולה להתייצב (Tailwind, תמונות)
+        W.addEventListener('load', function () { setTimeout(recheck, 400); });
       });
     }
     function waitFree() { if (blocked()) { setTimeout(waitFree, 800); return; } boot(); }

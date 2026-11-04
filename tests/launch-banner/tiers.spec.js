@@ -2,13 +2,17 @@
 const { test, expect } = require('@playwright/test');
 const { closedContext, waitBanner, currentMode, overlaps, lastContentAboveBar, MODE_SEL } = require('./helpers');
 
+// [width, height, modes allowed for any page, mode the home page must get]. The presentation depends on how much free room the
+// page leaves on the right (measured on the page itself), so wide-content pages get a smaller one instead of being covered.
 const CASES = [
-  [360, 740, 'bar'], [390, 844, 'bar'], [768, 1024, 'bar'], [1100, 800, 'tab'], [1440, 900, 'totem'], [1425, 900, 'totem'], [2000, 1100, 'full']
+  [360, 740, ['bar'], 'bar'], [390, 844, ['bar'], 'bar'], [768, 1024, ['bar'], 'bar'],
+  [1100, 800, ['bar', 'tab', 'totem', 'full'], 'bar'], [1366, 768, ['bar', 'tab', 'totem', 'full'], 'tab'],
+  [1425, 900, ['bar', 'tab', 'totem', 'full'], 'totem'], [1440, 900, ['bar', 'tab', 'totem', 'full'], 'totem'], [2000, 1100, ['bar', 'tab', 'totem', 'full'], 'full']
 ];
 const PAGES = ['/', '/knowledge/', '/knowledge/dictionary/aktuar/', '/מחשבון-שכר-ברוטו-נטו', '/pension-calc', '/privacy'];
 
-for (const [w, h, expected] of CASES) {
-  test.describe(`${w}x${h} -> ${expected}`, () => {
+for (const [w, h, allowed, homeMode] of CASES) {
+  test.describe(`${w}x${h} -> ${allowed.join('/')}`, () => {
     for (const url of PAGES) {
       test(`${url}`, async ({ browser }) => {
         const touch = w < 700;
@@ -16,7 +20,7 @@ for (const [w, h, expected] of CASES) {
         const base = await closedContext(browser, { viewport: { width: w, height: h }, isMobile: touch, hasTouch: touch });
         const bp = await base.newPage();
         await bp.goto(url, { waitUntil: 'domcontentloaded' });
-        await bp.waitForTimeout(800);
+        await bp.waitForTimeout(5500); // same settle time as the banner run (Tailwind CDN re-lays out the page after load)
         const baseW = await bp.evaluate(() => document.documentElement.scrollWidth);
         await base.close();
 
@@ -26,7 +30,10 @@ for (const [w, h, expected] of CASES) {
         page.on('pageerror', e => errors.push(e.message));
         await page.goto(url, { waitUntil: 'domcontentloaded' });
         await waitBanner(page);
-        expect(await currentMode(page)).toBe(expected);
+        const expected = await currentMode(page);
+        expect(allowed, `mode ${expected} for ${url}`).toContain(expected);
+        if (url === '/') expect(expected).toBe(homeMode);
+        console.log(`${w}px ${url} -> ${expected}`);
 
         // the banner never makes the page wider
         const withW = await page.evaluate(() => document.documentElement.scrollWidth);
