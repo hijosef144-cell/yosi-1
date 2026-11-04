@@ -114,7 +114,7 @@
 .lb-tab{transition-property:transform,visibility,width}
 
 /* ---------- compact totem (screens with a thin margin) ---------- */
-.lb-totem{position:fixed;top:var(--lb-top,96px);right:10px;width:68px;z-index:900;visibility:hidden}
+.lb-totem{position:fixed;top:var(--lb-top,96px);right:14px;width:68px;z-index:900;visibility:hidden}
 .lb-totem[data-on="1"]{visibility:visible}
 .lb-totem .lb-rod{height:14px;margin:0 -2px;border-radius:7px}
 .lb-totem .lb-rod::before,.lb-totem .lb-rod::after{width:16px;height:16px;top:-1px}
