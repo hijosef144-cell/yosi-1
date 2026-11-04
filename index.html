@@ -699,6 +699,7 @@
 
   console.log('Calculator functions defined in head');
   </script>
+<script src="/static/launch-banner.js" defer></script>
 </head>
 <body class="bg-gray-50">
   <!-- Define calculator functions immediately at start of body -->
@@ -6881,6 +6882,7 @@ if (hasStep2) {
 
   function triggerExitPopup() {
     if (alreadyTriggered) return;
+    if (window.__lbActive) return; // כרזת ההשקה פעילה: לא מציגים במקביל חלון נוסף שמבקש אימייל
     if (sessionStorage.getItem(SEEN_KEY) === '1') return;
 
     alreadyTriggered = true;
