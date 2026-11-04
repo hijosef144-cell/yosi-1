@@ -82,7 +82,7 @@
 /* ---------- the scroll (docked on very wide screens, overlay panel elsewhere) ---------- */
 .lb-scroll{position:fixed;top:var(--lb-top,96px);right:24px;width:312px;z-index:900;visibility:hidden}
 .lb-scroll[data-on="1"]{visibility:visible}
-.lb-scroll[data-overlay="1"]{right:16px}
+.lb-scroll[data-overlay="1"]{right:28px}
 .lb-scroll[data-overlay="1"] .lb-sheet{box-shadow:inset 0 16px 16px -12px rgba(0,0,0,.6),inset 0 -16px 16px -12px rgba(0,0,0,.6),0 0 0 100vmax rgba(2,6,18,0),0 26px 60px rgba(0,0,0,.55)}
 .lb-rod{position:relative;height:18px;margin:0 -6px;border-radius:9px;z-index:2;
   background:linear-gradient(180deg,#fff3c4 0%,var(--lb-gold-300) 24%,var(--lb-gold-500) 58%,var(--lb-gold-700) 84%,var(--lb-gold-500) 100%);
