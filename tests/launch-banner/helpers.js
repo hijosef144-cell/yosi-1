@@ -46,13 +46,15 @@ async function overlaps(page, bannerSel, fixedOnly) {
     const root = document.querySelector('.lb-root');
     const rects = banner.map(b => b.getBoundingClientRect());
     const out = [];
-    const sel = 'a,button,input,select,textarea,label,h1,h2,h3,h4,h5,p,li,img,summary';
+    const sel = 'a,button,input,select,textarea,label,h1,h2,h3,h4,h5,p,li,img,canvas,summary,td,th';
+    const TEXT = /^(H[1-6]|P|LI|LABEL|SUMMARY|TD|TH)$/; const rg = document.createRange();
     for (const el of document.querySelectorAll(sel)) {
       if (root && root.contains(el)) continue;
       const cs = getComputedStyle(el);
       if (cs.display === 'none' || cs.visibility === 'hidden' || parseFloat(cs.opacity) === 0) continue;
-      const r = el.getBoundingClientRect();
+      let r = el.getBoundingClientRect();
       if (r.width < 2 || r.height < 2) continue;
+      if (TEXT.test(el.tagName)) { rg.selectNodeContents(el); const tr = rg.getBoundingClientRect(); if (tr.width > 0) r = { left: Math.max(r.left, tr.left), right: Math.min(r.right, tr.right), top: r.top, bottom: r.bottom }; }   // the text itself, not the whole block
       if (r.bottom < 0 || r.top > innerHeight || r.right < 0 || r.left > innerWidth) continue;
       if (el.closest('[hidden],.hidden')) continue;
       if (fixedOnly) { let f = false; for (let n = el; n && n !== document.body; n = n.parentElement) { const p = getComputedStyle(n).position; if (p === 'fixed' || p === 'sticky') { f = true; break; } } if (!f) continue; }
