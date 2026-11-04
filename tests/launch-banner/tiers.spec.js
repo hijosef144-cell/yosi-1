@@ -1,0 +1,61 @@
+// Which presentation each screen width gets, and that none of them covers page content, controls or floating buttons.
+const { test, expect } = require('@playwright/test');
+const { closedContext, waitBanner, currentMode, overlaps, lastContentAboveBar, MODE_SEL } = require('./helpers');
+
+// [width, height, modes allowed for any page, mode the home page must get]. The presentation depends on how much free room the
+// page leaves on the right (measured on the page itself), so wide-content pages get a smaller one instead of being covered.
+const CASES = [
+  [360, 740, ['bar'], 'bar'], [390, 844, ['bar'], 'bar'], [768, 1024, ['bar'], 'bar'],
+  [1100, 800, ['bar', 'tab', 'totem', 'full'], 'bar'], [1366, 768, ['bar', 'tab', 'totem', 'full'], 'tab'],
+  [1425, 900, ['bar', 'tab', 'totem', 'full'], 'totem'], [1440, 900, ['bar', 'tab', 'totem', 'full'], 'totem'], [2000, 1100, ['bar', 'tab', 'totem', 'full'], 'full']
+];
+const PAGES = ['/', '/knowledge/', '/knowledge/dictionary/aktuar/', '/מחשבון-שכר-ברוטו-נטו', '/pension-calc', '/privacy'];
+
+for (const [w, h, allowed, homeMode] of CASES) {
+  test.describe(`${w}x${h} -> ${allowed.join('/')}`, () => {
+    for (const url of PAGES) {
+      test(`${url}`, async ({ browser }) => {
+        const touch = w < 700;
+        // baseline: same page with the banner off
+        const base = await closedContext(browser, { viewport: { width: w, height: h }, isMobile: touch, hasTouch: touch });
+        const bp = await base.newPage();
+        await bp.goto(url, { waitUntil: 'domcontentloaded' });
+        await bp.waitForTimeout(5500); // same settle time as the banner run (Tailwind CDN re-lays out the page after load)
+        const baseW = await bp.evaluate(() => document.documentElement.scrollWidth);
+        await base.close();
+
+        const ctx = await browser.newContext({ viewport: { width: w, height: h }, isMobile: touch, hasTouch: touch });
+        const page = await ctx.newPage();
+        const errors = [];
+        page.on('pageerror', e => errors.push(e.message));
+        await page.goto(url, { waitUntil: 'domcontentloaded' });
+        await waitBanner(page);
+        const expected = await currentMode(page);
+        expect(allowed, `mode ${expected} for ${url}`).toContain(expected);
+        if (url === '/') expect(expected).toBe(homeMode);
+        console.log(`${w}px ${url} -> ${expected}`);
+
+        // the banner never makes the page wider
+        const withW = await page.evaluate(() => document.documentElement.scrollWidth);
+        expect(withW).toBeLessThanOrEqual(baseW);
+
+        // no overlap with content / controls / floating buttons, at the top and after scrolling
+        const sel = MODE_SEL[expected] + (expected === 'bar' ? '' : '');
+        for (const y of [0, 700]) {
+          await page.evaluate(v => window.scrollTo(0, v), y);
+          await page.waitForTimeout(500);
+          // side presentations must not touch any page content; the bottom bar is a fixed strip, so it must not touch
+          // fixed things (floating buttons, cookie banner), and the end of the page must stay reachable above it
+          const bad = await overlaps(page, sel, expected === 'bar');
+          expect(bad, `overlap at scrollY=${y}: ${JSON.stringify(bad.slice(0, 4))}`).toEqual([]);
+        }
+        if (expected === 'bar') {
+          const end = await lastContentAboveBar(page);
+          expect(end.maxBottom, JSON.stringify(end)).toBeLessThanOrEqual(end.barTop + 2);
+        }
+        expect(errors).toEqual([]);
+        await ctx.close();
+      });
+    }
+  });
+}
