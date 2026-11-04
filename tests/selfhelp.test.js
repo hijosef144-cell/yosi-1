@@ -78,7 +78,7 @@ test('the main site home page has no link, nav item or card pointing to Kaspchem
   const home = read('index.html');
   // the temporary invite redirect that production already has (kc-invite-redirect, a script and not a link) may stay; links, nav items and cards may not
   assert.ok(!/href="[^"]*kaspchem/i.test(home), 'index.html links to kaspchem');
-  assert.ok(!/kc-cta|kc-identity-shim/.test(home), 'index.html has the Kaspchem entry card or the identity shim (not part of version 1.0)');
+  assert.ok(!/kc-cta/.test(home), 'index.html has the Kaspchem entry card'); assert.equal((home.match(/kc-identity-shim/g) || []).length, 1, 'exactly one Identity link handler (owner approved, 4.11.2026)'); assert.ok(!home.includes('kc-invite-redirect'), 'the temporary invite redirect must be gone');
   const map = fs.existsSync(path.join(root, 'sitemap.xml')) ? read('sitemap.xml') : '';
   assert.ok(!/kaspchem/i.test(map), 'sitemap.xml lists kaspchem');
 });
