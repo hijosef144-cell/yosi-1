@@ -1,6 +1,6 @@
 // Which presentation each screen width gets, and that none of them covers page content, controls or floating buttons.
 const { test, expect } = require('@playwright/test');
-const { closedContext, waitBanner, currentMode, overlaps, lastContentAboveBar, MODE_SEL } = require('./helpers');
+const { closedContext, waitBanner, currentMode, overlaps, lastContentAboveBar, MODE_SEL, legacyCtx } = require('./helpers');
 
 // [width, height, modes allowed for any page, mode the home page must get]. The presentation depends on how much free room the
 // page leaves on the right (measured on the page itself), so wide-content pages get a smaller one instead of being covered.
@@ -29,7 +29,7 @@ for (const [w, h, allowed, homeMode] of CASES) {
         const baseW = Math.max(w1, w2);
         await base.close();
 
-        const ctx = await browser.newContext({ viewport: { width: w, height: h }, isMobile: touch, hasTouch: touch });
+        const ctx = await legacyCtx(browser, { viewport: { width: w, height: h }, isMobile: touch, hasTouch: touch });
         const page = await ctx.newPage();
         const errors = [];
         page.on('pageerror', e => errors.push(e.message));

@@ -1,7 +1,7 @@
 // Cost of the banner: bytes, layout shifts, main-thread time, and nothing loaded when the banner is closed.
 const { test, expect } = require('@playwright/test');
 const zlib = require('zlib');
-const { closedContext, waitBanner } = require('./helpers');
+const { closedContext, waitBanner, legacyCtx } = require('./helpers');
 
 test('payload is small', async ({ request }) => {
   const js = await (await request.get('/static/launch-banner.js')).body();
@@ -32,7 +32,7 @@ for (const [w, h, mobile] of [[390, 844, true], [1440, 900, false], [2000, 1100,
     test(`${url} at ${w}: no layout shift caused by the banner, its script causes no slow frame`, async ({ browser }) => {
       const base = await closedContext(browser, { viewport: { width: w, height: h }, isMobile: mobile, hasTouch: mobile });
       const b = await measure(base, url); await base.close();
-      const ctx = await browser.newContext({ viewport: { width: w, height: h }, isMobile: mobile, hasTouch: mobile });
+      const ctx = await legacyCtx(browser, { viewport: { width: w, height: h }, isMobile: mobile, hasTouch: mobile });
       const m = await measure(ctx, url); await ctx.close();
       console.log(`${url} ${w}: CLS ${b.cls.toFixed(4)} -> ${m.cls.toFixed(4)}; page long tasks ${Math.round(b.long)} -> ${Math.round(m.long)} ms (page noise); banner script time in slow frames ${Math.round(m.script)} ms`);
       expect(m.banner).toBe(true);

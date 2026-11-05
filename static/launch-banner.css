@@ -167,7 +167,7 @@ html.lb-kb .lb-bar{transform:translateY(120%);visibility:hidden}
 .lb-bx svg{width:16px;height:16px;stroke:currentColor;fill:none}
 .lb-scrim{position:fixed;inset:0;background:rgba(2,6,18,.62);opacity:0;transition:opacity .35s,visibility 0s .35s;z-index:10001;visibility:hidden}
 .lb-scrim[data-on="1"]{opacity:1;visibility:visible;transition:opacity .35s,visibility 0s}
-.lb-sheetm{position:fixed;left:0;right:0;bottom:var(--lb-kb,0px);max-height:var(--lb-vh,92vh);overflow:auto;overscroll-behavior:contain;z-index:10002;border-radius:22px 22px 0 0;
+.lb-sheetm{position:fixed;left:0;right:0;bottom:var(--lb-kb,0px);max-height:min(var(--lb-vh,100vh),58vh);overflow:auto;overscroll-behavior:contain;z-index:10002;border-radius:22px 22px 0 0;
   background:radial-gradient(120% 40% at 50% 0%,rgba(236,210,138,.2),transparent 65%),linear-gradient(180deg,#0e2250,#081431 45%,#060f26);
   border-top:1px solid rgba(236,210,138,.6);box-shadow:0 -20px 50px rgba(0,0,0,.5);transform:translateY(105%);transition:transform .5s cubic-bezier(.2,.8,.2,1),visibility 0s .5s;visibility:hidden;touch-action:pan-y}
 .lb-sheetm[data-on="1"]{transform:none;visibility:visible;transition:transform .5s cubic-bezier(.2,.8,.2,1),visibility 0s}
@@ -175,9 +175,16 @@ html.lb-kb .lb-bar{transform:translateY(120%);visibility:hidden}
 .lb-grab{height:28px;display:grid;place-items:center;cursor:grab;touch-action:none}
 .lb-grab::before{content:"";width:44px;height:4px;border-radius:2px;background:rgba(236,210,138,.55)}
 .lb-sheetm .lb-body{padding:0 22px calc(22px + env(safe-area-inset-bottom,0px))}
-.lb-sheetm .lb-h{font-size:27px}
 .lb-sheetm .lb-sub{margin-inline:44px}
 .lb-sheetm .lb-x{top:0;right:6px}
+.lb-sheetm .lb-min{top:0;right:50px}
+/* about half the screen: heading, teasers and the form come first; the explanation sits below, reachable by scrolling inside the sheet */
+.lb-sheetm .lb-body{display:flex;flex-direction:column}
+.lb-sheetm .lb-sub{order:1}.lb-sheetm .lb-h{order:2;font-size:25px;margin-bottom:8px}.lb-sheetm .lb-teaser{order:3;min-height:60px;margin-bottom:10px;padding:6px 10px 2px}
+.lb-sheetm .lb-slides{height:38px}.lb-sheetm .lb-signup{order:4}.lb-sheetm .lb-thanks{order:5}.lb-sheetm .lb-p{order:9;margin:14px 0 0}
+.lb-sheetm .lb-cta{margin-bottom:8px;font-size:17px}.lb-sheetm .lb-form{gap:9px}
+@media (max-height:700px){.lb-sheetm .lb-teaser{display:none}}
+@media (min-width:900px){.lb-sheetm{max-width:560px;margin-inline:auto}}
 .lb-sheetm:focus{outline:none}
 
 /* עמוד שנטען בהמשך הביקור: מופיע במקומו בלי אנימציית כניסה */

@@ -2,13 +2,13 @@
 // Each hostname is served from the local static server through request interception (no DNS, no certificates, no real network);
 // the production CRM URL is intercepted too and answered by the test.
 const { test, expect } = require('@playwright/test');
-const { waitBanner, openForm, crmLog, resetCrm } = require('./helpers');
+const { waitBanner, openForm, crmLog, resetCrm, legacyCtx } = require('./helpers');
 
 const PRODUCTION_LIKE = ['matzpenkalkali.com', 'www.matzpenkalkali.com', 'matzpenkalkali.netlify.app', 'matzpenkalkali--evil.netlify.app', 'not-matzpenkalkali.com', 'shop.matzpenkalkali.com'];
 const TEST_HOSTS = ['deploy-preview-6--matzpenkalkali.netlify.app', 'some-branch--matzpenkalkali.netlify.app'];
 
 async function prepare(browser, host, query, crmAnswer) {
-  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  const ctx = await legacyCtx(browser, { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   const calls = [];
   // the site itself: https://<host>/... is answered from the local static server
   await ctx.route(`https://${host}/**`, async route => {

@@ -1,4 +1,25 @@
+const os = require('os');
+const fs = require('fs');
+const path = require('path');
 const CRM = 'http://127.0.0.1:4191';
+
+// The pages style themselves with the Tailwind CDN script. From this machine that CDN fails or hangs now and then, which leaves
+// hidden dialogs visible (the banner then waits for them) and makes every layout test flaky. Fetch it once, keep it in the OS temp
+// folder (never in the repo) and serve it from there in every test context.
+const TW_CACHE = path.join(os.tmpdir(), 'lb-tailwind-play.js');
+async function tailwindSource() {
+  try { if (fs.existsSync(TW_CACHE) && fs.statSync(TW_CACHE).size > 100000) return fs.readFileSync(TW_CACHE); } catch (e) {}
+  for (let i = 0; i < 5; i++) {
+    try { const r = await fetch('https://cdn.tailwindcss.com'); const b = Buffer.from(await r.arrayBuffer()); if (r.ok && b.length > 100000) { fs.writeFileSync(TW_CACHE, b); return b; } } catch (e) {}
+    await new Promise(r => setTimeout(r, 1500));
+  }
+  return null;
+}
+async function stableTailwind(ctx) {
+  const src = await tailwindSource();
+  if (src) await ctx.route('https://cdn.tailwindcss.com/**', route => route.fulfill({ body: src, contentType: 'text/javascript' }));
+}
+
 
 const MODE_SEL = { full: '.lb-scroll[data-on="1"]', totem: '.lb-totem[data-on="1"]', tab: '.lb-tab[data-on="1"]', bar: '.lb-bar[data-on="1"]' };
 const ANY_VISIBLE = Object.values(MODE_SEL).join(',');
@@ -9,9 +30,19 @@ async function releaseCrm(request) { return (await request.post(CRM + '/__releas
 async function crmHeld(request) { return (await (await request.get(CRM + '/__held')).json()).held; }
 async function crmLog(request) { return (await request.get(CRM + '/__log')).json(); }
 
+/** A context where the automatic first-entrance opening is already "done" for this visit, i.e. the banner starts compact.
+ *  The existing suites were written for that state; the new default (open on entrance) has its own spec, auto-open.spec.js. */
+async function legacyCtx(browser, opts) {
+  const ctx = await browser.newContext(opts);
+  await stableTailwind(ctx);
+  await ctx.addInitScript(() => { try { if (!sessionStorage.getItem('lb.s1')) sessionStorage.setItem('lb.s1', JSON.stringify({ autoOpened: true })); } catch (e) {} });
+  return ctx;
+}
+
 /** Context that already has "closed for 7 days", so the page runs with the banner off (baseline). */
 async function closedContext(browser, opts, dummyFont = true) {
   const ctx = await browser.newContext(opts);
+  await stableTailwind(ctx);
   await ctx.addInitScript((dummy) => {
     try { localStorage.setItem('lb.v1', JSON.stringify({ closedUntil: Date.now() + 6e8 })); } catch (e) {}
     // Adding the banner's font stylesheet link nudges this (already horizontally overflowing at 768px) page by a few px in the
@@ -88,4 +119,4 @@ async function lastContentAboveBar(page) {
   });
 }
 
-module.exports = { CRM, MODE_SEL, ANY_VISIBLE, setMode, resetCrm, crmLog, releaseCrm, crmHeld, closedContext, waitBanner, currentMode, openForm, overlaps, lastContentAboveBar };
+module.exports = { stableTailwind, legacyCtx, CRM, MODE_SEL, ANY_VISIBLE, setMode, resetCrm, crmLog, releaseCrm, crmHeld, closedContext, waitBanner, currentMode, openForm, overlaps, lastContentAboveBar };
