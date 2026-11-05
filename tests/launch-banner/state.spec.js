@@ -1,6 +1,6 @@
 // First entrance, navigation between pages, minimize/close persistence, joined state, exclusions.
 const { test, expect } = require('@playwright/test');
-const { waitBanner, currentMode, openForm, MODE_SEL, ANY_VISIBLE } = require('./helpers');
+const { waitBanner, currentMode, openForm, MODE_SEL, ANY_VISIBLE, legacyCtx } = require('./helpers');
 
 const FULL = { width: 2000, height: 1100 };
 const TOTEM = { width: 1440, height: 900 };
@@ -11,7 +11,7 @@ async function bannerAnimations(page) {
 }
 
 test('first entrance: nothing for ~3 s after load, then the scroll unfurls once', async ({ browser }) => {
-  const ctx = await browser.newContext({ viewport: FULL }); const page = await ctx.newPage();
+  const ctx = await legacyCtx(browser, { viewport: FULL }); const page = await ctx.newPage();
   await page.addInitScript(() => {
     window.__shownAt = null;
     new MutationObserver(() => { if (window.__shownAt === null && document.querySelector('.lb-root')) window.__shownAt = Math.round(performance.now()); }).observe(document, { childList: true, subtree: true });
@@ -26,7 +26,7 @@ test('first entrance: nothing for ~3 s after load, then the scroll unfurls once'
 });
 
 test('moving to another page: no second opening animation, state kept (open)', async ({ browser }) => {
-  const ctx = await browser.newContext({ viewport: FULL }); const page = await ctx.newPage();
+  const ctx = await legacyCtx(browser, { viewport: FULL }); const page = await ctx.newPage();
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   await waitBanner(page);
   await page.goto('/knowledge/', { waitUntil: 'domcontentloaded' });
@@ -36,7 +36,7 @@ test('moving to another page: no second opening animation, state kept (open)', a
 });
 
 test('minimized stays minimized on the next pages (no auto reopen)', async ({ browser }) => {
-  const ctx = await browser.newContext({ viewport: FULL }); const page = await ctx.newPage();
+  const ctx = await legacyCtx(browser, { viewport: FULL }); const page = await ctx.newPage();
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   await waitBanner(page);
   await page.click('.lb-scroll .lb-min');
@@ -55,7 +55,7 @@ test('minimized stays minimized on the next pages (no auto reopen)', async ({ br
 });
 
 test('totem screens: minimize to the tab survives navigation', async ({ browser }) => {
-  const ctx = await browser.newContext({ viewport: TOTEM }); const page = await ctx.newPage();
+  const ctx = await legacyCtx(browser, { viewport: TOTEM }); const page = await ctx.newPage();
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   await waitBanner(page);
   expect(await currentMode(page)).toBe('totem');
@@ -68,7 +68,7 @@ test('totem screens: minimize to the tab survives navigation', async ({ browser 
 });
 
 test('closed: gone on every page for 7 days, back after that', async ({ browser }) => {
-  const ctx = await browser.newContext({ viewport: MOBILE, isMobile: true, hasTouch: true }); const page = await ctx.newPage();
+  const ctx = await legacyCtx(browser, { viewport: MOBILE, isMobile: true, hasTouch: true }); const page = await ctx.newPage();
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   await waitBanner(page);
   await page.click('.lb-bx');
@@ -91,7 +91,7 @@ test('closed: gone on every page for 7 days, back after that', async ({ browser 
 });
 
 test('entering directly on an inner page works', async ({ browser }) => {
-  const ctx = await browser.newContext({ viewport: MOBILE, isMobile: true, hasTouch: true }); const page = await ctx.newPage();
+  const ctx = await legacyCtx(browser, { viewport: MOBILE, isMobile: true, hasTouch: true }); const page = await ctx.newPage();
   await page.goto('/knowledge/dictionary/shpitzer/', { waitUntil: 'domcontentloaded' });
   await waitBanner(page);
   expect(await currentMode(page)).toBe('bar');
@@ -99,7 +99,7 @@ test('entering directly on an inner page works', async ({ browser }) => {
 });
 
 test('storage blocked: no crash, banner still works for the page', async ({ browser }) => {
-  const ctx = await browser.newContext({ viewport: MOBILE, isMobile: true, hasTouch: true });
+  const ctx = await legacyCtx(browser, { viewport: MOBILE, isMobile: true, hasTouch: true });
   await ctx.addInitScript(() => {
     for (const n of ['localStorage', 'sessionStorage']) Object.defineProperty(window, n, { get() { throw new Error('blocked'); } });
   });
@@ -113,7 +113,7 @@ test('storage blocked: no crash, banner still works for the page', async ({ brow
 });
 
 test('internal pages never get the banner (admin, secure sign-in paths)', async ({ browser, request }) => {
-  const ctx = await browser.newContext({ viewport: FULL }); const page = await ctx.newPage();
+  const ctx = await legacyCtx(browser, { viewport: FULL }); const page = await ctx.newPage();
   await page.goto('/admin/', { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(4200);
   expect(await page.locator('.lb-root').count()).toBe(0);
@@ -134,7 +134,7 @@ test('internal pages never get the banner (admin, secure sign-in paths)', async 
 });
 
 test('data-lb-off opts a page out', async ({ browser }) => {
-  const ctx = await browser.newContext({ viewport: FULL }); const page = await ctx.newPage();
+  const ctx = await legacyCtx(browser, { viewport: FULL }); const page = await ctx.newPage();
   await page.route('**/privacy', async route => {
     const resp = await route.fetch(); let body = await resp.text();
     await route.fulfill({ response: resp, body: body.replace('<html', '<html data-lb-off') });
@@ -146,7 +146,7 @@ test('data-lb-off opts a page out', async ({ browser }) => {
 });
 
 test('launch=reset clears the remembered state', async ({ browser }) => {
-  const ctx = await browser.newContext({ viewport: MOBILE, isMobile: true, hasTouch: true }); const page = await ctx.newPage();
+  const ctx = await legacyCtx(browser, { viewport: MOBILE, isMobile: true, hasTouch: true }); const page = await ctx.newPage();
   await page.addInitScript(() => { if (!sessionStorage.getItem('x')) { sessionStorage.setItem('x', '1'); localStorage.setItem('lb.v1', JSON.stringify({ closedUntil: Date.now() + 6e8 })); } });
   await page.goto('/?launch=reset', { waitUntil: 'domcontentloaded' });
   await waitBanner(page);

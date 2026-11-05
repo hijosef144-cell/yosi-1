@@ -13,7 +13,7 @@ module.exports = defineConfig({
   use: {
     baseURL: 'http://127.0.0.1:4190', channel, locale: 'he-IL', trace: 'retain-on-failure',
     // Google Fonts never load in tests (deterministic timing); system fonts are used.
-    launchOptions: { args: ['--host-resolver-rules=MAP fonts.googleapis.com ~NOTFOUND, MAP fonts.gstatic.com ~NOTFOUND'] }
+    launchOptions: { args: ['--host-resolver-rules=MAP fonts.googleapis.com ~NOTFOUND, MAP fonts.gstatic.com ~NOTFOUND', '--disable-quic', '--disable-http2'] }
   },
   webServer: [
     { command: 'node server.js', cwd: __dirname, env: { PORT: '4190' }, url: 'http://127.0.0.1:4190/privacy', reuseExistingServer: true, timeout: 30000 },

@@ -1,11 +1,11 @@
 // Keyboard, screen readers, reduced motion, touch targets, short screens, the old guide popup.
 const { test, expect } = require('@playwright/test');
-const { waitBanner, openForm, currentMode, MODE_SEL } = require('./helpers');
+const { waitBanner, openForm, currentMode, MODE_SEL, legacyCtx } = require('./helpers');
 
 const MOBILE = { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true };
 
 test('mobile sheet: dialog semantics, focus moves in, Escape closes and returns focus, Tab is trapped', async ({ browser }) => {
-  const ctx = await browser.newContext(MOBILE); const page = await ctx.newPage();
+  const ctx = await legacyCtx(browser, MOBILE); const page = await ctx.newPage();
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   await waitBanner(page);
   const open = page.locator('.lb-open');
@@ -27,21 +27,30 @@ test('mobile sheet: dialog semantics, focus moves in, Escape closes and returns 
 });
 
 test('mobile: controls are at least 44px, the bar stays closable and does not block the page afterwards', async ({ browser }) => {
-  const ctx = await browser.newContext(MOBILE); const page = await ctx.newPage();
+  const ctx = await legacyCtx(browser, MOBILE); const page = await ctx.newPage();
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   await waitBanner(page);
   for (const sel of ['.lb-bx', '.lb-open']) { const b = await page.locator(sel).boundingBox(); expect(b.height).toBeGreaterThanOrEqual(43.5); expect(b.width).toBeGreaterThanOrEqual(43.5); }
   await page.click('.lb-open'); await page.waitForTimeout(700);
   const x = await page.locator('.lb-sheetm .lb-x').boundingBox(); expect(x.width).toBeGreaterThanOrEqual(43.5); expect(x.height).toBeGreaterThanOrEqual(43.5);
-  await page.click('.lb-sheetm .lb-x'); await page.waitForTimeout(700);
-  // after closing the sheet the scrim does not intercept clicks
-  expect(await page.evaluate(() => { const s = document.querySelector('.lb-scrim'); return getComputedStyle(s).visibility; })).toBe('hidden');
+  // the sheet's minimize button folds it back to the bar; the scrim must not intercept clicks afterwards
+  const noBlock = () => page.evaluate(() => { const s = document.querySelector('.lb-scrim'); return !s || getComputedStyle(s).visibility === 'hidden'; });
+  const m = await page.locator('.lb-sheetm .lb-min').boundingBox(); expect(m.width).toBeGreaterThanOrEqual(43.5); expect(m.height).toBeGreaterThanOrEqual(43.5);
+  await page.click('.lb-sheetm .lb-min'); await page.waitForTimeout(700);
+  expect(await noBlock()).toBe(true);
   expect(await page.evaluate(() => document.documentElement.classList.contains('lb-modal'))).toBe(false);
+  await expect(page.locator('.lb-bar')).toBeVisible();
+  // the X closes the whole banner (7-day rule) and leaves nothing that blocks the page
+  await page.click('.lb-open'); await page.waitForTimeout(700);
+  await page.click('.lb-sheetm .lb-x'); await page.waitForTimeout(1200);
+  expect(await noBlock()).toBe(true);
+  expect(await page.evaluate(() => document.documentElement.classList.contains('lb-modal'))).toBe(false);
+  expect(await page.locator('.lb-root').count()).toBe(0);
   await ctx.close();
 });
 
 test('short screen / on-screen keyboard: the sheet fits the viewport and the form stays reachable', async ({ browser }) => {
-  const ctx = await browser.newContext({ viewport: { width: 360, height: 400 }, isMobile: true, hasTouch: true }); const page = await ctx.newPage();
+  const ctx = await legacyCtx(browser, { viewport: { width: 360, height: 400 }, isMobile: true, hasTouch: true }); const page = await ctx.newPage();
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   await waitBanner(page);
   await page.click('.lb-open'); await page.waitForTimeout(800);
@@ -55,7 +64,7 @@ test('short screen / on-screen keyboard: the sheet fits the viewport and the for
 
 test('mobile: floating buttons and the cookie banner are lifted above the bar (no overlap)', async ({ browser }) => {
   for (const url of ['/', '/pension-calc', '/מחשבון-שכר-ברוטו-נטו']) {
-    const ctx = await browser.newContext(MOBILE); const page = await ctx.newPage();
+    const ctx = await legacyCtx(browser, MOBILE); const page = await ctx.newPage();
     await page.goto(url, { waitUntil: 'domcontentloaded' });
     await waitBanner(page);
     await page.waitForTimeout(1500);
@@ -81,7 +90,7 @@ test('mobile: floating buttons and the cookie banner are lifted above the bar (n
 });
 
 test('desktop keyboard: tab reaches the side tab and Enter opens the panel, Escape closes it, focus returns', async ({ browser }) => {
-  const ctx = await browser.newContext({ viewport: { width: 1300, height: 800 } }); const page = await ctx.newPage();
+  const ctx = await legacyCtx(browser, { viewport: { width: 1300, height: 800 } }); const page = await ctx.newPage();
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   await waitBanner(page);
   expect(await currentMode(page)).toBe('tab');
@@ -102,7 +111,7 @@ test('desktop keyboard: tab reaches the side tab and Enter opens the panel, Esca
 });
 
 test('reduced motion: no unfurl animation, no automatic rotation; pause button and dots work', async ({ browser }) => {
-  const ctx = await browser.newContext({ viewport: { width: 2000, height: 1100 }, reducedMotion: 'reduce' }); const page = await ctx.newPage();
+  const ctx = await legacyCtx(browser, { viewport: { width: 2000, height: 1100 }, reducedMotion: 'reduce' }); const page = await ctx.newPage();
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   await page.waitForSelector(MODE_SEL.full, { state: 'attached', timeout: 7000 });
   const running = await page.evaluate(() => document.getAnimations().filter(a => a.effect && a.effect.target && a.effect.target.closest && a.effect.target.closest('.lb-sheet,.lb-rod') && a.playState === 'running' && !a.effect.target.closest('.lb-h') && !a.effect.target.classList.contains('lb-sp')).length);
@@ -116,7 +125,7 @@ test('reduced motion: no unfurl animation, no automatic rotation; pause button a
 });
 
 test('rotation can be paused (WCAG pause control)', async ({ browser }) => {
-  const ctx = await browser.newContext({ viewport: { width: 2000, height: 1100 } }); const page = await ctx.newPage();
+  const ctx = await legacyCtx(browser, { viewport: { width: 2000, height: 1100 } }); const page = await ctx.newPage();
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   await waitBanner(page);
   await page.click('.lb-scroll .lb-pause');
@@ -130,7 +139,7 @@ test('rotation can be paused (WCAG pause control)', async ({ browser }) => {
 
 test('every banner button has an accessible name', async ({ browser }) => {
   for (const [w, h] of [[390, 844], [1440, 900], [2000, 1100]]) {
-    const ctx = await browser.newContext({ viewport: { width: w, height: h } }); const page = await ctx.newPage();
+    const ctx = await legacyCtx(browser, { viewport: { width: w, height: h } }); const page = await ctx.newPage();
     await page.goto('/', { waitUntil: 'domcontentloaded' });
     await waitBanner(page);
     const nameless = await page.evaluate(() => [...document.querySelectorAll('.lb-root button, .lb-root input:not(.lb-hp)')].filter(e => {
@@ -146,7 +155,7 @@ test('every banner button has an accessible name', async ({ browser }) => {
 
 /* ---- the old guide popup (exit intent) must not compete with the banner ---- */
 test('guide popup stays off while the banner is active, and works again after the banner is closed', async ({ browser }) => {
-  const ctx = await browser.newContext({ viewport: { width: 2000, height: 1100 } }); const page = await ctx.newPage();
+  const ctx = await legacyCtx(browser, { viewport: { width: 2000, height: 1100 } }); const page = await ctx.newPage();
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   await waitBanner(page);
   const popupVisible = () => page.evaluate(() => { const p = document.getElementById('newsletterPopup'); return !!p && getComputedStyle(p).display !== 'none' && !p.classList.contains('hidden'); });
