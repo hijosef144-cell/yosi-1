@@ -13,7 +13,7 @@ module.exports = defineConfig({
   reporter: [['list']],
   use: {
     baseURL: 'http://127.0.0.1:4190', channel, locale: 'he-IL', trace: 'retain-on-failure',
-    launchOptions: { args: ['--host-resolver-rules=MAP fonts.googleapis.com ~NOTFOUND, MAP fonts.gstatic.com ~NOTFOUND'] }
+    launchOptions: { args: ['--host-resolver-rules=MAP fonts.googleapis.com ~NOTFOUND, MAP fonts.gstatic.com ~NOTFOUND', '--disable-quic', '--disable-http2'] }
   },
   webServer: [
     { command: 'node server.js', cwd: __dirname, env: { PORT: '4190' }, url: 'http://127.0.0.1:4190/privacy', reuseExistingServer: true, timeout: 30000 },

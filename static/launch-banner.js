@@ -146,7 +146,7 @@
 
   /* ---------- state ---------- */
   var S = {
-    mode: null, view: 'open', panel: false, joined: !!saved.joined, entered: false,
+    mode: null, view: 'open', panel: false, auto: false, joined: !!saved.joined, entered: false,
     email: '', consent: false, root: null, els: {}, ctls: [], cleanups: [], uid: 0, lastFocus: null
   };
   var started = false;
@@ -331,7 +331,7 @@
     S.root.appendChild(el);
     var ctl = wireContent($('.lb-body', el), { source: function () { return S.mode === 'full' ? 'desktop' : (S.mode === 'totem' ? 'compact' : 'tab'); }, morph: function (fn) { morphHeight($('.lb-sheet', el), fn); } });
     S.ctls.push(ctl);
-    $('.lb-min', el).addEventListener('click', function () { if (overlay) collapsePanel(); else minimize(); });
+    $('.lb-min', el).addEventListener('click', function () { minimizePanel(); });
     $('.lb-x', el).addEventListener('click', closeForDays);
     return el;
   }
@@ -382,7 +382,9 @@
     var scrim = D.createElement('div'); scrim.className = 'lb-scrim'; scrim.setAttribute('data-on', '0');
     var sheet = D.createElement('div');
     sheet.className = 'lb-sheetm'; sheet.setAttribute('data-on', '0'); sheet.setAttribute('role', 'dialog'); sheet.setAttribute('aria-modal', 'true'); sheet.setAttribute('aria-labelledby', 'lb-h' + n); sheet.tabIndex = -1;
-    sheet.innerHTML = '<div class="lb-grab" aria-hidden="true"></div><div class="lb-body"><button type="button" class="lb-x" aria-label="סגירת החלונית">' + uiIcon('x') + '</button>' + contentHTML(n) + '</div>';
+    sheet.innerHTML = '<div class="lb-grab" aria-hidden="true"></div><div class="lb-body">' +
+      '<button type="button" class="lb-min" aria-label="מזעור לפס">' + uiIcon('min') + '</button>' +
+      '<button type="button" class="lb-x" aria-label="סגירת ההודעה לשבעה ימים">' + uiIcon('x') + '</button>' + contentHTML(n) + '</div>';
     S.root.appendChild(bar); S.root.appendChild(scrim); S.root.appendChild(sheet);
 
     // teasers in the bar: pause on hover/focus; static in reduced motion
@@ -397,10 +399,11 @@
     S.ctls.push(ctl);
     $('.lb-open', bar).addEventListener('click', openPanel);
     $('.lb-bx', bar).addEventListener('click', closeForDays);
-    $('.lb-x', sheet).addEventListener('click', collapsePanel);
+    $('.lb-min', sheet).addEventListener('click', minimizePanel);
+    $('.lb-x', sheet).addEventListener('click', closeForDays);
     scrim.addEventListener('click', collapsePanel);
     sheet.addEventListener('keydown', function (e) {
-      if (e.key !== 'Tab') return;
+      if (e.key !== 'Tab' || S.auto) return;   // החלון שנפתח לבד אינו מודאלי: בלי לכידת מקלדת
       var f = $$('button,input:not(.lb-hp),a[href]', sheet).filter(function (x) { return !x.hidden && x.offsetParent !== null; });
       if (!f.length) return;
       var first = f[0], last = f[f.length - 1];
@@ -466,15 +469,28 @@
     if (E.bar) {
       setOn(E.bar, true);
       var open = S.panel;
-      setOn(E.scrim, open); setOn(E.sheet, open);
-      docEl.classList.toggle('lb-modal', open);
+      setOn(E.scrim, open && !S.auto); setOn(E.sheet, open);                 // נפתח לבד: בלי הכהיה ובלי חסימת הדף
+      E.sheet.setAttribute('aria-modal', S.auto ? 'false' : 'true'); E.sheet.setAttribute('data-auto', S.auto ? '1' : '0');
+      docEl.classList.toggle('lb-modal', open && !S.auto);
     }
+    if (S.root) S.root.setAttribute('data-lb-panel', S.panel ? '1' : '0');
     W.__lbActive = true;
   }
 
   function minimize() { S.view = 'min'; sset({ min: true }); track('minimize'); apply(); }
-  function openPanel() {
-    S.lastFocus = D.activeElement; S.panel = true; track('open_panel'); apply({ fast: true });
+  // מזעור מתוך החלונית (או מהמגילה): חוזרים למצב הקטן, והמזעור נשמר להמשך הביקור
+  function minimizePanel() {
+    track('minimize'); sset({ min: true });
+    if (S.mode === 'full' || S.mode === 'totem') S.view = 'min';
+    if (S.panel) collapsePanel(); else apply();
+  }
+  // auto === true: הפתיחה האוטומטית בכניסה הראשונה (לא מודאלית, לא גונבת מיקוד)
+  function openPanel(auto) {
+    var isAuto = auto === true;
+    S.auto = isAuto;
+    if (!isAuto) S.lastFocus = D.activeElement;
+    S.panel = true; track(isAuto ? 'auto_open' : 'open_panel'); apply({ fast: !isAuto });
+    if (isAuto) return;
     setTimeout(function () {
       if (S.mode === 'bar') { S.els.sheet.focus({ preventScroll: true }); updateViewport(); }
       else if (S.els.scroll) { var f = $('.lb-in', S.els.scroll); if (f) f.focus({ preventScroll: true }); }
@@ -482,7 +498,7 @@
   }
   function collapsePanel() {
     if (!S.panel) return;
-    S.panel = false; apply();
+    S.panel = false; S.auto = false; apply();
     var f = S.lastFocus; S.lastFocus = null;
     // המגילה/הלשונית מופיעות שוב רק אחרי שהחלונית מתקפלת: מחזירים מיקוד אחרי שהן נראות
     setTimeout(function () {
@@ -543,7 +559,7 @@
   /* ---------- build / destroy ---------- */
   function buildUI(instant) {
     S.root = D.createElement('div');
-    S.root.className = 'lb-root'; S.root.setAttribute('dir', 'rtl'); S.root.setAttribute('lang', 'he');
+    S.root.className = 'lb-root'; S.root.setAttribute('dir', 'rtl'); S.root.setAttribute('lang', 'he'); S.root.setAttribute('data-lb-mode', S.mode); S.root.setAttribute('data-lb-panel', '0');
     if (instant) S.root.classList.add('lb-notrans');
     S.root.innerHTML = SPRITE;
     D.body.appendChild(S.root);
@@ -639,9 +655,15 @@
         S.entered = true;
         sset({ unfurled: true });
         track('shown');
+        // כניסה ראשונה בביקור: הכרזה נפתחת בגדול (מגילה בדסקטופ, חלונית של בערך חצי מסך בנייד). פעם אחת בביקור;
+        // לא למי שמיזער או כבר נרשם, ולא בעמודים הבאים.
+        var doAuto = first && !sess.autoOpened && !S.joined && !sess.min;
+        sset({ autoOpened: true });
         if (first) {
-          if (S.mode === 'totem') apply({ unfurlTotem: true });
+          if (doAuto && (S.mode === 'totem' || S.mode === 'tab')) { S.panel = true; S.auto = true; apply({}); }
+          else if (S.mode === 'totem') apply({ unfurlTotem: true });
           else apply({});
+          if (doAuto && S.mode === 'bar') setTimeout(function () { if (S.root && !S.panel) openPanel(true); }, 900);
         } else { apply({ instant: true }); }
         afterMount();
         if (!first) setTimeout(function () { if (S.root) S.root.classList.remove('lb-notrans'); }, 60);
@@ -670,7 +692,9 @@
     D.addEventListener('focusin', updateViewport); D.addEventListener('focusout', function () { setTimeout(updateViewport, 100); });
     D.addEventListener('keydown', function (e) { if (e.key === 'Escape' && S.panel) collapsePanel(); });
     D.addEventListener('pointerdown', function (e) {
-      if (S.panel && S.mode !== 'bar' && S.root && !S.root.contains(e.target)) collapsePanel();
+      if (!S.panel || !S.root) return;
+      if (S.root.contains(e.target)) { if (S.auto && S.mode !== 'bar') S.auto = false; return; }   // נגעו בחלונית: מכאן לחיצה בחוץ סוגרת אותה
+      if (S.mode !== 'bar' && !S.auto) collapsePanel();        // חלונית שנפתחה לבד לא נסגרת בלחיצה בחוץ, רק בכפתור המזעור
     }, true);
     var cb = D.getElementById('cookie-banner');
     if (cb && W.ResizeObserver) { new W.ResizeObserver(function () { updateLift(); }).observe(cb); }

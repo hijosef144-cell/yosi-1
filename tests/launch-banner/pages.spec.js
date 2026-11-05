@@ -2,7 +2,7 @@
 const { test, expect } = require('@playwright/test');
 const { execFileSync } = require('child_process');
 const path = require('path');
-const { waitBanner, currentMode, overlaps, lastContentAboveBar, MODE_SEL } = require('./helpers');
+const { waitBanner, currentMode, overlaps, lastContentAboveBar, MODE_SEL, legacyCtx } = require('./helpers');
 
 const root = path.resolve(__dirname, '..', '..');
 const all = execFileSync('git', ['-c', 'core.quotepath=off', 'ls-files', '*.html'], { cwd: root, encoding: 'utf8' }).split('\n').map(s => s.trim()).filter(Boolean);
@@ -39,7 +39,7 @@ for (const [label, viewport, mobile, allowed] of [['390 phone', { width: 390, he
     const list = /^(1650|1920|2000)/.test(label) ? publicPages.filter((f, i) => !f.startsWith('knowledge/dictionary/') || i % 16 === 0) : publicPages;
     for (const f of list) {
       test(f, async ({ browser }) => {
-        const ctx = await browser.newContext({ viewport, isMobile: mobile, hasTouch: mobile });
+        const ctx = await legacyCtx(browser, { viewport, isMobile: mobile, hasTouch: mobile });
         const page = await ctx.newPage();
         const bannerErrors = [];
         page.on('pageerror', e => { if (/launch-banner/.test(e.stack || '') || /lb-/.test(e.message)) bannerErrors.push(e.message); });

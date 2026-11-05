@@ -1,6 +1,6 @@
 // Registration against a fake CRM that implements the waitlist contract (the real CRM app is covered by the CRM branch's own tests).
 const { test, expect } = require('@playwright/test');
-const { CRM, waitBanner, openForm, setMode, resetCrm, crmLog, releaseCrm, crmHeld } = require('./helpers');
+const { CRM, waitBanner, openForm, setMode, resetCrm, crmLog, releaseCrm, crmHeld, legacyCtx } = require('./helpers');
 
 const CONSENT = 'אני מסכים/ה לקבל בדוא״ל עדכון על השקת המיזם החדש בשיתוף מצפן כלכלי. ניתן לבטל את ההרשמה בכל עת.';
 const API = '/?lbApi=' + encodeURIComponent(CRM);
@@ -16,7 +16,7 @@ test.beforeEach(async ({ request }) => { await resetCrm(request); });
 for (const v of VIEWS) {
   test.describe(v.name, () => {
     async function start(browser, url = API) {
-      const ctx = await browser.newContext({ viewport: v.viewport, isMobile: v.mobile, hasTouch: v.mobile });
+      const ctx = await legacyCtx(browser, { viewport: v.viewport, isMobile: v.mobile, hasTouch: v.mobile });
       const page = await ctx.newPage();
       await page.goto(url, { waitUntil: 'domcontentloaded' });
       await waitBanner(page);
