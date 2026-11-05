@@ -33,10 +33,19 @@ test('mobile: controls are at least 44px, the bar stays closable and does not bl
   for (const sel of ['.lb-bx', '.lb-open']) { const b = await page.locator(sel).boundingBox(); expect(b.height).toBeGreaterThanOrEqual(43.5); expect(b.width).toBeGreaterThanOrEqual(43.5); }
   await page.click('.lb-open'); await page.waitForTimeout(700);
   const x = await page.locator('.lb-sheetm .lb-x').boundingBox(); expect(x.width).toBeGreaterThanOrEqual(43.5); expect(x.height).toBeGreaterThanOrEqual(43.5);
-  await page.click('.lb-sheetm .lb-x'); await page.waitForTimeout(700);
-  // after closing the sheet the scrim does not intercept clicks
-  expect(await page.evaluate(() => { const s = document.querySelector('.lb-scrim'); return getComputedStyle(s).visibility; })).toBe('hidden');
+  // the sheet's minimize button folds it back to the bar; the scrim must not intercept clicks afterwards
+  const noBlock = () => page.evaluate(() => { const s = document.querySelector('.lb-scrim'); return !s || getComputedStyle(s).visibility === 'hidden'; });
+  const m = await page.locator('.lb-sheetm .lb-min').boundingBox(); expect(m.width).toBeGreaterThanOrEqual(43.5); expect(m.height).toBeGreaterThanOrEqual(43.5);
+  await page.click('.lb-sheetm .lb-min'); await page.waitForTimeout(700);
+  expect(await noBlock()).toBe(true);
   expect(await page.evaluate(() => document.documentElement.classList.contains('lb-modal'))).toBe(false);
+  await expect(page.locator('.lb-bar')).toBeVisible();
+  // the X closes the whole banner (7-day rule) and leaves nothing that blocks the page
+  await page.click('.lb-open'); await page.waitForTimeout(700);
+  await page.click('.lb-sheetm .lb-x'); await page.waitForTimeout(1200);
+  expect(await noBlock()).toBe(true);
+  expect(await page.evaluate(() => document.documentElement.classList.contains('lb-modal'))).toBe(false);
+  expect(await page.locator('.lb-root').count()).toBe(0);
   await ctx.close();
 });
 
