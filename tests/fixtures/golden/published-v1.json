@@ -1,0 +1,177 @@
+{
+ "content": "topics.json",
+ "contentSha256": "86888cf7eff8ebf6c1a73b47fb9875bde5cf427830875636a133097b0fab5446",
+ "cap": 300000,
+ "topics": {
+  "lost-funds": {
+   "mode": "exhaustive",
+   "paths": 216,
+   "invalid": 0,
+   "digest": "b377036a57edf122f3350c32f8e4906fe57d0c9717d96bee1d28812fdda313ec",
+   "outcomes": {
+    "found": 184,
+    "none": 3,
+    "insufficient": 29
+   },
+   "fires": {
+    "lf-acc": 72,
+    "lf-forgot": 72,
+    "lf-inherit": 72,
+    "lf-jobs": 108
+   }
+  },
+  "tax-refunds": {
+   "mode": "exhaustive",
+   "paths": 144,
+   "invalid": 0,
+   "digest": "11ed8aedbc16d5c4de1524cf865de789200a84be4c09fba22f66eb14035d7f4b",
+   "outcomes": {
+    "found": 124,
+    "none": 3,
+    "insufficient": 17
+   },
+   "fires": {
+    "tx-dep": 48,
+    "tx-family": 48,
+    "tx-multi": 81,
+    "tx-nofile": 45
+   }
+  },
+  "housing": {
+   "mode": "exhaustive",
+   "paths": 73,
+   "invalid": 0,
+   "digest": "95fdab93628d42c5afd97cf38d924aaba28a4b00acba803e9a5b77ffc7a8e8ec",
+   "outcomes": {
+    "found": 60,
+    "none": 5,
+    "insufficient": 8
+   },
+   "fires": {
+    "hs-disc": 8,
+    "hs-empty": 36,
+    "hs-never": 16,
+    "hs-rent": 36
+   }
+  },
+  "mortgage": {
+   "mode": "exhaustive",
+   "paths": 40,
+   "invalid": 0,
+   "digest": "a983804950c40cd3b13c3f92e8570acba0a25717a4b0305987d2ef3d24604f36",
+   "outcomes": {
+    "none": 6,
+    "found": 18,
+    "insufficient": 16
+   },
+   "fires": {
+    "mg-know": 12,
+    "mg-offers": 2,
+    "mg-refi": 6
+   }
+  },
+  "insurance-pension": {
+   "mode": "exhaustive",
+   "paths": 120,
+   "invalid": 0,
+   "digest": "a84360c687bcde211a70d259bedf49ed4d6751f898f1ea62eb57692453d142f6",
+   "outcomes": {
+    "found": 102,
+    "none": 4,
+    "insufficient": 14
+   },
+   "fires": {
+    "ip-fees": 48,
+    "ip-none": 15,
+    "ip-overlap": 60,
+    "ip-review": 40
+   }
+  },
+  "payslip-rights": {
+   "mode": "exhaustive",
+   "paths": 39,
+   "invalid": 0,
+   "digest": "9c2cb9d79711ba45ee7cffd79ba8395fc0adb1e0cded6eb32988554650b0dc8a",
+   "outcomes": {
+    "found": 35,
+    "none": 3,
+    "insufficient": 1
+   },
+   "fires": {
+    "ps-ended": 19,
+    "ps-monthly": 12,
+    "ps-over": 18,
+    "ps-sections": 24
+   }
+  },
+  "national-insurance": {
+   "mode": "exhaustive",
+   "paths": 96,
+   "invalid": 0,
+   "digest": "73fa3543d151a23cfff8a5226fcd86080ea52a6d4bdd7e037a947f7578a2b8bf",
+   "outcomes": {
+    "found": 84,
+    "none": 9,
+    "insufficient": 3
+   },
+   "fires": {
+    "ni-birth": 24,
+    "ni-ill": 24,
+    "ni-kids": 32,
+    "ni-layoff": 24,
+    "ni-ret": 24
+   }
+  },
+  "banking-loans": {
+   "mode": "exhaustive",
+   "paths": 108,
+   "invalid": 0,
+   "digest": "93b0a4ed16b0b2a9e172a787c5713c975b2b562b7eb97d02e753059e537d47a3",
+   "outcomes": {
+    "found": 100,
+    "none": 2,
+    "insufficient": 6
+   },
+   "fires": {
+    "bk-cards": 36,
+    "bk-fees": 72,
+    "bk-idle": 36,
+    "bk-loans": 54
+   }
+  },
+  "household": {
+   "mode": "exhaustive",
+   "paths": 81,
+   "invalid": 0,
+   "digest": "e7a422360fa8282da4640b77c52da9087d6db75f2c3a2ef74e54ca59ff68c6e2",
+   "outcomes": {
+    "found": 77,
+    "none": 1,
+    "insufficient": 3
+   },
+   "fires": {
+    "hh-bills": 54,
+    "hh-ins": 54,
+    "hh-mobile": 27,
+    "hh-subs": 27
+   }
+  },
+  "education-work": {
+   "mode": "exhaustive",
+   "paths": 20,
+   "invalid": 0,
+   "digest": "655acec6bf3019daad2f2691a2fc890e14fa5231a07db9594a9b94155e98a294",
+   "outcomes": {
+    "found": 16,
+    "none": 4
+   },
+   "fires": {
+    "ed-income": 10,
+    "ed-soldier": 4,
+    "ed-study": 4,
+    "ed-train": 4
+   }
+  }
+ },
+ "scenarios": {}
+}

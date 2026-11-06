@@ -27,9 +27,133 @@
 
 # Enable Netlify Identity and Git Gateway
 [build.environment]
-  NODE_VERSION = "18"
+  NODE_VERSION = "24"
 
 # Plugin configuration (for Netlify CMS)
 [[plugins]]
   package = "@netlify/plugin-lighthouse"
+
+# ---- Kaspchem (added) -------------------------------------------------------
+[[redirects]]
+  from = "/api/kaspchem/config"
+  to = "/.netlify/functions/kaspchem-config"
+  status = 200
+
+[[redirects]]
+  from = "/api/kaspchem/lead"
+  to = "/.netlify/functions/kaspchem-lead"
+  status = 200
+
+[[redirects]]
+  from = "/api/kaspchem/impact"
+  to = "/.netlify/functions/kaspchem-impact"
+  status = 200
+
+[[redirects]]
+  from = "/kaspchem/check/*"
+  to = "/kaspchem/check.html"
+  status = 200
+
+[[headers]]
+  for = "/kaspchem/*"
+  [headers.values]
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+
+[[headers]]
+  for = "/admin/kaspchem/*"
+  [headers.values]
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+    Cache-Control = "no-store"
+    X-Robots-Tag = "noindex, nofollow"
+
+[[headers]]
+  for = "/api/kaspchem/*"
+  [headers.values]
+    Cache-Control = "no-store"
+
+# ---- internal files: never served publicly (publish dir is the repo root) ----
+[[redirects]]
+  from = "/tests/*"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/scripts/*"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/db/*"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/docs/*"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/node_modules/*"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/netlify/*"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/package.json"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/package-lock.json"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/netlify.toml"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/playwright.config.js"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/DEPLOY_INSTRUCTIONS.md"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/FILES_CREATED.md"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/QUICK_START.md"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/README_NETLIFY.md"
+  to = "/404.html"
+  status = 404
+  force = true
 
