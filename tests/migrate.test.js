@@ -8,7 +8,16 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
-const { PGlite } = require('@electric-sql/pglite');
+const { PGlite: PGliteBase } = require('@electric-sql/pglite');
+// Every in-memory database made by this file (also the clones) is closed when the file ends, even when a failing assertion skipped its own close():
+// an open database keeps the test process alive, and a FAILING test would then hang instead of ending with its failure.
+const OPEN_DBS = new Set();
+const track = (db) => { OPEN_DBS.add(db); const close = db.close.bind(db); db.close = async () => { OPEN_DBS.delete(db); return close(); }; return db; };
+class PGlite extends PGliteBase {
+  constructor(...args) { super(...args); track(this); }
+  async clone() { return track(await super.clone()); }
+}
+test.after(async () => { for (const db of [...OPEN_DBS]) { try { await db.close(); } catch (e) { /* already closed */ } } });
 const M = require('../scripts/kaspchem-migrate.js');
 const S = require('../scripts/schema-signature.js');
 
@@ -120,7 +129,8 @@ test('the command line: it needs the connection variable and says so', () => {
 // =====================================================================================================================================================
 const os = require('os');
 const REAL = M.loadMigrations();
-const O = (x) => Object.assign({ migrations: REAL.migrations, expectEnv: 'production' }, x);
+const BASE = [REAL.migrations[0]];   // the base schema alone: the runner's mechanics are tested on this, whatever real migrations exist
+const O = (x) => Object.assign({ migrations: BASE, expectEnv: 'production' }, x);
 const qp = (pg) => async (t, p) => (await pg.query(t, p || [])).rows;
 const isRead = (t) => /^(select|show|with)\b/i.test(String(t).replace(/--[^\n]*/g, '').trim());
 function recording(q) { const log = []; const f = async (t, p) => { log.push(String(t)); return q(t, p); }; f.log = log; return f; }
@@ -140,14 +150,6 @@ function makeDir(files, manifest) { // a throw-away migrations folder, with a co
   return dir;
 }
 const production = async () => { const pg = new PGlite(); await pg.exec(DDL); await seedOld(pg); return pg; };   // 13 tables, rows in place, no bookkeeping (as production is today)
-
-test('the real files: the base schema matches its pinned fingerprint, every statement is additive, and the list of tables is the same list as the schema creates', () => {
-  assert.deepEqual(REAL.problems, []);
-  assert.deepEqual(REAL.migrations.map((m) => m.id), ['001-base']);
-  assert.equal(REAL.migrations[0].sha, M.BASE_SHA256);
-  assert.deepEqual([...REAL.migrations[0].tables].sort(), [...M.OURS].sort());
-  assert.ok(M.allowedTables(REAL.migrations).includes('schema_migrations'));
-});
 
 test('the additive-only rule: CREATE ... IF NOT EXISTS is accepted, every other kind of statement is refused', () => {
   const ok = M.lintStatements('CREATE TABLE IF NOT EXISTS a (id int);\nCREATE UNIQUE INDEX IF NOT EXISTS a_i ON a (id);\n');
@@ -194,7 +196,7 @@ test('--check never writes, in any state: empty, legacy, half-initialised, versi
   const halfInit = async () => {
     const pg = new PGlite(); const q = qp(pg);
     const flaky = async (t, p) => { if (/CREATE TABLE IF NOT EXISTS consents/.test(t)) throw new Error('simulated outage'); return q(t, p); };
-    await assert.rejects(() => M.apply(flaky, { migrations: REAL.migrations, expectEnv: 'test', allowEmpty: true }), /001-base stopped at statement/);
+    await assert.rejects(() => M.apply(flaky, { migrations: BASE, expectEnv: 'test', allowEmpty: true }), /001-base stopped at statement/);
     return pg;
   };
   const versioned = async () => { const pg = await production(); await M.apply(qp(pg), O()); return pg; };
@@ -301,7 +303,7 @@ test('a new, empty database: initialised only on purpose; base and later migrati
   const sig = await sigOf(pg), before = await catalog(pg);
   r = await M.apply(q, O2()); assert.deepEqual(r.applied, []); assert.equal(await sigOf(pg), sig); assert.equal(await catalog(pg), before);
   // the tables of the later migrations are not "foreign" for a runner that knows the files, and are foreign for one that does not
-  const old = await M.plan(M.readOnly(q), { migrations: REAL.migrations, expectEnv: 'test' });
+  const old = await M.plan(M.readOnly(q), { migrations: BASE, expectEnv: 'test' });
   assert.ok(old.problems.some((x) => /zz_demo/.test(x)));
   await pg.close();
 });
@@ -334,7 +336,7 @@ test('a failure in the middle of a migration records nothing for it; its half-ma
   const GOOD = 'CREATE TABLE IF NOT EXISTS zz_a (id BIGSERIAL PRIMARY KEY);\nCREATE TABLE IF NOT EXISTS zz_b (id BIGSERIAL PRIMARY KEY, a_id BIGINT REFERENCES zz_a(id));\n';
   const BROKEN = 'CREATE TABLE IF NOT EXISTS zz_a (id BIGSERIAL PRIMARY KEY);\nCREATE TABLE IF NOT EXISTS zz_b (id BIGSERIAL PRIMARY KEY, a_id BIGINT REFERENCES zz_missing(id));\n';
   const pg = new PGlite(); const q = qp(pg); const base = { expectEnv: 'test', allowEmpty: true };
-  await M.apply(q, Object.assign({ migrations: REAL.migrations }, base));
+  await M.apply(q, Object.assign({ migrations: BASE }, base));
   const good = M.loadMigrations({ dir: makeDir({ '002-pair.sql': GOOD }) }), broken = M.loadMigrations({ dir: makeDir({ '002-pair.sql': BROKEN }) });
   const before = await catalog(pg);
   const stopped = await M.apply(q, Object.assign({ migrations: broken.migrations }, base));       // fails in the rehearsal on an in-memory copy, before the real database is touched
@@ -353,7 +355,7 @@ test('a failure in the middle of a migration records nothing for it; its half-ma
 test('a first initialisation that stopped half-way can be resumed, only for the same environment, and ends with meta.environment and the identity in place', async () => {
   const pg = new PGlite(); const q = qp(pg); let down = true;
   const flaky = async (t, p) => { if (down && /CREATE TABLE IF NOT EXISTS consents/.test(t)) throw new Error('simulated outage'); return q(t, p); };
-  const opts = { migrations: REAL.migrations, expectEnv: 'test', allowEmpty: true };
+  const opts = { migrations: BASE, expectEnv: 'test', allowEmpty: true };
   await assert.rejects(() => M.apply(flaky, opts), /001-base stopped at statement/);
   const s = await M.plan(M.readOnly(q), opts); assert.equal(s.state, 'initializing'); assert.deepEqual(s.problems, []);
   const w = await M.plan(M.readOnly(q), Object.assign({}, opts, { expectEnv: 'production' })); assert.ok(w.problems.some((x) => /different environment/.test(x)), 'a different environment must not resume it');
@@ -376,7 +378,7 @@ test('another run recorded the same migration first: accepted when the fingerpri
 
 test('the additive-only rule also holds inside apply for migrations handed in directly: refused, nothing written', async () => {
   const pg = await production(); const before = await catalog(pg);
-  const evil = [REAL.migrations[0], { id: '002-evil', sql: 'ALTER TABLE settings ADD COLUMN x int;\n', sha: M.sha('x'), tables: [], statements: 1 }];
+  const evil = [BASE[0], { id: '002-evil', sql: 'ALTER TABLE settings ADD COLUMN x int;\n', sha: M.sha('x'), tables: [], statements: 1 }];
   const r = await M.apply(qp(pg), { migrations: evil, expectEnv: 'production' });
   assert.ok(r.refused && r.problems.some((x) => /files: 002-evil .*not additive/.test(x)));
   assert.equal(await catalog(pg), before);
@@ -390,8 +392,372 @@ test('the command line refuses, before any database is touched: unknown options,
   r = run([]); assert.equal(r.status, 1); assert.match(r.stderr, /--expect-env/); assert.doesNotMatch(r.stderr, NET);    // refused before the database is contacted
   r = run(['--expect-env=BAD NAME']); assert.equal(r.status, 1); assert.match(r.stderr, /short lower-case name/);
   r = run(['--expect-env=test', '--migrations-dir=' + os.tmpdir()]); assert.equal(r.status, 1); assert.match(r.stderr, /only for --check/);
-  r = run(['--verify-files']); assert.equal(r.status, 0); assert.match(r.stdout, /001-base/); assert.match(r.stdout, /acceptable/);
+  r = run(['--verify-files']); assert.equal(r.status, 0); assert.match(r.stdout, /001-base/); assert.match(r.stdout, /002-provider-catalog/); assert.match(r.stdout, /acceptable/);
   r = run(['--print-manifest', '--migrations-dir=' + makeDir({ '002-demo.sql': DEMO_002 })]); assert.equal(r.status, 0); assert.match(r.stdout, /^[0-9a-f]{64} {2}002-demo$/m);
   r = run(['--verify-files', '--migrations-dir=' + makeDir({ '003-x.sql': DEMO_002 })]); assert.equal(r.status, 1); assert.match(r.stdout, /numbering/);
   r = run(['--check', '--migrations-dir=' + makeDir({ '003-x.sql': DEMO_002 })]); assert.equal(r.status, 1); assert.match(r.stderr, /not acceptable/); assert.doesNotMatch(r.stderr, NET);
+});
+
+// =====================================================================================================================================================
+// Migration 002 (M1: service catalog, providers, engagements): the REAL files, applied to in-memory databases with synthetic data only. No network, no Neon.
+// =====================================================================================================================================================
+const M2 = REAL.migrations[1];
+const NEW_TABLES = ['catalog_imports', 'provider_profiles', 'provider_service_compensation', 'provider_service_prices', 'provider_services', 'service_settings'];
+const NEW_RELATIONS = NEW_TABLES.concat(['schema_migrations', 'catalog_imports_id_seq']);   // everything 002 and the runner add; the rest must be exactly as before
+const MANIFEST_FILE = path.join(ROOT, 'db', 'migrations', 'MANIFEST.sha256');
+const FILE_002 = path.join(ROOT, 'db', 'migrations', '002-provider-catalog.sql');
+const R = (x) => Object.assign({ migrations: REAL.migrations, expectEnv: 'production' }, x);
+const tableOfLine = (l) => (/^(col|con|idx) ([a-z_]+)[ .]/.exec(l) || [])[2];
+const migrated = async () => { const pg = await production(); const r = await M.apply(qp(pg), R()); assert.equal(r.refused, false, (r.problems || []).join('; ')); return pg; };
+// built once and cloned per test: a clone is much cheaper than running the migrations again
+let FULL = null, AFTER_BASE = null;
+const fullClone = async () => { if (!FULL) FULL = await migrated(); return FULL.clone(); };
+const afterBaseClone = async () => { if (!AFTER_BASE) { AFTER_BASE = await production(); await M.apply(qp(AFTER_BASE), R({ migrations: [REAL.migrations[0]] })); } return AFTER_BASE.clone(); };
+const quoted = NEW_RELATIONS.map((x) => "'" + x + "'").join(',');
+// owner, permissions and row-security flag of every table and sequence that existed before 002
+const aclsOf = async (pg) => JSON.stringify((await pg.query(`SELECT c.relname, c.relkind, c.relowner::regrole::text AS owner, c.relacl::text AS acl, c.relrowsecurity AS rls FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relkind IN ('r','S') AND c.relname NOT IN (${quoted}) ORDER BY 1`)).rows);
+const countOf = async (pg, sql) => (await pg.query(sql)).rows[0].n;
+async function seedCatalog(pg) {   // synthetic rows in every new table (ids start at 1 on a database as production has it: none of these tables has rows there)
+  await pg.exec(`
+    INSERT INTO professionals (name, contact) VALUES ('Synthetic Provider A', 'a@example.test'), ('Synthetic Provider B', NULL);
+    INSERT INTO services (topic, name) VALUES ('synthetic', 'Synthetic Service One'), ('synthetic', 'Synthetic Service Two');
+    INSERT INTO pricing (service_id, professional_id, label, price, approved, approved_by, approved_at, public) VALUES (1, 1, 'synthetic fixed price', 100, TRUE, 'owner@example.test', now(), FALSE);
+    INSERT INTO provider_profiles (professional_id, business_name, contact_email) VALUES (1, 'Synthetic Office', 'office@example.test');
+    INSERT INTO provider_services (professional_id, service_id, external_ref) VALUES (1, 1, 'A-1'), (1, 2, 'A-2'), (2, 1, 'B-1');
+    INSERT INTO provider_service_prices (professional_id, service_id, kind, model, amount, recorded_by) VALUES (1, 1, 'market', 'fixed', 500, 'owner@example.test');
+    INSERT INTO provider_service_prices (professional_id, service_id, kind, model, percent_low, percent_high, status, recorded_by) VALUES (1, 1, 'provider_offer', 'percent_of_result', 5, 10, 'awaiting_response', 'owner@example.test');
+    INSERT INTO provider_service_compensation (professional_id, service_id, model, percent_recorded, recorded_by) VALUES (1, 1, 'percent', 8, 'owner@example.test');
+    INSERT INTO service_settings (service_id, code) VALUES (1, 'synthetic-one');
+    INSERT INTO catalog_imports (source, file_sha256, rows_total, rows_created, rows_updated, rows_skipped, imported_by) VALUES ('csv', repeat('0', 64), 3, 3, 0, 0, 'owner@example.test');`);
+}
+
+test('migration 002 as a file: acceptable, exactly the six M1 tables, never the bookkeeping table, no base table; the allowed-table list and the committed manifest follow the files', () => {
+  assert.deepEqual(REAL.problems, []); assert.deepEqual(REAL.migrations.map((m) => m.id), ['001-base', '002-provider-catalog']);
+  const sql = fs.readFileSync(FILE_002, 'utf8');   // whatever the line endings of this checkout
+  const code = sql.replace(/--[^\n]*/g, '');
+  assert.deepEqual([...sql.matchAll(/^CREATE TABLE IF NOT EXISTS ([a-z_]+)/gm)].map((m) => m[1]).sort(), NEW_TABLES, 'the file must create exactly these six tables');
+  assert.deepEqual([...M2.tables].sort(), NEW_TABLES, 'the runner reads the same six tables');
+  assert.ok(!/schema_migrations/.test(code), 'the bookkeeping table belongs to the runner, not to this file');
+  NEW_TABLES.forEach((t) => assert.ok(!M.OURS.includes(t) && t !== M.BOOKKEEPING, t + ' must not be a base table or the bookkeeping table'));
+  assert.ok(!/[^\x00-\x7f]/.test(sql), 'ASCII only (no hidden or look-alike characters)');
+  assert.deepEqual(M.lintStatements(M2.sql).problems, []);
+  assert.equal(M.OURS.length, 13); assert.deepEqual([...M.OURS].sort(), [...DDL.matchAll(/CREATE TABLE IF NOT EXISTS ([a-z_]+)/g)].map((m) => m[1]).sort(), 'OURS is still exactly the 13 base tables');
+  assert.deepEqual(M.allowedTables(REAL.migrations).sort(), [...M.OURS, M.BOOKKEEPING, ...NEW_TABLES].sort());
+  assert.equal(fs.readFileSync(MANIFEST_FILE, 'utf8').replace(/\r\n/g, '\n'), M.manifestText(REAL.migrations), 'MANIFEST.sha256 is not what the runner prints for these files');
+  assert.equal(M.sha(sql), M2.sha);
+});
+
+test('the ownership rule: a migration file can never create the bookkeeping table, a base table, or a table an earlier migration already creates', () => {
+  const has = (r, re) => r.problems.some((p) => re.test(p));
+  assert.ok(has(M.loadMigrations({ dir: makeDir({ '002-x.sql': 'CREATE TABLE IF NOT EXISTS schema_migrations (id TEXT PRIMARY KEY);\n' }) }), /002-x creates schema_migrations, which belongs to the runner/));
+  assert.ok(has(M.loadMigrations({ dir: makeDir({ '002-x.sql': 'CREATE TABLE IF NOT EXISTS settings (id int);\n' }) }), /002-x creates settings, which 001-base already creates/));
+  assert.ok(has(M.loadMigrations({ dir: makeDir({ '002-x.sql': DEMO_002, '003-y.sql': DEMO_002 }) }), /003-y creates zz_demo, which 002-x already creates/));
+  assert.deepEqual(M.loadMigrations({ dir: makeDir({ '002-x.sql': DEMO_002, '003-y.sql': DEMO_003 }) }).problems, []);
+});
+
+test('migration 002 on a database as production has it: the 13 base tables keep their exact structure, rows and permissions; six tables and the bookkeeping table appear, nothing else; a second run does nothing', async () => {
+  const pg = await production(); const q = qp(pg);
+  const sig0 = await sigOf(pg), fp0 = await fingerprint(pg, M.OURS), acl0 = await aclsOf(pg), tables0 = await tablesOf(pg);
+  const p = await M.plan(M.readOnly(q), R());
+  assert.equal(p.state, 'legacy'); assert.deepEqual(p.problems, []); assert.equal(p.structure, 'matches'); assert.deepEqual(p.pending, ['001-base', '002-provider-catalog']);
+  const r = await M.apply(q, R());
+  assert.equal(r.refused, false); assert.deepEqual(r.applied, ['001-base', '002-provider-catalog']);
+  const was = S.lines(sig0), now = S.lines(await sigOf(pg));
+  assert.deepEqual([...was].filter((l) => !now.has(l)), [], 'a line of the existing structure disappeared or changed');
+  const added = [...now].filter((l) => !was.has(l));
+  assert.deepEqual([...new Set(added.map(tableOfLine))].sort(), [...NEW_TABLES, 'schema_migrations'].sort(), 'structure was added to a table other than the six and the bookkeeping table');
+  assert.deepEqual(await fingerprint(pg, M.OURS), fp0, 'a row of a base table changed');
+  assert.equal(await aclsOf(pg), acl0, 'owner, permissions or row-security of a base table or sequence changed');
+  assert.deepEqual((await tablesOf(pg)).filter((t) => !tables0.includes(t)).sort(), [...NEW_TABLES, 'schema_migrations'].sort());
+  assert.equal((await tablesOf(pg)).length, 20);
+  for (const t of NEW_TABLES) assert.equal(await countOf(pg, `SELECT count(*)::int AS n FROM ${t}`), 0, t + ' must start empty (a migration loads no data)');
+  assert.equal(await countOf(pg, "SELECT count(*)::int AS n FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND NOT t.tgisinternal"), 0, 'no trigger');
+  assert.equal(await countOf(pg, "SELECT count(*)::int AS n FROM pg_views WHERE schemaname = 'public'"), 0, 'no view');
+  assert.equal(await countOf(pg, "SELECT count(*)::int AS n FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'public'"), 0, 'no function');
+  const hist = (await pg.query('SELECT id, checksum FROM schema_migrations ORDER BY id COLLATE "C"')).rows;
+  assert.deepEqual(hist.map((h) => h.id), ['001-base', '002-provider-catalog', '@identity']); assert.equal(hist[1].checksum, M2.sha);
+  const done = await catalog(pg);
+  const again = await M.apply(q, R());
+  assert.equal(again.refused, false); assert.deepEqual(again.applied, []); assert.deepEqual(again.pending, []); assert.equal(await catalog(pg), done);
+  await pg.close();
+});
+
+test('migration 002 on a new, empty database ends with the same structure as on a migrated production-shaped one (20 tables); the environment and identity are written once', async () => {
+  const a = await fullClone(); const b = new PGlite(); const q = qp(b);
+  const r = await M.apply(q, R({ expectEnv: 'test', allowEmpty: true }));
+  assert.equal(r.refused, false); assert.deepEqual(r.applied, ['001-base', '002-provider-catalog']);
+  assert.deepEqual(await tablesOf(b), [...M.OURS, 'schema_migrations', ...NEW_TABLES].sort());
+  assert.equal(await sigOf(b), await sigOf(a), 'a new database and a migrated one must have the same structure');
+  assert.equal((await b.query("SELECT value FROM settings WHERE key = 'meta.environment'")).rows[0].value, 'test');
+  assert.deepEqual((await b.query('SELECT id FROM schema_migrations ORDER BY id COLLATE "C"')).rows.map((h) => h.id), ['001-base', '002-provider-catalog', '@identity']);
+  const done = await catalog(b); assert.deepEqual((await M.apply(q, R({ expectEnv: 'test' }))).applied, []); assert.equal(await catalog(b), done);
+  await a.close(); await b.close();
+});
+
+test('re-running the files changes nothing, structure or rows: 002 again, the base again, with data in every new table', async () => {
+  const pg = await fullClone(); await seedCatalog(pg);
+  for (const t of NEW_TABLES) assert.ok(await countOf(pg, `SELECT count(*)::int AS n FROM ${t}`) > 0, t + ' should hold a synthetic row');
+  const before = await catalog(pg);
+  await pg.exec(M2.sql); await pg.exec(M2.sql); await pg.exec(DDL);
+  assert.equal(await catalog(pg), before, 'running a file again changed structure or rows');
+  await pg.close();
+});
+
+test('a failure in the middle of migration 002 (first, middle, last statement, or while recording it): nothing is recorded for it, base tables are untouched, the half-made objects are not drift, and the next run ends exactly like a clean run', async () => {
+  const clean = await fullClone(); const cleanSig = await sigOf(clean); await clean.close();
+  assert.equal(M2.statements, 8);   // 6 tables and 2 indexes, in this order: profiles, services, 2 indexes, compensation, prices, settings, imports
+  const cases = [
+    ['the first statement', (t) => /CREATE TABLE IF NOT EXISTS provider_profiles/.test(t), /002-provider-catalog stopped at statement 1 of 8/],
+    ['a middle statement', (t) => /CREATE TABLE IF NOT EXISTS provider_service_prices/.test(t), /002-provider-catalog stopped at statement 6 of 8/],
+    ['the last statement', (t) => /CREATE TABLE IF NOT EXISTS catalog_imports/.test(t), /002-provider-catalog stopped at statement 8 of 8/],
+    ['recording it, after every statement ran', (t, p) => /^INSERT INTO schema_migrations/.test(t) && p && p[0] === '002-provider-catalog', /simulated connection loss|002-provider-catalog/],
+  ];
+  for (const [name, when, expected] of cases) {
+    const pg = await afterBaseClone(); const q = qp(pg);
+    const fpBase = await fingerprint(pg, M.OURS), aclBase = await aclsOf(pg); let down = true;
+    const flaky = async (t, p) => { if (down && when(t, p)) throw new Error('simulated connection loss'); return q(t, p); };
+    await assert.rejects(() => M.apply(flaky, R()), expected, name);
+    assert.deepEqual((await pg.query("SELECT id FROM schema_migrations WHERE id <> '@identity' ORDER BY id COLLATE \"C\"")).rows.map((r) => r.id), ['001-base'], name + ': something was recorded for 002');
+    assert.deepEqual(await fingerprint(pg, M.OURS), fpBase, name + ': a base table changed'); assert.equal(await aclsOf(pg), aclBase, name);
+    down = false;
+    const c = await M.plan(M.readOnly(q), R());
+    assert.deepEqual(c.problems, [], name + ': the half-made objects were reported as drift'); assert.deepEqual(c.pending, ['002-provider-catalog']);
+    const r = await M.apply(q, R()); assert.equal(r.refused, false); assert.deepEqual(r.applied, ['002-provider-catalog']);
+    assert.equal(await sigOf(pg), cleanSig, name + ': a resumed run must end with exactly the structure of a clean run');
+    const done = await catalog(pg); assert.deepEqual((await M.apply(q, R())).applied, []); assert.equal(await catalog(pg), done);
+    await pg.close();
+  }
+});
+
+test('structure drift after 002: every change made outside the migrations is noticed, apply refuses and writes NOTHING', async () => {
+  const dropCheck = async (pg, table, like) => { const r = await pg.query(`SELECT conname FROM pg_constraint WHERE conrelid = '${table}'::regclass AND contype = 'c' AND pg_get_constraintdef(oid) LIKE '%${like.replace(/'/g, "''")}%'`); assert.equal(r.rows.length, 1, 'the constraint to drop must exist exactly once'); await pg.exec(`ALTER TABLE ${table} DROP CONSTRAINT ${r.rows[0].conname}`); };
+  const STRUCT = /^structure:/, FOREIGN = /not Kaspchem tables: provider_extra/;
+  const cases = [
+    ['a stray column in a catalog table', (pg) => pg.exec('ALTER TABLE provider_services ADD COLUMN stray integer'), STRUCT],
+    ['the "active needs signed + active + fixed price" rule removed', (pg) => dropCheck(pg, 'provider_services', "activation <> 'active'"), STRUCT],
+    ['the "offered needs recorded clearance" rule removed', (pg) => dropCheck(pg, 'service_settings', 'legal_cleared_by'), STRUCT],
+    ['a column type changed', (pg) => pg.exec('ALTER TABLE provider_service_prices ALTER COLUMN terms_text TYPE varchar(50)'), STRUCT],
+    ['NOT NULL dropped', (pg) => pg.exec('ALTER TABLE catalog_imports ALTER COLUMN imported_by DROP NOT NULL'), STRUCT],
+    ['a unique index dropped', (pg) => pg.exec('DROP INDEX provider_services_external_ref_uq'), STRUCT],
+    ['a foreign key dropped', (pg) => pg.exec('ALTER TABLE provider_service_prices DROP CONSTRAINT provider_service_prices_professional_id_service_id_fkey'), STRUCT],
+    ['a table dropped', (pg) => pg.exec('DROP TABLE provider_service_compensation'), STRUCT],
+    ['a base table changed while 002 is recorded', (pg) => pg.exec('ALTER TABLE pricing ADD COLUMN stray integer'), STRUCT],
+    ['an extra table next to the catalog', (pg) => pg.exec('CREATE TABLE provider_extra (id int)'), FOREIGN],
+  ];
+  for (const [name, change, expected] of cases) {
+    const pg = await fullClone(); await change(pg); const before = await catalog(pg);
+    const r = await M.apply(qp(pg), R());
+    assert.equal(r.refused, true, name); assert.ok(r.problems.some((x) => expected.test(x)), name + ': ' + r.problems.join(' | '));
+    assert.equal(await catalog(pg), before, name + ': something was written');
+    await pg.close();
+  }
+});
+
+test('modified files: an edited, renamed, shortened or extended 002 is refused offline; a careful edit with a regenerated manifest is refused by the additive-only and ownership rules or by the history; nothing is written', async () => {
+  const orig = fs.readFileSync(FILE_002, 'utf8').replace(/\r\n/g, '\n'), origManifest = fs.readFileSync(MANIFEST_FILE, 'utf8').replace(/\r\n/g, '\n');
+  const edit = (from, to) => { assert.ok(orig.includes(from), 'test setup: the text to edit is no longer in 002: ' + from); return orig.replace(from, to); };
+  const NET = /ECONNREFUSED|ENOTFOUND|getaddrinfo|fetch failed|ETIMEDOUT/i;
+  const cli = (args) => spawnSync(process.execPath, [path.join(ROOT, 'scripts', 'kaspchem-migrate.js')].concat(args), { encoding: 'utf8', env: Object.assign({}, process.env, { KASPCHEM_DATABASE_URL: 'postgres://nobody:nothing@127.0.0.1:1/none' }) });
+  // 1. edited after the manifest was made (the manifest still has the old fingerprint)
+  const stale = [
+    ['a comment appended', orig + '-- edited\n'],
+    ['a CHECK removed', edit("CHECK (delivery_method IN ('portal','manual'))", '')],
+    ['a column added', edit('  retired_reason    TEXT,\n', '  retired_reason    TEXT,\n  stray             TEXT,\n')],
+    ['a table removed', orig.slice(0, orig.indexOf('-- Catalog loads from a spreadsheet'))],
+    ['a table added', orig + 'CREATE TABLE IF NOT EXISTS provider_extra (id int);\n'],
+  ];
+  for (const [name, sql] of stale) {
+    const dir = makeDir({ '002-provider-catalog.sql': sql }, origManifest);
+    assert.ok(M.loadMigrations({ dir }).problems.some((p) => /does not match the file/.test(p)), name + ': the manifest did not catch it');
+    const r = cli(['--check', '--migrations-dir=' + dir]); assert.equal(r.status, 1, name); assert.match(r.stderr, /not acceptable/, name); assert.doesNotMatch(r.stderr, NET, name + ': the database was contacted');
+  }
+  const renamed = makeDir({ '003-provider-catalog.sql': orig }, origManifest.replace('002-provider-catalog', '003-provider-catalog'));
+  assert.ok(M.loadMigrations({ dir: renamed }).problems.some((p) => /numbering/.test(p)), 'a renamed file (a gap in the numbering)');
+  assert.ok(M.loadMigrations({ dir: makeDir({ '002-provider-catalog.sql': orig }, '\n') }).problems.some((p) => /is not listed/.test(p)), 'an empty manifest');
+  // 2. a careful edit: the manifest is regenerated to agree with the edited file, so only the rules and the database's own memory can stop it
+  for (const bad of ['ALTER TABLE services DROP COLUMN name;\n', 'DROP TABLE pricing;\n', 'GRANT ALL ON provider_services TO PUBLIC;\n', 'DELETE FROM settings;\n', "INSERT INTO settings (key, value) VALUES ('x', '1');\n", 'CREATE TABLE IF NOT EXISTS schema_migrations (id TEXT PRIMARY KEY);\n', 'CREATE TABLE IF NOT EXISTS pricing (id int);\n']) {
+    const lm = M.loadMigrations({ dir: makeDir({ '002-provider-catalog.sql': orig + bad }) });
+    assert.ok(lm.problems.length > 0, 'should be refused: ' + bad);
+    const pg = await production(); const before = await catalog(pg);
+    const r = await M.apply(qp(pg), { migrations: lm.migrations, expectEnv: 'production' });
+    assert.equal(r.refused, true, bad); assert.equal(await catalog(pg), before, bad + ': something was written'); await pg.close();
+  }
+  // 3. a harmless-looking but different 002 (manifest regenerated) against a database that already ran the real one: the history refuses it
+  const full = await fullClone(); const before = await catalog(full);
+  const lm = M.loadMigrations({ dir: makeDir({ '002-provider-catalog.sql': orig + 'CREATE TABLE IF NOT EXISTS provider_extra (id int);\n' }) });
+  assert.deepEqual(lm.problems, [], 'test setup: this edit is additive and its manifest agrees');
+  const r = await M.apply(qp(full), { migrations: lm.migrations, expectEnv: 'production' });
+  assert.ok(r.refused && r.problems.some((x) => /was CHANGED after it was applied/.test(x)), r.problems.join(' | ')); assert.equal(await catalog(full), before);
+  await full.close();
+  // 4. the base schema is pinned too
+  const tmpBase = path.join(os.tmpdir(), 'kc-base2-' + Date.now() + '.sql'); fs.writeFileSync(tmpBase, DDL + '\n-- changed\n');
+  assert.ok(M.loadMigrations({ baseFile: tmpBase }).problems.some((p) => /pinned fingerprint/.test(p)));
+});
+
+test('the database enforces the M1 rules itself: states, the ACTIVE safety rule, price models, commission record, clearance, lengths, keys and cascades (synthetic data)', async () => {
+  const pg = await fullClone(); await seedCatalog(pg);
+  const KIND = { check: /violates check constraint/, fk: /violates foreign key constraint/, unique: /duplicate key value violates unique constraint/, notnull: /violates not-null constraint/ };
+  const ok = async (sql) => { await pg.query(sql); };
+  const bad = async (kind, sql) => { await assert.rejects(() => pg.query(sql), (e) => { assert.match(e.message, KIND[kind], sql); return true; }); };
+  // --- provider_services: defaults, and the rule that ACTIVE needs a signed agreement, an active collaboration, a fixed price model and a price row
+  const d = (await pg.query('SELECT activation, contact_state, agreement_state, pricing_model, priority, pricing_id, retired_at FROM provider_services WHERE professional_id = 1 AND service_id = 1')).rows[0];
+  assert.deepEqual(d, { activation: 'draft', contact_state: 'none', agreement_state: 'not_discussed', pricing_model: 'tbd', priority: 100, pricing_id: null, retired_at: null });
+  await ok("INSERT INTO professionals (name) VALUES ('Synthetic Provider C')"); await ok("INSERT INTO services (name) VALUES ('Synthetic Service Three')");
+  await ok("INSERT INTO provider_services (professional_id, service_id, activation, contact_state, agreement_state, pricing_model, pricing_id) VALUES (3, 3, 'active', 'active', 'signed', 'fixed', 1)");   // everything in place: accepted
+  const ACTIVE = (over) => { const v = Object.assign({ activation: "'active'", contact_state: "'active'", agreement_state: "'signed'", pricing_model: "'fixed'", pricing_id: '1' }, over); return `INSERT INTO provider_services (professional_id, service_id, ${Object.keys(v).join(', ')}) VALUES (2, 2, ${Object.values(v).join(', ')})`; };
+  for (const a of ['draft', 'not_discussed', 'ended']) await bad('check', ACTIVE({ agreement_state: `'${a}'` }));
+  for (const c of ['negotiating', 'contacted', 'stopped', 'none']) await bad('check', ACTIVE({ contact_state: `'${c}'` }));
+  for (const m of ['percent_of_result', 'percent_with_minimum', 'variable', 'quote', 'tbd']) await bad('check', ACTIVE({ pricing_model: `'${m}'` }));
+  await bad('check', ACTIVE({ pricing_id: 'NULL' }));
+  await bad('check', "UPDATE provider_services SET activation = 'active' WHERE professional_id = 1 AND service_id = 2");                       // the same rule on the update path
+  await bad('check', "UPDATE provider_services SET agreement_state = 'ended' WHERE professional_id = 3 AND service_id = 3");                // and an active offering cannot silently lose a prerequisite
+  await bad('check', 'UPDATE provider_services SET pricing_id = NULL WHERE professional_id = 3 AND service_id = 3');
+  await bad('check', 'DELETE FROM pricing WHERE id = 1');                                                                                     // the price of an active offering cannot be deleted from under it (ON DELETE SET NULL would break the rule)
+  await bad('check', "UPDATE provider_services SET activation = 'retired' WHERE professional_id = 1 AND service_id = 2");                    // retired needs retired_at
+  await ok("UPDATE provider_services SET activation = 'retired', retired_at = now() WHERE professional_id = 1 AND service_id = 2");
+  await ok("UPDATE provider_services SET activation = 'paused', paused_reason = 'synthetic' WHERE professional_id = 3 AND service_id = 3");
+  for (const [col, v] of [['activation', 'live'], ['contact_state', 'called'], ['agreement_state', 'verbal'], ['pricing_model', 'free']]) await bad('check', `INSERT INTO provider_services (professional_id, service_id, ${col}) VALUES (3, 1, '${v}')`);
+  await bad('unique', 'INSERT INTO provider_services (professional_id, service_id) VALUES (1, 1)');                                           // one engagement per provider and service
+  await bad('unique', "INSERT INTO provider_services (professional_id, service_id, external_ref) VALUES (3, 1, 'A-1')");                      // an external id is used once
+  await ok('INSERT INTO provider_services (professional_id, service_id) VALUES (3, 2)'); await ok('INSERT INTO provider_services (professional_id, service_id) VALUES (3, 1)');   // missing external ids (NULL) may repeat
+  await bad('fk', 'INSERT INTO provider_services (professional_id, service_id) VALUES (99, 1)'); await bad('fk', 'INSERT INTO provider_services (professional_id, service_id) VALUES (1, 99)');
+  await bad('fk', 'INSERT INTO provider_services (professional_id, service_id, pricing_id) VALUES (2, 2, 99)');
+  await bad('notnull', 'INSERT INTO provider_services (professional_id, service_id, activation) VALUES (2, 2, NULL)');
+  // --- provider_service_compensation: a RECORD of what the sheet says; the model and the recorded numbers must agree
+  const COMP = (v) => `INSERT INTO provider_service_compensation (professional_id, service_id, model, percent_recorded, fixed_recorded, status, recorded_by) VALUES (2, 1, ${v})`;
+  await bad('check', COMP("'percent', NULL, NULL, 'recorded', 'o'")); await bad('check', COMP("'none', 5, NULL, 'recorded', 'o'")); await bad('check', COMP("'fixed', NULL, NULL, 'recorded', 'o'")); await bad('check', COMP("'tbd', NULL, 100, 'recorded', 'o'"));
+  await bad('check', COMP("'percent', 101, NULL, 'recorded', 'o'")); await bad('check', COMP("'percent', -1, NULL, 'recorded', 'o'")); await bad('check', COMP("'fixed', NULL, -5, 'recorded', 'o'"));
+  await bad('check', COMP("'tbd', NULL, NULL, 'paid', 'o'")); await bad('check', COMP("'bonus', NULL, NULL, 'recorded', 'o'")); await bad('notnull', COMP("'tbd', NULL, NULL, 'recorded', NULL"));
+  await bad('fk', "INSERT INTO provider_service_compensation (professional_id, service_id, recorded_by) VALUES (2, 2, 'o')");                    // no engagement, no record
+  await bad('unique', "INSERT INTO provider_service_compensation (professional_id, service_id, recorded_by) VALUES (1, 1, 'o')");
+  for (const v of ["'none', NULL, NULL, 'recorded', 'o'", "'percent', 12.5, NULL, 'negotiating', 'o'", "'fixed', NULL, 300, 'agreed', 'o'", "'tbd', NULL, NULL, 'recorded', 'o'"]) { await ok(COMP(v)); await ok('DELETE FROM provider_service_compensation WHERE professional_id = 2 AND service_id = 1'); }
+  // --- provider_service_prices: the layers, each with the fields its model needs and none that it must not have
+  const PR = (kind, model, f) => { const v = Object.assign({ amount: 'NULL', percent_low: 'NULL', percent_high: 'NULL', minimum_amount: 'NULL', status: "'recorded'" }, f || {}); return `INSERT INTO provider_service_prices (professional_id, service_id, kind, model, amount, percent_low, percent_high, minimum_amount, status, recorded_by) VALUES (2, 1, '${kind}', '${model}', ${v.amount}, ${v.percent_low}, ${v.percent_high}, ${v.minimum_amount}, ${v.status}, 'o')`; };
+  const clear = () => ok('DELETE FROM provider_service_prices WHERE professional_id = 2 AND service_id = 1');
+  for (const sql of [PR('market', 'fixed', { amount: '800' }), PR('provider_offer', 'percent_of_result', { percent_low: '10', status: "'awaiting_response'" }), PR('provider_offer', 'percent_of_result', { percent_low: '5', percent_high: '10', status: "'received'" }),
+    PR('provider_offer', 'percent_with_minimum', { percent_low: '10', minimum_amount: '2000', status: "'declined'" }), PR('unclassified', 'fixed', { amount: '0' }), PR('market', 'variable'), PR('market', 'quote'), PR('unclassified', 'tbd')]) { await ok(sql); await clear(); }
+  await bad('check', PR('market', 'fixed')); await bad('check', PR('market', 'fixed', { amount: '5', percent_low: '5' })); await bad('check', PR('market', 'fixed', { amount: '5', minimum_amount: '5' })); await bad('check', PR('market', 'fixed', { amount: '-1' }));
+  await bad('check', PR('market', 'percent_of_result')); await bad('check', PR('market', 'percent_of_result', { percent_low: '5', amount: '5' })); await bad('check', PR('market', 'percent_with_minimum', { percent_low: '5' }));
+  await bad('check', PR('market', 'percent_of_result', { percent_low: '10', percent_high: '5' })); await bad('check', PR('market', 'percent_of_result', { percent_low: '0' })); await bad('check', PR('market', 'percent_of_result', { percent_low: '101' }));
+  await bad('check', PR('market', 'variable', { amount: '5' })); await bad('check', PR('market', 'quote', { percent_low: '5' })); await bad('check', PR('market', 'tbd', { minimum_amount: '5' }));
+  await bad('check', PR('market', 'fixed', { amount: '5', status: "'awaiting_response'" }));                                                  // only an offer to Kaspchem can wait for an answer
+  await bad('check', PR('unclassified', 'fixed', { amount: '5', status: "'received'" }));
+  await bad('check', PR('approved', 'fixed', { amount: '5' })); await bad('check', PR('market', 'barter')); await bad('check', PR('provider_offer', 'fixed', { amount: '5', status: "'maybe'" }));
+  const TXT = (col, n) => `INSERT INTO provider_service_prices (professional_id, service_id, kind, model, amount, ${col}, recorded_by) VALUES (2, 1, 'market', 'fixed', 5, '${'x'.repeat(n)}', 'o')`;
+  await ok(TXT('terms_text', 600)); await clear(); await ok(TXT('source_note', 600)); await clear();
+  await bad('check', TXT('terms_text', 601)); await bad('check', TXT('source_note', 601));                                                  // wording is kept verbatim but bounded
+  await bad('unique', PR('market', 'fixed', { amount: '5' }).replace('VALUES (2, 1,', 'VALUES (1, 1,'));                                      // one row per layer of an engagement
+  await bad('fk', PR('market', 'fixed', { amount: '5' }).replace('VALUES (2, 1,', 'VALUES (2, 2,'));
+  // --- service_settings: never offered to the public without recorded clearance; a readable, unique code
+  const SS = (v) => `INSERT INTO service_settings (service_id, code, legal_cleared, legal_cleared_by, offered) VALUES (2, ${v})`;
+  await ok(SS("'svc-two', TRUE, 'owner@example.test', TRUE")); await ok('DELETE FROM service_settings WHERE service_id = 2');
+  await bad('check', SS("'svc-two', FALSE, NULL, TRUE")); await bad('check', SS("'svc-two', TRUE, NULL, TRUE")); await bad('check', SS("'Svc-Two', FALSE, NULL, FALSE")); await bad('check', SS("'x', FALSE, NULL, FALSE")); await bad('check', SS("'" + 'a'.repeat(41) + "', FALSE, NULL, FALSE"));
+  await bad('unique', SS("'synthetic-one', FALSE, NULL, FALSE")); await bad('fk', "INSERT INTO service_settings (service_id, code) VALUES (99, 'ghost')");
+  assert.deepEqual((await pg.query('SELECT offered, legal_cleared FROM service_settings WHERE service_id = 1')).rows[0], { offered: false, legal_cleared: false }, 'a service is not offered and not cleared by default');
+  // --- provider_profiles: one row per provider, bounded text, a plausible email
+  await ok('INSERT INTO provider_profiles (professional_id) VALUES (2)');
+  assert.deepEqual((await pg.query('SELECT delivery_method, availability FROM provider_profiles WHERE professional_id = 2')).rows[0], { delivery_method: 'portal', availability: {} });
+  await bad('unique', 'INSERT INTO provider_profiles (professional_id) VALUES (1)'); await bad('fk', 'INSERT INTO provider_profiles (professional_id) VALUES (99)');
+  for (const set of ["delivery_method = 'fax'", 'capacity_open = -1', "business_name = '" + 'b'.repeat(201) + "'", "contact_phone = '" + '0'.repeat(41) + "'", "internal_notes = '" + 'n'.repeat(1001) + "'", "contact_email = 'not-an-email'", "contact_email = 'a@b'", "contact_email = 'a b@c.de'", "contact_email = '<a@c.de>'"]) await bad('check', `UPDATE provider_profiles SET ${set} WHERE professional_id = 2`);
+  await ok("UPDATE provider_profiles SET delivery_method = 'manual', capacity_open = 0, contact_email = 'x@y.co', paused_until = now() WHERE professional_id = 2");
+  // --- catalog_imports: counts only
+  const CI = (v) => `INSERT INTO catalog_imports (source, file_sha256, rows_total, rows_created, rows_updated, rows_skipped, imported_by) VALUES (${v})`;
+  await ok(CI("'xlsx', 'abc', 0, 0, 0, 0, 'o'")); await bad('check', CI("'pdf', 'abc', 1, 1, 0, 0, 'o'")); await bad('check', CI("'csv', 'abc', -1, 0, 0, 0, 'o'")); await bad('check', CI("'csv', 'abc', 1, -1, 0, 0, 'o'")); await bad('notnull', CI("'csv', NULL, 1, 1, 0, 0, 'o'")); await bad('notnull', CI("'csv', 'abc', 1, 1, 0, 0, NULL"));
+  // --- cascades: removing a provider removes its profile and engagements with their price layers and commission record (the app role gets no DELETE, see the permissions test)
+  await ok('DELETE FROM professionals WHERE id = 1');
+  for (const t of ['provider_profiles', 'provider_services', 'provider_service_prices', 'provider_service_compensation']) assert.equal(await countOf(pg, `SELECT count(*)::int AS n FROM ${t} WHERE professional_id = 1`), 0, t);
+  assert.equal(await countOf(pg, 'SELECT count(*)::int AS n FROM provider_services WHERE professional_id = 2'), 1, 'another provider is not affected');
+  await pg.close();
+});
+
+test('database permissions (as far as a local database can show): 002 grants nothing and changes no existing permission; without a grant step the app role is locked out of the new tables; the planned grants give exactly the intended matrix', async () => {
+  const pg = await production();
+  // the permissions of today, modelled: the application role may read and write the existing tables and use their sequences (production's real grants are not known here)
+  await pg.exec('CREATE ROLE kaspchem_app NOLOGIN; CREATE ROLE stranger NOLOGIN; GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA public TO kaspchem_app; GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO kaspchem_app; GRANT SELECT ON settings TO stranger');
+  const acl0 = await aclsOf(pg);
+  assert.match(acl0, /kaspchem_app=arw\/postgres/, 'test setup: the modelled grants are in place');
+  const r = await M.apply(qp(pg), R()); assert.equal(r.refused, false, (r.problems || []).join('; '));
+  assert.equal(await aclsOf(pg), acl0, '002 changed an owner, a permission or a row-security flag of an existing table or sequence');
+  const newAcl = (await pg.query(`SELECT relname, relacl::text AS acl FROM pg_class WHERE relname IN (${quoted})`)).rows;
+  assert.equal(newAcl.length, 8); newAcl.forEach((x) => assert.equal(x.acl, null, x.relname + ' must carry no grant at all after the migration'));
+  const can = async (role, table, priv) => (await pg.query('SELECT has_table_privilege($1::name, $2::text, $3::text) AS ok', [role, table, priv])).rows[0].ok;
+  const PRIVS = ['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'TRUNCATE'];
+  for (const t of [...NEW_TABLES, 'schema_migrations']) for (const who of ['kaspchem_app', 'stranger']) for (const p of PRIVS) assert.equal(await can(who, t, p), false, `${who} must have no ${p} on ${t} before a grant step`);
+  const asRole = async (role, sql) => { await pg.exec('SET ROLE ' + role); try { return await pg.query(sql); } finally { await pg.exec('RESET ROLE'); } };
+  await assert.rejects(() => asRole('kaspchem_app', 'SELECT count(*) FROM provider_services'), /permission denied for table provider_services/);
+  await assert.rejects(() => asRole('kaspchem_app', "INSERT INTO service_settings (service_id, code) VALUES (1, 'nope')"), /permission denied/);
+  assert.equal((await asRole('kaspchem_app', 'SELECT count(*)::int AS n FROM settings')).rows[0].n, 2, 'existing access is unchanged');
+  // the planned grants of the separate, separately approved step (not part of 002, not shipped anywhere): what the app needs, no DELETE, no TRUNCATE, nothing structural
+  const PLANNED = ['GRANT SELECT, INSERT, UPDATE ON provider_profiles, provider_services, provider_service_compensation, provider_service_prices, service_settings TO kaspchem_app',
+    'GRANT SELECT, INSERT ON catalog_imports, schema_migrations TO kaspchem_app', 'GRANT USAGE ON SEQUENCE catalog_imports_id_seq TO kaspchem_app'];
+  const noSeq = await pg.clone(); await noSeq.exec(PLANNED.slice(0, 2).join(';') + ';SET ROLE kaspchem_app');
+  const seqError = await (async () => { try { await noSeq.query("INSERT INTO catalog_imports (source, file_sha256, rows_total, rows_created, rows_updated, rows_skipped, imported_by) VALUES ('csv', 'x', 0, 0, 0, 0, 'o')"); return 'no error'; } catch (e) { return e.message; } })();
+  assert.match(seqError, /permission denied for sequence catalog_imports_id_seq/, 'recording an import needs the sequence grant: the grant step must include it');
+  await noSeq.close();
+  await pg.exec(PLANNED.join(';'));
+  const allowed = { provider_profiles: ['SELECT', 'INSERT', 'UPDATE'], provider_services: ['SELECT', 'INSERT', 'UPDATE'], provider_service_compensation: ['SELECT', 'INSERT', 'UPDATE'], provider_service_prices: ['SELECT', 'INSERT', 'UPDATE'], service_settings: ['SELECT', 'INSERT', 'UPDATE'], catalog_imports: ['SELECT', 'INSERT'], schema_migrations: ['SELECT', 'INSERT'] };
+  for (const [t, list] of Object.entries(allowed)) for (const p of PRIVS) {
+    assert.equal(await can('kaspchem_app', t, p), list.includes(p), `kaspchem_app ${p} on ${t}: expected ${list.includes(p)}`);
+    assert.equal(await can('stranger', t, p), false, `a role without a grant must still have no ${p} on ${t}`);
+  }
+  // what the planned grants allow in practice, as the application role, and what they still refuse
+  await asRole('kaspchem_app', "INSERT INTO professionals (name) VALUES ('Synthetic Provider App')");
+  await asRole('kaspchem_app', "INSERT INTO services (name) VALUES ('Synthetic Service App')");
+  await asRole('kaspchem_app', "INSERT INTO provider_services (professional_id, service_id, external_ref) VALUES (1, 1, 'APP-1')");
+  await asRole('kaspchem_app', 'UPDATE provider_services SET priority = 5 WHERE professional_id = 1 AND service_id = 1');
+  await asRole('kaspchem_app', "INSERT INTO catalog_imports (source, file_sha256, rows_total, rows_created, rows_updated, rows_skipped, imported_by) VALUES ('csv', 'x', 0, 0, 0, 0, 'o')");
+  assert.equal((await asRole('kaspchem_app', 'SELECT priority FROM provider_services')).rows[0].priority, 5);
+  for (const sql of ['DELETE FROM provider_services', 'TRUNCATE provider_services', 'DELETE FROM provider_service_prices', 'DELETE FROM provider_service_compensation', 'DELETE FROM provider_profiles', 'DELETE FROM service_settings', 'UPDATE catalog_imports SET rows_total = 1', 'DELETE FROM catalog_imports', "UPDATE schema_migrations SET checksum = 'x'", 'DELETE FROM schema_migrations',
+    'ALTER TABLE provider_services ADD COLUMN x int', 'DROP TABLE provider_services', 'CREATE TABLE app_made (id int)'])
+    await assert.rejects(() => asRole('kaspchem_app', sql), /permission denied|must be owner/, sql);
+  await assert.rejects(() => asRole('stranger', 'SELECT * FROM provider_services'), /permission denied/);
+  assert.equal(await aclsOf(pg), acl0, 'the planned grants must not touch an existing table or sequence');
+  await pg.close();
+});
+
+test('--check never writes, with the real files, in every state around 002: empty, legacy, 002 pending, half-made 002, complete, drifted, foreign (a recording connection sees reads only)', async () => {
+  const halfMade = async () => { const pg = await afterBaseClone(); const q = qp(pg); const flaky = async (t, p) => { if (/CREATE TABLE IF NOT EXISTS provider_service_prices/.test(t)) throw new Error('simulated outage'); return q(t, p); }; await assert.rejects(() => M.apply(flaky, R()), /stopped at statement/); return pg; };
+  const states = [
+    ['empty', async () => new PGlite(), { allowEmpty: true, expectEnv: 'test' }, (p) => assert.deepEqual(p.pending, ['001-base', '002-provider-catalog'])],
+    ['legacy', production, {}, (p) => { assert.equal(p.state, 'legacy'); assert.deepEqual(p.problems, []); assert.deepEqual(p.pending, ['001-base', '002-provider-catalog']); }],
+    ['002 pending', afterBaseClone, {}, (p) => { assert.equal(p.state, 'versioned'); assert.deepEqual(p.problems, []); assert.equal(p.structure, 'matches'); assert.deepEqual(p.pending, ['002-provider-catalog']); }],
+    ['half-made 002', halfMade, {}, (p) => { assert.deepEqual(p.problems, []); assert.deepEqual(p.pending, ['002-provider-catalog']); }],
+    ['complete', fullClone, {}, (p) => { assert.equal(p.state, 'versioned'); assert.deepEqual(p.problems, []); assert.equal(p.structure, 'matches'); assert.deepEqual(p.pending, []); }],
+    ['drifted', async () => { const pg = await fullClone(); await pg.exec('ALTER TABLE provider_services ADD COLUMN stray integer'); return pg; }, {}, (p) => assert.ok(p.problems.some((x) => /^structure:/.test(x)))],
+    ['foreign', async () => { const pg = await fullClone(); await pg.exec('CREATE TABLE someone_elses_users (id int)'); return pg; }, {}, (p) => assert.ok(p.problems.some((x) => /someone_elses_users/.test(x)))],
+  ];
+  for (const [name, build, over, verdict] of states) {
+    const pg = await build(); const log = recording(qp(pg)); const before = await catalog(pg), acl = await aclsOf(pg);
+    const p = await M.plan(M.readOnly(log), R(over));
+    verdict(p);
+    assert.equal(await catalog(pg), before, name + ': the check changed something'); assert.equal(await aclsOf(pg), acl, name);
+    assert.ok(log.log.length > 0 && log.log.every(isRead), name + ': a statement that is not a plain read was sent: ' + log.log.filter((t) => !isRead(t)).join(' | '));
+    assert.ok(M.checkReport(p).join('\n').includes('nothing was written'), name);
+    await pg.close();
+  }
+});
+
+test('the older entry points (check, migrate) know the M1 tables: they are not "foreign" once the files are applied; a really foreign table is still refused', async () => {
+  const pg = await fullClone(); const q = rows(pg);
+  const c = await M.check(q); assert.deepEqual(c.foreign, []); assert.deepEqual(c.missing, []);
+  const before = await catalog(pg); await M.migrate(q, DDL); assert.equal(await catalog(pg), before, 'the older migrate changed a migrated database');
+  await pg.exec('CREATE TABLE someone_elses_users (id int)');
+  assert.deepEqual((await M.check(q)).foreign, ['someone_elses_users']);
+  await assert.rejects(() => M.migrate(q, DDL), /non-Kaspchem tables: someone_elses_users/);
+  await pg.close();
+});
+
+test('nothing public or existing uses the new tables yet: no page, function, script or admin code outside db/migrations and the tests mentions them', () => {
+  const NAMES = new RegExp('\\b(' + NEW_TABLES.join('|') + ')\\b');
+  const skip = new Set(['node_modules', '.git', 'docs', 'tests', '.netlify', 'test-results', 'playwright-report']);
+  const hits = [];
+  (function walk(dir) {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, e.name), rel = path.relative(ROOT, full).replace(/\\/g, '/');
+      if (e.isDirectory()) { if (!skip.has(e.name) && rel !== 'db/migrations') walk(full); continue; }
+      if (!/\.(js|mjs|cjs|html|json|toml|sql|md|txt|xml|css)$/i.test(e.name) || fs.statSync(full).size > 2000000) continue;
+      if (NAMES.test(fs.readFileSync(full, 'utf8'))) hits.push(rel);
+    }
+  })(ROOT);
+  assert.deepEqual(hits, [], 'these files mention a new table: ' + hits.join(', '));
 });

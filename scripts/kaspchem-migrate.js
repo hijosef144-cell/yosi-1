@@ -97,7 +97,18 @@ function loadMigrations(opts) {
       Object.keys(listed).forEach((id) => { if (!migrations.some((m) => m.id === id)) problems.push('manifest: lists ' + id + ' which has no file'); });
     }
   }
+  ownershipProblems(migrations).forEach((p) => problems.push(p));
   return { migrations, problems };
+}
+// A migration may create only tables nobody else owns: not the bookkeeping table (the runner creates and owns it), and not a table that the base schema or an earlier migration already creates.
+function ownershipProblems(migrations) {
+  const out = [], seen = {};
+  migrations.forEach((m, i) => (m.tables || []).forEach((t) => {
+    if (i > 0 && t === BOOKKEEPING) out.push(m.id + ' creates ' + t + ', which belongs to the runner and is never created by a migration file');
+    else if (seen[t]) out.push(m.id + ' creates ' + t + ', which ' + seen[t] + ' already creates');
+    else seen[t] = m.id;
+  }));
+  return out;
 }
 const manifestText = (migrations) => migrations.slice(1).map((m) => m.sha + '  ' + m.id).join('\n') + (migrations.length > 1 ? '\n' : '');
 const allowedTables = (migrations) => Array.from(new Set(OURS.concat([BOOKKEEPING], ...migrations.map((m) => m.tables))));
@@ -132,7 +143,8 @@ async function expectedSignatureFor(migrations, count, withBookkeeping) {
 async function existingTables(query) {
   return (await query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")).map((r) => r.table_name);
 }
-function foreignOf(tables) { return tables.filter((t) => !OURS.includes(t)); }
+// A table is "foreign" unless the base schema, the bookkeeping or one of the migration files creates it (so the catalog tables of migration 002 are never foreign).
+function foreignOf(tables) { const allowed = allowedTables(loadMigrations().migrations); return tables.filter((t) => !allowed.includes(t)); }
 
 // Legacy read-only check of the table names alone (kept for the older tests and for quick use).
 async function check(query) {
@@ -158,6 +170,7 @@ async function plan(rq, opts) {
   const foreign = tables.filter((t) => !allowed.includes(t));
   if (foreign.length) problems.push('identity: the database contains tables that are not Kaspchem tables: ' + foreign.join(', '));
   migrations.forEach((m) => lintStatements(m.sql).problems.forEach((x) => problems.push('files: ' + m.id + ' ' + x)));   // the additive-only rule holds for whatever is handed in, not only for files read from disk
+  ownershipProblems(migrations).forEach((x) => problems.push('files: ' + x));
   const dbName = (await rq('SELECT current_database() AS d'))[0].d;
   const hasBook = tables.includes(BOOKKEEPING);
   const recorded = hasBook ? await rq('SELECT id, checksum FROM schema_migrations ORDER BY id COLLATE "C"') : [];   // "C": byte order, so the order never depends on the database's locale
