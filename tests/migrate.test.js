@@ -231,7 +231,7 @@ test('--check on an empty database: no table, not even the bookkeeping table; it
 test('the text of --check: it says what exists, what is pending, every reason for a refusal, and always that nothing was written', async () => {
   const pg = await production(); const rq = M.readOnly(qp(pg));
   const ok = M.checkReport(await M.plan(rq, O())).join('\n');
-  assert.match(ok, /Existing Kaspchem tables \(13\):/); assert.match(ok, /Would be created \(0\): \(none\)/); assert.match(ok, /Foreign tables \(0\): \(none\)/);
+  assert.match(ok, /Existing Kaspchem tables \(13\):/); assert.match(ok, /Base tables not present \(0\): \(none\)/); assert.match(ok, /Base schema 001-base: .*RECORDED; none of its 18 statements would be sent/); assert.match(ok, /Foreign tables \(0\): \(none\)/);
   assert.match(ok, /Database state: legacy \| environment: production \| structure: matches/); assert.match(ok, /Migrations recorded \(0\): \(none\) \| pending \(1\): 001-base/);
   assert.match(ok, /RESULT: nothing was written \(read-only check\); an apply would be accepted\./);
   const no = M.checkReport(await M.plan(rq, O({ expectEnv: 'test' }))).join('\n');
@@ -760,4 +760,148 @@ test('nothing public or existing uses the new tables yet: no page, function, scr
     }
   })(ROOT);
   assert.deepEqual(hits, [], 'these files mention a new table: ' + hits.join(', '));
+});
+
+// =====================================================================================================================================================
+// Adopting an existing database. When a database from before the bookkeeping table equals 001-base EXACTLY (and passes identity, environment, history and the full
+// structure comparison), 001-base is only RECORDED: none of its statements is sent again. An empty database is built from it as before, an interrupted first
+// initialisation is finished as before, and everything else (partly there, differing, wrong identity, unverified) is refused, never completed and never skipped over.
+// PGlite and synthetic data only. Nothing here touches Neon.
+// =====================================================================================================================================================
+const norm = (t) => String(t).replace(/\s+/g, ' ').trim();
+const BASE_STMTS = M.splitDdl(REAL.migrations[0].sql).map(norm);
+const sentBase = (log) => log.filter((t) => BASE_STMTS.includes(norm(t))).length;
+const writesOf = (log) => log.filter((t) => !isRead(t));
+let LEGACY = null;   // a database exactly as production has it (13 tables, rows, meta.environment "production", no bookkeeping), built once and cloned
+const legacyClone = async () => { if (!LEGACY) LEGACY = await production(); return LEGACY.clone(); };
+const asTest = async (pg) => { await pg.exec("UPDATE settings SET value = '\"test\"' WHERE key = 'meta.environment'"); return pg; };   // the shape of the temporary Neon branch: environment "test"
+
+test('the base schema has 18 statements, and the helper that recognises them is exact', () => {
+  assert.equal(BASE_STMTS.length, 18); assert.equal(new Set(BASE_STMTS).size, 18);
+  assert.equal(sentBase(['SELECT 1', BASE_STMTS[0], BASE_STMTS[5] + ' ', 'CREATE TABLE IF NOT EXISTS zz (id int)']), 2);
+});
+
+test('ADOPT: an existing database that equals 001-base exactly is only RECORDED (none of its 18 statements is sent); 002 is applied after it; the 13 base tables, rows and permissions are untouched', async () => {
+  const pg = await legacyClone(); const q = recording(qp(pg));
+  const sig0 = await sigOf(pg), fp0 = await fingerprint(pg, M.OURS), acl0 = await aclsOf(pg), seq0 = JSON.stringify((await pg.query('SELECT sequencename, last_value FROM pg_sequences ORDER BY 1')).rows);
+  const p = await M.plan(M.readOnly(qp(pg)), R());
+  assert.equal(p.state, 'legacy'); assert.deepEqual(p.problems, []); assert.equal(p.structure, 'matches'); assert.equal(p.baseMode, 'adopt'); assert.equal(p.baseStatements, 18); assert.deepEqual(p.history, []);
+  assert.match(M.checkReport(p).join('\n'), /Base schema 001-base: the database matches it exactly \(identity, environment, no history, full structure\), so it would only be RECORDED; none of its 18 statements would be sent/);
+  const r = await M.apply(q, R());
+  assert.equal(r.refused, false); assert.deepEqual(r.applied, ['001-base', '002-provider-catalog']); assert.deepEqual(r.adopted, ['001-base']);
+  assert.equal(sentBase(q.log), 0, 'a statement of the base schema was sent to an existing database');
+  const w = writesOf(q.log).map(norm);   // exactly: bookkeeping table, identity, record of 001, the 8 statements of 002 (in order), record of 002
+  assert.equal(w.length, 12);
+  assert.match(w[0], /^CREATE TABLE IF NOT EXISTS schema_migrations/); assert.match(w[1], /^INSERT INTO schema_migrations/); assert.match(w[2], /^INSERT INTO schema_migrations/);
+  assert.deepEqual(w.slice(3, 11), M.splitDdl(M2.sql).map(norm)); assert.match(w[11], /^INSERT INTO schema_migrations/);
+  const was = S.lines(sig0), now = S.lines(await sigOf(pg));
+  assert.deepEqual([...was].filter((l) => !now.has(l)), [], 'a line of the existing structure disappeared or changed');
+  assert.deepEqual([...new Set([...now].filter((l) => !was.has(l)).map(tableOfLine))].sort(), [...NEW_TABLES, 'schema_migrations'].sort());
+  assert.deepEqual(await fingerprint(pg, M.OURS), fp0, 'a row of a base table changed'); assert.equal(await aclsOf(pg), acl0);
+  assert.equal(JSON.stringify((await pg.query('SELECT sequencename, last_value FROM pg_sequences ORDER BY 1')).rows.filter((s) => !/catalog_imports/.test(s.sequencename))), JSON.stringify(JSON.parse(seq0).filter((s) => !/catalog_imports/.test(s.sequencename))), 'a sequence of a base table moved');
+  const hist = (await pg.query('SELECT id, checksum FROM schema_migrations ORDER BY id COLLATE "C"')).rows;
+  assert.deepEqual(hist.map((h) => h.id), ['001-base', '002-provider-catalog', '@identity']); assert.equal(hist[0].checksum, M.BASE_SHA256); assert.equal(hist[1].checksum, M2.sha);
+  const done = await catalog(pg);
+  const again = recording(qp(pg)); const r2 = await M.apply(again, R());
+  assert.equal(r2.refused, false); assert.deepEqual(r2.applied, []); assert.deepEqual(r2.adopted, []); assert.equal(r2.baseMode, 'recorded'); assert.equal(sentBase(again.log), 0);
+  assert.deepEqual(writesOf(again.log).map(norm).filter((t) => !/^CREATE TABLE IF NOT EXISTS schema_migrations|^INSERT INTO schema_migrations .*ON CONFLICT \(id\) DO NOTHING$/.test(t)), [], 'a second run sent something besides the two idempotent bookkeeping statements');
+  assert.equal(await catalog(pg), done);
+  await pg.close();
+});
+
+test('ADOPT, as the temporary Neon branch will meet it (environment "test"): the runner decides adopt, sends 12 writes of which none belongs to the base schema, and ends with the same structure as a clean build', async () => {
+  const pg = await asTest(await legacyClone()); const q = recording(qp(pg)); const fp0 = await fingerprint(pg, M.OURS);
+  const p = await M.plan(M.readOnly(qp(pg)), R({ expectEnv: 'test' })); assert.deepEqual(p.problems, []); assert.equal(p.baseMode, 'adopt'); assert.equal(p.env, 'test');
+  const r = await M.apply(q, R({ expectEnv: 'test' })); assert.equal(r.refused, false); assert.deepEqual(r.adopted, ['001-base']);
+  assert.equal(sentBase(q.log), 0); assert.equal(writesOf(q.log).length, 12);
+  assert.deepEqual(await fingerprint(pg, M.OURS), fp0);
+  const clean = await fullClone(); assert.equal(await sigOf(pg), await sigOf(clean), 'adopting must end with the structure of a clean build'); await clean.close();
+  await pg.close();
+});
+
+test('BUILD: a new, empty database is built from 001-base as before (all 18 statements sent, nothing adopted); an interrupted first initialisation is finished the same way', async () => {
+  const O3 = R({ expectEnv: 'test', allowEmpty: true });
+  const pg = new PGlite(); const q = recording(qp(pg));
+  const p = await M.plan(M.readOnly(qp(pg)), O3); assert.equal(p.state, 'empty'); assert.deepEqual(p.problems, []); assert.equal(p.baseMode, 'create');
+  assert.match(M.checkReport(p).join('\n'), /Base schema 001-base: this is an empty database; its 18 statements would be sent to create it/);
+  const r = await M.apply(q, O3); assert.equal(r.refused, false); assert.deepEqual(r.adopted, []); assert.equal(sentBase(q.log), 18);
+  assert.equal((await tablesOf(pg)).length, 20); await pg.close();
+
+  const pg2 = new PGlite(); const q2 = qp(pg2); let down = true;
+  const flaky = async (t, p) => { if (down && /CREATE TABLE IF NOT EXISTS consents/.test(t)) throw new Error('simulated outage'); return q2(t, p); };
+  await assert.rejects(() => M.apply(flaky, O3), /001-base stopped at statement/);
+  const s = await M.plan(M.readOnly(q2), O3); assert.equal(s.state, 'initializing'); assert.deepEqual(s.problems, []); assert.equal(s.baseMode, 'resume');
+  assert.match(M.checkReport(s).join('\n'), /Base schema 001-base: an interrupted first initialisation; its 18 statements \(all IF NOT EXISTS\) would be sent again to finish it/);
+  down = false; const log2 = recording(q2); const r2 = await M.apply(log2, O3);
+  assert.equal(r2.refused, false); assert.deepEqual(r2.adopted, []); assert.equal(sentBase(log2.log), 18, 'a half-built database must be finished with the full base, not adopted');
+  assert.equal((await tablesOf(pg2)).length, 20); await pg2.close();
+});
+
+test('PARTIAL: an existing database that is only partly there is REFUSED (never completed, never skipped over): nothing is written, no statement of 001-base is sent, --check says so and writes nothing', async () => {
+  const cases = [
+    ['a base table is missing', 'DROP TABLE request_notes', /request_notes/],
+    ['the newest base table (outcomes) is missing', 'DROP TABLE outcomes', /outcomes/],
+    ['an index is missing', 'DROP INDEX tr_status_idx', /tr_status_idx/],
+    ['several tables are missing', 'DROP TABLE request_notes; DROP TABLE outcomes; DROP TABLE revenues', /request_notes|outcomes|revenues/],
+  ];
+  for (const [name, change, mention] of cases) {
+    const pg = await legacyClone(); await pg.exec(change); const before = await catalog(pg);
+    const log = recording(qp(pg)); const p = await M.plan(M.readOnly(log), R());
+    assert.equal(p.state, 'legacy', name); assert.equal(p.structure, 'partial', name); assert.equal(p.baseMode, null, name); assert.deepEqual(p.pending.slice(0, 1), ['001-base'], name + ': it must stay pending, not be skipped');
+    assert.ok(p.problems.some((x) => /^structure: the base schema is only partly present/.test(x) && mention.test(x)), name + ': ' + p.problems.join(' | '));
+    assert.ok(log.log.every(isRead), name + ': the check sent a write'); assert.equal(await catalog(pg), before, name + ': the check changed something');
+    const text = M.checkReport(p).join('\n'); assert.match(text, /structure: partial/); assert.match(text, /Base schema 001-base: not decided, because this check is refused/); assert.match(text, /REFUSED/); assert.match(text, /nothing was written/);
+    const q = recording(qp(pg)); const r = await M.apply(q, R());
+    assert.equal(r.refused, true, name); assert.deepEqual(r.applied, [], name); assert.equal(writesOf(q.log).length, 0, name + ': a write was sent'); assert.equal(sentBase(q.log), 0, name); assert.equal(await catalog(pg), before, name + ': something was written');
+    await pg.close();
+  }
+});
+
+test('DIFFERENT: an existing database whose structure differs in any way is refused with nothing written and no statement of 001-base sent: column, type, default, extra index, extra table, partly there and different at once', async () => {
+  const cases = [
+    ['a stray column', 'ALTER TABLE services ADD COLUMN stray integer', /^structure:/],
+    ['a missing column', 'ALTER TABLE applicants DROP COLUMN email', /^structure:/],
+    ['a changed type', 'ALTER TABLE settings ALTER COLUMN updated_by TYPE varchar(50)', /^structure:/],
+    ['a changed default', 'ALTER TABLE services ALTER COLUMN active SET DEFAULT FALSE', /^structure:/],
+    ['an extra index', 'CREATE INDEX stray_idx ON applicants (name)', /^structure:/],
+    ['an extra table', 'CREATE TABLE someone_elses_users (id int)', /not Kaspchem tables: someone_elses_users/],
+    ['a missing table AND a stray column', 'DROP TABLE request_notes; ALTER TABLE services ADD COLUMN stray integer', /^structure:/],
+  ];
+  for (const [name, change, expected] of cases) {
+    const pg = await legacyClone(); await pg.exec(change); const before = await catalog(pg);
+    const log = recording(qp(pg)); const p = await M.plan(M.readOnly(log), R());
+    assert.equal(p.baseMode, null, name); assert.ok(p.problems.some((x) => expected.test(x)), name + ': ' + p.problems.join(' | ')); assert.ok(log.log.every(isRead), name); assert.equal(await catalog(pg), before, name);
+    const q = recording(qp(pg)); const r = await M.apply(q, R());
+    assert.equal(r.refused, true, name); assert.equal(writesOf(q.log).length, 0, name + ': a write was sent'); assert.equal(sentBase(q.log), 0, name); assert.equal(await catalog(pg), before, name + ': something was written');
+    await pg.close();
+  }
+});
+
+test('ADOPT needs the identity, the environment, the history and a verified structure: without any one of them nothing is adopted and nothing is written', async () => {
+  const prep = {
+    'the wrong environment is expected': [async (pg) => pg, R({ expectEnv: 'test' }), /WRONG DATABASE/],
+    'no environment is expected': [async (pg) => pg, R({ expectEnv: null }), /--expect-env/],
+    'the database says nothing about its environment': [async (pg) => { await pg.exec("DELETE FROM settings WHERE key = 'meta.environment'"); return pg; }, R(), /no meta.environment/],
+    'the structure was not verified': [async (pg) => pg, R({ verifyStructure: false }), /not verified/],
+    'a recorded migration was changed (history)': [async (pg) => { await pg.exec("CREATE TABLE schema_migrations (id TEXT PRIMARY KEY, checksum TEXT NOT NULL, applied_at TIMESTAMPTZ NOT NULL DEFAULT now()); INSERT INTO schema_migrations (id, checksum) VALUES ('001-base', '" + 'ab'.repeat(32) + "')"); return pg; }, R(), /history:|identity:/],
+    'a recorded migration is unknown (history)': [async (pg) => { await pg.exec("CREATE TABLE schema_migrations (id TEXT PRIMARY KEY, checksum TEXT NOT NULL, applied_at TIMESTAMPTZ NOT NULL DEFAULT now()); INSERT INTO schema_migrations (id, checksum) VALUES ('009-unknown', 'x')"); return pg; }, R(), /history:/],
+  };
+  for (const [name, [setup, opts, expected]] of Object.entries(prep)) {
+    const pg = await setup(await legacyClone()); const before = await catalog(pg);
+    const log = recording(qp(pg)); const p = await M.plan(M.readOnly(log), opts);
+    assert.notEqual(p.baseMode, 'adopt', name); assert.ok(p.problems.some((x) => expected.test(x)), name + ': ' + p.problems.join(' | ')); assert.ok(log.log.every(isRead), name); assert.equal(await catalog(pg), before, name);
+    const q = recording(qp(pg)); const r = await M.apply(q, opts);
+    assert.equal(r.refused, true, name); assert.equal(writesOf(q.log).length, 0, name + ': a write was sent'); assert.equal(sentBase(q.log), 0, name); assert.equal(await catalog(pg), before, name + ': something was written');
+    await pg.close();
+  }
+});
+
+test('the --check text says, for every state, what would happen to 001-base, and an adopt/refused check writes nothing', async () => {
+  const legacy = await legacyClone(); const full = await fullClone(); const empty = new PGlite(); const bad = await legacyClone(); await bad.exec('ALTER TABLE services ADD COLUMN stray integer');
+  const line = async (pg, opts) => { const log = recording(qp(pg)); const before = await catalog(pg); const t = M.checkReport(await M.plan(M.readOnly(log), opts)).join('\n'); assert.equal(await catalog(pg), before); assert.ok(log.log.every(isRead)); return t; };
+  assert.match(await line(legacy, R()), /Base schema 001-base: .*RECORDED; none of its 18 statements would be sent/);
+  assert.match(await line(full, R()), /Base schema 001-base: already recorded; none of its statements would be sent/);
+  assert.match(await line(empty, R({ expectEnv: 'test', allowEmpty: true })), /Base schema 001-base: this is an empty database; its 18 statements would be sent to create it/);
+  assert.match(await line(bad, R()), /Base schema 001-base: not decided, because this check is refused/);
+  for (const pg of [legacy, full, empty, bad]) await pg.close();
 });

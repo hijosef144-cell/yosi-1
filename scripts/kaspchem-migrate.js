@@ -19,6 +19,9 @@
 //   history    the recorded migrations are exactly the first N files, in order, and each recorded fingerprint equals the file's fingerprint now;
 //   files      numbering is 002, 003, ... without gaps or duplicates, the manifest lists exactly those files with matching fingerprints, and every statement is additive;
 //   structure  the real structure equals what the applied migrations create (the comparison of scripts/schema-signature.js), so out-of-band changes are noticed.
+// An existing database from before the bookkeeping table ("legacy": Kaspchem tables, no schema_migrations) is ADOPTED, not rebuilt: when it passes every check above AND its
+// structure equals 001-base exactly (nothing missing, nothing extra, nothing different), 001-base is recorded without sending any of its statements. A legacy database that is
+// only partly there, or that differs in any way, is refused: it is never completed, and never skipped over, automatically. Only an empty database is built from 001-base.
 // A failure in the middle of a migration records nothing for that migration; running it again is safe because every statement is idempotent.
 const fs = require('fs');
 const path = require('path');
@@ -220,19 +223,29 @@ async function plan(rq, opts) {
       // a pending migration that stopped half-way leaves some of its own objects behind: that is expected, and it is not drift
       const next = state === 'versioned' && history.length < migrations.length ? S.lines(await expectedSignatureFor(migrations, history.length + 1, hasBook)) : null;
       const unexpected = cmp.unexpectedInDatabase.filter((l) => !(next && next.has(l)));
-      // in a versioned database whatever the applied migrations created must still be there (a legacy or half-started one is allowed to lack things: the run creates them)
+      // in a versioned database whatever the applied migrations created must still be there (a half-started first initialisation is allowed to lack things: the run finishes it)
       const vanished = state === 'versioned' ? cmp.createdByMigration : [];
+      // a legacy database (Kaspchem tables, no bookkeeping) is adopted only when it equals 001-base exactly: missing tables or indexes make it a partial one, which is refused
+      const partial = state === 'legacy' ? cmp.createdByMigration : [];
       if (cmp.needsManualLook.length || unexpected.length || vanished.length) {
         structure = 'differs';
         cmp.needsManualLook.slice(0, 3).forEach((l) => problems.push('structure: expected but different or missing in an existing table: ' + l.slice(0, 90)));
         vanished.slice(0, 3).forEach((l) => problems.push('structure: recorded as applied but missing now: ' + l.slice(0, 90)));
         unexpected.slice(0, 3).forEach((l) => problems.push('structure: found in the database but not in the migrations: ' + l.slice(0, 90)));
         const more = cmp.needsManualLook.length + vanished.length + unexpected.length - 9; if (more > 0) problems.push('structure: and ' + more + ' more differences');
+      } else if (partial.length) {
+        structure = 'partial';
+        problems.push('structure: the base schema is only partly present in this database (missing: ' + partial.slice(0, 3).map((l) => l.slice(0, 70)).join(' | ') + (partial.length > 3 ? ' and ' + (partial.length - 3) + ' more' : '') + '). An existing database is adopted only when it matches 001-base exactly, so this one is refused; it is not completed or skipped over automatically');
       } else structure = 'matches';
     } catch (e) { problems.push('structure: ' + e.message); structure = 'unverified'; }
   }
+  if (state === 'legacy' && structure === 'skipped' && !foreign.length) problems.push('structure: it was not verified, and an existing database is adopted only after its structure was verified to equal 001-base exactly');
+  // What an apply does with 001-base. Only a plan without any problem decides: an empty database is CREATED from it, an interrupted first initialisation is FINISHED (its statements are all
+  // IF NOT EXISTS), an existing legacy database that passed identity, environment, history (none: it has no bookkeeping table) and an exact structure comparison is ADOPTED (recorded, none of
+  // its statements sent), and once it is recorded nothing of it is sent again.
+  const baseMode = problems.length ? null : (history.length ? 'recorded' : state === 'empty' ? 'create' : state === 'initializing' ? 'resume' : 'adopt');
   const existing = tables.filter((t) => OURS.includes(t)).sort();
-  return { state, dbName, env, history: history.map((r) => r.id), pending, structure, problems, tables: { existing, missing: OURS.filter((t) => !tables.includes(t)), foreign } };
+  return { state, dbName, env, history: history.map((r) => r.id), pending, structure, baseMode, baseStatements: migrations.length ? migrations[0].statements : 0, problems, tables: { existing, missing: OURS.filter((t) => !tables.includes(t)), foreign } };
 }
 
 // ---- apply --------------------------------------------------------------------------------------------------------------------------------------------------
@@ -246,9 +259,13 @@ async function apply(q, opts) {
   await q(BOOKKEEPING_DDL);
   // the identity is recorded first, so that a run that stops half-way can be resumed and still be checked against the same database
   await q('INSERT INTO schema_migrations (id, checksum) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING', [IDENTITY_ID, sha(p.dbName + '|' + env)]);
+  const adopted = [];
   for (const m of opts.migrations) {
     if (!p.pending.includes(m.id)) continue;
-    const stmts = splitDdl(m.sql);
+    // an existing database that equals 001-base exactly (the plan decided: identity, environment, no history, full structure comparison) is only RECORDED: none of the base statements is sent again
+    const adopt = m.id === BASE_ID && p.state === 'legacy' && p.baseMode === 'adopt';
+    if (adopt) adopted.push(m.id);
+    const stmts = adopt ? [] : splitDdl(m.sql);
     for (let i = 0; i < stmts.length; i++) {
       try { await q(stmts[i]); }
       catch (e) { const err = new Error(m.id + ' stopped at statement ' + (i + 1) + ' of ' + stmts.length + ': ' + e.message + '. Nothing is recorded for ' + m.id + '; running the command again is safe.'); err.applied = applied; throw err; }
@@ -263,17 +280,25 @@ async function apply(q, opts) {
   }
   const after = await plan(rq, opts);   // the database must now agree with the files, with nothing pending
   if (after.problems.length || after.pending.length) { const e = new Error('verification after applying failed: ' + after.problems.concat(after.pending.map((x) => 'still pending: ' + x)).join(' | ')); e.applied = applied; throw e; }
-  return Object.assign({ refused: false, applied }, after);
+  return Object.assign({ refused: false, applied, adopted }, after);
 }
 
 // The text of a --check, as a list of lines, from a plan. Kept apart from the command line so that it can be tested.
 function checkReport(p) {
   const out = [];
   out.push('Existing Kaspchem tables (' + p.tables.existing.length + '): ' + (p.tables.existing.join(', ') || '(none)'));
-  out.push('Would be created (' + p.tables.missing.length + '): ' + (p.tables.missing.join(', ') || '(none)'));
+  out.push('Base tables not present (' + p.tables.missing.length + '): ' + (p.tables.missing.join(', ') || '(none)'));
   out.push('Foreign tables (' + p.tables.foreign.length + '): ' + (p.tables.foreign.join(', ') || '(none)'));
   out.push('Database state: ' + p.state + ' | environment: ' + (p.env === null ? '(none recorded)' : p.env) + ' | structure: ' + p.structure);
   out.push('Migrations recorded (' + p.history.length + '): ' + (p.history.join(', ') || '(none)') + ' | pending (' + p.pending.length + '): ' + (p.pending.join(', ') || '(none)'));
+  const n = p.baseStatements || 0;
+  const baseText = {
+    adopt: 'the database matches it exactly (identity, environment, no history, full structure), so it would only be RECORDED; none of its ' + n + ' statements would be sent',
+    create: 'this is an empty database; its ' + n + ' statements would be sent to create it',
+    resume: 'an interrupted first initialisation; its ' + n + ' statements (all IF NOT EXISTS) would be sent again to finish it',
+    recorded: 'already recorded; none of its statements would be sent',
+  }[p.baseMode];
+  out.push('Base schema 001-base: ' + (baseText || 'not decided, because this check is refused (see below)'));
   p.problems.forEach((x) => out.push('PROBLEM ' + x));
   out.push(p.problems.length ? 'RESULT: nothing was written (read-only check); an apply would be REFUSED for the ' + p.problems.length + ' reason(s) above.' : 'RESULT: nothing was written (read-only check); an apply would be accepted.');
   return out;
@@ -330,6 +355,6 @@ if (require.main === module) {
     }
     const r = await apply(q, opts);
     if (r.refused) { r.problems.forEach((x) => console.error('PROBLEM ' + x)); die('RESULT: REFUSED; nothing was written.'); }
-    console.log('Applied (' + r.applied.length + '): ' + (r.applied.join(', ') || '(nothing pending)') + '. Verified: identity, history, files and structure.');
+    console.log('Applied (' + r.applied.length + '): ' + (r.applied.join(', ') || '(nothing pending)') + '.' + (r.adopted && r.adopted.length ? ' Adopted without sending its statements again: ' + r.adopted.join(', ') + '.' : '') + ' Verified: identity, history, files and structure.');
   })().catch((e) => { console.error(e.message); process.exit(1); });
 }
