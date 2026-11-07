@@ -12,10 +12,10 @@ const { PGlite: PGliteBase } = require('@electric-sql/pglite');
 // Every in-memory database made by this file (also the clones) is closed when the file ends, even when a failing assertion skipped its own close():
 // an open database keeps the test process alive, and a FAILING test would then hang instead of ending with its failure.
 const OPEN_DBS = new Set();
-const track = (db) => { OPEN_DBS.add(db); const close = db.close.bind(db); db.close = async () => { OPEN_DBS.delete(db); return close(); }; return db; };
+const track = (db) => { OPEN_DBS.add(db); const close = db.close.bind(db); db.close = async () => { OPEN_DBS.delete(db); return close(); }; const clone = db.clone.bind(db); db.clone = async () => track(await clone()); return db; };   // wraps clone() too, so a clone of a clone is tracked as well
 class PGlite extends PGliteBase {
   constructor(...args) { super(...args); track(this); }
-  async clone() { return track(await super.clone()); }
+  // (clone() is wrapped by track() itself, for every instance)
 }
 test.after(async () => { for (const db of [...OPEN_DBS]) { try { await db.close(); } catch (e) { /* already closed */ } } });
 const M = require('../scripts/kaspchem-migrate.js');
@@ -670,7 +670,7 @@ test('the database enforces the M1 rules itself: states, the ACTIVE safety rule,
   await pg.close();
 });
 
-test('database permissions (as far as a local database can show): 002 grants nothing and changes no existing permission; without a grant step the app role is locked out of the new tables; the planned grants give exactly the intended matrix', async () => {
+test('database permissions (as far as a local database can show): 002 grants nothing and changes no existing permission; without a grant step the app role is locked out of the new tables', async () => {
   const pg = await production();
   // the permissions of today, modelled: the application role may read and write the existing tables and use their sequences (production's real grants are not known here)
   await pg.exec('CREATE ROLE kaspchem_app NOLOGIN; CREATE ROLE stranger NOLOGIN; GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA public TO kaspchem_app; GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO kaspchem_app; GRANT SELECT ON settings TO stranger');
@@ -687,31 +687,7 @@ test('database permissions (as far as a local database can show): 002 grants not
   await assert.rejects(() => asRole('kaspchem_app', 'SELECT count(*) FROM provider_services'), /permission denied for table provider_services/);
   await assert.rejects(() => asRole('kaspchem_app', "INSERT INTO service_settings (service_id, code) VALUES (1, 'nope')"), /permission denied/);
   assert.equal((await asRole('kaspchem_app', 'SELECT count(*)::int AS n FROM settings')).rows[0].n, 2, 'existing access is unchanged');
-  // the planned grants of the separate, separately approved step (not part of 002, not shipped anywhere): what the app needs, no DELETE, no TRUNCATE, nothing structural
-  const PLANNED = ['GRANT SELECT, INSERT, UPDATE ON provider_profiles, provider_services, provider_service_compensation, provider_service_prices, service_settings TO kaspchem_app',
-    'GRANT SELECT, INSERT ON catalog_imports, schema_migrations TO kaspchem_app', 'GRANT USAGE ON SEQUENCE catalog_imports_id_seq TO kaspchem_app'];
-  const noSeq = await pg.clone(); await noSeq.exec(PLANNED.slice(0, 2).join(';') + ';SET ROLE kaspchem_app');
-  const seqError = await (async () => { try { await noSeq.query("INSERT INTO catalog_imports (source, file_sha256, rows_total, rows_created, rows_updated, rows_skipped, imported_by) VALUES ('csv', 'x', 0, 0, 0, 0, 'o')"); return 'no error'; } catch (e) { return e.message; } })();
-  assert.match(seqError, /permission denied for sequence catalog_imports_id_seq/, 'recording an import needs the sequence grant: the grant step must include it');
-  await noSeq.close();
-  await pg.exec(PLANNED.join(';'));
-  const allowed = { provider_profiles: ['SELECT', 'INSERT', 'UPDATE'], provider_services: ['SELECT', 'INSERT', 'UPDATE'], provider_service_compensation: ['SELECT', 'INSERT', 'UPDATE'], provider_service_prices: ['SELECT', 'INSERT', 'UPDATE'], service_settings: ['SELECT', 'INSERT', 'UPDATE'], catalog_imports: ['SELECT', 'INSERT'], schema_migrations: ['SELECT', 'INSERT'] };
-  for (const [t, list] of Object.entries(allowed)) for (const p of PRIVS) {
-    assert.equal(await can('kaspchem_app', t, p), list.includes(p), `kaspchem_app ${p} on ${t}: expected ${list.includes(p)}`);
-    assert.equal(await can('stranger', t, p), false, `a role without a grant must still have no ${p} on ${t}`);
-  }
-  // what the planned grants allow in practice, as the application role, and what they still refuse
-  await asRole('kaspchem_app', "INSERT INTO professionals (name) VALUES ('Synthetic Provider App')");
-  await asRole('kaspchem_app', "INSERT INTO services (name) VALUES ('Synthetic Service App')");
-  await asRole('kaspchem_app', "INSERT INTO provider_services (professional_id, service_id, external_ref) VALUES (1, 1, 'APP-1')");
-  await asRole('kaspchem_app', 'UPDATE provider_services SET priority = 5 WHERE professional_id = 1 AND service_id = 1');
-  await asRole('kaspchem_app', "INSERT INTO catalog_imports (source, file_sha256, rows_total, rows_created, rows_updated, rows_skipped, imported_by) VALUES ('csv', 'x', 0, 0, 0, 0, 'o')");
-  assert.equal((await asRole('kaspchem_app', 'SELECT priority FROM provider_services')).rows[0].priority, 5);
-  for (const sql of ['DELETE FROM provider_services', 'TRUNCATE provider_services', 'DELETE FROM provider_service_prices', 'DELETE FROM provider_service_compensation', 'DELETE FROM provider_profiles', 'DELETE FROM service_settings', 'UPDATE catalog_imports SET rows_total = 1', 'DELETE FROM catalog_imports', "UPDATE schema_migrations SET checksum = 'x'", 'DELETE FROM schema_migrations',
-    'ALTER TABLE provider_services ADD COLUMN x int', 'DROP TABLE provider_services', 'CREATE TABLE app_made (id int)'])
-    await assert.rejects(() => asRole('kaspchem_app', sql), /permission denied|must be owner/, sql);
-  await assert.rejects(() => asRole('stranger', 'SELECT * FROM provider_services'), /permission denied/);
-  assert.equal(await aclsOf(pg), acl0, 'the planned grants must not touch an existing table or sequence');
+  // The grants for the NEW tables are a separate, separately approved step: db/grants/m1-app-grants.sql, tested in tests/grants.test.js (matrix, forbidden access, rollback).
   await pg.close();
 });
 
@@ -747,14 +723,14 @@ test('the older entry points (check, migrate) know the M1 tables: they are not "
   await pg.close();
 });
 
-test('nothing public or existing uses the new tables yet: no page, function, script or admin code outside db/migrations and the tests mentions them', () => {
+test('nothing public or existing uses the new tables yet: no page, function, script or admin code outside db/migrations, db/grants and the tests mentions them', () => {
   const NAMES = new RegExp('\\b(' + NEW_TABLES.join('|') + ')\\b');
-  const skip = new Set(['node_modules', '.git', 'docs', 'tests', '.netlify', 'test-results', 'playwright-report']);
+  const skip = new Set(['node_modules', '.git', 'docs', 'tests', '.netlify', 'test-results', 'playwright-report']);   // db/grants (the proposed grants) and db/migrations are the only non-test places that name the new tables
   const hits = [];
   (function walk(dir) {
     for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, e.name), rel = path.relative(ROOT, full).replace(/\\/g, '/');
-      if (e.isDirectory()) { if (!skip.has(e.name) && rel !== 'db/migrations') walk(full); continue; }
+      if (e.isDirectory()) { if (!skip.has(e.name) && rel !== 'db/migrations' && rel !== 'db/grants') walk(full); continue; }
       if (!/\.(js|mjs|cjs|html|json|toml|sql|md|txt|xml|css)$/i.test(e.name) || fs.statSync(full).size > 2000000) continue;
       if (NAMES.test(fs.readFileSync(full, 'utf8'))) hits.push(rel);
     }
