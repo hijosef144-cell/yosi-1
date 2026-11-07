@@ -723,7 +723,7 @@ test('the older entry points (check, migrate) know the M1 tables: they are not "
   await pg.close();
 });
 
-test('nothing public or existing uses the new tables yet: no page, function, script or admin code outside db/migrations, db/grants and the tests mentions them', () => {
+test('nothing public or existing uses the new tables yet: no page, function, script or admin code outside db/migrations, db/grants, the grant tool scripts/kaspchem-grants.js and the tests mentions them', () => {
   const NAMES = new RegExp('\\b(' + NEW_TABLES.join('|') + ')\\b');
   const skip = new Set(['node_modules', '.git', 'docs', 'tests', '.netlify', 'test-results', 'playwright-report']);   // db/grants (the proposed grants) and db/migrations are the only non-test places that name the new tables
   const hits = [];
@@ -732,6 +732,7 @@ test('nothing public or existing uses the new tables yet: no page, function, scr
       const full = path.join(dir, e.name), rel = path.relative(ROOT, full).replace(/\\/g, '/');
       if (e.isDirectory()) { if (!skip.has(e.name) && rel !== 'db/migrations' && rel !== 'db/grants') walk(full); continue; }
       if (!/\.(js|mjs|cjs|html|json|toml|sql|md|txt|xml|css)$/i.test(e.name) || fs.statSync(full).size > 2000000) continue;
+      if (rel === 'scripts/kaspchem-grants.js') continue;   // the one operations tool that has to name them (it builds the grant step; it is not application, public or admin code)
       if (NAMES.test(fs.readFileSync(full, 'utf8'))) hits.push(rel);
     }
   })(ROOT);
