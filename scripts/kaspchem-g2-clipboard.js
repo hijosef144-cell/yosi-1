@@ -7,14 +7,19 @@
 //   3. clears the clipboard immediately after reading it and reads it back to prove it is gone (if it cannot be cleared the script stops before connecting);
 //   4. keeps the string in memory only and hands it to the G2 tool's own main() for the three stages, in order, stopping at the first one that does not pass (no retry, no repair);
 //   5. forgets it. It is never in process.env (the tool receives a copy of the environment object with the string added), never printed, never written to the state file (the tool redacts it).
-// The tool itself is unchanged: all its identity checks (role, endpoint, database, environment, marker, forbidden endpoints, HTTP guard) still apply. Only these three stages can be run from here; no
-// stage that writes data can be named, and --allow-writes does not exist.
+// The tool itself is unchanged: all its identity checks (role, endpoint, database, environment, marker, forbidden endpoints, HTTP guard) still apply.
+// WHAT CAN BE RUN FROM HERE: the three read-only stages (identity, headers, lock-probe), and exactly ONE stage that writes: atomic-control (C1: one inactive synthetic service and its audit row on the
+// child branch). A write stage runs only when it is named in --stages ALONE and approved by name with --allow-writes=atomic-control (a bare --allow-writes is refused, and so is approving a stage that
+// was not named or naming a write stage with others). No other stage that writes (atomic-rollback, atomic-guard, atomic-import) and none of the locked stages can be named at all: unlocking one is a
+// change to this file that needs its own review and approval. The tool still requires lock-probe to have passed first on the same endpoint and marker, and this launcher checks that BEFORE it asks anyone to copy the string.
 //
 //   node scripts/kaspchem-g2-clipboard.js --expect-endpoint=ep-... --expect-env=test --marker=<token> [--stages=identity,headers,lock-probe] [--wait-seconds=600] [--state=<file>]
+//   node scripts/kaspchem-g2-clipboard.js --expect-endpoint=ep-... --expect-env=test --marker=<token> --stages=atomic-control --allow-writes=atomic-control
 const { spawnSync } = require('child_process');
 const G = require('./kaspchem-g2.js');
 
-const ALLOWED_STAGES = ['identity', 'headers', 'lock-probe'];
+const ALLOWED_STAGES = ['identity', 'headers', 'lock-probe'];   // read-only, or rolled back by design
+const WRITE_STAGES = ['atomic-control'];                         // writes synthetic data: only alone and with --allow-writes=<this stage>, see parseArgs
 const URL_IN_TEXT = /postgres(?:ql)?:\/\/[^\s'"`<>]+/i;
 const extractUrl = (text) => { const m = URL_IN_TEXT.exec(String(text || '')); return m ? m[0].replace(/[;,.)]+$/, '') : null; };
 
@@ -37,16 +42,22 @@ function parseArgs(argv) {
   for (const x of argv) {
     let m;
     if (/:\/\/|postgres/i.test(x)) throw new Error('a connection string must never be given on the command line: it is read from the clipboard.');
-    if ((m = /^--(expect-endpoint|expect-env|marker|stages|wait-seconds|state)=(.*)$/.exec(x))) {
+    if (x === '--allow-writes') throw new Error('--allow-writes must name the one stage it approves: --allow-writes=' + WRITE_STAGES[0] + '.');
+    if ((m = /^--(expect-endpoint|expect-env|marker|stages|wait-seconds|state|allow-writes)=(.*)$/.exec(x))) {
       const k = m[1], v = m[2];
       if (k === 'expect-endpoint') a.endpoint = v; else if (k === 'expect-env') a.env = v; else if (k === 'marker') a.marker = v; else if (k === 'state') a.state = v;
-      else if (k === 'stages') a.stages = v.split(',').map((s) => s.trim()).filter(Boolean); else a.wait = Number(v);
+      else if (k === 'allow-writes') a.allowWrite = v; else if (k === 'stages') a.stages = v.split(',').map((s) => s.trim()).filter(Boolean); else a.wait = Number(v);
     } else throw new Error('unknown option: ' + x.slice(0, 40));
   }
   if (!a.endpoint || !/^ep-[a-z0-9-]{3,60}$/.test(a.endpoint)) throw new Error('give --expect-endpoint=ep-... (the endpoint of the CHILD branch).');
   if (!a.env || !/^[a-z][a-z0-9_-]{0,30}$/.test(a.env) || a.env === 'production') throw new Error('give --expect-env=<value of meta.environment>; "production" is never accepted.');
   if (!a.marker || !/^[a-z0-9]{12,40}$/.test(a.marker)) throw new Error('give --marker=<the token of the child-branch marker>.');
-  if (!a.stages.length || a.stages.some((s) => !ALLOWED_STAGES.includes(s))) throw new Error('only these stages can be run from here: ' + ALLOWED_STAGES.join(', ') + '.');
+  if (!a.stages.length || a.stages.some((s) => !ALLOWED_STAGES.includes(s) && !WRITE_STAGES.includes(s))) throw new Error('only these stages can be run from here: ' + ALLOWED_STAGES.concat(WRITE_STAGES).join(', ') + '.');
+  const writes = a.stages.filter((s) => WRITE_STAGES.includes(s));
+  if (writes.length) {
+    if (a.stages.length !== 1) throw new Error('a stage that writes runs alone: --stages=' + writes[0] + '.');
+    if (a.allowWrite !== writes[0]) throw new Error('a stage that writes needs its own explicit approval: --allow-writes=' + writes[0] + '.');
+  } else if (a.allowWrite !== undefined) throw new Error('--allow-writes approves a stage that writes, and none was named.');
   if (!Number.isFinite(a.wait) || a.wait < 5 || a.wait > 1800) throw new Error('--wait-seconds must be between 5 and 1800.');
   return a;
 }
@@ -58,10 +69,13 @@ async function run(argv, deps) {
   let url = null;
   try {
     let args; try { args = parseArgs(argv); } catch (e) { out('REFUSED: ' + e.message + ' Nothing was run.'); return { code: 2, lines, results: [] }; }
+    // the gate of the tool, checked here first so that nobody is asked to copy a connection string for a run that is certain to be refused: the stage before the first one must have passed on this endpoint and marker
+    const writing = args.stages.some((s) => WRITE_STAGES.includes(s)), stateFile = args.state || G.DEFAULT_STATE, gate = G.readState(stateFile);
+    for (const need of G.STAGES[args.stages[0]].needs) if (!G.passed(gate, need, args.endpoint, args.marker)) { out('REFUSED: stage "' + args.stages[0] + '" needs stage "' + need + '" to have passed first on this endpoint and marker (state file). Nothing was run.'); return { code: 2, lines, results: [] }; }
     const clipboard = d.clipboard || windowsClipboard(), clock = d.clock || Date.now, sleep = d.sleep || ((ms) => new Promise((r) => setTimeout(r, ms))), pollMs = d.pollMs || 1500;
     const history = clipboard.historyEnabled ? await clipboard.historyEnabled() : null;
     await clipboard.read();   // proves the clipboard can be read before anyone is asked to copy anything
-    out('READY. Stages: ' + args.stages.join(' -> ') + ' on endpoint ' + args.endpoint + ' as kaspchem_app. Nothing is written by these stages.');
+    out('READY. Stages: ' + args.stages.join(' -> ') + ' on endpoint ' + args.endpoint + ' as kaspchem_app. ' + (writing ? 'THIS RUN WRITES synthetic data on the child branch: one inactive service named g2-<run>-control and one audit row (approved by name with --allow-writes=' + args.allowWrite + ').' : 'Nothing is written by these stages.'));
     out('NOW: in the Neon console open the CHILD branch, role kaspchem_app, and press "Copy snippet" for the connection string. Copy nothing else until this script says it has the string. Waiting up to ' + args.wait + ' seconds.');
     if (history === true) out('NOTE: Windows clipboard history is ON, so the copied string will also be kept in Win+V history. This script clears the clipboard but does not delete your other history items: after the run press Win+V and choose "Clear all".');
     const start = clock(); let rejected = 0;
@@ -82,11 +96,12 @@ async function run(argv, deps) {
     }
     const base = d.env || process.env, env = Object.assign({}, base, { KASPCHEM_G2_DATABASE_URL: url }), results = [];   // a COPY with the string in it: process.env itself is never touched
     for (const stage of args.stages) {
-      const r = await G.main(['--run=' + stage, '--approved-stages=' + stage, '--expect-endpoint=' + args.endpoint, '--expect-env=' + args.env, '--marker=' + args.marker].concat(args.state ? ['--state=' + args.state] : []), env, { fetch: d.fetch, write: out, now: d.now });
+      // the tool's own write flag is passed to a stage that writes and to no other stage (parseArgs has already made sure that stage is alone and approved by name)
+      const r = await G.main(['--run=' + stage, '--approved-stages=' + stage, '--expect-endpoint=' + args.endpoint, '--expect-env=' + args.env, '--marker=' + args.marker].concat(args.state ? ['--state=' + args.state] : [], WRITE_STAGES.includes(stage) ? ['--allow-writes'] : []), env, { fetch: d.fetch, write: out, now: d.now });
       results.push([stage, r.code]);
       if (r.code !== 0) { out('STOPPED at stage ' + stage + ' (exit ' + r.code + '). No retry and no repair. The stages after it were not run.'); return { code: r.code === 2 ? 2 : 1, lines, results }; }
     }
-    out('A2 RESULT: PASS (' + results.map((x) => x[0]).join(', ') + '). The connection string was held in memory only and is gone.' + (rejected ? ' (' + rejected + ' wrong string(s) were rejected and cleared first.)' : ''));
+    out((writing ? 'WRITE STAGE RESULT: PASS (' : 'A2 RESULT: PASS (') + results.map((x) => x[0]).join(', ') + '). The connection string was held in memory only and is gone.' + (rejected ? ' (' + rejected + ' wrong string(s) were rejected and cleared first.)' : ''));
     return { code: 0, lines, results };
   } catch (e) {
     out('STOPPED: ' + (e && e.message === 'clipboard_unavailable' ? 'the Windows clipboard could not be read.' : 'unexpected error - ' + String((e && e.message) || '').slice(0, 120)));
@@ -94,5 +109,5 @@ async function run(argv, deps) {
   } finally { url = null; }
 }
 
-module.exports = { run, parseArgs, extractUrl, windowsClipboard, ALLOWED_STAGES };
+module.exports = { run, parseArgs, extractUrl, windowsClipboard, ALLOWED_STAGES, WRITE_STAGES };
 if (require.main === module) run(process.argv.slice(2)).then((r) => process.exit(r.code), () => { console.error('STOPPED: unexpected failure.'); process.exit(2); });
