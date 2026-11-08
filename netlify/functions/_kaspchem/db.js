@@ -49,10 +49,25 @@ async function transaction(statements, opts) {
 //   * the only tables a catalog write may INSERT into or UPDATE are the catalog tables, `services`, `professionals`, the import log and the audit log: never `pricing`, `settings`, the
 //     commission table or the migration history;
 //   * no DELETE, TRUNCATE or any structure, permission or session statement;
-//   * the only statements besides SELECT / INSERT / UPDATE / WITH are three constant ones: a lock timeout, the table lock of an import, and the guard blocks (DO ... RAISE).
+//   * the only statements besides SELECT / INSERT / UPDATE / WITH are three constant ones: the table lock of an import, the parameter that carries the expected fingerprint, and the guard blocks
+//     (DO ... RAISE). The two timeouts below are not accepted from a caller at all: this layer puts them first in EVERY write batch itself.
+//
+// TIMEOUTS of a write batch (F1). They are SET LOCAL, inside the batch, because a setting made on the connection is not reliable over Neon HTTP. What each one really bounds:
+//   * lock_timeout      one wait for one lock. A LOCK TABLE on five tables takes five locks one after the other, so on its own it can wait up to five times this value;
+//   * statement_timeout one statement from start to end, lock waits of that statement included, so it is what bounds the five-table LOCK TABLE, and the longest any single statement may take.
+//   NEITHER bounds the batch as a whole: a batch of N statements may take up to N times statement_timeout (the only whole-batch ceilings are the statement count below, the size of the file
+//   the routes accept, and the host's own time limit). transaction_timeout is NOT used and nothing may be assumed from it until a feasibility test on the real service has shown what it does (F3).
+//   A timeout is an ordinary error inside the transaction: the whole batch is rolled back, never part of it. A caller cannot choose, lengthen or switch off these values.
+const WRITE_TIMEOUTS = Object.freeze({ single: Object.freeze({ lockMs: 1500, statementMs: 4000 }), import: Object.freeze({ lockMs: 2000, statementMs: 5000 }) });
+const TIMEOUT_STATEMENT = /^SET LOCAL (?:lock|statement)_timeout = '[1-9][0-9]{2,4}ms'$/;
+function timeoutStatements(profile) {
+  if (typeof profile !== 'string' || !Object.prototype.hasOwnProperty.call(WRITE_TIMEOUTS, profile)) throw new Error('bad_timeout_profile');
+  const t = WRITE_TIMEOUTS[profile], list = ["SET LOCAL lock_timeout = '" + t.lockMs + "ms'", "SET LOCAL statement_timeout = '" + t.statementMs + "ms'"];
+  list.forEach((x) => { if (!TIMEOUT_STATEMENT.test(x)) throw new Error('bad_timeout_profile'); });
+  return list.map((text) => ({ text, params: [] }));
+}
 const WRITE_TARGETS = new Set(['services', 'professionals', 'provider_profiles', 'provider_services', 'provider_service_prices', 'service_settings', 'catalog_imports', 'audit_log']);
 const FORBIDDEN = /\b(delete|truncate|drop|alter|create|grant|revoke|copy|vacuum|reindex|cluster|comment|reset|listen|notify|prepare|execute|call|merge)\b/i;
-const LOCK_TIMEOUT = /^SET LOCAL lock_timeout = '[1-9][0-9]{0,3}ms'$/;
 const TABLE_LOCK = /^LOCK TABLE services, professionals, provider_profiles, provider_services, provider_service_prices IN SHARE ROW EXCLUSIVE MODE$/;
 const GUARD_BLOCK = /^DO \$guard\$ BEGIN IF [\s\S]* THEN RAISE EXCEPTION '(snapshot_changed|no_rows)' USING ERRCODE = 'P0001'; END IF; END \$guard\$$/;
 const TARGET = /(?<!\bdo\s)\b(?:insert\s+into|update)\s+(?:only\s+)?(?:"?[a-z_][a-z0-9_]*"?\.)?"?([a-z_][a-z0-9_]*)"?/gi;
@@ -67,7 +82,7 @@ function checkWriteStatement(s) {
   const params = s.params === undefined ? [] : s.params;
   if (!Array.isArray(params) || params.some((p) => !(p === null || ['string', 'number', 'boolean'].includes(typeof p) || (Array.isArray(p) && p.every((x) => typeof x === 'string'))))) throw new Error('bad_params');
   const text = s.text.trim();
-  if (LOCK_TIMEOUT.test(text) || TABLE_LOCK.test(text) || SET_EXPECT.test(text)) return;
+  if (TABLE_LOCK.test(text) || SET_EXPECT.test(text)) return;
   if (/^DO\b/i.test(text)) { if (!GUARD_BLOCK.test(text) || FORBIDDEN.test(text.replace(/RAISE EXCEPTION/g, ''))) throw new Error('write_statement_not_allowed'); return; }
   const counted = COUNTED.exec(text), body = counted ? counted[1] : text;
   if (!/^(insert\s+into|update)\s/i.test(body)) throw new Error('write_statement_not_allowed');
@@ -79,15 +94,20 @@ function checkWriteStatement(s) {
   if (targets.length !== keywords) throw new Error('write_target_not_allowed');   // every INSERT / UPDATE must name a table this check could read: otherwise refuse
   for (const m of targets) if (!WRITE_TARGETS.has(m[1].toLowerCase())) throw new Error('write_target_not_allowed');
 }
+// opts: { isolationLevel, profile }. `profile` picks one of the fixed timeout pairs above ('single' by default, 'import' for the import); nothing else about the timeouts can be passed in.
+// The two timeout statements go first and are NOT part of the result: the rows returned line up with the statements the caller gave. There is no retry here and none anywhere above: a
+// batch is sent once, and what a failure means (nothing saved / not known) is decided by the caller from the error (catalog-writes.js, mapError).
 async function writeTransaction(statements, opts) {
   const o = opts || {};
   const level = o.isolationLevel === undefined ? 'ReadCommitted' : o.isolationLevel;
   if (!ISOLATION_LEVELS.includes(level)) throw new Error('bad_isolation_level');
+  const timeouts = timeoutStatements(o.profile === undefined ? 'single' : o.profile);
   if (!Array.isArray(statements) || !statements.length || statements.length > MAX_WRITE_STATEMENTS) throw new Error('bad_statements');
   statements.forEach(checkWriteStatement);
-  return send(statements.map((s) => ({ text: s.text, params: s.params || [] })), { readOnly: false, isolationLevel: level });
+  const out = await send(timeouts.concat(statements.map((s) => ({ text: s.text, params: s.params || [] }))), { readOnly: false, isolationLevel: level });
+  return out.slice(timeouts.length);
 }
 
 const configured = () => !!(driver || process.env.KASPCHEM_DATABASE_URL);
 
-module.exports = { query, transaction, writeTransaction, setDriver, setTransactionDriver, configured, ISOLATION_LEVELS, WRITE_TARGETS, checkWriteStatement };
+module.exports = { query, transaction, writeTransaction, setDriver, setTransactionDriver, configured, ISOLATION_LEVELS, WRITE_TARGETS, WRITE_TIMEOUTS, timeoutStatements, checkWriteStatement, MAX_WRITE_STATEMENTS };

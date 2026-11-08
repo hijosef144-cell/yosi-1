@@ -332,7 +332,7 @@ route('POST', /^\/catalog\/imports\/apply$/, 'imports.apply', { path: '/catalog/
   Imp.assertSafe(plan.operations);   // the safety rules again, on the operations themselves, right before they are turned into SQL
   const ids = await W.reserveIds(plan.operations), log = Imp.importLog(preview, plan, c.me.email);
   const rowsApplied = Array.from(new Set(plan.operations.map((o) => o.source_row))).sort((x, y) => x - y);
-  await W.run(W.importBatch(plan.operations, ids, { expect: snap.fingerprint, actor: c.me.email, fileSha256: preview.fileSha256, summary: plan.summary, rowsApplied, log }));
+  await W.run(W.importBatch(plan.operations, ids, { expect: snap.fingerprint, actor: c.me.email, fileSha256: preview.fileSha256, summary: plan.summary, rowsApplied, log }), 'import');
   await opsAlert('ייבוא קטלוג הוחל', 'הוחלו ' + rowsApplied.length + ' שורות מקובץ הייבוא על ידי ' + c.me.email + '.');
   return { applied: true, operations: plan.summary, rows_applied: rowsApplied, file_sha256: preview.fileSha256 };
 }, MAX_IMPORT_BYTES);

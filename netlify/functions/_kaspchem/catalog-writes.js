@@ -2,7 +2,7 @@
 // Catalog server, WRITE side, low level (stage 4b): turns what the application decided into ONE transaction and runs it. It decides nothing itself.
 //   * Every write is a single batch for the Neon HTTP driver (sql.transaction): the statements run between BEGIN and COMMIT in one request. The change and its audit row are in the same batch,
 //     so there is never a change without its record, nor a record without its change. Any failing statement rolls the whole batch back (tests inject a failure at EVERY position).
-//   * An import is the strict case. Its batch starts with: a lock timeout, a table lock on the five catalog tables (SHARE ROW EXCLUSIVE: nobody else can write them until commit, readers are
+//   * An import is the strict case. Its batch starts (after the two timeouts that db.writeTransaction adds to every write) with: a table lock on the five catalog tables (SHARE ROW EXCLUSIVE: nobody else can write them until commit, readers are
 //     not blocked), then the fingerprint of what the import READ at preview time is compared with the fingerprint of the data NOW, inside the lock (a constant guard block). If anything moved,
 //     the guard raises and nothing is written. READ COMMITTED is used on purpose: with a stricter level the snapshot would be taken before the wait for the lock and the guard would look at
 //     older data than the lock protects.
@@ -14,7 +14,7 @@ const { HttpError, logError } = require('./http');
 const store = require('./catalog-store');
 const serviceGuard = require('./service-guard');
 
-const LOCK_TIMEOUT = "SET LOCAL lock_timeout = '4000ms'";
+// The timeouts of a write batch are added by db.writeTransaction itself (db.WRITE_TIMEOUTS): this file only says WHICH pair, 'single' (the default) or 'import'.
 const TABLE_LOCK = 'LOCK TABLE services, professionals, provider_profiles, provider_services, provider_service_prices IN SHARE ROW EXCLUSIVE MODE';
 const GUARD_SNAPSHOT = 'DO $guard$ BEGIN IF (SELECT ' + store.FINGERPRINT_EXPR + ") IS DISTINCT FROM current_setting('kaspchem.expect', true) THEN RAISE EXCEPTION 'snapshot_changed' USING ERRCODE = 'P0001'; END IF; END $guard$";
 const GUARD_ROWS = "DO $guard$ BEGIN IF coalesce(nullif(current_setting('kaspchem.rows', true), ''), '0')::int < 1 THEN RAISE EXCEPTION 'no_rows' USING ERRCODE = 'P0001'; END IF; END $guard$";
@@ -26,22 +26,49 @@ const audit = (actor, action, entity, entityId, detail) => ({ text: AUDIT, param
 const counted = (dml, params) => [{ text: 'WITH u AS (' + dml + ' RETURNING 1) SELECT set_config(\'kaspchem.rows\', (SELECT count(*) FROM u)::text, true)', params }, { text: GUARD_ROWS }];
 
 // ---- running a batch and understanding what went wrong ------------------------------------------------------------------------------------------------------------------
+// What a failure MEANS for the data (F2). A batch is one transaction, so there are only two honest answers, and the code tells the caller which one it is:
+//   NOT SAVED  the database itself reported an error from inside the transaction (a SQLSTATE code): the whole batch was rolled back, nothing is half done. Includes every timeout
+//              (55P03 a lock wait ran out, 57014 a statement ran out, 25P04 the transaction ran out), 40P01 deadlock, 40001 serialization, the guards and the constraints.
+//   UNKNOWN    no answer came from the database: the request or the reply was lost (network), or the service answered with a 5xx, or the connection broke (class 08, 57P01, 57P02). The batch
+//              may or may not have been committed. The caller is told to reload and LOOK before doing anything again; the same save repeated is refused by the data itself afterwards
+//              (preview_stale, engagement_exists, conflict), never doubled.
+// NOTHING here retries: a write is sent once. The message that reaches the log is a fixed label, never the error text (a driver error can carry the connection string).
+const SQLSTATE = /^[0-9A-Z]{5}$/;
+const OUR_ERRORS = /^[a-z][a-z_]{2,40}$/;   // the errors this code base throws itself before anything is sent (db_not_configured, write_statement_not_allowed, ...): plain labels
+function httpStatusOf(msg) { const m = /^Server error \(HTTP status (\d{3})\)/.exec(msg); return m ? Number(m[1]) : null; }
+// true when the failure happened on the way to or from the database and says nothing about what the database did
+function outcomeUnknown(e, code, msg) {
+  if (typeof code === 'string' && SQLSTATE.test(code)) return /^08/.test(code) || code === '57P01' || code === '57P02';
+  if (e && (e.sourceError || e.name === 'AbortError' || e.name === 'TimeoutError')) return true;
+  if (/^Error connecting to database:/.test(msg) || /^(fetch failed|network error|terminated|Connection terminated)/i.test(msg) || /\b(ECONNRESET|ECONNREFUSED|ETIMEDOUT|EPIPE|ENOTFOUND|UND_ERR_[A-Z_]+)\b/.test(msg)) return true;
+  const status = httpStatusOf(msg);
+  return status !== null && status >= 500;
+}
+function logLabel(e, code, msg) {
+  if (typeof code === 'string' && SQLSTATE.test(code)) return 'sqlstate_' + code;
+  const status = httpStatusOf(msg);
+  if (status !== null) return 'http_' + status;
+  return OUR_ERRORS.test(msg) ? msg : 'unclassified';
+}
 function mapError(e) {
   if (e instanceof HttpError) return e;
   const code = e && e.code, msg = String((e && e.message) || '');
   let out;
   if (code === 'P0001' && /snapshot_changed/.test(msg)) out = new HttpError(409, 'preview_stale', 'הנתונים השתנו מאז התצוגה המקדימה. יש להפיק תצוגה חדשה.');
   else if (code === 'P0001' && /no_rows/.test(msg)) { out = new HttpError(409, 'conflict', 'הרשומה השתנתה או אינה מתאימה. יש לרענן ולנסות שוב.'); out.noRows = true; }
-  else if (code === '55P03') out = new HttpError(409, 'busy_retry', 'המערכת עסוקה כרגע. יש לנסות שוב בעוד רגע.');
-  else if (code === '40001' || code === '40P01') out = new HttpError(409, 'conflict_retry', 'הפעולה התנגשה בפעולה אחרת. יש לרענן ולנסות שוב.');
+  else if (code === '55P03') out = new HttpError(409, 'busy_retry', 'המערכת עסוקה כרגע (פעולה אחרת בעיצומה). לא נשמר דבר. יש לנסות שוב בעוד רגע.');
+  else if (code === '57014' || code === '25P04') { logError('catalog.write', { code: 'timeout_' + code }); out = new HttpError(503, 'write_timeout', 'השמירה לקחה יותר מדי זמן ובוטלה. לא נשמר דבר. אפשר לנסות שוב; אם זה חוזר, יש לצמצם את הקובץ או לפנות לתמיכה.'); }
+  else if (code === '40001' || code === '40P01') out = new HttpError(409, 'conflict_retry', 'הפעולה התנגשה בפעולה אחרת. לא נשמר דבר. יש לרענן ולנסות שוב.');
   else if (code === '23505') { out = new HttpError(409, 'duplicate'); out.constraint = e.constraint; }
   else if (code === '23503') out = new HttpError(422, 'bad_reference');
   else if (code === '23514') { out = new HttpError(422, 'rule_violation', 'הפעולה מפרה כלל מובנה של מסד הנתונים (למשל התקשרות פעילה דורשת הסכם חתום, שיתוף פעולה פעיל ומחיר קבוע מקושר).'); out.constraint = e.constraint; }
-  else { logError('catalog.write', e); out = new HttpError(500, 'server_error'); }
+  else if (outcomeUnknown(e, code, msg)) { logError('catalog.write', { code: 'unknown_outcome_' + logLabel(e, code, msg) }); out = new HttpError(502, 'result_unknown', 'לא ידוע אם השמירה הושלמה (התקשורת עם מסד הנתונים נקטעה). אין לשמור שוב לפני שטוענים מחדש ובודקים מה קיים.'); }
+  else { logError('catalog.write', { code: logLabel(e, code, msg) }); out = new HttpError(500, 'server_error'); }
   return out;
 }
-async function run(statements) {
-  try { return await db.writeTransaction(statements); } catch (e) { throw mapError(e); }
+// `profile` is the timeout pair of db.WRITE_TIMEOUTS: 'single' for one record (the default), 'import' for an import.
+async function run(statements, profile) {
+  try { return await db.writeTransaction(statements, { profile: profile || 'single' }); } catch (e) { throw mapError(e); }
 }
 
 // ---- generic compare-and-set UPDATE -------------------------------------------------------------------------------------------------------------------------------------
@@ -130,7 +157,7 @@ function opStatements(o, ids) {
 
 // ctx: { expect (fingerprint of the data the preview was made from), actor, fileSha256, summary, rowsApplied, log (importLog) }
 function importBatch(ops, ids, ctx) {
-  const statements = [{ text: LOCK_TIMEOUT }, { text: TABLE_LOCK }, { text: "SELECT set_config('kaspchem.expect', $1, true)", params: [ctx.expect] }, { text: GUARD_SNAPSHOT }];
+  const statements = [{ text: TABLE_LOCK }, { text: "SELECT set_config('kaspchem.expect', $1, true)", params: [ctx.expect] }, { text: GUARD_SNAPSHOT }];   // run() puts the 'import' timeouts in front of these
   for (const o of ops) statements.push(...opStatements(o, ids));
   statements.push(audit(ctx.actor, 'catalog.import.apply', 'catalog_import', ctx.fileSha256.slice(0, 12), { rows_total: ctx.log.rows_total, rows_applied: ctx.rowsApplied, operations: ctx.summary }));
   const L = ctx.log;
@@ -138,4 +165,4 @@ function importBatch(ops, ids, ctx) {
   return statements;
 }
 
-module.exports = { run, mapError, audit, counted, casUpdate, reserve, reserveIds, importBatch, opStatements, GUARD_SNAPSHOT, GUARD_ROWS, AUDIT, LOG, LOCK_TIMEOUT, TABLE_LOCK, UPD_SERVICE, UPD_PROVIDER, UPD_ENGAGEMENT, UPD_LAYER };
+module.exports = { run, mapError, audit, counted, casUpdate, reserve, reserveIds, importBatch, opStatements, GUARD_SNAPSHOT, GUARD_ROWS, AUDIT, LOG, TABLE_LOCK, UPD_SERVICE, UPD_PROVIDER, UPD_ENGAGEMENT, UPD_LAYER };

@@ -52,16 +52,22 @@ async function world(opts) {
     const level = { ReadCommitted: 'READ COMMITTED', RepeatableRead: 'REPEATABLE READ', Serializable: 'SERIALIZABLE' }[options.isolationLevel] || 'READ COMMITTED';
     await pg.exec('BEGIN ISOLATION LEVEL ' + level + (options.readOnly ? ' READ ONLY' : ''));
     const txRec = { readOnly: options.readOnly, iso: options.isolationLevel, statements: stmts.length }; w.txs.push(txRec);
+    // An injected failure looks like XX000 unless w.failWith says otherwise: { code, message, name, sourceError } is what the error is made of (a database error has a SQLSTATE `code`;
+    // a lost request or reply has none and carries the driver's own text).
+    const injected = (text) => { const f = w.failWith || {}, err = new Error(f.message === undefined ? text : f.message); if (f.name) err.name = f.name; if (f.sourceError) err.sourceError = f.sourceError; if (f.code !== null) err.code = f.code === undefined ? 'XX000' : f.code; return err; };
     try {
+      // EVERY write batch starts with the two timeouts (db.js adds them): checked here so that every write test of the suite also proves it, and what the database really holds is recorded
+      if (!options.readOnly && !(/^SET LOCAL lock_timeout = '\d+ms'$/.test(stmts[0].text) && /^SET LOCAL statement_timeout = '\d+ms'$/.test(stmts[1].text))) throw new Error('fixture: a write batch did not start with the two timeouts');
       const out = [];
       for (let i = 0; i < stmts.length; i++) {
-        if (!options.readOnly && w.failAt === i) { const err = new Error('injected failure at statement ' + i); err.code = 'XX000'; throw err; }
+        if (!options.readOnly && w.failAt === i) throw injected('injected failure at statement ' + i);
         w.rec.push({ kind: 'tx', text: stmts[i].text, params: stmts[i].params, readOnly: options.readOnly, iso: options.isolationLevel, index: i });
         out.push((await pg.query(stmts[i].text, stmts[i].params)).rows);
+        if (!options.readOnly && i === 1) { const t = (await pg.query("SELECT current_setting('lock_timeout') AS lock, current_setting('statement_timeout') AS statement")).rows[0]; txRec.timeouts = t; }
       }
-      if (!options.readOnly && w.failAt === 'commit') { const err = new Error('injected failure before commit'); err.code = 'XX000'; throw err; }
+      if (!options.readOnly && w.failAt === 'commit') throw injected('injected failure before commit');
       await pg.exec('COMMIT');
-      if (!options.readOnly && w.failAfterCommit) { const err = new Error('connection lost after commit'); err.code = 'XX000'; throw err; }
+      if (!options.readOnly && w.failAfterCommit) throw injected('connection lost after commit');
       return out;
     } catch (e) { await pg.exec('ROLLBACK').catch(() => {}); throw e; }
   });

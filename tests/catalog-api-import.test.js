@@ -198,13 +198,14 @@ test('SIZE: a file at the 300-row limit against 300 existing services is preview
   const q = await preview(w, csv); assert.equal(q.rows.filter((x) => x.status === 'new' && !(x.decisions || []).length && x.engagement && x.engagement.action === 'new').length, 0, 'saved rows are not offered again'); await w.pg.close();
 });
 
-test('the SHAPE of an import\'s one transaction: lock timeout, table lock, the fingerprint of what the preview read, the guard, the changes, the audit row, the log row; READ COMMITTED (so the check under the lock sees the latest data); exactly one write transaction', async () => {
+test('the SHAPE of an import\'s one transaction: the two timeouts, table lock, the fingerprint of what the preview read, the guard, the changes, the audit row, the log row; READ COMMITTED (so the check under the lock sees the latest data); exactly one write transaction', async () => {
   const w = await world({ seed: false }); await w.open(); const csv = csvOf([F.ROWS.fixed, F.ROWS.percent]); const p = await preview(w, csv); const fp0 = (await store.readSnapshot()).fingerprint; w.rec.length = 0; w.txs.length = 0;
   assert.equal((await apply(w, csv, p, approvals(p))).status, 200);
   const writes = w.txs.filter((t) => !t.readOnly); assert.equal(writes.length, 1, 'one write transaction'); assert.equal(writes[0].iso, 'ReadCommitted');
   const stmts = w.rec.filter((r) => r.kind === 'tx' && !r.readOnly);
-  assert.equal(stmts[0].text, "SET LOCAL lock_timeout = '4000ms'"); assert.equal(stmts[1].text, 'LOCK TABLE services, professionals, provider_profiles, provider_services, provider_service_prices IN SHARE ROW EXCLUSIVE MODE');
-  assert.match(stmts[2].text, /^SELECT set_config\('kaspchem\.expect', \$1, true\)$/); assert.equal(stmts[2].params[0], fp0, 'the fingerprint travels as a parameter and is the one of the data the preview was made from'); assert.match(stmts[3].text, /^DO \$guard\$ BEGIN IF \(SELECT md5\(/);
+  assert.equal(stmts[0].text, "SET LOCAL lock_timeout = '2000ms'"); assert.equal(stmts[1].text, "SET LOCAL statement_timeout = '5000ms'", 'the import pair of timeouts, first of all');
+  assert.equal(stmts[2].text, 'LOCK TABLE services, professionals, provider_profiles, provider_services, provider_service_prices IN SHARE ROW EXCLUSIVE MODE');
+  assert.match(stmts[3].text, /^SELECT set_config\('kaspchem\.expect', \$1, true\)$/); assert.equal(stmts[3].params[0], fp0, 'the fingerprint travels as a parameter and is the one of the data the preview was made from'); assert.match(stmts[4].text, /^DO \$guard\$ BEGIN IF \(SELECT md5\(/);
   assert.match(stmts[stmts.length - 2].text, /^INSERT INTO audit_log/); assert.match(stmts[stmts.length - 1].text, /^INSERT INTO catalog_imports/); assert.ok(stmts.length > 10);
   assert.ok(w.txs.filter((t) => t.readOnly).every((t) => t.iso === 'RepeatableRead'), 'the reads stay on one consistent snapshot'); await w.pg.close();
 });
