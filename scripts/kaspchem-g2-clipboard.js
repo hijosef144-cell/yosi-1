@@ -1,0 +1,98 @@
+'use strict';
+// G2 stage A2 launcher: runs the three read-only stages of scripts/kaspchem-g2.js (identity, headers, lock-probe) WITHOUT the connection string ever being typed, pasted into a command, put in a file or
+// put in an environment variable. The owner copies it in the Neon console ("Copy snippet"), exactly once, when this script says so; the script
+//   1. waits for text on the Windows clipboard that contains a postgres:// connection string (anything else on the clipboard is left alone and never shown);
+//   2. checks it BEFORE using it: the role must be kaspchem_app, the host a Neon endpoint equal to --expect-endpoint (direct, not a pooler), one database. A connection string that fails is cleared
+//      from the clipboard at once and the reason (never the string) is shown, so a wrong one cannot stay around;
+//   3. clears the clipboard immediately after reading it and reads it back to prove it is gone (if it cannot be cleared the script stops before connecting);
+//   4. keeps the string in memory only and hands it to the G2 tool's own main() for the three stages, in order, stopping at the first one that does not pass (no retry, no repair);
+//   5. forgets it. It is never in process.env (the tool receives a copy of the environment object with the string added), never printed, never written to the state file (the tool redacts it).
+// The tool itself is unchanged: all its identity checks (role, endpoint, database, environment, marker, forbidden endpoints, HTTP guard) still apply. Only these three stages can be run from here; no
+// stage that writes data can be named, and --allow-writes does not exist.
+//
+//   node scripts/kaspchem-g2-clipboard.js --expect-endpoint=ep-... --expect-env=test --marker=<token> [--stages=identity,headers,lock-probe] [--wait-seconds=600] [--state=<file>]
+const { spawnSync } = require('child_process');
+const G = require('./kaspchem-g2.js');
+
+const ALLOWED_STAGES = ['identity', 'headers', 'lock-probe'];
+const URL_IN_TEXT = /postgres(?:ql)?:\/\/[^\s'"`<>]+/i;
+const extractUrl = (text) => { const m = URL_IN_TEXT.exec(String(text || '')); return m ? m[0].replace(/[;,.)]+$/, '') : null; };
+
+// ---- the real Windows clipboard (PowerShell 5.1 is part of Windows). Nothing is ever put on a command line: the commands are constants and the text only travels through the pipe. -------------------
+function windowsClipboard() {
+  const ps = (script) => {
+    const r = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-STA', '-Command', '$ErrorActionPreference = "Stop"; ' + script], { encoding: 'utf8', windowsHide: true, timeout: 20000 });
+    if (r.error || r.status !== 0) throw new Error('clipboard_unavailable');
+    return r.stdout;
+  };
+  return {
+    read: async () => ps('$t = Get-Clipboard -Raw; if ($null -ne $t) { [Console]::Out.Write($t) }'),
+    clear: async () => { ps('Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.Clipboard]::Clear()'); },
+    historyEnabled: () => { try { return ps('(Get-ItemProperty "HKCU:\\Software\\Microsoft\\Clipboard" -ErrorAction SilentlyContinue).EnableClipboardHistory').trim() === '1'; } catch (e) { return null; } },
+  };
+}
+
+function parseArgs(argv) {
+  const a = { stages: ALLOWED_STAGES.slice(), wait: 600 };
+  for (const x of argv) {
+    let m;
+    if (/:\/\/|postgres/i.test(x)) throw new Error('a connection string must never be given on the command line: it is read from the clipboard.');
+    if ((m = /^--(expect-endpoint|expect-env|marker|stages|wait-seconds|state)=(.*)$/.exec(x))) {
+      const k = m[1], v = m[2];
+      if (k === 'expect-endpoint') a.endpoint = v; else if (k === 'expect-env') a.env = v; else if (k === 'marker') a.marker = v; else if (k === 'state') a.state = v;
+      else if (k === 'stages') a.stages = v.split(',').map((s) => s.trim()).filter(Boolean); else a.wait = Number(v);
+    } else throw new Error('unknown option: ' + x.slice(0, 40));
+  }
+  if (!a.endpoint || !/^ep-[a-z0-9-]{3,60}$/.test(a.endpoint)) throw new Error('give --expect-endpoint=ep-... (the endpoint of the CHILD branch).');
+  if (!a.env || !/^[a-z][a-z0-9_-]{0,30}$/.test(a.env) || a.env === 'production') throw new Error('give --expect-env=<value of meta.environment>; "production" is never accepted.');
+  if (!a.marker || !/^[a-z0-9]{12,40}$/.test(a.marker)) throw new Error('give --marker=<the token of the child-branch marker>.');
+  if (!a.stages.length || a.stages.some((s) => !ALLOWED_STAGES.includes(s))) throw new Error('only these stages can be run from here: ' + ALLOWED_STAGES.join(', ') + '.');
+  if (!Number.isFinite(a.wait) || a.wait < 5 || a.wait > 1800) throw new Error('--wait-seconds must be between 5 and 1800.');
+  return a;
+}
+
+// deps (tests): { clipboard, fetch, write, env, clock, sleep, pollMs }. Returns { code, lines, results }: 0 = every stage passed, 1 = a stage failed, 2 = nothing was run.
+async function run(argv, deps) {
+  const d = deps || {}, lines = []; let redact = G.makeRedactor([]);
+  const out = (s) => { const t = redact(s); lines.push(t); (d.write || console.log)(t); };
+  let url = null;
+  try {
+    let args; try { args = parseArgs(argv); } catch (e) { out('REFUSED: ' + e.message + ' Nothing was run.'); return { code: 2, lines, results: [] }; }
+    const clipboard = d.clipboard || windowsClipboard(), clock = d.clock || Date.now, sleep = d.sleep || ((ms) => new Promise((r) => setTimeout(r, ms))), pollMs = d.pollMs || 1500;
+    const history = clipboard.historyEnabled ? await clipboard.historyEnabled() : null;
+    await clipboard.read();   // proves the clipboard can be read before anyone is asked to copy anything
+    out('READY. Stages: ' + args.stages.join(' -> ') + ' on endpoint ' + args.endpoint + ' as kaspchem_app. Nothing is written by these stages.');
+    out('NOW: in the Neon console open the CHILD branch, role kaspchem_app, and press "Copy snippet" for the connection string. Copy nothing else until this script says it has the string. Waiting up to ' + args.wait + ' seconds.');
+    if (history === true) out('NOTE: Windows clipboard history is ON, so the copied string will also be kept in Win+V history. This script clears the clipboard but does not delete your other history items: after the run press Win+V and choose "Clear all".');
+    const start = clock(); let rejected = 0;
+    while (url === null) {
+      if (clock() - start > args.wait * 1000) { out('TIMEOUT: no usable connection string was copied. Nothing was run and the clipboard was not touched.'); return { code: 2, lines, results: [] }; }
+      const found = extractUrl(await clipboard.read());
+      if (found) {
+        let reason = null;
+        try { const c = G.parseConnection(found); if (c.pooler) reason = 'it is a pooled address (use the direct one)'; else if (c.endpoint !== args.endpoint) reason = 'its endpoint is not ' + args.endpoint; } catch (e) { reason = e.message.replace(/^KASPCHEM_G2_DATABASE_URL /, 'the string '); }
+        redact = G.makeRedactor([found]);
+        await clipboard.clear();   // whatever it was, a connection string does not stay on the clipboard
+        if (extractUrl(await clipboard.read())) { out('STOPPED: the clipboard could not be cleared, so nothing was run. Clear it by hand (and Win+V history), then start again.'); return { code: 2, lines, results: [] }; }
+        if (reason) { rejected++; out('REJECTED and cleared from the clipboard: ' + reason + '. Copy the right one (the child branch, role kaspchem_app, direct host).'); redact = G.makeRedactor([]); continue; }
+        url = found; out('GOT IT: the string passed the role and endpoint checks and the clipboard is cleared. You can copy other things again. Running the stages now.');
+        break;
+      }
+      await sleep(pollMs);
+    }
+    const base = d.env || process.env, env = Object.assign({}, base, { KASPCHEM_G2_DATABASE_URL: url }), results = [];   // a COPY with the string in it: process.env itself is never touched
+    for (const stage of args.stages) {
+      const r = await G.main(['--run=' + stage, '--approved-stages=' + stage, '--expect-endpoint=' + args.endpoint, '--expect-env=' + args.env, '--marker=' + args.marker].concat(args.state ? ['--state=' + args.state] : []), env, { fetch: d.fetch, write: out, now: d.now });
+      results.push([stage, r.code]);
+      if (r.code !== 0) { out('STOPPED at stage ' + stage + ' (exit ' + r.code + '). No retry and no repair. The stages after it were not run.'); return { code: r.code === 2 ? 2 : 1, lines, results }; }
+    }
+    out('A2 RESULT: PASS (' + results.map((x) => x[0]).join(', ') + '). The connection string was held in memory only and is gone.' + (rejected ? ' (' + rejected + ' wrong string(s) were rejected and cleared first.)' : ''));
+    return { code: 0, lines, results };
+  } catch (e) {
+    out('STOPPED: ' + (e && e.message === 'clipboard_unavailable' ? 'the Windows clipboard could not be read.' : 'unexpected error - ' + String((e && e.message) || '').slice(0, 120)));
+    return { code: 2, lines, results: [] };
+  } finally { url = null; }
+}
+
+module.exports = { run, parseArgs, extractUrl, windowsClipboard, ALLOWED_STAGES };
+if (require.main === module) run(process.argv.slice(2)).then((r) => process.exit(r.code), () => { console.error('STOPPED: unexpected failure.'); process.exit(2); });
