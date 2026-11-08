@@ -21,7 +21,7 @@ function emulator(pg, opts) {
   const failure = (e) => json(400, { message: e.message + (o.leak ? ' ' + o.leak : ''), severity: e.severity || 'ERROR', code: e.code, detail: e.detail, hint: e.hint, constraint: e.constraint, table: e.table, column: e.column });
   async function fetch(url, init) {
     const body = JSON.parse(init.body), h = init.headers || {};
-    requests.push({ url: String(url), batch: Array.isArray(body.queries), readOnly: String(h['Neon-Batch-Read-Only']) === 'true', isolation: h['Neon-Batch-Isolation-Level'] || null, statements: (Array.isArray(body.queries) ? body.queries : [body]).map((q) => q.query) });
+    requests.push({ url: String(url), batch: Array.isArray(body.queries), readOnly: String(h['Neon-Batch-Read-Only']) === 'true', isolation: h['Neon-Batch-Isolation-Level'] || null, statements: (Array.isArray(body.queries) ? body.queries : [body]).map((q) => q.query), params: (Array.isArray(body.queries) ? body.queries : [body]).map((q) => q.params || []) });
     if (o.onRequest) await o.onRequest(body, h);
     if (o.respond) { const forced = await o.respond(body, h); if (forced) return forced; }   // a test can make the service answer something it would not (a success where a failure is due, a wrong code)
     if (!Array.isArray(body.queries)) { try { return json(200, await one(body)); } catch (e) { return failure(e); } }

@@ -227,16 +227,91 @@ stage('atomic-rollback', { kind: 'write', raw: [CONTENT_SQL, SEQ_SQL, CONTROL_SQ
   } });
 
 const importCtx = (c, rows, expect) => ({ expect, actor: ACTOR, fileSha256: crypto.createHash('sha256').update(c.runId + 'x').digest('hex'), summary: {}, rowsApplied: rows, log: { source: 'csv', file_sha256: crypto.createHash('sha256').update(c.runId + 'x').digest('hex'), rows_total: rows.length, rows_created: rows.length, rows_updated: 0, rows_skipped: 0, problems: [], imported_by: ACTOR } });
-stage('atomic-guard', { kind: 'write', raw: [COUNTS_SQL], needs: ['atomic-rollback'], title: 'the import guard: a wrong fingerprint stops the import and nothing is written', plan: ['build the import batch for one new service with a fingerprint that is NOT the data\'s', 'the batch takes the table lock, the guard raises snapshot_changed (P0001): the whole batch is rolled back', 'counts equal; a normal write still works afterwards (the lock is not left behind)'],
+// ---- C3: atomic-guard. The import guard is the third thing the real import batch does, right after the table lock and the setting of the expected fingerprint: it compares the fingerprint of the data the preview was
+// made from ("expect") with the fingerprint of the data NOW and raises snapshot_changed (P0001) when they differ, BEFORE any write statement of the batch has run. Three batches are sent through the real write path
+// (db.writeTransaction with the import timeouts, one POST each), each with an expect that is NOT the data's: a WRONG one (32 zeros) and an OLD one (the fingerprint the identity stage recorded before atomic-control
+// existed), the second one also with the full 2-row import (every table the import writes). Before any of that, in memory only, the import planner's own conflict check is shown: the same plan on a snapshot that has
+// moved is refused (snapshot_changed) and no batch is even built. Nothing may be kept by the three batches (counts and content hashes of the 10 tables the role can read), the sequences are reported APART (an id that
+// was reserved is never given back; the writes themselves never ran, so the audit and import-log sequences stay), and the LAST step is ONE ordinary write (one inactive synthetic service + its audit row): the proof
+// that no lock was left behind, and the ONLY change of rows this stage may make. BEFORE EVERY send (the four of them) the stage waits for an outside check to release that one, then reads the rows once more.
+// It stops at the first thing that is not exactly as expected (a batch that succeeds, an error without an SQLSTATE = unknown outcome, another code or message, changed rows, a surprising sequence): no retry.
+const GUARD_SEQS = ['services_id_seq', 'professionals_id_seq', 'audit_log_id_seq', 'catalog_imports_id_seq'];
+const GUARD_SEQ_SQL = "SELECT sequencename, last_value FROM pg_sequences WHERE schemaname = 'public' AND sequencename IN ('services_id_seq', 'professionals_id_seq', 'audit_log_id_seq', 'catalog_imports_id_seq')";
+const FP_HEX = /^[0-9a-f]{32}$/;
+const readContent = async (c) => JSON.parse((await c.q(CONTENT_SQL))[0].content);
+const sameContent = (a, b) => TABLES.every((t) => a[t] && b[t] && a[t].rows === b[t].rows && a[t].md5 === b[t].md5);
+const differingTables = (a, b) => TABLES.filter((t) => !a[t] || !b[t] || a[t].rows !== b[t].rows || a[t].md5 !== b[t].md5);
+async function readGuardSeqs(c) { try { const rows = await c.q(GUARD_SEQ_SQL); const o = Object.fromEntries(rows.map((r) => [r.sequencename, r.last_value === null || r.last_value === undefined ? null : Number(r.last_value)])); return GUARD_SEQS.every((n) => n in o) ? o : null; } catch (e) { return null; } }
+const seqMoved = (a, b, n) => (b[n] === null || b[n] === undefined ? 0 : b[n]) - (a[n] === null || a[n] === undefined ? 0 : a[n]);   // never used = 0 (a sequence that has not been called reports no value)
+stage('atomic-guard', { kind: 'write', raw: [CONTENT_SQL, GUARD_SEQ_SQL, CONTROL_SQL, store.FINGERPRINT_SQL], needs: ['atomic-rollback'], title: 'the import guard: a WRONG or an OLD fingerprint stops the import before any write (three batches, nothing is kept), then one ordinary write',
+  plan: ['first: the starting point must be the state after atomic-rollback (the state after atomic-control: identity counts + 1 service + 1 audit row, the control service present and inactive, services_id_seq and audit_log_id_seq exactly where atomic-rollback left them)',
+    'the OLD fingerprint is the one the identity stage recorded before atomic-control: it must differ from the data\'s fingerprint now, otherwise the test would prove nothing and nothing is sent',
+    'in memory, before any write (a conflict is detected BEFORE saving): a 2-row synthetic import is previewed and planned; the same plan against a snapshot that has moved is refused by the import planner (snapshot_changed) and no batch is built',
+    'scenario 1: the real import batch (table lock, expected fingerprint, guard, then the writes) with a WRONG fingerprint (32 zeros): the guard raises snapshot_changed (P0001) before any write runs: 409 preview_stale',
+    'scenario 2: the same batch with the OLD fingerprint',
+    'scenario 3: the whole 2-row import batch (services, providers, profiles, engagements, price layers, the audit row, the import log) with the OLD fingerprint: stopped by the guard, no table gets a row',
+    'after each: counts and content hashes of the 10 tables equal the start; the sequences reported apart (services_id_seq +1, +1, +2; professionals_id_seq +0, +0, +2; audit_log_id_seq and catalog_imports_id_seq +0: the writes never ran)',
+    'last: ONE ordinary write (one inactive service + its audit row) proves no lock was left behind; it is the only change of rows the stage may make (services +1, audit_log +1, nothing else; services_id_seq +1, audit_log_id_seq +1)',
+    'before EVERY send (the four of them) the stage waits for an independent check to release it, then re-reads the rows once more; it stops at anything unexpected, with no retry'],
   async run(c) {
-    const { W, db } = c.product, ids = new Map([['s1', (await W.reserve('service', 1))[0]]]);
-    const batch = W.importBatch([{ op: 'create_service', ref: 's1', name: c.runId + '-guard', topic: 'g2', description: null, active: false, source_row: 2 }], ids, importCtx(c, [2], '0'.repeat(32)));
-    const before = (await c.q(COUNTS_SQL))[0], r = await attempt(() => db.writeTransaction(batch, { profile: 'import' })), info = r.ok ? null : errInfo(r.error);
-    c.check('the server answers P0001 (snapshot_changed)', !r.ok && info.code === 'P0001' && /snapshot_changed/.test(String(r.error.message)), r.ok ? 'it succeeded' : JSON.stringify(info));
-    if (!r.ok) { const m = W.mapError(r.error); c.check('mapped to 409 preview_stale', m.status === 409 && m.code === 'preview_stale', m.status + ' ' + m.code); }
-    c.check('nothing was kept (services, catalog_imports, audit_log and the rest)', sameCounts(before, (await c.q(COUNTS_SQL))[0]), JSON.stringify(delta(before, (await c.q(COUNTS_SQL))[0])));
-    const [sid] = await W.reserve('service', 1); const w = await attempt(() => W.run([{ text: svcInsert, params: [sid, c.runId + '-after-guard', 'g2', null] }, W.audit(ACTOR, 'g2.after_guard', 'service', sid, {})]));
-    c.check('and an ordinary write works straight afterwards (no lock left behind)', w.ok, w.ok ? '' : JSON.stringify(errInfo(w.error))); if (w.ok) c.note('created', { service_id: sid });
+    const { W, db, store: S, Imp } = c.product, F = require(path.join(ROOT, 'tests', 'fixtures', 'catalog-demo.js'));
+    const idn = c.prior('identity'), ctl = c.prior('atomic-control'), rb = c.prior('atomic-rollback'), left = rb && rb.sequences_after_scenario_3;
+    if (!c.check('the earlier stages are on record (identity counts and fingerprint, the atomic-control service, where atomic-rollback left the sequences)', !!(idn && idn.counts && FP_HEX.test(String(idn.fingerprint)) && ctl && ctl.created && ctl.created.service_id && left && left.services_id_seq && left.audit_log_id_seq), 'the state file has no notes of them')) return;
+    const base = await readContent(c), want = Object.assign({}, idn.counts, { services: idn.counts.services + 1, audit_log: idn.counts.audit_log + 1 });
+    if (!c.check('the starting point is the state after atomic-rollback: services ' + want.services + ', audit_log ' + want.audit_log + ', every other table as at the identity stage', TABLES.every((t) => base[t] && base[t].rows === want[t]), JSON.stringify(TABLES.filter((t) => !base[t] || base[t].rows !== want[t]).map((t) => [t, base[t] && base[t].rows, want[t]])))) return;
+    if (!c.check('the atomic-control service exists and is inactive', (await c.q(CONTROL_SQL, [String(ctl.created.service_id)]))[0].n === 1, 'it is not there')) return;
+    let seq = await readGuardSeqs(c);
+    if (!c.check('the sequences can be read, and services_id_seq and audit_log_id_seq are exactly where atomic-rollback left them (' + left.services_id_seq[1] + ' and ' + left.audit_log_id_seq[1] + ')', !!seq && seq.services_id_seq === left.services_id_seq[1] && seq.audit_log_id_seq === left.audit_log_id_seq[1], JSON.stringify(seq))) return;
+    const nowFp = (await c.q(S.FINGERPRINT_SQL))[0].fingerprint, oldFp = idn.fingerprint;
+    if (!c.check('the OLD fingerprint (recorded at the identity stage) is not the fingerprint of the data now, so it really is out of date', FP_HEX.test(String(nowFp)) && nowFp !== oldFp, 'they are the same: the test would prove nothing, nothing is sent')) return;
+    c.note('start', { rows: Object.fromEntries(TABLES.map((t) => [t, base[t].rows])), sequences: seq });
+    // -- in memory: the plan of a 2-row import, and the planner's own refusal when the data has moved (no request below this line writes anything)
+    const snap = await S.readSnapshot(), csv = F.csv([F.row(rowOf(c, F, 11)), F.row(rowOf(c, F, 12))]), preview = Imp.buildPreview({ csv, existing: snap.snapshot, maxRows: 300 });
+    if (!c.check('the 2-row file is usable and both rows are new', preview.ok && preview.rows.filter((r) => r.status === 'new').length === 2, JSON.stringify(preview.fileProblems || preview.rows.map((r) => r.status)))) return;
+    const rows = {}; for (const r of preview.rows) if (!['skipped', 'problem', 'unchanged'].includes(r.status) && !(r.decisions || []).length) rows[r.rowNumber] = { apply: true, accept: r.changes.filter((x) => !x.manual && !x.blocked).map((x) => x.id), acceptManual: [], confirmed: r.needsConfirmation };
+    if (!c.check('both rows can be approved without a manual decision', Object.keys(rows).length === 2, JSON.stringify(preview.rows.map((r) => [r.status, (r.decisions || []).length])))) return;
+    const plan = Imp.planApply(preview, { rows }, snap.snapshot, { actor: ACTOR, previewId: preview.previewId }); if (!c.check('while the data is as the preview saw it the plan is accepted', plan.ok, plan.reason)) return;
+    Imp.assertSafe(plan.operations);
+    const moved = Object.assign({}, snap.snapshot, { services: snap.snapshot.services.concat([{ id: '9223372036854775001', name: 'g2 moved', topic: 'g2', description: null, public_price: false }]) }), stale = Imp.planApply(preview, { rows }, moved, { actor: ACTOR, previewId: preview.previewId });
+    if (!c.check('CONFLICT DETECTED BEFORE SAVING: the same plan against a snapshot that has moved is refused (snapshot_changed) and produces no operation, so no batch is built', stale.ok === false && stale.reason === 'snapshot_changed' && stale.operations.length === 0, JSON.stringify([stale.ok, stale.reason, stale.operations && stale.operations.length]))) return;
+    const applied = Array.from(new Set(plan.operations.map((o) => o.source_row))).sort((a, b) => a - b);
+    const scenarios = [
+      { label: 'scenario 1 (a WRONG fingerprint: 32 zeros)', moved: { services_id_seq: 1 }, build: async () => W.importBatch([{ op: 'create_service', ref: 's1', name: c.runId + '-guard1', topic: 'g2', description: null, active: false, source_row: 2 }], new Map([['s1', (await W.reserve('service', 1))[0]]]), importCtx(c, [2], '0'.repeat(32))) },
+      { label: 'scenario 2 (an OLD fingerprint)', moved: { services_id_seq: 1 }, build: async () => W.importBatch([{ op: 'create_service', ref: 's1', name: c.runId + '-guard2', topic: 'g2', description: null, active: false, source_row: 2 }], new Map([['s1', (await W.reserve('service', 1))[0]]]), importCtx(c, [2], oldFp)) },
+      { label: 'scenario 3 (the whole 2-row import with an OLD fingerprint)', moved: { services_id_seq: 2, professionals_id_seq: 2 }, build: async () => W.importBatch(plan.operations, await W.reserveIds(plan.operations), { expect: oldFp, actor: ACTOR, fileSha256: preview.fileSha256, summary: plan.summary, rowsApplied: applied, log: Imp.importLog(preview, plan, ACTOR) }) },
+    ];
+    for (let i = 0; i < scenarios.length; i++) {
+      const s = scenarios[i];
+      // an independent check holds back EVERY send, the first included; then, just before sending, the stage looks once more
+      const go = await c.pause('before guard scenario ' + (i + 1)); if (!c.check('the independent check released scenario ' + (i + 1), go === true, 'it was not released: the stage stops here, nothing else is sent')) return;
+      if (!c.check('just before sending scenario ' + (i + 1) + ' the rows are still exactly those of the start', sameContent(base, await readContent(c)), 'they are different now: nothing is sent')) return;
+      const batch = await s.build(), r = await attempt(() => db.writeTransaction(batch, { profile: 'import' })), info = r.ok ? null : errInfo(r.error);
+      if (r.ok) { c.check(s.label + ': the guard stops the batch', false, 'IT SUCCEEDED. The stage stops: check what was kept before anything else'); return; }
+      if (!info.code) { c.check(s.label + ': the server answers with an SQLSTATE', false, 'no SQLSTATE: the outcome is UNKNOWN. The stage stops here, nothing else is sent, no retry: check what was kept before anything else'); return; }
+      if (!c.check(s.label + ': the server answers P0001', info.code === 'P0001', JSON.stringify(info))) return;
+      if (!c.check(s.label + ': and the message is the guard\'s own (snapshot_changed), not another P0001', /snapshot_changed/.test(String(r.error.message)) && !/no_rows/.test(String(r.error.message)), String(r.error.message).slice(0, 80))) return;
+      const m = W.mapError(r.error); if (!c.check(s.label + ': mapped to 409 preview_stale', m.status === 409 && m.code === 'preview_stale', m.status + ' ' + m.code)) return;
+      c.note('error_shape_' + (i + 1), { code: info.code, has_code: typeof r.error.code === 'string', name: r.error.name, statements_in_batch: batch.length + 2, first_after_timeouts: ['LOCK TABLE', 'set_config', 'DO $guard$'].every((x, k) => String(batch[k].text).includes(x)) });
+      const now = await readContent(c);
+      if (!c.check(s.label + ': ROWS unchanged: all 10 readable tables have the same count and content hash as at the start', sameContent(base, now), 'different: ' + differingTables(base, now).join(', '))) return;
+      const after = await readGuardSeqs(c); if (!c.check(s.label + ': the sequences can still be read', !!after, 'they cannot')) return;
+      c.note('sequences_after_scenario_' + (i + 1), Object.fromEntries(GUARD_SEQS.map((n) => [n, [seq[n], after[n]]])));
+      for (const n of GUARD_SEQS) if (!c.check(s.label + ': SEQUENCES (apart from the rows): ' + n + ' advanced by exactly ' + (s.moved[n] || 0) + (s.moved[n] ? ' (reserved ids are not rolled back)' : ' (nothing was written, nothing was used)'), seqMoved(seq, after, n) === (s.moved[n] || 0), 'advanced by ' + seqMoved(seq, after, n))) return;
+      seq = after;
+    }
+    // -- the last step: one ordinary write. It is the only change of rows this stage may make, and it proves that no lock was left behind.
+    const goW = await c.pause('before the ordinary write'); if (!c.check('the independent check released the ordinary write', goW === true, 'it was not released: the stage stops here, nothing else is sent')) return;
+    if (!c.check('just before the ordinary write the rows are still exactly those of the start', sameContent(base, await readContent(c)), 'they are different now: nothing is sent')) return;
+    const [sid] = await W.reserve('service', 1), w = await attempt(() => W.run([{ text: svcInsert, params: [sid, c.runId + '-after-guard', 'g2', null] }, W.audit(ACTOR, 'g2.after_guard', 'service', sid, { run: c.runId })])), wr = c.guard.records[c.guard.records.length - 1];   // the write itself: taken before any other request is made
+    if (!w.ok) { c.check('an ordinary write works straight afterwards (no lock left behind)', false, (w.error && w.error.status === 502 ? 'UNKNOWN outcome (no answer from the database): check what was kept before anything else. ' : '') + JSON.stringify({ status: w.error && w.error.status, code: w.error && w.error.code })); return; }
+    c.check('an ordinary write works straight afterwards (no lock was left behind): one request, 4 statements, the single-record timeouts first', wr.kind === 'batch' && wr.statements === 4 && wr.first[0] === "SET LOCAL lock_timeout = '1500ms'" && wr.first[1] === "SET LOCAL statement_timeout = '4000ms'", JSON.stringify(wr));
+    const end = await readContent(c), others = TABLES.filter((t) => t !== 'services' && t !== 'audit_log');
+    c.check('ROWS: the ONLY change is that write: services +1 and audit_log +1; the other eight readable tables (providers, provider profiles, engagements, price layers, service settings, pricing, settings, import log) have the same count and content hash as at the start', end.services.rows === base.services.rows + 1 && end.audit_log.rows === base.audit_log.rows + 1 && others.every((t) => end[t].rows === base[t].rows && end[t].md5 === base[t].md5), 'different: ' + differingTables(base, end).join(', '));
+    c.check('and the new service exists, is inactive and is a g2 one', (await c.q(CONTROL_SQL, [String(sid)]))[0].n === 1, 'it is not as expected');
+    const last = await readGuardSeqs(c), expectLast = { services_id_seq: 1, audit_log_id_seq: 1 };
+    c.note('sequences_after_ordinary_write', last ? Object.fromEntries(GUARD_SEQS.map((n) => [n, [seq[n], last[n]]])) : null);
+    for (const n of GUARD_SEQS) c.check('SEQUENCES (apart from the rows) after the ordinary write: ' + n + ' advanced by exactly ' + (expectLast[n] || 0), !!last && seqMoved(seq, last, n) === (expectLast[n] || 0), last ? 'advanced by ' + seqMoved(seq, last, n) : 'unreadable');
+    c.note('created', { service_id: sid }); c.note('rows_end', Object.fromEntries(TABLES.map((t) => [t, end[t].rows])));
   } });
 
 // Synthetic rows. The import tells apart "similar" names and asks for a decision on them; the two rows must therefore have nothing in common but the g2- prefix that marks them as ours.
