@@ -57,7 +57,7 @@ function mapValue(kind, raw, table, manualTable, custom) {
 const MANUAL_FLAG = { contact: 'file_says_collaboration_active_needs_manual', agreement: 'file_says_signed_needs_manual', activation: 'file_says_active_needs_manual' };   // R1, R2: what the file says but only a person may set
 const CONFIRM_FLAGS = ['phone_restored'].concat(Object.values(MANUAL_FLAG));   // the owner must say "yes, I looked" before a row carrying one is applied
 const SENSITIVE = new Set(['contact_state', 'agreement_state', 'activation', 'pricing_model', 'amount', 'percent_low', 'percent_high', 'minimum_amount', 'model', 'contact_phone', 'contact_email']);
-const LIMITS = { name: 200, business: 200 };
+const LIMITS = { name: 200, business: 200, note: 1000 };
 const isImportActor = (who) => typeof who === 'string' && who.startsWith('import:');
 const isManual = (who) => !isImportActor(who);   // unknown provenance is protected too
 
@@ -91,7 +91,7 @@ function parseRow(obj, mappings) {
     set('contact', 'contact', CONTACT, CONTACT_MANUAL, 'contact_state'); set('agreement', 'agreement', AGREEMENT, AGREEMENT_MANUAL, 'agreement_state'); set('activation', 'activation', ACTIVATION, ACTIVATION_MANUAL, 'activation');
     if (has('activation') && !T.valueKey(c.activation) && !('activation' in eng)) eng.activation = 'draft';   // R1: an empty status is a draft
     if (has('direction') && T.valueKey(c.direction) && !DIRECTION_OK.has(T.valueKey(c.direction))) bad('unsupported_direction', 'direction', { value: String(c.direction).slice(0, 60) });
-    if (has('notes') && T.verbatim(c.notes)) eng.terms_note = T.verbatim(c.notes);   // R4: word for word
+    if (has('notes') && T.verbatim(c.notes)) { eng.terms_note = T.verbatim(c.notes); if (eng.terms_note.length > LIMITS.note) bad('text_too_long', 'terms_note', { length: eng.terms_note.length, max: LIMITS.note }); }   // R4: word for word, never cut: too long is a problem
     const pr = P.classifyPricing({ price: has('price') ? c.price : undefined, pricingMode: has('pricingMode') ? c.pricingMode : undefined, priceTerms: has('priceTerms') ? c.priceTerms : undefined, priceSource: has('priceSource') ? c.priceSource : undefined, priceDate: has('priceDate') ? c.priceDate : undefined });
     pr.problems.forEach((p) => problems.push(Object.assign({}, p)));
     pr.warnings.forEach((w) => warnings.push(w)); pr.flags.forEach((f) => flags.push(f));
@@ -160,6 +160,9 @@ function buildPreview(input) {
   base.fileProblems.push(...header.problems); base.warnings.push(...header.warnings); base.unknownColumns = header.unknown; base.headerNumber = header.headerNumber;
   if (header.problems.length) return finish(Object.assign(base, { ok: false, summary: emptySummary() }));
   const objs = CSV.rowObjects(parsed.rows, header);
+  // a limit on the work one import may ask for (rows with something in them; trailing empty rows of a spreadsheet export do not count); checked before any row is looked at
+  const filled = objs.filter((o) => !o.blank).length;
+  if (input.maxRows !== undefined && filled > input.maxRows) { base.fileProblems.push({ code: 'too_many_rows', rows: filled, max: input.maxRows }); return finish(Object.assign(base, { ok: false, summary: emptySummary() })); }
 
   const parsedRows = objs.map((o) => parseRow(o, input.mappings));
   // R9: the same sheet id twice, or the same provider and service twice, are errors on every row involved
@@ -177,7 +180,11 @@ function buildPreview(input) {
     const svcMatch = Sim.matchName(rec.service.name, existing.services);
     if (svcMatch.exact.length > 1) problems.push({ code: 'ambiguous_existing_service', field: 'service' });
     if (svcMatch.exact.length === 1) { const ex = svcMatch.exact[0]; row.service = { action: 'existing', id: ex.id };
-      if (rec.service.topic !== undefined && rec.service.topic !== null && !eqKey(ex.topic, rec.service.topic)) changes.push(change('service', 'topic', ex.topic, rec.service.topic, { manual: isManual(ex.updated_by) }));
+      if (rec.service.topic !== undefined && rec.service.topic !== null && !eqKey(ex.topic, rec.service.topic)) {
+        const ch = change('service', 'topic', ex.topic, rec.service.topic, { manual: isManual(ex.updated_by) });
+        if (ex.public_price === true) ch.blocked = 'service_has_public_price';   // a service tied to a price the public site shows keeps its name and topic: the change is shown but cannot be approved
+        changes.push(ch);
+      }
       if (rec.service.description !== undefined && !eqText(ex.description, rec.service.description)) changes.push(change('service', 'description', ex.description, rec.service.description, { manual: isManual(ex.updated_by) })); }
     else {
       const earlier = newServices.find((s) => s.key === rec.service.key);
@@ -293,6 +300,7 @@ function planApply(preview, approvals, existingNow, opts) {
     for (const ch of row.changes) {
       if (ch.entity === 'layer' && ch.field === 'create') continue;   // handled with the engagement below
       if (ch.manual ? !acceptManual.has(ch.id) : !accept.has(ch.id)) continue;
+      if (ch.blocked) { no('change_blocked', { id: ch.id, why: ch.blocked }); continue; }   // approving a blocked change refuses the whole plan
       if (ch.entity === 'service') { if ('id' in svc) myOps.push({ op: 'update_service', id: svc.id, set: { [ch.field]: ch.new }, source_row: row.rowNumber }); }
       else if (ch.entity === 'provider') { if (prov && 'id' in prov) myOps.push({ op: 'update_provider', id: prov.id, set: { [ch.field]: ch.new }, source_row: row.rowNumber }); }
       else if (ch.entity === 'engagement') myOps.push({ op: 'update_engagement', key: row.engagement.key, set: { [ch.field]: ch.new }, updated_by: stamp, source_row: row.rowNumber });

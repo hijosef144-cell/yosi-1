@@ -9,6 +9,7 @@ const { HttpError } = require('./http');
 const States = require('./catalog/states.js');
 const Sim = require('./catalog/similarity.js');
 const Imp = require('./catalog/import.js');
+const serviceGuard = require('./service-guard');
 
 let clock = () => new Date();
 const setClock = (fn) => { clock = fn || (() => new Date()); };
@@ -31,7 +32,7 @@ async function overview() {
     { text: 'SELECT count(*)::int AS total, (count(*) FILTER (WHERE pp.archived_at IS NOT NULL))::int AS archived, (count(*) FILTER (WHERE pp.archived_at IS NULL AND pp.paused_until > now()))::int AS paused FROM professionals p LEFT JOIN provider_profiles pp ON pp.professional_id = p.id' },
     { text: 'SELECT activation AS k, count(*)::int AS n FROM provider_services GROUP BY activation ORDER BY activation' },
     { text: 'SELECT pricing_model AS k, count(*)::int AS n FROM provider_services GROUP BY pricing_model ORDER BY pricing_model' },
-    { text: 'SELECT id::text AS id, source, file_sha256, rows_total, rows_created, rows_updated, rows_skipped, jsonb_array_length(problems)::int AS problems, imported_by, created_at FROM catalog_imports ORDER BY id DESC LIMIT 1' },
+    { text: 'SELECT id::text AS id, source, file_sha256, rows_total, rows_created, rows_updated, rows_skipped, jsonb_array_length(problems)::int AS problems, imported_by, created_at FROM catalog_imports ORDER BY catalog_imports.id DESC LIMIT 1' },
     { text: 'SELECT count(*)::int AS n FROM services s LEFT JOIN service_settings ss ON ss.service_id = s.id WHERE coalesce(ss.legal_cleared, false) = false' },
   ]);
   const group = (rows) => Object.fromEntries(rows.map((r) => [r.k, r.n]));
@@ -58,7 +59,7 @@ async function getService(id) {
   const [svc, engs, names] = await rdTx([
     { text: 'SELECT s.id::text AS id, s.name, s.topic, s.description, s.active, s.created_at, ss.code, ss.finding_tags, ss.topics AS settings_topics, ss.share_questions, coalesce(ss.legal_cleared, false) AS legal_cleared, ss.legal_cleared_by, ss.legal_cleared_at, ss.legal_note, coalesce(ss.offered, false) AS offered FROM services s LEFT JOIN service_settings ss ON ss.service_id = s.id WHERE s.id = $1::bigint', params: [id] },
     { text: 'SELECT ps.professional_id::text AS provider_id, p.name AS provider_name, ps.activation, ps.contact_state, ps.agreement_state, ps.pricing_model, ps.external_ref FROM provider_services ps JOIN professionals p ON p.id = ps.professional_id WHERE ps.service_id = $1::bigint ORDER BY p.name, ps.professional_id', params: [id] },
-    { text: 'SELECT id::text AS id, name FROM services ORDER BY id' },
+    { text: 'SELECT id::text AS id, name FROM services ORDER BY services.id' },
   ]);
   if (!svc.length) throw new HttpError(404, 'not_found');
   const s = svc[0];
@@ -120,30 +121,47 @@ const ENGAGEMENT_ONE = 'SELECT ps.professional_id::text AS provider_id, p.name A
   'LEFT JOIN provider_profiles pp ON pp.professional_id = ps.professional_id LEFT JOIN pricing pr ON pr.id = ps.pricing_id WHERE ps.professional_id = $1::bigint AND ps.service_id = $2::bigint';
 const LAYERS_ONE = 'SELECT kind, model, amount::float8 AS amount, percent_low::float8 AS percent_low, percent_high::float8 AS percent_high, minimum_amount::float8 AS minimum_amount, terms_text, status, basis_missing, source_note, source_date::text AS source_date, recorded_by, updated_at ' +
   'FROM provider_service_prices WHERE professional_id = $1::bigint AND service_id = $2::bigint ORDER BY kind';
-async function getEngagement(providerId, serviceId) {
+// The engagement as the state machine sees it: the row, its layers, the engagement object and the context that States.checklist / States.act need (also used by the lifecycle routes).
+async function loadEngagement(providerId, serviceId) {
   const [eng, layers] = await rdTx([{ text: ENGAGEMENT_ONE, params: [providerId, serviceId] }, { text: LAYERS_ONE, params: [providerId, serviceId] }]);
-  if (!eng.length) throw new HttpError(404, 'not_found');
-  const r = eng[0], pricingId = num(r.pricing_id);
-  const list = States.checklist({ agreement_state: r.agreement_state, contact_state: r.contact_state, pricing_model: r.pricing_model, pricing_id: pricingId },
-    { service: { legal_cleared: r.service_legal_cleared, finding_tags: r.service_finding_tags, topics: r.service_topics }, provider: { paused_until: r.provider_paused_until, archived_at: r.provider_archived_at },
-      pricing: r.price_id === null ? null : { approved: r.price_approved === true }, now: clock() });
+  if (!eng.length) return null;
+  const r = eng[0], now = clock();
+  const e = { activation: r.activation, agreement_state: r.agreement_state, contact_state: r.contact_state, pricing_model: r.pricing_model, pricing_id: num(r.pricing_id) };
+  const ctx = { service: { legal_cleared: r.service_legal_cleared, finding_tags: r.service_finding_tags, topics: r.service_topics }, provider: { paused_until: r.provider_paused_until, archived_at: r.provider_archived_at },
+    pricing: r.price_id === null ? null : { approved: r.price_approved === true }, now };
+  // what the owner saw when deciding: a fingerprint of everything the activation checklist depends on. "Activate" must send it back; if anything moved in between, the answer is "look again".
+  const seen = Imp.digest({ activation: r.activation, agreement: r.agreement_state, contact: r.contact_state, model: r.pricing_model, pricing_id: e.pricing_id, price: r.price_value, price_approved: r.price_approved === true,
+    cleared: r.service_legal_cleared, tags: r.service_finding_tags, topics: r.service_topics, archived: !!r.provider_archived_at, paused: r.provider_paused_until ? new Date(r.provider_paused_until) > now : false });
+  return { r, layers, e, ctx, list: States.checklist(e, ctx), seen };
+}
+async function getEngagement(providerId, serviceId) {
+  const loaded = await loadEngagement(providerId, serviceId);
+  if (!loaded) throw new HttpError(404, 'not_found');
+  const { r, layers, list, seen } = loaded;
   const byKind = { market: null, provider_offer: null, unclassified: null };
   for (const l of layers) byKind[l.kind] = { model: l.model, amount: l.amount, percent_low: l.percent_low, percent_high: l.percent_high, minimum_amount: l.minimum_amount, terms_text: l.terms_text, status: l.status, basis_missing: l.basis_missing, source_note: l.source_note, source_date: l.source_date, recorded_by: l.recorded_by, updated_at: l.updated_at };
   return {
     engagement: { provider_id: num(r.provider_id), provider_name: r.provider_name, service_id: num(r.service_id), service_name: r.service_name, service_topic: r.service_topic, activation: r.activation, contact_state: r.contact_state, agreement_state: r.agreement_state, pricing_model: r.pricing_model, external_ref: r.external_ref, priority: r.priority, terms_note: r.terms_note, paused_reason: r.paused_reason, retired_reason: r.retired_reason, retired_at: r.retired_at, updated_by: r.updated_by, updated_at: r.updated_at },
     price_layers: byKind,
     approved_price: r.price_id === null ? null : { id: num(r.price_id), label: r.price_label, price: r.price_value, approved: r.price_approved === true, public: r.price_public === true },
-    checklist: { items: list.items.map((i) => ({ key: i.key, label: i.label, ok: i.ok, blocking: i.blocking, enforced: i.enforced })), missing: list.missing, can_activate: list.canActivate, documented_only: list.documentedOnly },
+    checklist: { items: list.items.map((i) => ({ key: i.key, label: i.label, ok: i.ok, blocking: i.blocking, enforced: i.enforced })), missing: list.missing, can_activate: list.canActivate, documented_only: list.documentedOnly, seen },
   };
+}
+
+// ---- history: the audit rows the catalog wrote (read only) -----------------------------------------------------------------------------------------------------------
+// Every catalog write puts its audit row in the same transaction as the change. The details hold field names and non-personal values only; never a contact detail.
+async function listHistory(q) {
+  const rows = await rd("SELECT id::text AS id, actor, action, entity, entity_id, detail, created_at, (count(*) OVER ())::int AS total FROM audit_log WHERE action LIKE 'catalog.%' AND ($1::text IS NULL OR entity = $1) AND ($2::text IS NULL OR entity_id = $2) ORDER BY audit_log.id DESC LIMIT $3 OFFSET $4", [q.entity || null, q.entity_id || null, ...page(q)]);
+  return { history: rows.map((r) => ({ id: num(r.id), actor: r.actor, action: r.action, entity: r.entity, entity_id: r.entity_id, detail: r.detail, created_at: r.created_at })), total: rows[0] ? rows[0].total : 0, limit: q.limit, offset: q.offset };
 }
 
 // ---- import log and similar services ---------------------------------------------------------------------------------------------------------------------------------
 async function listImports(q) {
-  const rows = await rd('SELECT id::text AS id, source, file_sha256, rows_total, rows_created, rows_updated, rows_skipped, problems, imported_by, created_at, (count(*) OVER ())::int AS total FROM catalog_imports ORDER BY id DESC LIMIT $1 OFFSET $2', page(q));
+  const rows = await rd('SELECT id::text AS id, source, file_sha256, rows_total, rows_created, rows_updated, rows_skipped, problems, imported_by, created_at, (count(*) OVER ())::int AS total FROM catalog_imports ORDER BY catalog_imports.id DESC LIMIT $1 OFFSET $2', page(q));
   return { imports: rows.map((r) => ({ id: num(r.id), source: r.source, file_sha256: r.file_sha256, rows_total: r.rows_total, rows_created: r.rows_created, rows_updated: r.rows_updated, rows_skipped: r.rows_skipped, problems: r.problems, imported_by: r.imported_by, created_at: r.created_at })), total: rows[0] ? rows[0].total : 0, limit: q.limit, offset: q.offset };
 }
 async function similarServices() {
-  const rows = await rd('SELECT id::text AS id, name FROM services ORDER BY id');
+  const rows = await rd('SELECT id::text AS id, name FROM services ORDER BY services.id');
   if (rows.length > MAX_COMPARE) throw new HttpError(422, 'too_many_services_to_compare');
   const r = Sim.suggestPairs(rows.map((x) => ({ id: num(x.id), name: x.name })));
   const side = (x) => ({ id: x.id, name: x.name });
@@ -154,12 +172,12 @@ async function similarServices() {
 // What the import reads, read in ONE consistent snapshot, plus two fingerprints of exactly those columns: a SQL one (the very same text can be run INSIDE the write transaction and compared
 // there) and a JavaScript one. If anything the import reads changes between the preview and the save, both change.
 const SNAP = {
-  services: 'SELECT id::text AS id, name, topic, description FROM services ORDER BY id',
+  services: 'SELECT s.id::text AS id, s.name, s.topic, s.description, ' + serviceGuard.PUBLIC_PRICE_EXISTS + ' AS public_price FROM services s ORDER BY s.id',
   providers: 'SELECT p.id::text AS id, p.name, pp.business_name, pp.contact_phone, pp.contact_email FROM professionals p LEFT JOIN provider_profiles pp ON pp.professional_id = p.id ORDER BY p.id',
-  engagements: 'SELECT professional_id::text AS professional_id, service_id::text AS service_id, external_ref, activation, contact_state, agreement_state, pricing_model, pricing_id::text AS pricing_id, terms_note, updated_by FROM provider_services ORDER BY professional_id, service_id',
-  layers: 'SELECT professional_id::text AS professional_id, service_id::text AS service_id, kind, model, amount::float8 AS amount, percent_low::float8 AS percent_low, percent_high::float8 AS percent_high, minimum_amount::float8 AS minimum_amount, terms_text, status, basis_missing, source_note, source_date::text AS source_date, recorded_by FROM provider_service_prices ORDER BY professional_id, service_id, kind',
+  engagements: 'SELECT professional_id::text AS professional_id, service_id::text AS service_id, external_ref, activation, contact_state, agreement_state, pricing_model, pricing_id::text AS pricing_id, terms_note, updated_by FROM provider_services ORDER BY provider_services.professional_id, provider_services.service_id',
+  layers: 'SELECT professional_id::text AS professional_id, service_id::text AS service_id, kind, model, amount::float8 AS amount, percent_low::float8 AS percent_low, percent_high::float8 AS percent_high, minimum_amount::float8 AS minimum_amount, terms_text, status, basis_missing, source_note, source_date::text AS source_date, recorded_by FROM provider_service_prices ORDER BY provider_service_prices.professional_id, provider_service_prices.service_id, provider_service_prices.kind',
 };
-const FINGERPRINT_EXPR = "md5(coalesce((SELECT string_agg(ROW(id, name, topic, description)::text, '|' ORDER BY id) FROM services), '') || '#' || " +
+const FINGERPRINT_EXPR = "md5(coalesce((SELECT string_agg(ROW(s.id, s.name, s.topic, s.description, " + serviceGuard.PUBLIC_PRICE_EXISTS + ")::text, '|' ORDER BY s.id) FROM services s), '') || '#' || " +
   "coalesce((SELECT string_agg(ROW(p.id, p.name, pp.business_name, pp.contact_phone, pp.contact_email)::text, '|' ORDER BY p.id) FROM professionals p LEFT JOIN provider_profiles pp ON pp.professional_id = p.id), '') || '#' || " +
   "coalesce((SELECT string_agg(ROW(professional_id, service_id, external_ref, activation, contact_state, agreement_state, pricing_model, pricing_id, terms_note, updated_by)::text, '|' ORDER BY professional_id, service_id) FROM provider_services), '') || '#' || " +
   "coalesce((SELECT string_agg(ROW(professional_id, service_id, kind, model, amount, percent_low, percent_high, minimum_amount, terms_text, basis_missing, source_note, source_date, status, recorded_by)::text, '|' ORDER BY professional_id, service_id, kind) FROM provider_service_prices), ''))";
@@ -171,4 +189,4 @@ async function readSnapshot() {
   return { snapshot, fingerprint: fp[0].fingerprint, digest: Imp.snapshotDigest(snapshot) };
 }
 
-module.exports = { overview, listServices, getService, listProviders, getProvider, listEngagements, getEngagement, listImports, similarServices, readSnapshot, setClock, FINGERPRINT_SQL, FINGERPRINT_EXPR, SNAP, AUDIT_VIEW, MAX_COMPARE };
+module.exports = { overview, listServices, getService, listProviders, getProvider, listEngagements, getEngagement, loadEngagement, listHistory, listImports, similarServices, readSnapshot, setClock, FINGERPRINT_SQL, FINGERPRINT_EXPR, SNAP, AUDIT_VIEW, MAX_COMPARE };

@@ -57,3 +57,9 @@ test('the helpers never change their input', () => {
   assert.equal(T.normalizePhone(o).value, '0501234567');
   const s = ' x '; T.normText(s); T.nameKey(s); assert.equal(s, ' x ');
 });
+
+test('control characters (a NUL cannot be stored in a text column) are removed from cells; tab, line feed and carriage return are kept where they are meaningful', () => {
+  const T = require('../netlify/functions/_kaspchem/catalog/text.js');
+  assert.equal(T.normText('ש\u0000ר\u0007ות\u007F'), 'שרות'); assert.equal(T.verbatim('שורה\u0000 ראשונה\nשורה\u001f שנייה'), 'שורה ראשונה\nשורה שנייה'); assert.equal(T.nameKey('שי\u0000רות'), 'שירות');
+  assert.equal(T.verbatim('א\tב\r\nג'), 'א\tב\r\nג', 'tab and line ends survive in verbatim text'); assert.equal(T.normText('א\tב'), 'א ב');
+});

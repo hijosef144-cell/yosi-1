@@ -2,7 +2,7 @@
 // Catalog import, pure helpers: text normalisation and the parsing of the values a spreadsheet export contains (phones, e-mail, percentages, money, dates).
 // No input/output of any kind: no database, no network, no files. Every function returns a value and never changes its input.
 
-const INVISIBLE = /[​-‏‪-‮⁦-⁩﻿­]/g;     // zero-width and bidi marks: invisible in a cell, but they break comparisons
+const INVISIBLE = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F​-‏‪-‮⁦-⁩﻿­]/g;     // control characters (a NUL cannot even be stored), zero-width and bidi marks: invisible in a cell, but they break comparisons
 const NIQQUD = /[֑-ׇ]/g;                                                // Hebrew points and cantillation
 const QUOTES = /["'`׳״‘’‚‛“”„‟′″]/g;   // straight and curly quotes, geresh, gershayim
 

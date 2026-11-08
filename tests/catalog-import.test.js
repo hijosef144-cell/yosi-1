@@ -368,3 +368,29 @@ test('a changed price is one whole statement: the replacement carries every pric
   assert.deepEqual([layer.model, layer.amount], ['variable', null]); assert.deepEqual(PR.validateLayer(layer), [], 'the result satisfies the database rules');
   assert.equal(opsOf(r, 'update_engagement').filter((o) => 'pricing_model' in o.set).length, 1, 'the descriptive model on the engagement follows (tbd -> variable) as its own listed change');
 });
+
+test('R4: a note that is too long is a problem on its row and is never cut; a note at the limit is kept whole', () => {
+  const long = 'ש'.repeat(1001), ok = 'ש'.repeat(1000);
+  const p = preview(csvOf([{ service: NAMES.services[0], provider: NAMES.providers[0], notes: long, externalId: 'L-1' }, { service: NAMES.services[1], provider: NAMES.providers[1], notes: ok, externalId: 'L-2' }]));
+  assert.deepEqual(rowOf(p, 2).problems.map((x) => [x.code, x.field, x.length, x.max]), [['text_too_long', 'terms_note', 1001, 1000]]); assert.equal(rowOf(p, 2).status, 'problem');
+  assert.equal(rowOf(p, 3).status, 'new'); assert.equal(rowOf(p, 3).record.engagement.terms_note, ok);
+});
+
+test('the row cap: more than maxRows filled rows refuses the whole file before any row is looked at; empty trailing rows do not count; exactly maxRows is fine', () => {
+  const rows = (n) => Array.from({ length: n }, (_, i) => ({ domain: 'א', service: 'שירות ' + i }));
+  const keep = F.ORDER.filter((k) => !['domain', 'service'].includes(k));
+  const big = F.csv(rows(301), { omit: keep }), exact = F.csv(rows(300), { omit: keep }), padded = F.csv(rows(300).concat(Array.from({ length: 500 }, () => ({}))), { omit: keep });
+  const refused = I.buildPreview({ csv: big, existing: F.EMPTY(), maxRows: 300 }); assert.equal(refused.ok, false); assert.deepEqual(refused.fileProblems, [{ code: 'too_many_rows', rows: 301, max: 300 }]); assert.deepEqual(refused.rows, []);
+  assert.equal(I.buildPreview({ csv: exact, existing: F.EMPTY(), maxRows: 300 }).ok, true); assert.equal(I.buildPreview({ csv: padded, existing: F.EMPTY(), maxRows: 300 }).ok, true, 'empty rows at the end of a spreadsheet export are free');
+  assert.equal(I.buildPreview({ csv: big, existing: F.EMPTY() }).ok, true, 'without a limit the older behaviour is unchanged');
+});
+
+test('a service with a public price: its topic change is shown but BLOCKED, approving it refuses the whole plan, and the safe parts of the file are not blocked', () => {
+  const ex = F.existing(); ex.services[0].public_price = true;   // service 11 is tied to a price the public site shows
+  const p = preview(csvOf([{ domain: 'פנסיה', service: 'בדיקת זכאות להחזר מס', provider: 'דנה לבני', business: 'לבני מס', externalId: 'TX-01', contact: 'יצרתי קשר', agreement: 'טרם נדון', activation: 'ממתין', pricing: '' }]), ex);
+  const ch = rowOf(p, 2).changes.find((c) => c.id === 'service.topic'); assert.deepEqual([ch.old, ch.new, ch.blocked], ['מיסים', 'פנסיה', 'service_has_public_price']);
+  const r = plan(p, { rows: { 2: { apply: true, accept: ['service.topic'] } } }, ex); assert.equal(r.ok, false); assert.deepEqual(r.refused, [{ row: 2, reason: 'change_blocked', id: 'service.topic', why: 'service_has_public_price' }]); assert.deepEqual(r.operations, []);
+  assert.equal(plan(p, { rows: { 2: { apply: true, accept: [] } } }, ex).ok, true, 'leaving the blocked change out is fine');
+  const free = F.existing(); const q = preview(csvOf([{ domain: 'פנסיה', service: 'בדיקת זכאות להחזר מס', provider: 'דנה לבני', business: 'לבני מס', externalId: 'TX-01', contact: 'יצרתי קשר', agreement: 'טרם נדון', activation: 'ממתין' }]), free);
+  assert.equal(rowOf(q, 2).changes.find((c) => c.id === 'service.topic').blocked, undefined); assert.deepEqual(opsOf(plan(q, { rows: { 2: { apply: true, accept: ['service.topic'] } } }, free), 'update_service').map((o) => o.set), [{ topic: 'פנסיה' }]);
+});

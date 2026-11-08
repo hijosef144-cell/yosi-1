@@ -1,11 +1,12 @@
 'use strict';
-// Catalog server, routes (stage 4a: READ ONLY). Mounted by admin-router.js for every path that starts with /catalog; everything else is handled exactly as before.
+// Catalog server, routes (stage 4a: reads; stage 4b: writes, in admin-catalog-writes.js). Mounted by admin-router.js for every path that starts with /catalog; everything else is handled exactly as before.
 // Order for every catalog request: the caller was authenticated and allow-listed by admin-entry.js (unchanged) → owner role and the switch `private.catalog_enabled` (catalog-guards.js)
 // → routing. While the switch is closed the answer is the same for every path and method, so nothing is revealed about which routes exist.
-// This file has GET routes only. There is no route for any other method (a POST, PUT, PATCH or DELETE is "not found"), so no request can change the catalog, activate anything or save an import.
-const { json, HttpError, logError } = require('./http');
+// Reads are GET routes (this file); writes are POST / PUT / PATCH routes (admin-catalog-writes.js). There is no DELETE route and no other method: they are "not found".
+const { json, HttpError, parseBody, logError } = require('./http');
 const guards = require('./catalog-guards');
 const store = require('./catalog-store');
+const writes = require('./admin-catalog-writes');
 
 const MAX_ID = 9007199254740991;
 const idOf = (s) => { const n = Number(s); if (!Number.isSafeInteger(n) || n < 1 || n > MAX_ID) throw new HttpError(400, 'bad_id'); return n; };
@@ -42,24 +43,41 @@ const ROUTES = [
   { name: 'engagements.list', re: /^\/catalog\/engagements$/, sample: '/catalog/engagements', query: { provider_id: 'id', service_id: 'id', activation: ACTIVATION, pricing_model: MODELS }, run: (c) => store.listEngagements(c.q) },
   { name: 'engagements.get', re: /^\/catalog\/engagements\/(\d+)\/(\d+)$/, sample: '/catalog/engagements/1/1', query: {}, run: (c, p, s) => store.getEngagement(idOf(p), idOf(s)) },
   { name: 'imports.list', re: /^\/catalog\/imports$/, sample: '/catalog/imports', query: {}, run: (c) => store.listImports(c.q) },
+  { name: 'history', re: /^\/catalog\/history$/, sample: '/catalog/history', query: { entity: 'text', entity_id: 'text' }, run: (c) => store.listHistory(c.q) },
   { name: 'similar.services', re: /^\/catalog\/similar\/services$/, sample: '/catalog/similar/services', query: {}, run: () => store.similarServices() },
 ];
 
-const isCatalogPath = (path) => path === '/catalog' || path.startsWith('/catalog/');
+const isCatalogPath = (path) => path === '/catalog' || path === '/catalog/' || path.startsWith('/catalog/');
+
+// The answer to a successful request: nothing goes out without passing the answer filter.
+function answer(out) {
+  try { guards.assertNoSecrets(out); } catch (e) { logError('catalog.response', e); throw new HttpError(500, 'server_error'); }
+  return json(200, Object.assign({ ok: true }, out));
+}
 
 async function handle(event, me, path) {
   await guards.gate(me);                                                   // owner + switch, before anything else, for every method and path
-  if (event.httpMethod !== 'GET') throw new HttpError(404, 'not_found');   // 4a has no write route of any kind
   const clean = path.replace(/\/$/, '');
-  for (const r of ROUTES) {
-    const hit = r.re.exec(clean);
-    if (!hit) continue;
-    const q = readQuery(event.queryStringParameters, r.query);
-    const out = await r.run({ me, q }, ...hit.slice(1));
-    try { guards.assertNoSecrets(out); } catch (e) { logError('catalog.response', e); throw new HttpError(500, 'server_error'); }
-    return json(200, Object.assign({ ok: true }, out));
+  try {
+    if (event.httpMethod === 'GET') {
+      for (const r of ROUTES) {
+        const hit = r.re.exec(clean);
+        if (!hit) continue;
+        return answer(await r.run({ me, q: readQuery(event.queryStringParameters, r.query) }, ...hit.slice(1)));
+      }
+    } else if (['POST', 'PUT', 'PATCH'].includes(event.httpMethod)) {      // there is no DELETE route of any kind
+      for (const r of writes.ROUTES) {
+        if (r.method !== event.httpMethod) continue;
+        const hit = r.re.exec(clean);
+        if (!hit) continue;
+        return answer(await r.run({ me, body: parseBody(event, r.maxBytes) }, ...hit.slice(1)));
+      }
+    }
+  } catch (e) {
+    if (e instanceof HttpError && e.extra) return json(e.status, Object.assign({ ok: false, error: e.code, message: e.userMessage || undefined }, e.extra));   // an answer with details
+    throw e;
   }
   throw new HttpError(404, 'not_found');
 }
 
-module.exports = { handle, isCatalogPath, ROUTES, readQuery };
+module.exports = { handle, isCatalogPath, ROUTES, WRITE_ROUTES: writes.ROUTES, readQuery };

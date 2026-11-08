@@ -20,6 +20,14 @@ async function isOpen() {
   return rows.length === 1 && rows[0].value === true;
 }
 
+// The second switch (stage 4b): `private.catalog_activation_enabled`. Closed unless exactly JSON true, like the first, and it is closed by default. While it is closed no engagement can become
+// active (or return to active), whatever else is true. The write itself repeats this check inside its own SQL statement, so a switch closed a moment ago cannot be overtaken.
+const ACTIVATION_KEY = 'private.catalog_activation_enabled';
+async function activationOpen() {
+  const rows = await db.query('SELECT value FROM settings WHERE key = $1', [ACTIVATION_KEY]);
+  return rows.length === 1 && rows[0].value === true;
+}
+
 // Resolves when the caller may use the catalog; otherwise throws the HttpError that is sent back. Nothing about the catalog is revealed while it is closed (same answer for every path).
 async function gate(me) {
   requireOwner(me);
@@ -40,4 +48,4 @@ function assertNoSecrets(value, depth) {
   }
 }
 
-module.exports = { gate, requireOwner, isOpen, assertNoSecrets, SWITCH_KEY };
+module.exports = { gate, requireOwner, isOpen, activationOpen, assertNoSecrets, SWITCH_KEY, ACTIVATION_KEY };

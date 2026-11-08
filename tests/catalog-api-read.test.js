@@ -80,10 +80,14 @@ async function world() {
 }
 const PATHS = ['/catalog/overview', '/catalog/services', '/catalog/services/11', '/catalog/providers', '/catalog/providers/21', '/catalog/engagements', '/catalog/engagements/21/11', '/catalog/imports', '/catalog/similar/services'];
 
-test('the route table has exactly the nine read routes and every one is a GET; there is no write route at all', () => {
-  assert.deepEqual(router.ROUTES.map((r) => r.name), ['overview', 'services.list', 'services.get', 'providers.list', 'providers.get', 'engagements.list', 'engagements.get', 'imports.list', 'similar.services']);
-  assert.deepEqual(router.ROUTES.map((r) => r.sample).sort(), ['/catalog/engagements', '/catalog/engagements/1/1', '/catalog/imports', '/catalog/overview', '/catalog/providers', '/catalog/providers/1', '/catalog/services', '/catalog/services/1', '/catalog/similar/services'].sort());
+test('the read routes are exactly these ten GETs and the write routes exactly these sixteen (POST, PUT, PATCH); no route uses any other method', () => {
+  assert.deepEqual(router.ROUTES.map((r) => r.name), ['overview', 'services.list', 'services.get', 'providers.list', 'providers.get', 'engagements.list', 'engagements.get', 'imports.list', 'history', 'similar.services']);
+  assert.deepEqual(router.ROUTES.map((r) => r.sample).sort(), ['/catalog/engagements', '/catalog/engagements/1/1', '/catalog/history', '/catalog/imports', '/catalog/overview', '/catalog/providers', '/catalog/providers/1', '/catalog/services', '/catalog/services/1', '/catalog/similar/services'].sort());
   assert.ok(router.ROUTES.every((r) => typeof r.run === 'function' && r.re instanceof RegExp));
+  assert.deepEqual(router.WRITE_ROUTES.map((r) => r.method + ' ' + r.name), ['POST services.create', 'PATCH services.update', 'PUT services.settings', 'POST services.clearance', 'POST providers.create', 'PATCH providers.update', 'POST providers.state', 'POST engagements.create', 'PATCH engagements.update',
+    'POST engagements.action', 'PUT prices.put', 'POST prices.classify', 'POST prices.link', 'POST prices.unlink', 'POST imports.preview', 'POST imports.apply']);
+  assert.ok(router.WRITE_ROUTES.every((r) => ['POST', 'PUT', 'PATCH'].includes(r.method) && typeof r.run === 'function' && r.re instanceof RegExp && r.sample && r.sample.path && r.sample.body), 'no DELETE, and every route has a sample for the tests');
+  assert.deepEqual(router.WRITE_ROUTES.filter((r) => r.maxBytes > 65536).map((r) => r.name), ['imports.preview', 'imports.apply'], 'only the import routes may carry a file');
   assert.equal(router.isCatalogPath('/catalog'), true); assert.equal(router.isCatalogPath('/catalog/x'), true); assert.equal(router.isCatalogPath('/catalogue'), false); assert.equal(router.isCatalogPath('/services'), false);
 });
 
@@ -131,8 +135,11 @@ test('who may ask: not signed in 401, signed in but not on the list 403 (switch 
 
 test('there is no way to write: with the switch open every POST, PUT, PATCH and DELETE (on any catalog path) and every unknown path is "not found"; ids and queries are validated', async () => {
   const w = await world(); await w.setSwitch(true); const before = await w.fingerprint();
-  for (const m of ['POST', 'PUT', 'PATCH', 'DELETE']) for (const p of PATHS.concat(['/catalog/imports/preview', '/catalog/imports/apply', '/catalog/engagements/21/11/actions/activate', '/catalog/engagements/21/11/link-price', '/catalog/engagements/21/11/prices/market'])) {
-    const r = await w.call(m, p, YOSI, { body: JSON.stringify({ name: 'x', approved: true, public: true, activation: 'active' }) }); assert.deepEqual([r.status, r.body.error], [404, 'not_found'], m + ' ' + p);
+  const writeSamples = router.WRITE_ROUTES.map((r) => r.sample.path), every = PATHS.concat(writeSamples), isWrite = (m, p) => router.WRITE_ROUTES.some((r) => r.method === m && r.re.test(p));
+  for (const p of every) { const r = await w.call('DELETE', p, YOSI); assert.deepEqual([r.status, r.body.error], [404, 'not_found'], 'DELETE ' + p); }   // there is no delete of any kind
+  for (const m of ['POST', 'PUT', 'PATCH']) for (const p of every) {   // a write method on a path that has no such write route is "not found"; on one that has, a body smuggling approval, publication or activation is refused field by field
+    const r = await w.call(m, p, YOSI, { body: JSON.stringify({ name: 'x', approved: true, public: true, activation: 'active', pricing_id: 7, offered: true }) });
+    assert.deepEqual([r.status, r.body.error], isWrite(m, p) ? [400, 'unknown_field'] : [404, 'not_found'], m + ' ' + p);
   }
   for (const p of ['/catalog', '/catalog/', '/catalog/nothing', '/catalog/services/11/extra', '/catalog/engagements/21', '/catalog/imports/1']) assert.equal((await w.call('GET', p, YOSI)).status, 404, p);
   for (const [p, code] of [['/catalog/services/0', 'bad_id'], ['/catalog/services/99999999999999999999', 'bad_id'], ['/catalog/engagements/21/0', 'bad_id'], ['/catalog/services?limit=0', 'bad_query'], ['/catalog/services?limit=201', 'bad_query'], ['/catalog/services?limit=abc', 'bad_query'], ['/catalog/services?offset=-1', 'bad_query'], ['/catalog/services?active=maybe', 'bad_query'],
@@ -271,7 +278,9 @@ test('no catalog answer, statement or module can approve a price or make one pub
   const files = []; (function walk(d) { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const f = path.join(d, e.name); if (e.isDirectory()) walk(f); else if (/\.(js|mjs)$/.test(e.name)) files.push(f); } })(FN);
   const writers = []; for (const f of files) { const t = fs.readFileSync(f, 'utf8').replace(/\/\/.*$/gm, ''); const rel = path.relative(FN, f).replace(/\\/g, '/'); for (const m of t.matchAll(/(INSERT\s+INTO\s+pricing\b|UPDATE\s+pricing\b|DELETE\s+FROM\s+pricing\b|approved\s*=\s*true)/gi)) writers.push(rel + ' :: ' + m[0].replace(/\s+/g, ' ').toUpperCase()); }
   assert.deepEqual(writers.sort(), ['_kaspchem/admin-router.js :: APPROVED = TRUE', '_kaspchem/admin-router.js :: INSERT INTO PRICING', '_kaspchem/admin-router.js :: UPDATE PRICING', '_kaspchem/admin-router.js :: UPDATE PRICING', '_kaspchem/admin-router.js :: UPDATE PRICING'].sort(), 'a new place that writes the price table must be reviewed on purpose');
-  for (const f of ['admin-catalog-router.js', 'catalog-store.js', 'catalog-guards.js', 'db.js']) { const t = fs.readFileSync(path.join(FN, '_kaspchem', f), 'utf8').replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, ''); assert.equal(/\b(insert\s+into|update\s+\w+\s+set|delete\s+from|truncate|alter\s+table|drop\s+|create\s+(table|index|role)|grant\s+|revoke\s+)/i.test(t.replace(/INSERT INTO audit_log \(actor, action, entity, entity_id, detail\) VALUES \(\$1, \$2, \$3, \$4, \$5::jsonb\)/, '')), false, f + ' contains a write statement'); }
+  for (const f of ['admin-catalog-router.js', 'catalog-store.js', 'catalog-guards.js']) { const t = fs.readFileSync(path.join(FN, '_kaspchem', f), 'utf8').replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, ''); assert.equal(/\b(insert\s+into|update\s+\w+\s+set|delete\s+from|truncate|alter\s+table|drop\s+|create\s+(table|index|role)|grant\s+|revoke\s+)/i.test(t.replace(/INSERT INTO audit_log \(actor, action, entity, entity_id, detail\) VALUES \(\$1, \$2, \$3, \$4, \$5::jsonb\)/, '')), false, f + ' (a reading module) contains a write statement'); }
+  // the writing modules: every table they INSERT into or UPDATE is one of the catalog's own, and there is no DELETE / TRUNCATE / structure statement in them
+  for (const f of ['catalog-writes.js', 'admin-catalog-writes.js']) { const t = fs.readFileSync(path.join(FN, '_kaspchem', f), 'utf8').replace(/^\s*\/\/.*$/gm, '').replace(/\s\/\/ .*$/gm, ''); const targets = [...t.matchAll(/(?<!\bdo\s)\b(?:insert\s+into|update)\s+([a-z_]+)/gi)].map((m) => m[1].toLowerCase()).filter((x) => x !== 'set'); assert.ok(targets.length > 10, f); for (const x of targets) assert.ok(db.WRITE_TARGETS.has(x), f + ' writes ' + x); assert.equal(/\b(delete\s+from|truncate|alter\s+table|drop\s+|create\s+(table|index|role)|grant\s+|revoke\s+)/i.test(t), false, f); }
   await w.pg.close();
 });
 
@@ -282,8 +291,8 @@ test('the catalog read modules are clean by construction: no SELECT *, no string
   const store_ = strip(read('catalog-store.js'));
   assert.deepEqual([...store_.matchAll(/INSERT\s+INTO\s+(\w+)/gi)].map((m) => m[1]), ['audit_log'], 'the only INSERT in the read store is the audit row');
   assert.equal(/new Date\(\)/.test(store_), true); assert.equal((store_.match(/new Date\(\)/g) || []).length, 2, 'only the default of the injectable clock');
-  assert.deepEqual([...strip(read('admin-catalog-router.js')).matchAll(/require\('([^']+)'\)/g)].map((m) => m[1]).sort(), ['./catalog-guards', './catalog-store', './http']);
-  assert.deepEqual([...store_.matchAll(/require\('([^']+)'\)/g)].map((m) => m[1]).sort(), ['./catalog/import.js', './catalog/similarity.js', './catalog/states.js', './db', './http']);
+  assert.deepEqual([...strip(read('admin-catalog-router.js')).matchAll(/require\('([^']+)'\)/g)].map((m) => m[1]).sort(), ['./admin-catalog-writes', './catalog-guards', './catalog-store', './http']);
+  assert.deepEqual([...store_.matchAll(/require\('([^']+)'\)/g)].map((m) => m[1]).sort(), ['./catalog/import.js', './catalog/similarity.js', './catalog/states.js', './db', './http', './service-guard']);
 });
 
 test('change detection (what stage 4b relies on): the snapshot and its two fingerprints change when ANYTHING the import reads changes, and do not change for what it does not read', async () => {

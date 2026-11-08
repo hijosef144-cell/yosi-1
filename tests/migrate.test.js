@@ -734,6 +734,7 @@ test('nothing public or existing uses the new tables yet: no page, function, scr
       if (!/\.(js|mjs|cjs|html|json|toml|sql|md|txt|xml|css)$/i.test(e.name) || fs.statSync(full).size > 2000000) continue;
       if (rel === 'scripts/kaspchem-grants.js') continue;   // the one operations tool that has to name them (it builds the grant step; it is not application, public or admin code)
       if (rel === 'netlify/functions/_kaspchem/catalog-store.js') continue;   // catalog stage 4a: the READ side of the catalog (queries only). It is reached only through admin-catalog-router.js behind the closed switch private.catalog_enabled; nothing public or existing loads it
+      if (['netlify/functions/_kaspchem/catalog-writes.js', 'netlify/functions/_kaspchem/admin-catalog-writes.js', 'netlify/functions/_kaspchem/db.js'].includes(rel)) continue;   // catalog stage 4b: the WRITE side (same switch) and the database layer's list of the only tables a catalog write may touch
       if (NAMES.test(fs.readFileSync(full, 'utf8'))) hits.push(rel);
     }
   })(ROOT);

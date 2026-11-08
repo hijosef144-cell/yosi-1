@@ -7,6 +7,7 @@ const { opsAlert } = require('./ops-alert');
 const impact = require('./impact');
 const engine = require('../../../kaspchem/assets/engine.js');
 const catalog = require('./admin-catalog-router');
+const serviceGuard = require('./service-guard');
 
 const STATUSES = ['new', 'contacted', 'in_progress', 'awaiting_client', 'done', 'closed', 'spam'];
 const AGREEMENTS = ['none', 'in_talks', 'signed', 'ended'];
@@ -161,7 +162,10 @@ on('POST', '/services', async (c) => {
 });
 on('PATCH', '/services/(\\d+)', async (c, id) => {
   const b = c.body;
-  await db.query('UPDATE services SET topic=$1, name=$2, description=$3, active=$4 WHERE id=$5', [optText(b.topic, 40), text(b.name, 120), optText(b.description, 600), b.active !== false, idOf(id)]);
+  const v = [optText(b.topic, 40), text(b.name, 120), optText(b.description, 600), b.active !== false, idOf(id)];
+  // Owner decision: the name and the topic of a service tied to a price the public site shows cannot change. The rule is part of the UPDATE itself (see service-guard.js).
+  const done = await db.query('UPDATE services s SET topic=$1, name=$2, description=$3, active=$4 WHERE s.id = $5 AND ' + serviceGuard.allowsChange('$2::text', '$1::text') + ' RETURNING s.id', v);
+  if (!done.length && await serviceGuard.isBlocked(db, v[4], v[1], v[0])) throw new HttpError(409, 'service_has_public_price', serviceGuard.MESSAGE);
   await audit(c.me.email, 'service.update', 'service', id, {});
   return { ok: true };
 });
