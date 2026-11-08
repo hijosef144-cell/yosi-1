@@ -78,15 +78,20 @@ test('the temporary branch and a database named in the shell\'s environment are 
 
 // ---- stage C1 (atomic-control) from the launcher: the ONE write stage, alone, approved by name ------------------------------------------------------------------------------------------------
 const WRITE = ['--stages=atomic-control', '--allow-writes=atomic-control'];
-test('the argument rules of the write stage: only atomic-control, alone, approved by its own name; nothing else that writes and no locked stage can be named, with or without any flag', () => {
-  const ok = L.parseArgs(argv(WRITE)); assert.deepEqual(ok.stages, ['atomic-control']); assert.equal(ok.allowWrite, 'atomic-control'); assert.deepEqual(L.WRITE_STAGES, ['atomic-control']);
+const WRITE2 = ['--stages=atomic-rollback', '--allow-writes=atomic-rollback'];
+test('the argument rules of the write stages: atomic-control and atomic-rollback only, each alone and approved by its OWN name; nothing else that writes and no locked stage can be named, with or without any flag', () => {
+  const ok = L.parseArgs(argv(WRITE)); assert.deepEqual(ok.stages, ['atomic-control']); assert.equal(ok.allowWrite, 'atomic-control'); assert.deepEqual(L.WRITE_STAGES, ['atomic-control', 'atomic-rollback']);
+  const ok2 = L.parseArgs(argv(WRITE2)); assert.deepEqual(ok2.stages, ['atomic-rollback']); assert.equal(ok2.allowWrite, 'atomic-rollback');
   const refused = [
+    [['--stages=atomic-rollback'], /explicit approval/], [['--stages=atomic-rollback', '--allow-writes'], /must name the one stage/], [['--stages=atomic-rollback', '--allow-writes=atomic-control'], /explicit approval/], [['--stages=atomic-rollback', '--allow-writes=atomic-guard'], /explicit approval/],
+    [['--stages=atomic-rollback', '--allow-writes=atomic-rollback,atomic-control'], /explicit approval/], [['--stages=atomic-control,atomic-rollback', '--allow-writes=atomic-rollback'], /runs alone/], [['--stages=atomic-rollback,atomic-rollback', '--allow-writes=atomic-rollback'], /runs alone/],
+    [['--stages=identity,atomic-rollback', '--allow-writes=atomic-rollback'], /runs alone/], [['--stages=atomic-rollback,atomic-guard', '--allow-writes=atomic-rollback'], /only these stages/], [['--stages=identity', '--allow-writes=atomic-rollback'], /none was named/], [['--allow-writes=atomic-rollback'], /none was named/],
     [['--stages=atomic-control'], /explicit approval/], [['--stages=atomic-control', '--allow-writes'], /must name the one stage/], [['--stages=atomic-control', '--allow-writes='], /explicit approval/], [['--stages=atomic-control', '--allow-writes=identity'], /explicit approval/],
     [['--stages=atomic-control', '--allow-writes=atomic-rollback'], /explicit approval/], [['--stages=atomic-control', '--allow-writes=ATOMIC-CONTROL'], /explicit approval/], [['--stages=atomic-control', '--allow-writes=atomic-control,atomic-import'], /explicit approval/],
     [['--stages=identity,atomic-control', '--allow-writes=atomic-control'], /runs alone/], [['--stages=atomic-control,identity', '--allow-writes=atomic-control'], /runs alone/], [['--stages=atomic-control,atomic-control', '--allow-writes=atomic-control'], /runs alone/],
     [['--allow-writes=atomic-control'], /none was named/], [['--stages=identity', '--allow-writes=atomic-control'], /none was named/], [['--stages=identity,headers,lock-probe', '--allow-writes=atomic-control'], /none was named/],
   ];
-  for (const stage of ['atomic-rollback', 'atomic-guard', 'atomic-import', 'timeouts', 'concurrency', 'disconnect', 'size-ladder', 'race', 'nonsense', '']) {
+  for (const stage of ['atomic-guard', 'atomic-import', 'timeouts', 'concurrency', 'disconnect', 'size-ladder', 'race', 'nonsense', '']) {
     refused.push([['--stages=' + stage, '--allow-writes=' + stage], /only these stages|stages/]); refused.push([['--stages=' + stage], /only these stages|stages/]); if (stage) refused.push([['--stages=atomic-control,' + stage, '--allow-writes=atomic-control'], /only these stages/]);   // (an empty element is simply dropped, and what is left is the one approved stage)
   }
   assert.deepEqual(L.parseArgs(argv(['--stages=atomic-control,', '--allow-writes=atomic-control'])).stages, ['atomic-control']);
@@ -127,9 +132,108 @@ test('the write stage is refused, with no write and nothing sent, when the gate 
     const r = await L.run(argv(['--state=' + file].concat(WRITE)), deps(fakeClipboard([GOOD]), em.fetch)); assert.equal(r.code, 2, text(r)); assert.match(text(r), /marker/); assert.equal(em.requests.length - n0, 1, 'only the identity read was sent');
     assert.deepEqual(await w.fingerprint(), before, 'nothing was written'); noSecrets(text(r), 'wrong marker, write'); await w.pg.close(); }
   { const { w, em } = await g2world(), file = state(); assert.equal((await L.run(argv(['--state=' + file]), deps(fakeClipboard([GOOD]), em.fetch))).code, 0);
-    const n0 = em.requests.length; for (const stage of ['atomic-rollback', 'atomic-guard', 'atomic-import', 'size-ladder']) { const r = await L.run(argv(['--state=' + file, '--stages=' + stage, '--allow-writes=' + stage]), deps(fakeClipboard([GOOD]), em.fetch)); assert.equal(r.code, 2, stage); assert.match(text(r), /only these stages/); }
+    const n0 = em.requests.length; for (const stage of ['atomic-guard', 'atomic-import', 'size-ladder', 'race']) { const r = await L.run(argv(['--state=' + file, '--stages=' + stage, '--allow-writes=' + stage]), deps(fakeClipboard([GOOD]), em.fetch)); assert.equal(r.code, 2, stage); assert.match(text(r), /only these stages/); }
     assert.equal(em.requests.length, n0, 'nothing at all was sent'); assert.equal(await w.count('services'), 0); await w.pg.close(); }
   { const state2 = state(); fs.writeFileSync(state2, JSON.stringify({ runs: ['identity', 'headers', 'lock-probe'].map((s) => ({ stage: s, pass: true, endpoint: 'ep-temp-branch-aaaaaa', marker: G.sha8(MARKER) })) }));
     const nn = noNet(), r = await L.run(['--expect-endpoint=ep-temp-branch-aaaaaa', '--expect-env=test', '--marker=' + MARKER, '--state=' + state2].concat(WRITE), deps(fakeClipboard([mk('ep-temp-branch-aaaaaa.c-2.us-east-1.aws.neon.tech')]), nn.fetch));
     assert.equal(r.code, 2); assert.match(text(r), /forbidden/); assert.equal(nn.calls.length, 0, 'the temporary branch can never be written to'); noSecrets(text(r)); }
+});
+
+// ---- stage C2 (atomic-rollback) from the launcher: three batches DESIGNED TO FAIL, whole-transaction rollback, an independent check before EVERY scenario ----------------------------------------------------
+const { json } = require('./fixtures/neon-http-emulator.js');
+const releaseTmp = () => path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'g2-rel-')), 'g2-release.txt');
+async function afterC1(opts) {   // a world in the state C1 leaves: the read stages and atomic-control have passed
+  const { w, em } = await g2world(opts), file = state();
+  assert.equal((await L.run(argv(['--state=' + file]), deps(fakeClipboard([GOOD]), em.fetch))).code, 0);
+  assert.equal((await L.run(argv(['--state=' + file].concat(WRITE)), deps(fakeClipboard([GOOD]), em.fetch))).code, 0);
+  return { w, em, file };
+}
+// The release protocol: every PAUSE line carries a fresh code and is released only by the text "go <code>". An answer is: 'go' = the right text for THIS pause, 'stop', 'bare-go' = "go" without the code, 'wrong-code',
+// 'previous-code' = the code of the pause before, or any other text, written as it is.
+const releasing = (rel, answers) => {
+  let i = 0, prev = null;
+  return (line) => {
+    const m = /^PAUSE .* exactly this text: go ([0-9a-f]{8}) /.exec(line); if (!m) return;
+    const a = answers[Math.min(i++, answers.length - 1)], code = m[1];
+    const content = a === 'go' ? 'go ' + code : a === 'bare-go' ? 'go' : a === 'wrong-code' ? 'go ' + (code === 'ffffffff' ? '00000000' : 'ffffffff') : a === 'previous-code' ? 'go ' + (prev || '00000000') : a;
+    prev = code; fs.writeFileSync(rel, content);
+  };
+};
+const writeBatches = (em, from) => em.requests.slice(from).filter((q) => q.batch && !q.readOnly);
+const seqNow = async (w) => (await w.owner('SELECT (SELECT last_value FROM services_id_seq)::int AS s, (SELECT last_value FROM audit_log_id_seq)::int AS a'))[0];
+const isContent = (q) => !q.batch && /^SELECT jsonb_build_object\('services', jsonb_build_object\('rows'/.test(q.statements[0]), isNextval = (q) => !q.batch && /nextval\('services_id_seq'\)/.test(q.statements[0]);
+
+test('C2 through the launcher: an independent check before EACH of the three scenarios; each fails on its LAST statement after the audit row already ran; every table identical afterwards; the sequences advance and are reported apart; the write flag once; the stage runs once only', async () => {
+  const { w, em, file } = await afterC1(), rel = releaseTmp(), calls = [], realMain = G.main;
+  G.main = async (a, e, dd) => { calls.push(a.slice()); return realMain(a, e, dd); };
+  try {
+    const before = await w.fingerprint(), seq0 = await seqNow(w), n0 = em.requests.length, clip = fakeClipboard([GOOD]);
+    const r = await L.run(argv(['--state=' + file].concat(WRITE2)), deps(clip, em.fetch, { releaseFile: rel, write: releasing(rel, ['go', 'go', 'go']) }));
+    assert.equal(r.code, 0, text(r)); const all = text(r) + '\n' + fs.readFileSync(file, 'utf8'); noSecrets(all, 'C2 run');
+    assert.match(all, /THIS RUN SENDS three write batches that are DESIGNED TO FAIL/); assert.equal((all.match(/^PAUSE before scenario [123]:/gm) || []).length, 3, 'a pause before EACH scenario, the first included');
+    for (const k of [1, 2, 3]) { assert.match(all, new RegExp('the independent check released scenario ' + k)); assert.match(all, new RegExp('just before sending scenario ' + k + ' the rows are still exactly those of the start')); assert.match(all, new RegExp('scenario ' + k + ' \\(.*\\): the server answers (23505|P0001)')); assert.match(all, new RegExp('scenario ' + k + ' \\(.*\\): ROWS unchanged')); assert.match(all, new RegExp('scenario ' + k + ' \\(.*\\): SEQUENCES \\(apart from the rows\\): services_id_seq advanced by exactly (2|1|30)')); }
+    assert.match(all, /WRITE STAGE RESULT: PASS \(atomic-rollback\)/); assert.deepEqual(calls.map((c) => c.filter((x) => x === '--allow-writes').length), [1]); assert.equal(clip.content, '');
+    assert.deepEqual(await w.fingerprint(), before, 'ALL tables are byte-identical to the state after C1: not one row was kept, not one was changed');
+    const seq1 = await seqNow(w); assert.deepEqual([seq1.s - seq0.s, seq1.a - seq0.a], [33, 2], 'sequences: 2+1+30 service ids reserved, 1+1 audit ids used by inserts that were rolled back');
+    const reqs = em.requests.slice(n0), batches = writeBatches(em, n0); assert.equal(batches.length, 3, 'exactly three write batches, once each');
+    assert.deepEqual(batches.map((b) => b.statements.length), [6, 6, 33]);
+    for (const b of batches) { assert.deepEqual(b.statements.slice(0, 2), ["SET LOCAL lock_timeout = '1500ms'", "SET LOCAL statement_timeout = '4000ms'"]); assert.equal(b.isolation, 'ReadCommitted'); }
+    assert.match(batches[0].statements[4], /^INSERT INTO audit_log/); assert.match(batches[0].statements[5], /^INSERT INTO services/); assert.match(batches[1].statements[3], /^INSERT INTO audit_log/); assert.match(batches[1].statements[5], /^DO \$guard\$/);
+    assert.match(batches[2].statements[32], /^INSERT INTO services/); assert.equal(batches[2].statements.filter((s) => /^INSERT INTO services/.test(s)).length, 31);
+    const nv = reqs.map((q, i) => (isNextval(q) ? i : -1)).filter((i) => i >= 0); assert.equal(nv.length, 3, 'one id reservation per scenario');
+    for (const i of nv) assert.ok(isContent(reqs[i - 1]), 'the rows are read once more right before each scenario is sent');
+    assert.ok(reqs.every((q) => !q.statements.some((s) => /\b(delete|truncate|drop|alter|grant)\b/i.test(s.replace(G.IDENTITY_SQL, '')))), 'nothing destructive');
+    assert.ok(G.passed(G.readState(file), 'atomic-rollback', EP, MARKER));
+    // once only: a stage that has passed is not run again from here, and nobody is asked to copy a string for it
+    const again = fakeClipboard([GOOD]), n1 = em.requests.length, r2 = await L.run(argv(['--state=' + file].concat(WRITE2)), deps(again, em.fetch, { releaseFile: rel })); assert.equal(r2.code, 2); assert.match(text(r2), /already PASSED/); assert.equal(again.log.reads, 0); assert.equal(em.requests.length, n1);
+    await w.pg.close();
+  } finally { G.main = realMain; }
+});
+
+test('C2 release protocol: a scenario is released ONLY by "go <the code of that very pause>"; "stop", "go" without the code, a wrong code, the code of an EARLIER pause, a file from before the run, junk and silence all stop the stage, and nothing more is sent', async () => {
+  const cases = [   // [name, answers, pre-existing file, quiet, write batches expected, the check that must have failed]
+    ['stop', ['stop'], null, false, 0, 1], ['bare go', ['bare-go'], null, false, 0, 1], ['wrong code', ['wrong-code'], null, false, 0, 1], ['junk', ['ok, continue'], null, false, 0, 1], ['empty file', [''], null, false, 0, 1],
+    ['an old "go" file from before', [], 'go', true, 0, 1], ['an old "go <code>" file from before', [], 'go 00000000', true, 0, 1], ['silence', [], null, true, 0, 1],
+    ['the code of the EARLIER pause', ['go', 'previous-code'], null, false, 1, 2], ['stop at the last pause', ['go', 'go', 'stop'], null, false, 2, 3], ['wrong code at the last pause', ['go', 'go', 'wrong-code'], null, false, 2, 3],
+  ];
+  for (const [name, answers, preexisting, quiet, sent, failedAt] of cases) {
+    const { w, em, file } = await afterC1(), rel = releaseTmp(), before = await w.fingerprint(), n0 = em.requests.length;
+    if (preexisting !== null) fs.writeFileSync(rel, preexisting);   // present BEFORE the run began: must never release anything
+    const extra = { releaseFile: rel, write: quiet ? () => {} : releasing(rel, answers) }; if (quiet) extra.pauseSeconds = 3;
+    const r = await L.run(argv(['--state=' + file].concat(WRITE2)), deps(fakeClipboard([GOOD]), em.fetch, extra));
+    assert.equal(r.code, 1, name + '\n' + text(r)); assert.match(text(r), new RegExp('the independent check released scenario ' + failedAt)); assert.match(text(r), /STOPPED at stage atomic-rollback/);
+    assert.equal(writeBatches(em, n0).length, sent, name + ': ' + sent + ' scenario(s) were sent and no more'); assert.deepEqual(await w.fingerprint(), before, name + ': nothing kept');
+    assert.ok(!G.passed(G.readState(file), 'atomic-rollback', EP, MARKER), 'a stopped stage is not recorded as passed'); noSecrets(text(r), name); assert.ok(!fs.existsSync(rel) || preexisting === null, name); await w.pg.close();
+  }
+});
+
+test('C2 stops at anything unexpected and never retries: an UNKNOWN outcome (no answer), a batch that unexpectedly SUCCEEDS, the wrong error code, rows or content changed before or after a scenario, a sequence that moved, a starting point that is not the state after C1', async () => {
+  const ctl = { on: false, batches: 0, reads: 0 }, ref = {}, NTH = { changed: 2, content: 2, 'changed-after': 3, 'content-after': 3, sequence: 3, 'audit-sequence': 3 };
+  const hooks = {
+    onRequest: async (body, h) => { if (!ctl.on) return; const write = Array.isArray(body.queries) && String(h['Neon-Batch-Read-Only']) !== 'true'; if (write) ctl.batches++;
+      if (ctl.mode === 'unknown' && write && ctl.batches === 2) throw new Error('socket hang up');
+      if (NTH[ctl.mode] && !Array.isArray(body.queries) && /^SELECT jsonb_build_object\('services', jsonb_build_object\('rows'/.test(body.query) && ++ctl.reads === NTH[ctl.mode]) {   // the Nth read of the rows: somebody changes something at that moment
+        if (ctl.mode.startsWith('changed')) await ref.w.owner("INSERT INTO settings (key, value, updated_by) VALUES ('g2.test.leak', '1'::jsonb, 'x')");
+        else if (ctl.mode.startsWith('content')) await ref.w.owner("UPDATE services SET description = 'changed in place'");   // same row count, different content
+        else await ref.w.owner(ctl.mode === 'sequence' ? "SELECT nextval('services_id_seq')" : "SELECT nextval('audit_log_id_seq')");   // a sequence moves more than the stage expects
+      } },
+    respond: async (body, h) => { if (!ctl.on || !Array.isArray(body.queries) || String(h['Neon-Batch-Read-Only']) === 'true') return null;
+      if (ctl.mode === 'success' && ctl.batches === 1) return json(200, { results: body.queries.map(() => ({ command: 'INSERT', rowCount: 0, rows: [], fields: [] })) });
+      if (ctl.mode === 'wrongcode' && ctl.batches === 1) return json(400, { message: 'permission denied for table services', severity: 'ERROR', code: '42501' }); return null; },
+  };
+  const before1 = /just before sending scenario 1 the rows are still exactly/;
+  for (const [mode, re, batchesSent, pauses] of [['unknown', /UNKNOWN/, 2, 2], ['success', /IT SUCCEEDED/, 1, 1], ['wrongcode', /the server answers 23505/, 1, 1],
+    ['changed', before1, 0, 1], ['content', before1, 0, 1], ['changed-after', /scenario 1 .*ROWS unchanged/, 1, 1], ['content-after', /scenario 1 .*ROWS unchanged/, 1, 1], ['sequence', /services_id_seq advanced by exactly 2/, 1, 1], ['audit-sequence', /audit_log_id_seq advanced by exactly 1/, 1, 1]]) {
+    Object.assign(ctl, { on: false, batches: 0, reads: 0, mode }); const { w, em, file } = await afterC1(hooks); ref.w = w; const rel = releaseTmp(), before = await w.fingerprint(), n0 = em.requests.length; ctl.on = true;
+    const r = await L.run(argv(['--state=' + file].concat(WRITE2)), deps(fakeClipboard([GOOD]), em.fetch, { releaseFile: rel, write: releasing(rel, ['go', 'go', 'go']) })); ctl.on = false;
+    assert.equal(r.code, 1, mode + '\n' + text(r)); assert.match(text(r), re, mode); assert.match(text(r), /STOPPED at stage atomic-rollback/); assert.equal(writeBatches(em, n0).length, batchesSent, mode + ': no retry, no further scenario'); assert.equal((text(r).match(/^PAUSE/gm) || []).length, pauses, mode);
+    if (!/^(changed|content)/.test(mode)) assert.deepEqual(await w.fingerprint(), before, mode + ': the database was not touched by the stage'); assert.ok(!G.passed(G.readState(file), 'atomic-rollback', EP, MARKER)); noSecrets(text(r), mode);
+    if (mode === 'unknown') assert.match(text(r), /check what was kept before anything else/); await w.pg.close();
+  }
+  const start = /the starting point is the state after atomic-control/;
+  for (const [what, tweak, re] of [['an extra service', "INSERT INTO services (name) VALUES ('extra')", start], ['an extra audit row', "INSERT INTO audit_log (actor, action) VALUES ('x', 'extra')", start], ['a catalog row', "INSERT INTO professionals (name) VALUES ('extra')", start],
+    ['the control service switched on (same counts)', 'UPDATE services SET active = true', /the atomic-control service exists and is inactive/], ['the control service changed topic (same counts)', "UPDATE services SET topic = 'other'", /the atomic-control service exists and is inactive/]]) {
+    const { w, em, file } = await afterC1(); await w.owner(tweak); const n0 = em.requests.length, r = await L.run(argv(['--state=' + file].concat(WRITE2)), deps(fakeClipboard([GOOD]), em.fetch, { releaseFile: releaseTmp() }));
+    assert.equal(r.code, 1, what); assert.match(text(r), re, what); assert.equal(writeBatches(em, n0).length, 0, what + ': nothing was written when the starting point is not the state after C1'); assert.ok(!/^PAUSE/m.test(text(r)), what + ': it does not even pause: the starting point is refused first'); await w.pg.close();
+  }
 });

@@ -23,10 +23,11 @@ function emulator(pg, opts) {
     const body = JSON.parse(init.body), h = init.headers || {};
     requests.push({ url: String(url), batch: Array.isArray(body.queries), readOnly: String(h['Neon-Batch-Read-Only']) === 'true', isolation: h['Neon-Batch-Isolation-Level'] || null, statements: (Array.isArray(body.queries) ? body.queries : [body]).map((q) => q.query) });
     if (o.onRequest) await o.onRequest(body, h);
+    if (o.respond) { const forced = await o.respond(body, h); if (forced) return forced; }   // a test can make the service answer something it would not (a success where a failure is due, a wrong code)
     if (!Array.isArray(body.queries)) { try { return json(200, await one(body)); } catch (e) { return failure(e); } }
     await pg.exec('BEGIN ISOLATION LEVEL ' + (LEVEL[h['Neon-Batch-Isolation-Level']] || 'READ COMMITTED') + (String(h['Neon-Batch-Read-Only']) === 'true' ? ' READ ONLY' : ''));
     try { const results = []; for (const q of body.queries) results.push(await one(q)); await pg.exec('COMMIT'); return json(200, { results }); } catch (e) { await pg.exec('ROLLBACK').catch(() => {}); return failure(e); }
   }
   return { fetch, requests };
 }
-module.exports = { emulator };
+module.exports = { emulator, json };

@@ -172,21 +172,58 @@ stage('atomic-control', { kind: 'write', raw: [COUNTS_SQL], needs: ['lock-probe'
     c.note('created', { service_id: sid, name });
   } });
 
-stage('atomic-rollback', { kind: 'write', raw: [COUNTS_SQL], needs: ['atomic-control'], title: 'a failing batch leaves nothing: duplicate key, the no-row guard, and a failure after thirty inserts', plan: ['2 inserts + the same id again: 23505, nothing kept', 'an insert + an UPDATE of a row that does not exist (the guard): P0001 no_rows, nothing kept', '30 inserts + a duplicate as the LAST statement: nothing kept', 'the raw error carries a SQLSTATE `code`, and the application maps it'],
+// ---- C2: atomic-rollback. Three batches DESIGNED TO FAIL, each sent ONCE through the real write path (db.writeTransaction: the fence, the two timeouts, one POST), each failing on its LAST statement, after every other
+// statement of the batch (the audit row included) has run. The proof is that the WHOLE transaction is gone: the rows (counts and content hashes of the 10 tables the role can read) are exactly what they were, while the
+// sequences are reported SEPARATELY and are expected to have advanced: an id that was reserved (nextval) is never given back, and an INSERT that ran and was rolled back has consumed its id too.
+// The stage stops at the first thing that is not exactly as expected (a batch that succeeds, an error without an SQLSTATE = unknown outcome, another code, changed rows, a surprising sequence): nothing more is sent, nothing is retried.
+// BEFORE EVERY scenario (the first included) it waits for an outside check to release that one (the launcher's nonce-bound release file); without that hook (tests) it goes on at once. After the release it
+// looks at the rows once more before sending. In a real run nothing is sent until the database has been compared independently.
+const CONTENT_SQL = 'SELECT jsonb_build_object(' + TABLES.map((t) => "'" + t + "', jsonb_build_object('rows', (SELECT count(*) FROM " + t + "), 'md5', (SELECT md5(coalesce(string_agg(x::text, '|' ORDER BY x::text), '')) FROM " + t + ' x))').join(', ') + ')::text AS content';
+const SEQ_SQL = "SELECT sequencename, last_value FROM pg_sequences WHERE schemaname = 'public' AND sequencename IN ('services_id_seq', 'audit_log_id_seq')";
+const CONTROL_SQL = "SELECT count(*)::int AS n FROM services WHERE id = $1::bigint AND active = false AND topic = 'g2'";
+stage('atomic-rollback', { kind: 'write', raw: [CONTENT_SQL, SEQ_SQL, CONTROL_SQL], needs: ['atomic-control'], title: 'three batches DESIGNED TO FAIL inside the real write path: each is rolled back whole (the rows), while reserved ids are not (the sequences)',
+  plan: ['first: the starting point must be the state after atomic-control (identity counts + 1 service + 1 audit row, the control service present and inactive)',
+    'scenario 1: 2 service inserts, their audit row, then the SAME id again as the last statement: 23505 duplicate key, the whole batch rolled back (the audit row too)',
+    'scenario 2: 1 service insert, its audit row, then an UPDATE of a row that does not exist and the no-row guard as the last statement: P0001 no_rows, everything rolled back',
+    'scenario 3: 30 service inserts, then the same id again as the LAST statement: 23505, all 30 rolled back',
+    'after each: counts and content hashes of the 10 tables equal the start; the sequences reported apart (services_id_seq +2, +1, +30 = +33; audit_log_id_seq +1, +1, +0 = +2: not rolled back)',
+    'before EVERY scenario (the first too): waits for an independent check to release it, then re-reads the rows once more; stops at anything unexpected, no retry'],
   async run(c) {
-    const { W, db } = c.product, ins = (id, n) => ({ text: svcInsert, params: [id, c.runId + '-' + n, 'g2', null] });
-    const fails = async (list, label, code, mapped) => {
-      const before = (await c.q(COUNTS_SQL))[0], r = await attempt(() => db.writeTransaction(list)); const info = r.ok ? null : errInfo(r.error);
-      c.check(label + ': the server answers ' + code, !r.ok && info.code === code, r.ok ? 'it succeeded' : JSON.stringify(info));
-      if (!r.ok) { const m = W.mapError(r.error); c.check(label + ': mapped to ' + mapped.status + ' ' + mapped.code, m.status === mapped.status && m.code === mapped.code, m.status + ' ' + m.code); c.note('error_shape_' + code, { has_code: typeof r.error.code === 'string', name: r.error.name, has_constraint: !!r.error.constraint }); }
-      c.check(label + ': nothing was kept (counts equal)', sameCounts(before, (await c.q(COUNTS_SQL))[0]), 'a count changed: ' + JSON.stringify(delta(before, (await c.q(COUNTS_SQL))[0])));
-    };
-    let ids = await W.reserve('service', 2);
-    await fails([ins(ids[0], 'rb1a'), ins(ids[1], 'rb1b'), ins(ids[0], 'rb1c'), W.audit(ACTOR, 'g2.rollback', 'service', ids[0], {})], 'duplicate key', '23505', { status: 409, code: 'duplicate' });
-    ids = await W.reserve('service', 1);
-    await fails([ins(ids[0], 'rb2'), ...W.counted('UPDATE services SET description = $1::text WHERE id = $2::bigint', ['g2', '9223372036854775000']), W.audit(ACTOR, 'g2.rollback', 'service', ids[0], {})], 'no-row guard', 'P0001', { status: 409, code: 'conflict' });
-    ids = await W.reserve('service', 30);
-    await fails(ids.map((id, i) => ins(id, 'rb3-' + i)).concat([ins(ids[0], 'rb3-dup')]), 'duplicate after 30 inserts', '23505', { status: 409, code: 'duplicate' });
+    const { W, db } = c.product, ins = (id, n) => ({ text: svcInsert, params: [id, c.runId + '-' + n, 'g2', null] }), aud = (id) => W.audit(ACTOR, 'g2.rollback', 'service', id, { run: c.runId });
+    const content = async () => JSON.parse((await c.q(CONTENT_SQL))[0].content);
+    const seqs = async () => { try { const rows = await c.q(SEQ_SQL); return Object.fromEntries(rows.map((r) => [r.sequencename, r.last_value === null || r.last_value === undefined ? null : Number(r.last_value)])); } catch (e) { return {}; } };
+    const same = (a, b) => TABLES.every((t) => a[t] && b[t] && a[t].rows === b[t].rows && a[t].md5 === b[t].md5), differing = (a, b) => TABLES.filter((t) => !a[t] || !b[t] || a[t].rows !== b[t].rows || a[t].md5 !== b[t].md5);
+    const idn = c.prior('identity'), ctl = c.prior('atomic-control');
+    if (!c.check('the earlier stages are on record (the identity counts and the atomic-control service)', !!(idn && idn.counts && ctl && ctl.created && ctl.created.service_id), 'the state file has no notes of them')) return;
+    const base = await content(), want = Object.assign({}, idn.counts, { services: idn.counts.services + 1, audit_log: idn.counts.audit_log + 1 });
+    if (!c.check('the starting point is the state after atomic-control: services ' + want.services + ', audit_log ' + want.audit_log + ', every other table as at the identity stage', TABLES.every((t) => base[t] && base[t].rows === want[t]), JSON.stringify(TABLES.filter((t) => !base[t] || base[t].rows !== want[t]).map((t) => [t, base[t] && base[t].rows, want[t]])))) return;
+    if (!c.check('the atomic-control service exists and is inactive', (await c.q(CONTROL_SQL, [String(ctl.created.service_id)]))[0].n === 1, 'it is not there')) return;
+    let seq = await seqs(); c.note('start', { rows: Object.fromEntries(TABLES.map((t) => [t, base[t].rows])), sequences: seq });
+    const scenarios = [
+      { label: 'scenario 1 (duplicate key on the last statement)', reserve: 2, auditSeq: 1, code: '23505', mapped: { status: 409, code: 'duplicate' }, build: (ids) => [ins(ids[0], 'rb1a'), ins(ids[1], 'rb1b'), aud(ids[0]), ins(ids[0], 'rb1c')] },
+      { label: 'scenario 2 (the no-row guard as the last statement)', reserve: 1, auditSeq: 1, code: 'P0001', mapped: { status: 409, code: 'conflict' }, build: (ids) => [ins(ids[0], 'rb2'), aud(ids[0])].concat(W.counted('UPDATE services SET description = $1::text WHERE id = $2::bigint', ['g2', '9223372036854775000'])) },
+      { label: 'scenario 3 (a duplicate after thirty inserts)', reserve: 30, auditSeq: 0, code: '23505', mapped: { status: 409, code: 'duplicate' }, build: (ids) => ids.map((id, i) => ins(id, 'rb3-' + i)).concat([ins(ids[0], 'rb3-dup')]) },
+    ];
+    for (let i = 0; i < scenarios.length; i++) {
+      const s = scenarios[i];
+      // an independent check holds back EVERY scenario, the first included: it releases this one only after it has compared the database itself. Then, just before sending, the stage looks once more.
+      const go = await c.pause('before scenario ' + (i + 1)); if (!c.check('the independent check released scenario ' + (i + 1), go === true, 'it was not released: the stage stops here, nothing else is sent')) return;
+      if (!c.check('just before sending scenario ' + (i + 1) + ' the rows are still exactly those of the start', same(base, await content()), 'they are different now: nothing is sent')) return;
+      const ids = await W.reserve('service', s.reserve), list = s.build(ids), r = await attempt(() => db.writeTransaction(list)), info = r.ok ? null : errInfo(r.error);
+      if (r.ok) { c.check(s.label + ': the server rejects the batch', false, 'IT SUCCEEDED. The stage stops: check what was kept before anything else'); return; }
+      if (!info.code) { c.check(s.label + ': the server answers with an SQLSTATE', false, 'no SQLSTATE: the outcome is UNKNOWN. The stage stops here, nothing else is sent, no retry: check what was kept before anything else'); return; }
+      if (!c.check(s.label + ': the server answers ' + s.code, info.code === s.code, JSON.stringify(info))) return;
+      const m = W.mapError(r.error); if (!c.check(s.label + ': mapped to ' + s.mapped.status + ' ' + s.mapped.code, m.status === s.mapped.status && m.code === s.mapped.code, m.status + ' ' + m.code)) return;
+      c.note('error_shape_' + (i + 1), { code: info.code, has_code: typeof r.error.code === 'string', name: r.error.name, has_constraint: !!r.error.constraint, statements_in_batch: list.length + 2 });
+      const now = await content();
+      if (!c.check(s.label + ': ROWS unchanged: all 10 readable tables have the same count and content hash as at the start', same(base, now), 'different: ' + differing(base, now).join(', '))) return;
+      const after = await seqs(), dS = after.services_id_seq != null && seq.services_id_seq != null ? after.services_id_seq - seq.services_id_seq : null, dA = after.audit_log_id_seq != null && seq.audit_log_id_seq != null ? after.audit_log_id_seq - seq.audit_log_id_seq : null;
+      c.note('sequences_after_scenario_' + (i + 1), { services_id_seq: [seq.services_id_seq === undefined ? null : seq.services_id_seq, after.services_id_seq === undefined ? null : after.services_id_seq], audit_log_id_seq: [seq.audit_log_id_seq === undefined ? null : seq.audit_log_id_seq, after.audit_log_id_seq === undefined ? null : after.audit_log_id_seq] });
+      if (dS !== null && !c.check(s.label + ': SEQUENCES (apart from the rows): services_id_seq advanced by exactly ' + s.reserve + ' (reserved ids are not rolled back)', dS === s.reserve, 'advanced by ' + dS)) return;
+      if (dA !== null && !c.check(s.label + ': SEQUENCES (apart from the rows): audit_log_id_seq advanced by exactly ' + s.auditSeq + ' (an INSERT that ran and was rolled back keeps its id used)', dA === s.auditSeq, 'advanced by ' + dA)) return;
+      seq = after;
+    }
+    c.check('all three batches failed as designed and the rows are exactly those of the start', same(base, await content()), 'the final comparison differs');
   } });
 
 const importCtx = (c, rows, expect) => ({ expect, actor: ACTOR, fileSha256: crypto.createHash('sha256').update(c.runId + 'x').digest('hex'), summary: {}, rowsApplied: rows, log: { source: 'csv', file_sha256: crypto.createHash('sha256').update(c.runId + 'x').digest('hex'), rows_total: rows.length, rows_created: rows.length, rows_updated: 0, rows_skipped: 0, problems: [], imported_by: ACTOR } });
@@ -313,7 +350,8 @@ async function main(argv, env, deps) {
     out('IDENTITY OK  endpoint ' + conn.endpoint + (conn.pooler ? ' (pooler)' : ' (direct)') + '  role ' + idr.cu + '  env ' + idr.env + '  marker matches' + (idr.neon_endpoint ? '  neon endpoint matches' : '  (the server does not report a neon endpoint id)'));
 
     const runId = 'g2-' + (d.now ? d.now() : Date.now()).toString(36) + '-' + crypto.randomBytes(2).toString('hex'), ck = newChecks();
-    const ctx = Object.assign(ck, { q, tx, product, guard, conn, args, identity: idr, runId });
+    const priorNotes = (id) => { const runs = state.runs.filter((r) => r.stage === id && r.pass === true && r.endpoint === conn.endpoint && r.marker === sha8(args.marker)); return runs.length ? runs[runs.length - 1].notes || null : null; };   // what an earlier PASSED stage recorded, on this endpoint and marker
+    const ctx = Object.assign(ck, { q, tx, product, guard, conn, args, identity: idr, runId, prior: priorNotes, pause: d.pause || (async () => true) });   // d.pause: an outside check that can hold back (or stop) the next scenario
     ctx.notes = ck.notes; let crashed = null;
     try { await st.run(ctx); } catch (e) { crashed = e; ck.check('the stage ran to its end', false, 'stopped by ' + (e && e.message && /^blocked_by_g2_guard/.test(e.message) ? e.message : JSON.stringify(errInfo(e)))); }
     const pass = ck.checks.length > 0 && ck.checks.every((x) => x.ok);
