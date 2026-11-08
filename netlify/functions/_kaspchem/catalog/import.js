@@ -376,4 +376,4 @@ function importLog(preview, plan, importedBy) {
   };
 }
 
-module.exports = { buildPreview, planApply, assertSafe, importLog, parseRow, mapValue, digest, stable, SAFE_TARGETS, CONFIRM_FLAGS, SENSITIVE, SHAPES };
+module.exports = { buildPreview, planApply, assertSafe, importLog, parseRow, mapValue, digest, snapshotDigest, stable, SAFE_TARGETS, CONFIRM_FLAGS, SENSITIVE, SHAPES };

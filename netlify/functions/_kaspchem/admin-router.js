@@ -6,6 +6,7 @@ const db = require('./db');
 const { opsAlert } = require('./ops-alert');
 const impact = require('./impact');
 const engine = require('../../../kaspchem/assets/engine.js');
+const catalog = require('./admin-catalog-router');
 
 const STATUSES = ['new', 'contacted', 'in_progress', 'awaiting_client', 'done', 'closed', 'spam'];
 const AGREEMENTS = ['none', 'in_talks', 'signed', 'ended'];
@@ -413,6 +414,7 @@ async function handle(event, me) {
   try {
     const path = (event.path || '').replace(/^.*\/api\/kaspchem\/admin/, '') || '/';
     const method = event.httpMethod;
+    if (catalog.isCatalogPath(path)) return await catalog.handle(event, me, path);   // the catalog (stage 4a, read only) answers for /catalog/*; every other path is handled below, exactly as before
     for (const [m, re, fn] of routes) {
       if (m !== method) continue;
       const hit = re.exec(path.replace(/\/$/, '') || '/');
