@@ -1,0 +1,102 @@
+/* Catalog screens (stage 5a, read only). Every class starts with ct-. Built on the admin look (admin.css): same panels, tables, pills, colours. */
+.ct { padding-bottom: 2rem; }
+.ct h2 { font-size: 1.5rem; margin: .4rem 0 1rem; display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+.ct h2.sr { position: absolute; margin: 0; }
+.ct h3 { font-family: var(--font-body); font-size: 1.1rem; margin: 0 0 .7rem; }
+.ct h4 { font-family: var(--font-body); font-size: .88rem; margin: .7rem 0 .2rem; color: #4a6a6e; }
+.ct :focus-visible { outline: 3px solid var(--gold-d); outline-offset: 2px; }
+.ct h2:focus { outline: none; }
+.ct-ro { display: inline-block; padding: .15rem .85rem; border: 1.5px solid #9db9b6; border-radius: 999px; background: #fff; color: #3e5f63; font-size: .9rem; font-weight: 700; }
+
+/* sub navigation */
+.ct-nav { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: 1rem; }
+.ct-nav button { font: inherit; min-height: 2.6rem; padding: .35rem 1rem; border-radius: 999px; border: 1.5px solid #b6cecb; background: #fff; color: var(--ink); cursor: pointer; }
+.ct-nav button:hover { background: #f1f8f7; }
+.ct-nav button[aria-current="page"] { background: var(--deep); border-color: var(--deep); color: #fff; font-weight: 700; }
+
+/* pills, chips, quiet text */
+.ct-pill { display: inline-block; padding: .1rem .65rem; border-radius: 999px; font-size: .85rem; font-weight: 700; white-space: nowrap; }
+.ct-ok { background: #d6efdc; color: #14583f; } .ct-warn { background: #ffe9b8; color: #6b4700; } .ct-bad { background: #f6d6d1; color: #8c2a1d; } .ct-muted { background: #e6eceb; color: #3e5f63; }
+.ct-chip { display: inline-block; padding: 0 .55rem; border: 1px solid #9db9b6; border-radius: 6px; font-size: .82rem; background: #fff; color: #3e5f63; }
+.ct-chip-link { background: #e1eeec; border-color: #6fa8a1; color: #14504a; }
+.ct-unset { color: #577175; }
+.ct-small { color: #3e5f63; font-size: .88rem; }
+.ct-count { margin: .2rem 0 .5rem; color: #3e5f63; font-size: .92rem; min-height: 1.2rem; }
+.ct-loading { padding: 1.5rem; color: #3e5f63; }
+.ct-foot { margin-top: 1rem; }
+.ct-prewrap { white-space: pre-wrap; }
+.ct-nw { white-space: nowrap; }
+.ct-note { background: #eef4f3; border-radius: 10px; padding: .5rem .8rem; }
+
+/* buttons that look like links (they only navigate) */
+.ct-link { background: none; border: 0; padding: .1rem 0; margin: 0; font: inherit; font-weight: 700; color: var(--teal-d); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; text-align: start; }
+.ct-link:hover { color: var(--deep); }
+.ct-links { display: flex; gap: 1.2rem; flex-wrap: wrap; margin: -.4rem 0 1rem; }
+.ct-back { margin: 0 0 .6rem; }
+
+/* filters and paging */
+.ct-filters { align-items: end; }
+.ct-pager { display: flex; align-items: center; justify-content: center; gap: 1rem; margin: 1rem 0; }
+
+/* blocks */
+.ct-cols { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); margin-top: 1rem; }
+.ct-cols .panel { margin-bottom: 0; }
+.ct-list { list-style: none; margin: 0; padding: 0; }
+.ct-list li { display: flex; align-items: center; justify-content: space-between; gap: .8rem; padding: .35rem 0; border-bottom: 1px solid var(--line); }
+.ct-list li:last-child { border-bottom: 0; }
+.ct-dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: .7rem 1.6rem; margin: 0; }
+.ct-kv dt { font-weight: 700; font-size: .88rem; color: #4a6a6e; }
+.ct-kv dd { margin: 0; overflow-wrap: anywhere; }
+.ct-state { text-align: center; padding: 1.6rem 1.2rem; }
+.ct-state h2 { justify-content: center; margin-top: 0; }
+.ct-state p { max-width: 36rem; margin-inline: auto; }
+
+/* the checklist of "what is missing" */
+.ct-checklist { list-style: none; margin: .6rem 0 0; padding: 0; display: grid; gap: .1rem; }
+.ct-ck { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; padding: .5rem 0; border-bottom: 1px solid var(--line); }
+.ct-ck:last-child { border-bottom: 0; }
+.ct-ck b { width: 1.4rem; text-align: center; }
+.ct-ck.ok b { color: #14583f; } .ct-ck.no b { color: #8c2a1d; }
+.ct-cklabel { flex: 1 1 14rem; }
+
+/* the four kinds of price */
+.ct-prices { display: grid; gap: .9rem; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); }
+.ct-price { background: #fff; border: 1px solid var(--line); border-top: 5px solid #8fb0ac; border-radius: 12px; padding: .9rem 1rem; }
+.ct-price h3 { margin-bottom: .2rem; }
+.ct-price-doc { border-top-color: var(--gold); } .ct-price-approved { border-top-color: var(--teal-d); } .ct-price-public { border-top-color: var(--deep); }
+.ct-def { margin: 0 0 .5rem; color: #3e5f63; font-size: .86rem; line-height: 1.45; }
+.ct-amount { font-size: 1.35rem; font-weight: 700; margin: .2rem 0; overflow-wrap: anywhere; }
+.ct-quote { margin: .2rem 0; font-style: normal; color: #2d4a4e; }
+.ct-none { margin: .3rem 0; padding: .55rem .7rem; border: 1.5px dashed #b6cecb; border-radius: 10px; color: #577175; background: #f8fbfa; }
+.ct-price p { margin: .25rem 0; }
+
+/* The older top menu (admin.css, untouched) has one more tab now. On a wide window ten tabs and "log out" no longer fit in one row, and the first and the last slid under the logo and the user name.
+   Where they do not fit they now wrap onto a second line instead (when they fit nothing changes). On narrower windows the menu stays the scrolling strip it always was. */
+@media (min-width: 1100px) { .adm #tabs { flex-wrap: wrap; overflow: visible; row-gap: .1rem; } .adm #tabs button { padding-inline: .7rem; } }   /* a little less padding so that, with the usual fonts, one row is enough */
+
+/* the problem list of an import, inside its table cell */
+.ct-tbl details ul { margin: .35rem 0 0; padding: 0; list-style-position: inside; }
+.ct-tbl details li { overflow-wrap: anywhere; }
+.ct-tbl td, .ct-tbl th { overflow-wrap: anywhere; }
+
+/* tablets and narrow windows: the seven-column table of engagements is a little tighter, so it fits without a sideways scroll */
+@media (min-width: 701px) and (max-width: 1000px) {
+  .ct-tbl { font-size: .86rem; }
+  .ct-tbl th, .ct-tbl td { padding: .5rem .4rem; }
+  .ct-tbl .ct-pill { font-size: .76rem; padding: .05rem .45rem; }
+  .ct-tbl .ct-chip { font-size: .74rem; padding: 0 .3rem; }
+}
+
+@media (max-width: 700px) {
+  .ct-nav { gap: .35rem; }                                   /* the six screens wrap onto two lines: nothing is cut at the edge and nothing needs a sideways swipe */
+  .ct-nav button { min-height: 2.5rem; padding: .25rem .8rem; font-size: .95rem; }
+  .ct h2 { font-size: 1.3rem; }
+  .tbl.ct-tbl td:first-child { display: block; text-align: start; font-weight: 700; font-size: 1.05rem; padding: .55rem .8rem .25rem; }
+  .tbl.ct-tbl td:first-child::before { display: none; }
+  .ct-link { min-height: 2.75rem; display: inline-flex; align-items: center; }
+  .ct-prices { grid-template-columns: 1fr; }
+  .ct-dl { grid-template-columns: 1fr; }
+  .ct-filters { grid-template-columns: 1fr 1fr; gap: .6rem; padding: .8rem; }    /* the search box on its own line, the choices two to a line: the filters do not push the list off the screen */
+  .ct-filters > div:first-child, .ct-filters > .ct-clear { grid-column: 1 / -1; }
+  .ct-pager { gap: .6rem; }
+}

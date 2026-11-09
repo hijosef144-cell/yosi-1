@@ -4,7 +4,7 @@
   var view = document.getElementById('view'), tabsEl = document.getElementById('tabs');
   var LOCAL = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
   var TEST_USER = LOCAL ? new URLSearchParams(location.search).get('test') : null; // local dev/test only; the server ignores it in production
-  var TABS = [['dash', 'סקירה'], ['requests', 'בקשות טיפול'], ['impact', 'השפעה'], ['forms', 'שאלונים'], ['services', 'שירותים'], ['pricing', 'תמחור'], ['pros', 'בעלי מקצוע'], ['settings', 'הגדרות'], ['audit', 'יומן שינויים']];
+  var TABS = [['dash', 'סקירה'], ['requests', 'בקשות טיפול'], ['impact', 'השפעה'], ['forms', 'שאלונים'], ['services', 'שירותים'], ['pricing', 'תמחור'], ['pros', 'בעלי מקצוע'], ['catalog', 'קטלוג ספקים'], ['settings', 'הגדרות'], ['audit', 'יומן שינויים']];
   var STATUS = { new: 'חדש', contacted: 'נוצר קשר', in_progress: 'בטיפול', awaiting_client: 'ממתין ללקוח', done: 'הושלם', closed: 'סגור', spam: 'ספאם' };
   var AGR = { none: 'אין הסכם', in_talks: 'במשא ומתן', signed: 'חתום', ended: 'הסתיים' };
   var topicNames = {};
@@ -81,7 +81,7 @@
 
   function go(t) {
     [].forEach.call(tabsEl.querySelectorAll('button'), function (b) { b.setAttribute('aria-current', b.dataset.t === t ? 'page' : 'false'); });
-    ({ dash: dash, requests: requests, impact: impact, forms: forms, services: services, pricing: pricing, pros: pros, settings: settings, audit: audit })[t]();
+    ({ dash: dash, requests: requests, impact: impact, forms: forms, services: services, pricing: pricing, pros: pros, catalog: catalog, settings: settings, audit: audit })[t]();
     view.focus({ preventScroll: true });
   }
   var H = function (title, extra) { return '<div class="view-h"><h1>' + title + '</h1>' + (extra || '') + '</div>'; };
@@ -197,6 +197,14 @@
         '<div class="scroll"><table class="tbl"><thead><tr><th>שם</th><th>קשר</th><th>תחומים</th><th>הסכם</th></tr></thead><tbody>' + r.professionals.map(function (p) { return '<tr><td>' + esc(p.name) + '</td><td>' + esc(p.contact || '') + '</td><td>' + (p.topics || []).map(function (t) { return esc(topicNames[t] || t); }).join(', ') + '</td><td>' + AGR[p.agreement_status] + '</td></tr>'; }).join('') + '</tbody></table></div>';
       document.getElementById('pf').onsubmit = function (e) { e.preventDefault(); api('POST', '/professionals', { name: pn.value, contact: pc.value, topics: [].map.call(pt.selectedOptions, function (o) { return o.value; }), agreement_status: pa.value }).then(function () { toast('נוסף'); pros(); }).catch(fail); };
     }).catch(fail);
+  }
+
+  // Catalog screens (stage 5a, read only): everything they need from this file is handed over here; they only ever call api('GET', ...).
+  function catalog() {
+    if (!window.KaspchemCatalog) { view.innerHTML = H('קטלוג ספקים') + '<p class="panel">מסכי הקטלוג לא נטענו.</p>'; return; }
+    window.KaspchemCatalog.open({ api: api, view: view, fail: fail,
+      topicName: function (t) { return topicNames[t] || t || ''; },
+      topics: function () { return Object.keys(topicNames).map(function (k) { return [k, topicNames[k]]; }); } });
   }
 
   function pricing() {
