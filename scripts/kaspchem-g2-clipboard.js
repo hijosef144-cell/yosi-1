@@ -8,13 +8,13 @@
 //   4. keeps the string in memory only and hands it to the G2 tool's own main() for the three stages, in order, stopping at the first one that does not pass (no retry, no repair);
 //   5. forgets it. It is never in process.env (the tool receives a copy of the environment object with the string added), never printed, never written to the state file (the tool redacts it).
 // The tool itself is unchanged: all its identity checks (role, endpoint, database, environment, marker, forbidden endpoints, HTTP guard) still apply.
-// WHAT CAN BE RUN FROM HERE: the three read-only stages (identity, headers, lock-probe), and exactly THREE stages that write: atomic-control (C1: one inactive synthetic service and its audit row on the
-// child branch), atomic-rollback (C2: three batches DESIGNED TO FAIL, nothing is kept) and atomic-guard (C3: three import batches that the import guard must stop before any write, nothing is kept, then ONE ordinary
-// write: one inactive service and its audit row). A write stage runs only when it is named in --stages ALONE and approved by its own name with
+// WHAT CAN BE RUN FROM HERE: the three read-only stages (identity, headers, lock-probe), and exactly FOUR stages that write: atomic-control (C1: one inactive synthetic service and its audit row on the
+// child branch), atomic-rollback (C2: three batches DESIGNED TO FAIL, nothing is kept), atomic-guard (C3: three import batches that the import guard must stop before any write, nothing is kept, then ONE ordinary
+// write: one inactive service and its audit row) and atomic-import (C4: a SMALL import of two rows of invented data, saved in one atomic batch, then the same save again, which is refused). A write stage runs only when it is named in --stages ALONE and approved by its own name with
 // --allow-writes=<that stage> (a bare --allow-writes is refused, and so is approving a stage that was not named, an approval for another name, or a write stage together with others), and only ONCE per
-// endpoint and marker: a write stage that has already passed is refused. No other stage that writes (atomic-import) and none of the locked stages can be named at all: unlocking one is a
+// endpoint and marker: a write stage that has already passed is refused. No other stage that writes and none of the locked stages (timeouts, concurrency, disconnect, size-ladder, race) can be named at all: unlocking one is a
 // change to this file that needs its own review and approval. The tool still requires the stage before to have passed on the same endpoint and marker, and this launcher checks that BEFORE it asks anyone to copy the string.
-// atomic-rollback and atomic-guard PAUSE BEFORE EVERY send, the first included, until an independent check releases that one. A release is bound to that very pause: each pause prints a fresh random code and is released
+// atomic-rollback, atomic-guard and atomic-import PAUSE BEFORE EVERY send, the first included, until an independent check releases that one. A release is bound to that very pause: each pause prints a fresh random code and is released
 // only by the file docs/research/raw/g2-release.txt holding exactly "go <code>" (anything else stops the stage; a file that existed before the pause is deleted and never honoured; a code from an earlier
 // pause, an old file, or a file left behind cannot release another pause; no release within 15 minutes = stop). The file is deleted as soon as it has been read.
 //
@@ -22,6 +22,7 @@
 //   node scripts/kaspchem-g2-clipboard.js --expect-endpoint=ep-... --expect-env=test --marker=<token> --stages=atomic-control --allow-writes=atomic-control
 //   node scripts/kaspchem-g2-clipboard.js --expect-endpoint=ep-... --expect-env=test --marker=<token> --stages=atomic-rollback --allow-writes=atomic-rollback
 //   node scripts/kaspchem-g2-clipboard.js --expect-endpoint=ep-... --expect-env=test --marker=<token> --stages=atomic-guard --allow-writes=atomic-guard
+//   node scripts/kaspchem-g2-clipboard.js --expect-endpoint=ep-... --expect-env=test --marker=<token> --stages=atomic-import --allow-writes=atomic-import
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -29,15 +30,16 @@ const { spawnSync } = require('child_process');
 const G = require('./kaspchem-g2.js');
 
 const ALLOWED_STAGES = ['identity', 'headers', 'lock-probe'];   // read-only, or rolled back by design
-const WRITE_STAGES = ['atomic-control', 'atomic-rollback', 'atomic-guard'];      // each: alone, with --allow-writes=<its own name>, once (see parseArgs and run)
+const WRITE_STAGES = ['atomic-control', 'atomic-rollback', 'atomic-guard', 'atomic-import'];      // each: alone, with --allow-writes=<its own name>, once (see parseArgs and run)
 const WRITE_NOTES = {
   'atomic-control': 'THIS RUN WRITES synthetic data on the child branch: one inactive service named g2-<run>-control and one audit row',
   'atomic-rollback': 'THIS RUN SENDS three write batches that are DESIGNED TO FAIL and be rolled back whole: no row should be kept. Reserved ids are used up (services_id_seq +33, audit_log_id_seq +2). It pauses BEFORE each of the three scenarios until the independent check has compared the database and releases that one',
   'atomic-guard': 'THIS RUN SENDS three import batches with a WRONG or an OLD fingerprint that the import guard must STOP before any write (no row should be kept), and then ONE ordinary write: one inactive synthetic service and its audit row, the only change of rows. Reserved ids are used up (services_id_seq +5, professionals_id_seq +2, audit_log_id_seq +1). It pauses BEFORE each of the four sends until the independent check has compared the database and releases that one',
+  'atomic-import': 'THIS RUN SAVES a small import of two rows of INVENTED data on the child branch in ONE atomic batch (1 new inactive service, 2 providers with their profiles, 2 engagements that are not active, 2 price layers that are only recorded, the import log and one audit row; nothing is activated, no price is approved, no commission) and then sends the SAME save again, which must be refused. Reserved ids are used up (services_id_seq +1, professionals_id_seq +2, audit_log_id_seq +1, catalog_imports_id_seq +1). It pauses BEFORE each of the two sends until the independent check has compared the database and releases that one',
 };
 const RELEASE_FILE = path.join(__dirname, '..', 'docs', 'research', 'raw', 'g2-release.txt');
 
-// The pause before each send of atomic-rollback and atomic-guard: an outside check creates the release file once it has compared the database. Any file that exists when a pause begins is deleted first, and the release
+// The pause before each send of atomic-rollback, atomic-guard and atomic-import: an outside check creates the release file once it has compared the database. Any file that exists when a pause begins is deleted first, and the release
 // must carry the random code of THIS pause ("go <code>"): a stale or reused file cannot match it, even if it were created after the deletion and before the code was shown.
 function filePause(o) {
   return async (label) => {

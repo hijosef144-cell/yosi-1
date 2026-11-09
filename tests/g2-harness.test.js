@@ -112,7 +112,7 @@ test('the stages run in order against the emulated service, each unlocks the nex
   for (const x of ['0587654321', 'real.person@gmail.test', 'Private Person', 'Private Office']) { assert.ok(!output.includes(x) && !state.includes(x), 'no row of the database is shown or stored: ' + x); }
   assert.match(output, /privileges equal the approved matrix/); assert.match(output, /host_class: "direct"/);
   // what the five write stages left: only g2-named synthetic rows
-  const names = (await w.owner("SELECT name FROM services ORDER BY id")).map((x) => x.name); assert.equal(names.length, 4); assert.ok(names.every((n) => /^g2-/.test(n)), names.join());
+  const names = (await w.owner("SELECT name FROM services ORDER BY id")).map((x) => x.name); assert.equal(names.length, 3, 'the control service, the one atomic-guard made, and the ONE new service of the import (its second row matched an existing service)'); assert.ok(names.every((n) => /^g2-/.test(n)), names.join());
   assert.deepEqual((await w.owner('SELECT (SELECT count(*) FROM professionals)::int AS p, (SELECT count(*) FROM provider_services)::int AS e, (SELECT count(*) FROM catalog_imports)::int AS i, (SELECT count(*) FROM audit_log)::int AS a, (SELECT count(*) FROM pricing)::int AS pr'))[0], { p: 3, e: 2, i: 1, a: 3, pr: 0 });   // 1 private + 2 imported
   assert.equal((await w.owner("SELECT count(*)::int AS n FROM professionals WHERE name LIKE 'g2-%'"))[0].n, 2);
   // everything that left: no destructive or structural statement, and no write to the tables G2 never touches
