@@ -228,10 +228,17 @@
       '<div class="panel"><h3>נותני שירות משויכים (' + num(es.length) + ')</h3>' + rows + '</div>' +
       (sim.length ? '<div class="panel"><h3>שירותים בשם דומה (לבדיקת כפילות)</h3><ul class="ct-list">' + sim.map(function (x) { return '<li><button type="button" class="ct-link" data-ct="open-service" data-id="' + x.id + '">' + esc(x.name) + '</button> ' + (x.score === 1 ? pill('אותו שם', 'warn') : '<span class="ct-small">דמיון ' + Math.round(x.score * 100) + '%</span>') + '</li>'; }).join('') + '</ul></div>' : '');
   }
+  // What a service still lacks before an engagement of it could be activated (a marker only: the engagement checklist below says the rest, and activation is not available on these screens).
+  var SERVICE_MISSING = { settings: 'אין לשירות הגדרות (קוד שירות)', matching: 'בהגדרות השירות אין תגי ממצאים או תחומי שאלון להתאמה' };
+  function serviceNotReady(e) {
+    if (e.service_ready !== false) return '';
+    var why = (Array.isArray(e.service_missing) ? e.service_missing : []).map(function (k) { return lbl(SERVICE_MISSING, k); }).join(', ');
+    return '<p class="warn" role="note"><strong>השירות אינו מוכן להפעלה</strong>' + (why ? ': ' + esc(why) : '') + '. זה סימון בלבד: ההפעלה אינה זמינה במסכים האלה.</p>';
+  }
   function engagementHtml(d) {
     var e = d.engagement;
     return '<h2 id="ct-h" tabindex="-1">' + esc(e.provider_name) + ' ← ' + esc(e.service_name) + '</h2>' +
-      '<p class="ct-links"><button type="button" class="ct-link" data-ct="open-provider" data-id="' + e.provider_id + '">לכרטיס נותן השירות</button> <button type="button" class="ct-link" data-ct="open-service" data-id="' + e.service_id + '">לכרטיס השירות</button></p>' +
+      '<p class="ct-links"><button type="button" class="ct-link" data-ct="open-provider" data-id="' + e.provider_id + '">לכרטיס נותן השירות</button> <button type="button" class="ct-link" data-ct="open-service" data-id="' + e.service_id + '">לכרטיס השירות</button></p>' + serviceNotReady(e) +
       '<div class="panel"><h3>מצב ההתקשרות</h3><dl class="ct-dl">' + kv('הפעלה', actPill(e.activation)) + kv('קשר', contactPill(e.contact_state)) + kv('הסכם', agrPill(e.agreement_state)) + kv('מודל תמחור', esc(lbl(MODEL, e.pricing_model))) +
       kv('עדיפות', e.priority == null ? unset() : num(e.priority)) + kv('מזהה מהגיליון', ltr(e.external_ref)) + kv('הערת תנאים', e.terms_note ? '<span class="ct-prewrap">' + esc(e.terms_note) + '</span>' : unset('אין')) +
       (e.paused_reason ? kv('סיבת השהיה', esc(e.paused_reason)) : '') + (e.retired_at ? kv('הוצא משימוש', whenH(e.retired_at) + (e.retired_reason ? ' · ' + esc(e.retired_reason) : '')) : '') +
@@ -255,6 +262,24 @@
     }).join('') + '</tbody></table>' + pagerHtml(r.total, r.offset, r.limit);
   }
 
+  // What an event moved, in words: the fields of an update (what they were -> what they are) or the state of an action. The values come from the journal's short non-personal fields (names of states, numbers, a sheet id); all of it is escaped.
+  var FIELD_NAMES = { name: 'שם', topic: 'תחום', active: 'פעיל (פנימי)', contact_state: 'מצב קשר', agreement_state: 'מצב הסכם', priority: 'עדיפות', external_ref: 'מזהה מהגיליון', delivery_method: 'אופן העברה', capacity_open: 'קיבולת פתוחה' };
+  function fieldValue(k, v) {
+    if (v === null || v === undefined || v === '') return 'ריק';
+    if (k === 'contact_state') return lbl(CONTACT, v); if (k === 'agreement_state') return lbl(AGREEMENT, v); if (k === 'delivery_method') return lbl(DELIVERY, v);
+    if (typeof v === 'boolean') return v ? 'כן' : 'לא';
+    return String(v);
+  }
+  function moves(d) {
+    var bits = [];
+    if (d.to && typeof d.to === 'object' && !Array.isArray(d.to)) Object.keys(d.to).forEach(function (k) {
+      var had = d.from && typeof d.from === 'object' && Object.prototype.hasOwnProperty.call(d.from, k);
+      bits.push(esc(lbl(FIELD_NAMES, k)) + ': ' + (had ? esc(fieldValue(k, d.from[k])) + ' ← ' : '') + esc(fieldValue(k, d.to[k])));
+    });
+    else if (typeof d.to === 'string' && typeof d.from === 'string') bits.push('מצב: ' + esc(lbl(ACTIVATION, d.from)) + ' ← ' + esc(lbl(ACTIVATION, d.to)));
+    return bits;
+  }
+
   // Who changed a provider or a service, and when (the views of the card are not changes and are left out). The reason of a pause or an archive is the owners' own text, shown escaped.
   // `truncated`: the server holds more records of this card than were fetched (the newest LOG_FETCH come first, and every opening of a provider card is a record too). Then "no changes" is never said: the page says what it looked at.
   var LOG_FETCH = 200;
@@ -266,6 +291,7 @@
     return '<div class="scroll"><table class="tbl ct-tbl"><caption class="sr">היסטוריית שינויים</caption><thead><tr><th>זמן</th><th>מי</th><th>מה נעשה</th><th>פרטים</th></tr></thead><tbody>' + list.map(function (h) {
       var d = h.detail || {}, bits = [];
       if (Array.isArray(d.fields)) bits.push('שדות: <span dir="ltr">' + esc(d.fields.join(', ')) + '</span>');
+      bits.push.apply(bits, moves(d));
       if (typeof d.reason === 'string') bits.push('סיבה: ' + esc(d.reason));
       if (typeof d.cleared === 'boolean') bits.push(d.cleared ? 'אישור מדווח נרשם' : 'אישור בוטל');
       if (typeof d.source_kind === 'string') bits.push('סוג המקור: ' + esc(lbl(SOURCE_KIND, d.source_kind)));
@@ -299,7 +325,7 @@
   var EXT = null;
   function extend(e) { EXT = e; }
   function modeLabel() { return EXT ? 'צפייה ועריכה' : 'לקריאה בלבד'; }
-  function hooks() { return { ctx: ctx, body: body, esc: esc, go: go, reload: function () { render(); }, get: get, lbl: lbl, when: when, whenH: whenH, mail: mail, num: num, fail: fail, root: function () { return rootEl; } }; }
+  function hooks() { return { ctx: ctx, body: body, esc: esc, go: go, reload: function () { render(); }, get: get, lbl: lbl, when: when, whenH: whenH, mail: mail, num: num, fail: fail, labels: { ACTIVATION: ACTIVATION, CONTACT: CONTACT, AGREEMENT: AGREEMENT }, root: function () { return rootEl; } }; }
   function tell(kind, data) {
     if (!EXT || !EXT.afterDraw) return;
     try { EXT.afterDraw(kind, data, hooks()); } catch (x) { if (root.console && root.console.error) root.console.error('catalog: the editing module failed', x); }
@@ -449,7 +475,7 @@
   }
   function scrProvider() { load('/catalog/providers/' + encodeURIComponent(S.arg), body, function (d) { body.innerHTML = backBar() + providerHtml(d); focusHeading(); tell('provider', d); loadChangeLog('provider', d.provider.id); }); }
   function scrService() { load('/catalog/services/' + encodeURIComponent(S.arg), body, function (d) { body.innerHTML = backBar() + serviceHtml(d, ctx.topicName); focusHeading(); tell('service', d); loadChangeLog('service', d.service.id); }); }
-  function scrEngagement() { load('/catalog/engagements/' + encodeURIComponent(S.arg[0]) + '/' + encodeURIComponent(S.arg[1]), body, function (d) { body.innerHTML = backBar() + engagementHtml(d); focusHeading(); }); }
+  function scrEngagement() { load('/catalog/engagements/' + encodeURIComponent(S.arg[0]) + '/' + encodeURIComponent(S.arg[1]), body, function (d) { body.innerHTML = backBar() + engagementHtml(d); focusHeading(); tell('engagement', d); loadChangeLog('engagement', d.engagement.provider_id + '/' + d.engagement.service_id); }); }
   function backBar() { return '<p class="ct-back"><button type="button" class="btn sec mini" data-ct="back">→ חזרה</button></p>'; }
 
   /* ---------- events ---------- */
@@ -492,7 +518,7 @@
 
   root.KaspchemCatalog = {
     open: open, extend: extend,
-    _t: { CHECK_LABELS: CHECK_LABELS, changeLogHtml: changeLogHtml, clearanceHistoryHtml: clearanceHistoryHtml, SOURCE_KIND: SOURCE_KIND, esc: esc, lbl: lbl, priceText: priceText, layerBody: layerBody, priceSection: priceSection, checklistHtml: checklistHtml, classify: classify, errorHtml: errorHtml, overviewHtml: overviewHtml, providersTable: providersTable, servicesTable: servicesTable,
+    _t: { SERVICE_MISSING: SERVICE_MISSING, serviceNotReady: serviceNotReady, FIELD_NAMES: FIELD_NAMES, CHECK_LABELS: CHECK_LABELS, changeLogHtml: changeLogHtml, clearanceHistoryHtml: clearanceHistoryHtml, SOURCE_KIND: SOURCE_KIND, esc: esc, lbl: lbl, priceText: priceText, layerBody: layerBody, priceSection: priceSection, checklistHtml: checklistHtml, classify: classify, errorHtml: errorHtml, overviewHtml: overviewHtml, providersTable: providersTable, servicesTable: servicesTable,
       engagementsTable: engagementsTable, providerHtml: providerHtml, serviceHtml: serviceHtml, engagementHtml: engagementHtml, importsTable: importsTable, historyTable: historyTable, emptyHtml: emptyHtml, priceChips: priceChips,
       labels: { ACTIVATION: ACTIVATION, CONTACT: CONTACT, AGREEMENT: AGREEMENT, MODEL: MODEL, PROVIDER_STATE: PROVIDER_STATE, DELIVERY: DELIVERY, LAYER_STATUS: LAYER_STATUS, ENTITY: ENTITY, ACTIONS: ACTIONS, ENFORCED: ENFORCED } }
   };

@@ -31,19 +31,23 @@ test('the editing module is wired: it loads after the catalog screens and before
   assert.equal(typeof sandbox.window.KaspchemCatalog.extend, 'function');
 });
 
-test('the ONLY requests it can send are the seven editing routes of providers and services; everything else is refused before it leaves the page', () => {
-  assert.equal(T.ROUTES.length, 7);
+test('the ONLY requests it can send are the ten editing routes (providers, services, engagements); of the engagement actions only "submit"; everything else is refused before it leaves the page', () => {
+  assert.equal(T.ROUTES.length, 10);
   const ok = [['POST', '/catalog/providers'], ['PATCH', '/catalog/providers/12'], ['POST', '/catalog/providers/12/pause'], ['POST', '/catalog/providers/12/resume'], ['POST', '/catalog/providers/12/archive'], ['POST', '/catalog/providers/12/unarchive'],
-    ['POST', '/catalog/services'], ['PATCH', '/catalog/services/3'], ['PUT', '/catalog/services/3/settings'], ['POST', '/catalog/services/3/clearance']];
+    ['POST', '/catalog/services'], ['PATCH', '/catalog/services/3'], ['PUT', '/catalog/services/3/settings'], ['POST', '/catalog/services/3/clearance'],
+    ['POST', '/catalog/engagements'], ['PATCH', '/catalog/engagements/11/2'], ['POST', '/catalog/engagements/11/2/actions/submit']];
   for (const [m, p] of ok) assert.equal(T.allowed(m, p), true, m + ' ' + p);
-  const refused = [['DELETE', '/catalog/providers/12'], ['DELETE', '/catalog/services/3'], ['GET', '/catalog/providers'], ['POST', '/catalog/engagements'], ['PATCH', '/catalog/engagements/1/2'], ['POST', '/catalog/engagements/1/2/activate'],
+  const refused = [['DELETE', '/catalog/providers/12'], ['DELETE', '/catalog/services/3'], ['GET', '/catalog/providers'], ['POST', '/catalog/engagements/1/2/activate'],
     ['POST', '/catalog/engagements/1/2/submit'], ['POST', '/catalog/engagements/1/2/resume'], ['PUT', '/catalog/engagements/1/2/prices/market'], ['POST', '/catalog/imports/apply'], ['POST', '/catalog/imports/preview'], ['PUT', '/settings'], ['POST', '/services'],
     ['PATCH', '/services/3'], ['POST', '/professionals'], ['PUT', '/catalog/providers/12'], ['POST', '/catalog/providers/12/activate'], ['POST', '/catalog/providers/12/pause/extra'], ['PATCH', '/catalog/services/3/settings'],
-    ['PUT', '/catalog/services/3'], ['POST', '/catalog/services/3/offer'], ['POST', '/catalog/services/3/clearance?x=1'], ['POST', '/catalog/providers/../services'], ['POST', '/catalog/providers/abc'], ['POST', '//catalog/providers'], ['POST', '/catalog/providers/'], ['post', '/catalog/providers']];
+    ['PUT', '/catalog/services/3'], ['POST', '/catalog/services/3/offer'], ['POST', '/catalog/services/3/clearance?x=1'], ['POST', '/catalog/providers/../services'], ['POST', '/catalog/providers/abc'], ['POST', '//catalog/providers'], ['POST', '/catalog/providers/'], ['post', '/catalog/providers'],
+    ...['activate', 'resume', 'withdraw', 'pause', 'retire', 'Submit', 'SUBMIT', 'submit/', 'submit/x', ''].map((a) => ['POST', '/catalog/engagements/1/2/actions/' + a]), ['DELETE', '/catalog/engagements/1/2'], ['PUT', '/catalog/engagements/1/2'], ['GET', '/catalog/engagements'], ['POST', '/catalog/engagements/1/2'],
+    ['PATCH', '/catalog/engagements/1'], ['PATCH', '/catalog/engagements/a/2'], ['POST', '/catalog/engagements/a/2/actions/submit'], ['POST', '/catalog/engagements/1/2/actions/submit?x=1'], ['POST', '/catalog/engagements/'], ['POST', '/catalog/engagements/1/2/actions'],
+    ['PUT', '/catalog/engagements/1/2/prices/market'], ['POST', '/catalog/engagements/1/2/price-link']];
   for (const [m, p] of refused) assert.equal(T.allowed(m, p), false, m + ' ' + p);
 });
 
-test('the file itself: one request helper, no fetch of its own, no storage, no timers except the toast, nothing about engagements, prices, imports, activation or deleting', () => {
+test('the file itself: one request helper, no fetch of its own, no storage, no timers except the toast, nothing about prices, imports, activation, pausing, retiring or deleting', () => {
   assert.equal((CODE.match(/ctx\.api\(/g) || []).length, 1, 'ctx.api is called in exactly one place (send)');
   assert.match(CODE, /function send\(ctx, method, path, body\) \{\s*if \(!allowed\(method, path\)\)/);
   assert.equal((CODE.match(/\bsend\(/g) || []).length - 1, (CODE.match(/[^.\w]send\(h\.ctx/g) || []).length, 'every use of send goes through the allowed-list helper');
@@ -51,7 +55,7 @@ test('the file itself: one request helper, no fetch of its own, no storage, no t
   assert.doesNotMatch(CODE, /setInterval|requestAnimationFrame|autosave|auto-save|retry\(/i);
   const timers = CODE.match(/setTimeout\([^;]*;/g) || []; assert.equal(timers.length, 1, 'one timer: the toast fading away'); assert.match(timers[0], /classList\.remove\('show'\)/);
   const paths = [...CODE.matchAll(/'(\/catalog\/[^']*)'/g)].map((m) => m[1]);
-  for (const p of paths) assert.doesNotMatch(p, /engagements|imports|prices|activate|similar/, p);
+  for (const p of paths) assert.doesNotMatch(p, /imports|prices|activate|resume|withdraw|retire|similar/, p);
   assert.doesNotMatch(CODE.replace(/'DELETE'/g, ''), /DELETE/);
   assert.match(CODE, /h\.get\('\/catalog\/(history\?entity=|providers\/|services\/)/, 'the reads it makes are the history and the two cards');
   // writes are made only after a click: the one place that calls the helper for a write is `write()` / the settings step, both reached from a submit handler or a panel button
@@ -60,11 +64,11 @@ test('the file itself: one request helper, no fetch of its own, no storage, no t
 });
 
 test('every answer the server can give to these seven routes has plain Hebrew words (no code is ever shown), and every word is escaped or fixed text', () => {
-  const writes = server('admin-catalog-writes.js'), upto = writes.slice(0, writes.indexOf('// ===== engagements'));   // helpers, field rules, services and providers
+  const writes = server('admin-catalog-writes.js'), upto = writes.slice(0, writes.indexOf('// ===== price layers'));   // helpers, field rules, services, providers and engagements
   const found = new Set();
   const add = (src, re) => { for (const m of src.matchAll(re)) found.add(m[1]); };
   for (const src of [upto, server('catalog-writes.js'), server('admin-catalog-router.js'), server('catalog-guards.js'), server('http.js'), server('admin-entry.js')]) {
-    add(src, /\bbad\(\s*'([a-z_]+)'/g); add(src, /HttpError\(\s*\d+,\s*'([a-z_]+)'/g); add(src, /\bdup\(\s*'([a-z_]+)'/g); add(src, /\b(?:req|opt|boolean|oneOf|intIn|idBody|tags)\([^()]*?,\s*'([a-z_]+)'\)/g);
+    add(src, /\bbad\(\s*'([a-z_]+)'/g); add(src, /HttpError\(\s*\d+,\s*'([a-z_]+)'/g); add(src, /\brefusal\(\s*\d+,\s*'([a-z_]+)'/g); add(src, /\bdup\(\s*'([a-z_]+)'/g); add(src, /\b(?:req|opt|boolean|oneOf|intIn|idBody|tags)\([^()]*?,\s*'([a-z_]+)'\)/g);
   }
   for (const other of ['use_catalog_switch', 'managed_in_catalog', 'bad_query']) found.delete(other);   // answers of the older routes and of the reads, never of these writes
   assert.ok(found.size > 40, 'the scan found the codes: ' + found.size);
@@ -257,6 +261,93 @@ test('the clearance history of a service lists every report and cancellation fro
   assert.match(card, /אישור מדווח/); assert.match(card, /דווח על ידי/); assert.match(card, /המערכת אינה מאמתת את האישור/); assert.doesNotMatch(card, /pill[^>]*>אושר</); assert.doesNotMatch(card, />אושר</);
   const none = C.serviceHtml({ service: { id: 2, name: 'ש', active: false, created_at: '2026-11-01T00:00:00Z' }, settings: { code: 'c', legal_cleared: false }, engagements: [], similar_services: [] }, (t) => t); assert.match(none, /לא דווח אישור/); assert.doesNotMatch(none, />לא אושר</);
   assert.ok(CATALOG.includes("clr.id = 'ct-clr'") && CATALOG.includes("if (entity === 'service')"), 'only a service card gets the clearance history');
+});
+
+test('engagements, stage 5b-2a: one is made PENDING by ONE request (nothing half-made), only draft and pending ones are edited, and there is no way to pause, retire, withdraw, activate or resume one from here', () => {
+  const sec = CODE.slice(CODE.indexOf('var ENGAGEMENT_FIELDS'), CODE.indexOf('function engagementBar') + 700);
+  assert.ok(sec.length > 4000 && sec.includes('function submitStep') && sec.includes('function saveEngagement'), 'the engagement section was found');
+  assert.doesNotMatch(sec, /\/actions\/(?!submit)|button\('(pause|retire|withdraw|resume|activate)|(pause|retire|withdraw|resume|activate)(Engagement|Step|Only)|confirm: 'activate'/i, 'no route, button or function for pausing, retiring, withdrawing, activating or resuming');
+  assert.match(sec, /var EDITABLE_STATES = \['draft', 'pending'\];/);
+  // ONE request that ends pending: the creation has no second request, so there is nothing half-made to recover
+  const create = sec.slice(sec.indexOf('function createEngagement'), sec.indexOf('function submitStep'));
+  assert.ok(create.includes("var body = { provider_id: p, service_id: s, activation: 'pending' };") && create.includes("write(h, ctl, 'POST', '/catalog/engagements', body, {"));
+  assert.doesNotMatch(create, /submitStep|seal\(|\/actions\//);
+  assert.ok(sec.includes("'/actions/submit', { expected_activation: 'draft' }"), 'the step that remains is for a draft that already exists, and it says which state it saw');
+  assert.equal((sec.match(/\/actions\//g) || []).length, 1, 'exactly one engagement action path in the whole section');
+  // one attempt per click: the retry button exists only for "the server was busy", and nothing calls the step by itself
+  assert.ok(sec.includes("retry = dd.kind === 'busy'")); assert.doesNotMatch(sec, /setTimeout|setInterval/);
+  // the buttons of an engagement card: draft gets "update" and "move to pending"; pending gets "update"; the other states get a sentence and no button
+  const bar = sec.slice(sec.indexOf('function engagementBar'));
+  assert.ok(bar.includes("if (editable) { html += button('edit', 'עדכון מעקב', '');") && bar.includes("if (act === 'draft') { html += button('submit', 'העברה למצב ממתין לאישור');"));
+  assert.equal((bar.match(/button\('/g) || []).length, 2, 'two buttons exist in the whole bar');
+  for (const [state, sentence] of [['paused', /מושהית/], ['active', /פעילה/], ['retired', /הוצאה משימוש/]]) assert.match(CODE.match(new RegExp(state + ": '([^']*)'", 'g')).join(' '), sentence);
+  // the words: not an activation, pending, a reported "signed", where a note is kept
+  for (const text of ['ההפעלה אינה זמינה בשלב זה', 'ממתין לאישור', 'רישום ״חתום״ הוא דיווח שלכם', 'המערכת אינה מאמתת', 'נשמרת בכרטיס בלבד, לא ביומן', 'סדר תצוגה בלבד']) assert.ok(sec.includes(text), text);
+  // exactly the editable fields of the server, no others (above all not the activation, the price model or the price)
+  const defs = /const ENGAGEMENT = \{([\s\S]*?)\n\};/.exec(server('admin-catalog-writes.js'))[1];
+  assert.deepEqual([...defs.matchAll(/\b([a-z_]+): \{ type:/g)].map((m) => m[1]).sort(), plain(T.ENGAGEMENT_FIELDS).sort());
+  assert.deepEqual(plain(T.EDITABLE_STATES), ['draft', 'pending']);
+  // the pickers: pairs that exist and providers in the archive are not offered
+  assert.ok(sec.includes("!taken[String(x.id)] && (fromProvider || x.state === 'available')"), 'only available providers are offered (the server refuses the others as well)');
+  // the cards: a provider in the archive gets no "new engagement" button, a service and the others get one
+  assert.ok(CODE.includes("if (st === 'available') { html += button('engage', 'התקשרות חדשה');") && CODE.includes("html2 += button('engage', 'התקשרות חדשה');"));
+  assert.ok(CODE.includes('נותן שירות מושהה: אי אפשר להוסיף לו התקשרות חדשה עד שיחזור לזמינות.') && CODE.includes('לנותן שירות בארכיון אי אפשר להוסיף התקשרות.'), 'a provider that is not available says why there is no button');
+});
+
+test('a refused change of state is explained in words, one sentence per reason; the codes of the server are never shown; an engagement that exists and an external id that is taken are answers of their own', () => {
+  const R = T.refusalReasons;
+  assert.deepEqual(R({ errors: ['not_allowed_from_pending'] }), ['הפעולה אינה מותרת ממצב ״ממתין לאישור״.']);
+  assert.deepEqual(R({ errors: ['transition_not_allowed:retired->active'] }), ['המעבר ממצב ״הוצא משימוש״ למצב ״פעיל״ אינו מותר.']);
+  assert.deepEqual(R({ errors: ['reason_required', 'checklist_incomplete', 'reason_required'] }), ['חובה לכתוב סיבה.', 'חסרים תנאים להפעלה.']);
+  assert.deepEqual(R({ errors: ['active_needs_signed_agreement_and_fixed_price', 'whatever:x'] }), ['ההתקשרות אינה עומדת בכלל מובנה של המערכת.']);
+  for (const bad of [undefined, null, {}, { errors: 'x' }, { errors: [] }]) assert.deepEqual(R(bad), [], String(JSON.stringify(bad)));
+  const E = (message, status, details, userMessage) => ({ message, status, details, userMessage });
+  const d = T.describe(E('transition_refused', 422, { errors: ['not_allowed_from_draft'], missing: [], documented_only: false }, 'SELECT secret'));
+  assert.equal(d.kind, 'state'); assert.match(d.message, /המעבר אינו מותר במצב הנוכחי\./); assert.match(d.message, /הפעולה אינה מותרת ממצב ״טיוטה״/); assert.doesNotMatch(JSON.stringify(d), /not_allowed|SELECT|secret/);
+  assert.deepEqual(plain(T.describe(E('engagement_exists', 409))), { kind: 'exists', message: 'ההתקשרות כבר קיימת.' });
+  const ext = T.describe(E('external_ref_in_use', 409)); assert.deepEqual([ext.kind, ext.field], ['validation', 'external_ref']);
+  assert.equal(T.describe(E('duplicate', 409)).field, 'external_ref'); assert.equal(T.describe(E('bad_priority', 400)).field, 'priority'); assert.equal(T.describe(E('bad_contact_state', 400)).field, 'contact_state'); assert.equal(T.describe(E('bad_agreement_state', 400)).field, 'agreement_state'); assert.equal(T.describe(E('bad_terms_note', 400)).field, 'terms_note');
+  assert.equal(T.describe(E('provider_or_service_not_found', 404)).kind, 'notfound');
+});
+
+test('the answers of the server for an unavailable provider are said in words, and a service that is not ready for activation is marked on the engagement card (a marker only)', () => {
+  const E = (message, status) => ({ message, status });
+  for (const [code, re] of [['provider_archived', /בארכיון/], ['provider_paused', /מושהה[^]*עד שיחזור לזמינות/], ['bad_activation', /לא נשלח דבר/]]) { const d = T.describe(E(code, code === 'bad_activation' ? 400 : 409)); assert.equal(d.kind, 'state', code); assert.match(d.message, re, code); assert.match(d.message, HEBREW); }
+  const N = sandbox.window.KaspchemCatalog._t.serviceNotReady;
+  assert.equal(N({}), '', 'an older answer without the field shows nothing'); assert.equal(N({ service_ready: true, service_missing: [] }), '');
+  const none = N({ service_ready: false, service_missing: ['settings'] }); assert.match(none, /השירות אינו מוכן להפעלה/); assert.match(none, /אין לשירות הגדרות \(קוד שירות\)/); assert.match(none, /סימון בלבד/); assert.match(none, /ההפעלה אינה זמינה/);
+  assert.match(N({ service_ready: false, service_missing: ['matching'] }), /אין תגי ממצאים או תחומי שאלון/); assert.match(N({ service_ready: false, service_missing: ['settings', 'matching'] }), /אין לשירות הגדרות[^]*תגי ממצאים/);
+  assert.match(N({ service_ready: false }), /השירות אינו מוכן להפעלה/); assert.doesNotMatch(N({ service_ready: false, service_missing: ['x<b>y'] }), /<b>/, 'an unknown reason is escaped, never markup');
+  const card = sandbox.window.KaspchemCatalog._t.engagementHtml({ engagement: { provider_id: 1, service_id: 2, provider_name: 'א', service_name: 'ב', activation: 'pending', contact_state: 'none', agreement_state: 'not_discussed', pricing_model: 'tbd', service_ready: false, service_missing: ['settings'] }, checklist: { items: [], missing: [] }, price_layers: {}, approved_price: null });
+  assert.match(card, /השירות אינו מוכן להפעלה/); assert.ok(CATALOG.includes('serviceNotReady(e) +'), 'the card shows it right under the links');
+});
+
+test('the tracking of an engagement: only the changed fields are sent with what was seen; the priority is a whole number; "no change" is detected before anything is sent', () => {
+  const e = { contact_state: 'none', agreement_state: 'not_discussed', terms_note: null, priority: 100, external_ref: 'TX-01' };
+  const F = (over) => T.diffFields(T.ENGAGEMENT_FIELDS, e, Object.assign({ contact_state: 'none', agreement_state: 'not_discussed', terms_note: '', priority: '100', external_ref: 'TX-01' }, over));
+  assert.equal(F({}).count, 0, 'null and an empty box, 100 and "100": no change');
+  assert.deepEqual(F({ contact_state: 'contacted', priority: '90' }), { changes: { contact_state: 'contacted', priority: 90 }, expected: { contact_state: 'none', priority: 100 }, count: 2 });
+  assert.deepEqual(F({ agreement_state: 'signed', terms_note: ' שוחחנו ' }), { changes: { agreement_state: 'signed', terms_note: 'שוחחנו' }, expected: { agreement_state: 'not_discussed', terms_note: null }, count: 2 });
+  assert.deepEqual(F({ external_ref: '' }).changes, { external_ref: null }, 'clearing the sheet id sends null'); assert.deepEqual(F({ priority: '0' }).changes, { priority: 0 });
+  assert.equal(F({ agreement_state: 'signed' }).changes.activation, undefined, 'the activation is never part of it');
+});
+
+test('the history of an engagement says what moved: the fields of an update (what they were -> what they are) and the state of a step, in words, escaped; a note is never shown because it is never in the journal', () => {
+  const L = sandbox.window.KaspchemCatalog._t.changeLogHtml;
+  const rows = [
+    { created_at: '2026-11-11T10:00:00Z', actor: 'y@x.test', action: 'catalog.engagement.update', detail: { fields: ['contact_state', 'agreement_state', 'priority'], from: { contact_state: 'none', agreement_state: 'draft', priority: 100 }, to: { contact_state: 'negotiating', agreement_state: 'signed', priority: 90 } } },
+    { created_at: '2026-11-11T09:00:00Z', actor: 'y@x.test', action: 'catalog.engagement.submit', detail: { from: 'draft', to: 'pending' } },
+    { created_at: '2026-11-11T08:00:00Z', actor: 'y@x.test', action: 'catalog.engagement.create', detail: {} },
+    { created_at: '2026-11-11T07:00:00Z', actor: 'a@x.test', action: 'catalog.engagement.update', detail: { fields: ['external_ref'], from: { external_ref: null }, to: { external_ref: '<b>X</b>' } } }];
+  const html = L(rows, false);
+  assert.match(html, /מצב קשר: אין קשר ← במשא ומתן/); assert.match(html, /מצב הסכם: טיוטת הסכם ← חתום/); assert.match(html, /עדיפות: 100 ← 90/); assert.match(html, /מצב: טיוטה ← ממתין לאישור/);
+  assert.match(html, /מזהה מהגיליון: ריק ← &lt;b&gt;X&lt;\/b&gt;/); assert.doesNotMatch(html, /<b>X/); assert.match(html, /שליחת התקשרות לאישור/); assert.match(html, /יצירת התקשרות/);
+  // an update of a provider (only the new value is known) and of a service (what it was and is), with the same machinery
+  const p = L([{ created_at: '2026-11-11T10:00:00Z', actor: 'y@x.test', action: 'catalog.provider.update', detail: { fields: ['capacity_open'], to: { capacity_open: 4 } } }], false); assert.match(p, /קיבולת פתוחה: 4/); assert.doesNotMatch(p, /ריק ←/);
+  const s = L([{ created_at: '2026-11-11T10:00:00Z', actor: 'y@x.test', action: 'catalog.service.update', detail: { fields: ['active'], from: { active: false }, to: { active: true } } }], false); assert.match(s, /פעיל \(פנימי\): לא ← כן/);
+  assert.doesNotMatch(html, /\bundefined\b|\bnull\b|NaN/);
+  // the engagement card asks for its history under the id "provider/service", encoded
+  assert.ok(CATALOG.includes("loadChangeLog('engagement', d.engagement.provider_id + '/' + d.engagement.service_id)") && CATALOG.includes("tell('engagement', d)"));
 });
 
 test('admin.js passes on only codes, messages and fields from a short safe list: no SQL, connection detail, personal detail or raw body reaches the screens', () => {

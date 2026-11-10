@@ -115,7 +115,7 @@ async function listEngagements(q) {
 // from the existing pricing table: only its id, label, price and flags; never its cost or commission), and the live "what is missing before it can be active" list.
 const ENGAGEMENT_ONE = 'SELECT ps.professional_id::text AS provider_id, p.name AS provider_name, ps.service_id::text AS service_id, s.name AS service_name, s.topic AS service_topic, ' +
   'ps.activation, ps.contact_state, ps.agreement_state, ps.pricing_model, ps.pricing_id::text AS pricing_id, ps.external_ref, ps.priority, ps.terms_note, ps.paused_reason, ps.retired_reason, ps.retired_at, ps.updated_by, ps.updated_at, ' +
-  "coalesce(ss.legal_cleared, false) AS service_legal_cleared, coalesce(ss.finding_tags, '{}'::text[]) AS service_finding_tags, coalesce(ss.topics, '{}'::text[]) AS service_topics, pp.paused_until AS provider_paused_until, pp.archived_at AS provider_archived_at, " +
+  "(ss.service_id IS NOT NULL) AS service_has_settings, coalesce(ss.legal_cleared, false) AS service_legal_cleared, coalesce(ss.finding_tags, '{}'::text[]) AS service_finding_tags, coalesce(ss.topics, '{}'::text[]) AS service_topics, pp.paused_until AS provider_paused_until, pp.archived_at AS provider_archived_at, " +
   'pr.id::text AS price_id, pr.label AS price_label, pr.price::float8 AS price_value, pr.approved AS price_approved, pr.public AS price_public ' +
   'FROM provider_services ps JOIN professionals p ON p.id = ps.professional_id JOIN services s ON s.id = ps.service_id LEFT JOIN service_settings ss ON ss.service_id = ps.service_id ' +
   'LEFT JOIN provider_profiles pp ON pp.professional_id = ps.professional_id LEFT JOIN pricing pr ON pr.id = ps.pricing_id WHERE ps.professional_id = $1::bigint AND ps.service_id = $2::bigint';
@@ -134,14 +134,20 @@ async function loadEngagement(providerId, serviceId) {
     cleared: r.service_legal_cleared, tags: r.service_finding_tags, topics: r.service_topics, archived: !!r.provider_archived_at, paused: r.provider_paused_until ? new Date(r.provider_paused_until) > now : false });
   return { r, layers, e, ctx, list: States.checklist(e, ctx), seen };
 }
+// Is the SERVICE set up for an engagement of it to be activated one day: it needs its settings (a code) and at least one finding tag or questionnaire topic to be matched by. This is a marker, not a switch: nothing here activates anything.
+const setupOf = (hasSettings, tags, topics) => { const missing = []; if (!hasSettings) missing.push('settings'); else if (!((tags || []).length || (topics || []).length)) missing.push('matching'); return { ready: missing.length === 0, missing }; };
+async function serviceSetup(serviceId) {
+  const rows = await rd('SELECT (ss.service_id IS NOT NULL) AS has_settings, coalesce(ss.finding_tags, \'{}\'::text[]) AS tags, coalesce(ss.topics, \'{}\'::text[]) AS topics FROM services s LEFT JOIN service_settings ss ON ss.service_id = s.id WHERE s.id = $1::bigint', [String(serviceId)]);
+  return rows.length ? setupOf(rows[0].has_settings, rows[0].tags, rows[0].topics) : { ready: false, missing: ['settings'] };
+}
 async function getEngagement(providerId, serviceId) {
   const loaded = await loadEngagement(providerId, serviceId);
   if (!loaded) throw new HttpError(404, 'not_found');
-  const { r, layers, list, seen } = loaded;
+  const { r, layers, list, seen } = loaded, setup = setupOf(r.service_has_settings, r.service_finding_tags, r.service_topics);
   const byKind = { market: null, provider_offer: null, unclassified: null };
   for (const l of layers) byKind[l.kind] = { model: l.model, amount: l.amount, percent_low: l.percent_low, percent_high: l.percent_high, minimum_amount: l.minimum_amount, terms_text: l.terms_text, status: l.status, basis_missing: l.basis_missing, source_note: l.source_note, source_date: l.source_date, recorded_by: l.recorded_by, updated_at: l.updated_at };
   return {
-    engagement: { provider_id: num(r.provider_id), provider_name: r.provider_name, service_id: num(r.service_id), service_name: r.service_name, service_topic: r.service_topic, activation: r.activation, contact_state: r.contact_state, agreement_state: r.agreement_state, pricing_model: r.pricing_model, external_ref: r.external_ref, priority: r.priority, terms_note: r.terms_note, paused_reason: r.paused_reason, retired_reason: r.retired_reason, retired_at: r.retired_at, updated_by: r.updated_by, updated_at: r.updated_at },
+    engagement: { provider_id: num(r.provider_id), provider_name: r.provider_name, service_id: num(r.service_id), service_name: r.service_name, service_topic: r.service_topic, activation: r.activation, contact_state: r.contact_state, agreement_state: r.agreement_state, pricing_model: r.pricing_model, external_ref: r.external_ref, priority: r.priority, terms_note: r.terms_note, paused_reason: r.paused_reason, retired_reason: r.retired_reason, retired_at: r.retired_at, updated_by: r.updated_by, updated_at: r.updated_at, service_ready: setup.ready, service_missing: setup.missing },
     price_layers: byKind,
     approved_price: r.price_id === null ? null : { id: num(r.price_id), label: r.price_label, price: r.price_value, approved: r.price_approved === true, public: r.price_public === true },
     checklist: { items: list.items.map((i) => ({ key: i.key, label: i.label, ok: i.ok, blocking: i.blocking, enforced: i.enforced })), missing: list.missing, can_activate: list.canActivate, documented_only: list.documentedOnly, seen },
@@ -189,4 +195,4 @@ async function readSnapshot() {
   return { snapshot, fingerprint: fp[0].fingerprint, digest: Imp.snapshotDigest(snapshot) };
 }
 
-module.exports = { overview, listServices, getService, listProviders, getProvider, listEngagements, getEngagement, loadEngagement, listHistory, listImports, similarServices, readSnapshot, setClock, FINGERPRINT_SQL, FINGERPRINT_EXPR, SNAP, AUDIT_VIEW, MAX_COMPARE };
+module.exports = { serviceSetup, setupOf, overview, listServices, getService, listProviders, getProvider, listEngagements, getEngagement, loadEngagement, listHistory, listImports, similarServices, readSnapshot, setClock, FINGERPRINT_SQL, FINGERPRINT_EXPR, SNAP, AUDIT_VIEW, MAX_COMPARE };

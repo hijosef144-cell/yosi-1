@@ -223,14 +223,33 @@ route('POST', /^\/catalog\/providers\/(\d+)\/(pause|resume|archive|unarchive)$/,
 });
 
 // ===== engagements ===============================================================================================================================================================
+// A provider that is archived, or paused until a day that has not come yet, gets no new engagement. The check is part of the INSERT itself (not a separate look beforehand), so it holds for the very row that is written.
+const PROVIDER_UNAVAILABLE = 'EXISTS (SELECT 1 FROM provider_profiles pp WHERE pp.professional_id = $1::bigint AND (pp.archived_at IS NOT NULL OR (pp.paused_until IS NOT NULL AND pp.paused_until > now())))';
 route('POST', /^\/catalog\/engagements$/, 'engagements.create', { path: '/catalog/engagements', body: { provider_id: 1, service_id: 1 } }, async (c) => {
-  const b = fields(c, ['provider_id', 'service_id', 'external_ref']), p = idBody(b.provider_id, 'bad_provider_id'), s = idBody(b.service_id, 'bad_service_id'), ref = ENGAGEMENT.external_ref.v(b.external_ref);
-  // a new engagement is a draft, nothing agreed, no price model (the table's own defaults)
-  try { await W.run([{ text: 'INSERT INTO provider_services (professional_id, service_id, external_ref, updated_by) VALUES ($1::bigint, $2::bigint, $3, $4)', params: [String(p), String(s), ref, c.me.email] }, W.audit(c.me.email, 'catalog.engagement.create', 'engagement', p + '/' + s, {})]); }
-  catch (e) {
-    if (e.code === 'duplicate') throw new HttpError(409, /external_ref/.test(e.constraint || '') ? 'external_ref_in_use' : 'engagement_exists'); if (e.code === 'bad_reference') throw new HttpError(404, 'provider_or_service_not_found'); throw e;
+  const b = fields(c, ['provider_id', 'service_id', 'external_ref', 'activation']), p = idBody(b.provider_id, 'bad_provider_id'), s = idBody(b.service_id, 'bad_service_id'), ref = ENGAGEMENT.external_ref.v(b.external_ref);
+  // A new engagement is a draft: nothing agreed, no price model (the table's own defaults). It may be created ALREADY PENDING with "activation": "pending": that is the draft SUBMITTED, a step the state machine itself decides
+  // (the same one as the submit action), written in the same transaction as the creation, with the journal row of each step. Nothing else is accepted (above all not "active"), and without the field nothing changes for older callers.
+  const start = b.activation === undefined ? 'draft' : oneOf(b.activation, ['draft', 'pending'], 'bad_activation');
+  let next = 'draft';
+  if (start === 'pending') {
+    const res = States.act({ activation: 'draft', contact_state: 'none', agreement_state: 'not_discussed', pricing_model: 'tbd', pricing_id: null }, 'submit', {}, null);
+    if (!res.ok) throw refusal(422, 'transition_refused', { errors: res.errors, missing: [], documented_only: false });
+    next = res.next.activation;
   }
-  return { provider_id: p, service_id: s };
+  const insert = 'INSERT INTO provider_services (professional_id, service_id, external_ref, activation, updated_by) SELECT $1::bigint, $2::bigint, $3::text, $4::text, $5::text WHERE NOT ' + PROVIDER_UNAVAILABLE;
+  const steps = [...W.counted(insert, [String(p), String(s), ref, next, c.me.email]), W.audit(c.me.email, 'catalog.engagement.create', 'engagement', p + '/' + s, {})];
+  if (next === 'pending') steps.push(W.audit(c.me.email, 'catalog.engagement.submit', 'engagement', p + '/' + s, { from: 'draft', to: 'pending' }));
+  try { await W.run(steps); }
+  catch (e) {
+    if (e.code === 'duplicate') throw new HttpError(409, /external_ref/.test(e.constraint || '') ? 'external_ref_in_use' : 'engagement_exists'); if (e.code === 'bad_reference') throw new HttpError(404, 'provider_or_service_not_found');
+    if (e.noRows) {   // the provider was unavailable (the other reasons for a refused row have their own answers above)
+      const r = await db.query('SELECT pp.archived_at, (pp.paused_until IS NOT NULL AND pp.paused_until > now()) AS paused FROM provider_profiles pp WHERE pp.professional_id = $1::bigint', [String(p)]);
+      if (r.length && r[0].archived_at) throw new HttpError(409, 'provider_archived'); if (r.length && r[0].paused) throw new HttpError(409, 'provider_paused');
+    }
+    throw e;
+  }
+  const setup = await store.serviceSetup(s);   // readable answer: is the service set up to be activated one day (not an activation, only a marker)
+  return { provider_id: p, service_id: s, activation: next, service_ready: setup.ready, service_missing: setup.missing };
 });
 route('PATCH', /^\/catalog\/engagements\/(\d+)\/(\d+)$/, 'engagements.update', { path: '/catalog/engagements/1/1', body: { changes: { terms_note: 'הערה' }, expected: { terms_note: null } } }, async (c, pid, sid) => {
   const p = idOf(pid), s = idOf(sid), b = both(c), changes = norm(ENGAGEMENT, b.changes);   // the owner may state a contact or agreement state by hand; activation, prices and links have their own routes

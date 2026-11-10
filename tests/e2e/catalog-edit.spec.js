@@ -38,12 +38,12 @@ test('the screens now say "view and edit", and the buttons are on the lists and 
   await nav(page, 'נותני שירות'); await expect(bar(page, 'new')).toHaveText('נותן שירות חדש');
   await nav(page, 'שירותים'); await expect(bar(page, 'new')).toHaveText('שירות חדש');
   await body(page).locator('button[data-ct=open-service][data-id="1"]').click(); await ready(page);
-  await expect(page.locator('.ce-bar button')).toHaveText(['עריכת פרטים', 'הגדרות שירות', 'ביטול רישום האישור המדווח']);
-  await openService(page, 3); await expect(page.locator('.ce-bar button')).toHaveText(['עריכת פרטים', 'הגדרות שירות', 'רישום דיווח על אישור משפטי']);
-  await openService(page, 4); await expect(page.locator('.ce-bar button')).toHaveText(['עריכת פרטים', 'יצירת הגדרות וקוד שירות']);   // a service made elsewhere has no code yet
+  await expect(page.locator('.ce-bar button')).toHaveText(['עריכת פרטים', 'התקשרות חדשה', 'הגדרות שירות', 'ביטול רישום האישור המדווח']);
+  await openService(page, 3); await expect(page.locator('.ce-bar button')).toHaveText(['עריכת פרטים', 'התקשרות חדשה', 'הגדרות שירות', 'רישום דיווח על אישור משפטי']);
+  await openService(page, 4); await expect(page.locator('.ce-bar button')).toHaveText(['עריכת פרטים', 'התקשרות חדשה', 'יצירת הגדרות וקוד שירות']);   // a service made elsewhere has no code yet
   await expect(body(page)).toContainText('אי אפשר לרשום עבורו דיווח על אישור משפטי');
-  await openProvider(page, 11); await expect(page.locator('.ce-bar button')).toHaveText(['עריכת פרטים', 'השהיה', 'ארכוב']);
-  await openProvider(page, 12); await expect(page.locator('.ce-bar button')).toHaveText(['עריכת פרטים', 'שינוי השהיה', 'חידוש', 'ארכוב']);
+  await openProvider(page, 11); await expect(page.locator('.ce-bar button')).toHaveText(['עריכת פרטים', 'התקשרות חדשה', 'השהיה', 'ארכוב']);
+  await openProvider(page, 12); await expect(page.locator('.ce-bar button')).toHaveText(['עריכת פרטים', 'שינוי השהיה', 'חידוש', 'ארכוב']);   // paused: no new engagement
   await openProvider(page, 13); await expect(page.locator('.ce-bar button')).toHaveText(['עריכת פרטים', 'ביטול ארכוב']);
 });
 
@@ -288,7 +288,7 @@ test('a service that has no settings yet: the person creates the code with one c
   const writes = await open(page);
   await openService(page, 4); expect(writes).toEqual([]); expect(Number((await one('SELECT count(*)::int AS n FROM service_settings WHERE service_id = 4')).n)).toBe(0);
   await bar(page, 'mksettings').click(); await expect(dlg(page)).toContainText('svc-4'); await submit(page).click(); await expect(dlg(page)).toHaveCount(0); await ready(page);
-  expect((await one('SELECT code FROM service_settings WHERE service_id = 4')).code).toBe('svc-4'); await expect(body(page)).toContainText('svc-4'); await expect(page.locator('.ce-bar button')).toHaveText(['עריכת פרטים', 'הגדרות שירות', 'רישום דיווח על אישור משפטי']);
+  expect((await one('SELECT code FROM service_settings WHERE service_id = 4')).code).toBe('svc-4'); await expect(body(page)).toContainText('svc-4'); await expect(page.locator('.ce-bar button')).toHaveText(['עריכת פרטים', 'התקשרות חדשה', 'הגדרות שירות', 'רישום דיווח על אישור משפטי']);
 });
 
 test('the service is made but its code fails: the person is told exactly what exists, the form never comes back, nothing is created twice', async ({ page }) => {
@@ -299,7 +299,7 @@ test('the service is made but its code fails: the person is told exactly what ex
   await expect(panel).toContainText('השירות נוצר'); await expect(panel).toContainText('הקוד שלו עדיין לא נקבע'); await expect(panel).toContainText('בוטלה'); await expect(dlg(page).locator('.ce-fields')).toBeHidden();
   expect(writes.map((w) => w.method + ' ' + w.path.replace(/\d+/, 'N'))).toEqual(['POST /catalog/services', 'PUT /catalog/services/N/settings']);
   await page.keyboard.press('Escape'); await expect(dlg(page)).toHaveCount(0); await ready(page);   // closing goes to the card of the service that was made
-  await expect(body(page).locator('h2').first()).toContainText('שירות עם תקלה בקוד'); await expect(page.locator('.ce-bar button')).toHaveText(['עריכת פרטים', 'יצירת הגדרות וקוד שירות']);
+  await expect(body(page).locator('h2').first()).toContainText('שירות עם תקלה בקוד'); await expect(page.locator('.ce-bar button')).toHaveText(['עריכת פרטים', 'התקשרות חדשה', 'יצירת הגדרות וקוד שירות']);
   expect(Number((await one("SELECT count(*)::int AS n FROM services WHERE name = '[דמו] שירות עם תקלה בקוד'")).n)).toBe(1);
   await bar(page, 'mksettings').click(); await submit(page).click(); await expect(dlg(page)).toHaveCount(0); await ready(page); await expect(body(page)).toContainText('svc-');
   expect(Number((await one('SELECT count(*)::int AS n FROM service_settings')).n)).toBe(5);

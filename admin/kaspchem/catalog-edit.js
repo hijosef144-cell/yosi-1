@@ -1,8 +1,9 @@
-/* Catalog editing, stage 5b-1: providers and services (create, view, edit, states, service settings, the record of a legal clearance).
+/* Catalog editing, stages 5b-1 and 5b-2a: providers and services (create, edit, states, service settings, the report of a legal clearance) and engagements (create as PENDING, edit the tracking by hand).
  * It plugs into the read-only catalog screens (catalog.js) and adds its buttons to them.
  *
  * What it never does:
- *   - it sends nothing but the seven routes listed in ROUTES below (one helper, `send`, refuses every other path and method); no engagement, no price, no import, no activation, no delete;
+ *   - it sends nothing but the ten routes listed in ROUTES below (one helper, `send`, refuses every other path and method); of the engagement actions only `submit` (draft -> pending, part of creating one); no pause, no retire,
+ *     no withdraw, no activation or resume, no price, no import, no delete;
  *   - it never saves by itself: only a click on the button of an open form sends anything; closing a form sends nothing;
  *   - it never sends twice: the form is locked from the moment it sends, and a second click or a second Enter does nothing;
  *   - it never tries again by itself, whatever the answer; after an answer nobody can read ("unknown result") it offers a refresh and no resend;
@@ -17,7 +18,8 @@
   /* ---------- the only routes this file may call ---------- */
   var ROUTES = [
     ['POST', /^\/catalog\/providers$/], ['PATCH', /^\/catalog\/providers\/\d+$/], ['POST', /^\/catalog\/providers\/\d+\/(pause|resume|archive|unarchive)$/],
-    ['POST', /^\/catalog\/services$/], ['PATCH', /^\/catalog\/services\/\d+$/], ['PUT', /^\/catalog\/services\/\d+\/settings$/], ['POST', /^\/catalog\/services\/\d+\/clearance$/]
+    ['POST', /^\/catalog\/services$/], ['PATCH', /^\/catalog\/services\/\d+$/], ['PUT', /^\/catalog\/services\/\d+\/settings$/], ['POST', /^\/catalog\/services\/\d+\/clearance$/],
+    ['POST', /^\/catalog\/engagements$/], ['PATCH', /^\/catalog\/engagements\/\d+\/\d+$/], ['POST', /^\/catalog\/engagements\/\d+\/\d+\/actions\/submit$/]
   ];
   function allowed(method, path) { return ROUTES.some(function (r) { return r[0] === method && r[1].test(path); }); }
   function send(ctx, method, path, body) {
@@ -32,7 +34,7 @@
   function same(a, b) { return norm(a) === norm(b); }
   function dayText(iso) { var p = String(iso).split('-'); return p.length === 3 ? p[2] + '.' + p[1] + '.' + p[0] : String(iso); }
   var ACTIVE_NOTE = 'סימון פנימי בלבד: אינו משפיע על האתר הציבורי ולא על תהליכי ההפניה.';
-  var FIELD_LABEL = { name: 'שם', business_name: 'עסק או ארגון', contact_phone: 'טלפון', contact_email: 'דוא״ל', internal_notes: 'הערות פנימיות', capacity_open: 'קיבולת פתוחה', delivery_method: 'אופן העברה', topic: 'תחום', description: 'תיאור', active: 'שירות פעיל (פנימי)', finding_tags: 'תגי ממצאים', topics: 'תחומי שאלון' };
+  var FIELD_LABEL = { name: 'שם', business_name: 'עסק או ארגון', contact_phone: 'טלפון', contact_email: 'דוא״ל', internal_notes: 'הערות פנימיות', capacity_open: 'קיבולת פתוחה', delivery_method: 'אופן העברה', topic: 'תחום', description: 'תיאור', active: 'שירות פעיל (פנימי)', finding_tags: 'תגי ממצאים', topics: 'תחומי שאלון', contact_state: 'מצב קשר', agreement_state: 'מצב הסכם', terms_note: 'הערת תנאים', priority: 'עדיפות', external_ref: 'מזהה מהגיליון' };
   var DELIVERY = { portal: 'דרך פורטל', manual: 'ידני (הצוות מזין)' };
 
   /* ---------- plain Hebrew for every answer the write layer can give (a test checks that no code of the server is missing) ---------- */
@@ -55,10 +57,10 @@
     write_timeout: 'השמירה לקחה יותר מדי זמן ובוטלה. לא נשמר דבר. אפשר לנסות שוב.', catalog_unavailable: 'אי אפשר היה לבדוק אם הקטלוג פתוח, ולכן לא נשמר דבר. אפשר לנסות שוב.',
     result_unknown: 'לא ידוע אם הפעולה נשמרה. אל תשלחו שוב לפני שבדקתם מה המצב.', server_error: 'אירעה שגיאה בשרת. ייתכן שהפעולה לא הושלמה. אל תשלחו שוב לפני שבדקתם מה המצב.',
     catalog_disabled: 'הקטלוג כבוי כרגע, ולכן לא נשמר דבר.', forbidden: 'אין הרשאה לפעולה הזו.', csrf: 'הבקשה נדחתה בבדיקת האבטחה, ולכן לא נשמר דבר. יש לרענן את הדף.', not_found: 'הרשומה לא נמצאה. ייתכן שהקישור ישן.', unauthenticated: 'פג תוקף ההתחברות.',
-    similar_service_exists: 'כבר קיים שירות בשם דומה.', similar_provider_exists: 'כבר קיים נותן שירות בשם דומה.', duplicate: 'כבר קיימת רשומה כזו.',
+    similar_service_exists: 'כבר קיים שירות בשם דומה.', similar_provider_exists: 'כבר קיים נותן שירות בשם דומה.', duplicate: 'הערך כבר בשימוש ברשומה אחרת.',
     service_has_public_price: 'לשירות הזה יש מחיר שמוצג באתר, ולכן אי אפשר לשנות את שמו או את התחום שלו. אפשר להסיר את המחיר מהציבור בלשונית ״תמחור״ ואז לערוך.',
     settings_exist: 'הגדרות השירות כבר נוצרו. יש לרענן.', code_in_use: 'הקוד כבר בשימוש בשירות אחר.', settings_required: 'יש ליצור קודם את הגדרות השירות.',
-    active_engagements_exist: 'יש לנותן השירות או לשירות התקשרות פעילה, ולכן אי אפשר לבצע את הפעולה.', already_archived: 'נותן השירות כבר בארכיון.', not_paused: 'נותן השירות אינו מושהה.', not_archived: 'נותן השירות אינו בארכיון.', provider_archived: 'נותן השירות בארכיון. יש לבטל קודם את הארכוב.',
+    active_engagements_exist: 'יש לנותן השירות או לשירות התקשרות פעילה, ולכן אי אפשר לבצע את הפעולה.', provider_paused: 'נותן השירות מושהה, ולכן אי אפשר ליצור לו התקשרות חדשה עד שיחזור לזמינות.', bad_activation: 'שגיאה פנימית בטופס. לא נשלח דבר.', already_archived: 'נותן השירות כבר בארכיון.', not_paused: 'נותן השירות אינו מושהה.', not_archived: 'נותן השירות אינו בארכיון.', provider_archived: 'נותן השירות בארכיון. יש לבטל קודם את הארכוב.',
     engagement_exists: 'ההתקשרות כבר קיימת.', external_ref_in_use: 'המזהה מהגיליון כבר בשימוש.', layer_exists: 'שכבת המחיר כבר קיימת.', engagement_active: 'ההתקשרות פעילה. יש להשהות אותה קודם.', price_not_eligible: 'המחיר אינו מתאים להתקשרות הזו.',
     only_unclassified_can_be_classified: 'אפשר לסווג רק שכבה שטרם סווגה.', transition_refused: 'המעבר אינו מותר במצב הנוכחי.', layer_invalid: 'שכבת המחיר אינה תקינה.', provider_or_service_not_found: 'נותן השירות או השירות לא נמצאו.',
     bad_reference: 'הרשומה שאליה מתייחסים לא נמצאה.', rule_violation: 'הפעולה מפרה כלל מובנה של המערכת.', managed_in_catalog: 'הנתון הזה מנוהל בקטלוג הספקים.',
@@ -67,7 +69,8 @@
   // which field of a form a validation answer belongs to
   var FIELD_OF = { bad_name: 'name', bad_topic: 'topic', bad_description: 'description', bad_active: 'active', bad_code: 'code', bad_tags: 'finding_tags', bad_topics: 'topics', bad_business_name: 'business_name', bad_phone: 'contact_phone', bad_email: 'contact_email',
     bad_notes: 'internal_notes', bad_capacity: 'capacity_open', bad_delivery_method: 'delivery_method', reason_required: 'reason', bad_reason: 'reason', bad_until: 'until', bad_note: 'note',
-    bad_source: 'source', source_has_contact_detail: 'source', bad_source_kind: 'source_kind', bad_approved_on: 'approved_on', bad_clearance_reason: 'reason', reason_has_contact_detail: 'reason' };
+    bad_source: 'source', source_has_contact_detail: 'source', bad_source_kind: 'source_kind', bad_approved_on: 'approved_on', bad_clearance_reason: 'reason', reason_has_contact_detail: 'reason',
+    bad_external_ref: 'external_ref', external_ref_in_use: 'external_ref', duplicate: 'external_ref', bad_contact_state: 'contact_state', bad_agreement_state: 'agreement_state', bad_terms_note: 'terms_note', bad_priority: 'priority' };
   var GENERIC = 'הפעולה לא הושלמה. לא נשמר דבר.';
   function msg(code) { return Object.prototype.hasOwnProperty.call(MSG, code) ? MSG[code] : GENERIC; }
   var NOT_SAVED = ['busy_retry', 'conflict_retry', 'write_timeout', 'catalog_unavailable'];   // the server says: rolled back, nothing was written
@@ -79,6 +82,17 @@
     while ((m = re.exec(tail)) && out.length < 3) out.push({ id: Number(m[2]), name: m[1].trim() });
     return out;
   }
+  // The reasons the server gives when it refuses a change of state (a list of short codes, passed on by admin.js), in plain Hebrew; an unknown code gets a general sentence, never the code.
+  function stateName(k) { var a = C._t && C._t.labels && C._t.labels.ACTIVATION; return a && a[k] ? a[k] : k; }
+  function refusalText(code) {
+    var m;
+    if (code === 'reason_required') return 'חובה לכתוב סיבה.';
+    if (code === 'checklist_incomplete') return 'חסרים תנאים להפעלה.';
+    if ((m = /^not_allowed_from_([a-z]+)$/.exec(code))) return 'הפעולה אינה מותרת ממצב ״' + stateName(m[1]) + '״.';
+    if ((m = /^transition_not_allowed:([a-z]+)->([a-z]+)$/.exec(code))) return 'המעבר ממצב ״' + stateName(m[1]) + '״ למצב ״' + stateName(m[2]) + '״ אינו מותר.';
+    return 'ההתקשרות אינה עומדת בכלל מובנה של המערכת.';
+  }
+  function refusalReasons(details) { var out = [], errs = details && Array.isArray(details.errors) ? details.errors : []; errs.forEach(function (c) { var t = refusalText(c); if (out.indexOf(t) === -1) out.push(t); }); return out; }
   // What the person is told, and what the screen does next, for one failed request. Only text written in this file is ever shown: the server's own sentence and its codes never reach the screen.
   function describe(e) {
     var code = e && e.message, status = e && e.status;
@@ -90,6 +104,8 @@
     if (status === 403) return { kind: code === 'catalog_disabled' ? 'closed' : 'forbidden', message: msg(code === 'catalog_disabled' ? 'catalog_disabled' : 'forbidden') };
     if (status === 404) return { kind: 'notfound', message: msg('not_found') };
     if (code === 'conflict') return { kind: 'conflict', message: msg('conflict') };
+    if (code === 'engagement_exists') return { kind: 'exists', message: msg(code) };
+    if (code === 'transition_refused') { var why = refusalReasons(e.details); return { kind: 'state', message: msg(code) + (why.length ? ' ' + why.join(' ') : ''), reasons: why }; }
     if (code === 'similar_service_exists' || code === 'similar_provider_exists') return { kind: 'duplicate', message: msg(code), items: dupItems(e.userMessage) };
     if (Object.prototype.hasOwnProperty.call(FIELD_OF, code)) return { kind: 'validation', field: FIELD_OF[code], message: msg(code) };
     return { kind: 'state', message: msg(code) };
@@ -98,7 +114,7 @@
   /* ---------- the values of a form, and what changed ---------- */
   function convert(f, v) {
     if (f === 'active') return !!v;
-    if (f === 'capacity_open') return v === '' || v == null ? null : Number(v);
+    if (f === 'capacity_open' || f === 'priority') return v === '' || v == null ? null : Number(v);
     if (f === 'finding_tags' || f === 'topics') return v;
     var t = typeof v === 'string' ? v.trim() : v;
     return f === 'name' ? t : (t === '' ? null : t);
@@ -244,6 +260,7 @@
       if (d.kind === 'unknown') return ctl.showUnknown(d.message, function () { h.reload(); });
       if (d.kind === 'validation') return ctl.fieldError(d.field, d.message);
       if (d.kind === 'duplicate' && on.duplicate) return on.duplicate(d);
+      if (d.kind === 'exists' && on.exists) return on.exists(d);
       if (d.kind === 'conflict' && on.conflict) return on.conflict(d);
       if (d.kind === 'closed') {   // the catalog was switched off while the form was open: nothing was written
         ctl.showPanel('<div class="ce-bad" role="alert">' + esc(d.message) + '</div><p class="ce-actions"><button class="btn" type="button" data-ce="refresh">רענון</button></p>');
@@ -265,7 +282,7 @@
 
   /* ---------- somebody else changed it: say who and what, and let the person apply their own change on top, knowingly ---------- */
   function lastChange(h, entity, id) {
-    return h.get('/catalog/history?entity=' + entity + '&entity_id=' + id + '&limit=200').then(function (r) {
+    return h.get('/catalog/history?entity=' + entity + '&entity_id=' + encodeURIComponent(id) + '&limit=200').then(function (r) {
       var rows = (r.history || []).filter(function (x) { return !/\.view$/.test(x.action); }); return rows[0] || null;
     }, function () { return null; });
   }
@@ -275,7 +292,13 @@
       ctl.busy(false); var cur = a[0], who = a[1], rows = [];
       Object.keys(spec.mine).forEach(function (f) { rows.push({ f: f, was: spec.expected[f], now: cur[f], mine: spec.mine[f] }); });
       var differ = rows.filter(function (r) { return !same(r.was, r.now); });
-      var show = function (v, f) { return f === 'active' ? (v ? 'פעיל' : 'כבוי') : (Array.isArray(v) ? (v.length ? v.join(', ') : 'ריק') : (v == null || v === '' ? 'ריק' : String(v))); };
+      var show = function (v, f) {
+        if (f === 'active') return v ? 'פעיל' : 'כבוי';
+        if (v === null || v === undefined || v === '') return 'ריק';
+        if (Array.isArray(v)) return v.length ? v.join(', ') : 'ריק';
+        var map = f === 'contact_state' ? h.labels && h.labels.CONTACT : f === 'agreement_state' ? h.labels && h.labels.AGREEMENT : null;   // states are shown in words
+        return map && map[v] ? map[v] : String(v);
+      };
       var text = who ? ' בוצע על ידי <span dir="ltr">' + esc(who.actor) + '</span>' + (who.created_at ? ' ב־' + h.whenH(who.created_at) : '') + '.' : '';
       ctl.showPanel('<div class="ce-warn" role="alert"><strong>הנתון השתנה מאז שצפיתם בו.</strong>' + text + ' לא נשמר דבר.</div>' +
         (differ.length ? '<div class="scroll"><table class="tbl ct-tbl"><caption class="sr">שדות ששונו</caption><thead><tr><th>שדה</th><th>כשפתחתם</th><th>עכשיו</th><th>השינוי שלכם</th></tr></thead><tbody>' + differ.map(function (r) { return '<tr><td data-label="שדה">' + esc(FIELD_LABEL[r.f] || r.f) + '</td><td data-label="כשפתחתם">' + esc(show(r.was, r.f)) + '</td><td data-label="עכשיו">' + esc(show(r.now, r.f)) + '</td><td data-label="השינוי שלכם">' + esc(show(r.mine, r.f)) + '</td></tr>'; }).join('') + '</tbody></table></div>' : '<p>בשדות ששלחתם לא נמצא הבדל מול מה שראיתם. ייתכן שהנתון השתנה ושב לקדמותו.</p>') +
@@ -452,6 +475,129 @@
     }
   }
 
+  /* ---------- engagements (stage 5b-2a): a new one is made PENDING; its tracking is edited by hand; nothing here activates, pauses, retires or withdraws one ---------- */
+  var ENGAGEMENT_FIELDS = ['contact_state', 'agreement_state', 'terms_note', 'priority', 'external_ref'];
+  var EDITABLE_STATES = ['draft', 'pending'];   // the only states this stage creates; the others are shown, not edited
+  var NOT_EDITABLE = { paused: 'ההתקשרות מושהית. עריכה ופעולות אינן זמינות במסך הזה בשלב זה.', active: 'ההתקשרות פעילה. עריכה ופעולות אינן זמינות במסך הזה בשלב זה.', retired: 'ההתקשרות הוצאה משימוש. אין עריכה.' };
+  function pairs(map) { return Object.keys(map).map(function (k) { return [k, map[k]]; }); }
+  // Everything of a list, 200 at a time, up to 1000 (the lists a person picks from are small).
+  function loadAll(h, path, key) {
+    var rows = [];
+    function page(offset) {
+      return h.get(path + '?limit=200&offset=' + offset).then(function (r) {
+        rows = rows.concat(r[key] || []);
+        return rows.length < (r.total || 0) && rows.length < 1000 ? page(offset + 200) : rows;
+      });
+    }
+    return page(0);
+  }
+  // From a provider card the person picks a service; from a service card, a provider. Pairs that already exist are not offered, nor are providers in the archive.
+  function newEngagement(h, side, d) {
+    var fromProvider = side === 'provider', mine = fromProvider ? d.provider : d.service, taken = {}, cands = null;
+    (d.engagements || []).forEach(function (e) { taken[String(fromProvider ? e.service_id : e.provider_id)] = true; });
+    var who = fromProvider ? 'שירות' : 'נותן שירות';
+    var ctl = openDialog({ title: 'התקשרות חדשה', focus: '#ce-q',
+      intro: '<p>' + (fromProvider ? 'נותן שירות' : 'שירות') + ': <strong>' + esc(mine.name) + '</strong></p><p>ההתקשרות תיווצר במצב <strong>״ממתין לאישור״</strong>: בלי קשר, בלי הסכם ובלי מחיר. אין בכך הפעלה, וההפעלה אינה זמינה בשלב זה.</p>',
+      fields: field('q', 'חיפוש ' + who, input('q', '', {}), '') +
+        '<div class="ce-field" data-field="target"><label for="ce-target">' + esc(who) + '</label><select id="ce-target" name="target" size="6" aria-describedby="ce-target-c ce-target-e"></select><p class="ct-small" id="ce-target-c" role="status" aria-live="polite">טוען את הרשימה…</p><p class="ce-fe" id="ce-target-e"></p></div>' +
+        field('external_ref', 'מזהה מהגיליון (אם יש)', input('external_ref', '', { ltr: true, max: 80 }), ''),
+      submit: 'יצירת התקשרות', check: function (v) { return v.target ? null : { field: 'target', message: 'יש לבחור ' + (fromProvider ? 'שירות' : 'נותן שירות') + ' מהרשימה.' }; },
+      onSubmit: function (v) { createEngagement(h, ctl, fromProvider ? mine.id : Number(v.target), fromProvider ? Number(v.target) : mine.id, v.external_ref); } });
+    var qBox = ctl.form.querySelector('#ce-q'), sel = ctl.form.querySelector('#ce-target'), count = ctl.form.querySelector('#ce-target-c');
+    function render() {
+      if (!cands) return;
+      var q = qBox.value.trim().toLowerCase(), keep = sel.value, list = cands.filter(function (x) { return !q || x.text.toLowerCase().indexOf(q) !== -1; });
+      sel.innerHTML = list.map(function (x) { return '<option value="' + x.id + '"' + (String(x.id) === keep ? ' selected' : '') + '>' + esc(x.text) + '</option>'; }).join('');
+      count.textContent = !cands.length ? (fromProvider ? 'אין שירותים שאין להם כבר התקשרות עם נותן השירות הזה.' : 'אין נותני שירות זמינים שאין להם כבר התקשרות עם השירות הזה.') : (list.length ? list.length + ' ' + (list.length === 1 ? 'אפשרות' : 'אפשרויות') : 'לא נמצא. נסו חיפוש אחר.');
+    }
+    qBox.addEventListener('input', render);
+    loadAll(h, fromProvider ? '/catalog/services' : '/catalog/providers', fromProvider ? 'services' : 'providers').then(function (rows) {
+      if (!document.body.contains(ctl.el)) return;
+      cands = rows.filter(function (x) { return !taken[String(x.id)] && (fromProvider || x.state === 'available'); }).map(function (x) {
+        return { id: x.id, text: fromProvider ? x.name + (x.active ? '' : ' · כבוי') : x.name + (x.business_name ? ' — ' + x.business_name : '') + '' };
+      });
+      render();
+    }, function (e) {
+      if (!document.body.contains(ctl.el)) return;
+      var dd = describe(e); if (dd.kind === 'auth') { ctl.close(); return h.ctx.fail(e); }
+      count.textContent = 'לא ניתן היה לטעון את הרשימה. לא נשלח דבר. סגרו ופתחו שוב.';
+    });
+  }
+  // ONE request, one transaction on the server: the engagement is made already PENDING ("activation": "pending"), with the journal row of each step. Nothing is half made: it exists as pending, or it does not exist.
+  function createEngagement(h, ctl, p, s, ref) {
+    var body = { provider_id: p, service_id: s, activation: 'pending' }; if (ref && ref.trim()) body.external_ref = ref.trim();
+    write(h, ctl, 'POST', '/catalog/engagements', body, {
+      ok: function (r) { ctl.close(); toast('ההתקשרות נוצרה במצב ממתין לאישור' + (r && r.service_ready === false ? '. השירות אינו מוכן להפעלה.' : '')); h.go('engagement', [p, s], true); },
+      exists: function (dd) {
+        ctl.showPanel('<div class="ce-warn" role="alert"><strong>ההתקשרות כבר קיימת.</strong> ' + esc(dd.message) + ' לא נוצר דבר.</div><p class="ce-actions"><button class="btn" type="button" data-ce="open">פתיחת ההתקשרות הקיימת</button><button class="btn sec" type="button" data-ce="keep">חזרה לעריכה</button></p>', function (ev) {
+          var b = ev.target.closest('[data-ce]'); if (b && b.dataset.ce === 'open' && !ctl.isBusy()) { ctl.close(); h.go('engagement', [p, s], true); }
+        });
+      }
+    });
+  }
+  // The step of a DRAFT that already exists (made elsewhere, or by an import): one click, one attempt; nothing here repeats by itself. If it fails the person is told what the state is and what to do.
+  function submitStep(h, ctl, p, s, after) {
+    ctl.busy(true); ctl.status('מעביר את ההתקשרות למצב ממתין לאישור…', 'busy');
+    send(h.ctx, 'POST', '/catalog/engagements/' + p + '/' + s + '/actions/submit', { expected_activation: 'draft' }).then(function () { ctl.close(); toast('ההתקשרות הועברה למצב ממתין לאישור'); (after || function () { h.reload(); })(); }, function (e) {
+      var dd = describe(e); ctl.busy(false);
+      if (dd.kind === 'auth') { ctl.close(); return h.ctx.fail(e); }
+      var unknown = dd.kind === 'unknown', retry = dd.kind === 'busy';
+      ctl.showPanel('<div class="ce-warn" role="alert"><strong>ההתקשרות נשארה טיוטה: ההעברה למצב ממתין לאישור לא הושלמה.</strong> ' + esc(unknown ? 'לא ידוע אם ההעברה בוצעה. בדקו את כרטיס ההתקשרות לפני שליחה נוספת.' : dd.message) + '</div><p class="ce-actions">' +
+        (retry ? '<button class="btn" type="button" data-ce="again">ניסיון נוסף להעברה</button>' : '') + '<button class="btn sec" type="button" data-ce="open">' + (after ? 'פתיחת ההתקשרות' : 'רענון') + '</button></p>', function (ev) {
+        var b = ev.target.closest('[data-ce]'); if (!b || ctl.isBusy()) return;
+        if (b.dataset.ce === 'again') submitStep(h, ctl, p, s, after); else if (b.dataset.ce === 'open') { ctl.close(); (after || function () { h.reload(); })(); }
+      });
+    });
+  }
+  // A draft that is still a draft (its second step failed, or it came from elsewhere): one click, one confirmed step.
+  function submitOnly(h, d) {
+    var e = d.engagement, ctl = openDialog({ title: 'העברה למצב ממתין לאישור', intro: '<p>ההתקשרות תועבר ממצב טיוטה למצב <strong>ממתין לאישור</strong>. זו אינה הפעלה, וההפעלה אינה זמינה בשלב זה.</p>', fields: '', submit: 'להעביר', focus: '[data-ce=submit]',
+      onSubmit: function () { ctl.seal(function () { h.reload(); }); submitStep(h, ctl, e.provider_id, e.service_id, null); } });
+  }
+  // The tracking of an engagement, by hand. Only what changed is sent, with what the person saw; "signed" is a report of the owners, asked about before it is sent.
+  function editEngagement(h, d) {
+    var e = d.engagement, L = h.labels;
+    var ctl = openDialog({ title: 'עדכון מעקב אחר ההתקשרות', intro: '<p>' + esc(e.provider_name) + ' ← ' + esc(e.service_name) + '</p><p>עדכון ידני של מצב הקשר, מצב ההסכם והערות. אין בכך הפעלה, וההפעלה אינה זמינה בשלב זה.</p>',
+      fields: field('contact_state', 'מצב קשר', select('contact_state', pairs(L.CONTACT), e.contact_state), '') +
+        field('agreement_state', 'מצב הסכם', select('agreement_state', pairs(L.AGREEMENT), e.agreement_state, 'רישום ״חתום״ הוא דיווח שלכם: המערכת אינה מאמתת הסכם.'), 'רישום ״חתום״ הוא דיווח שלכם: המערכת אינה מאמתת הסכם.') +
+        field('terms_note', 'הערת תנאים', textarea('terms_note', e.terms_note, 1000, 'נשמרת בכרטיס בלבד, לא ביומן.'), 'נשמרת בכרטיס בלבד, לא ביומן.') +
+        field('priority', 'עדיפות', input('priority', e.priority, { type: 'number', min: 0, hint: 'סדר תצוגה בלבד. אינו משפיע על פניות או על הפעלה.' }), 'סדר תצוגה בלבד. אינו משפיע על פניות או על הפעלה.') +
+        field('external_ref', 'מזהה מהגיליון', input('external_ref', e.external_ref, { ltr: true, max: 80 }), ''),
+      submit: 'שמירה', check: function (v) { var t = String(v.priority).trim(); return /^\d{1,5}$/.test(t) && Number(t) <= 10000 ? null : { field: 'priority', message: 'העדיפות חייבת להיות מספר שלם בין 0 ל־10000.' }; },
+      onSubmit: function (v) {
+        var diff = diffFields(ENGAGEMENT_FIELDS, e, v);
+        if (!diff.count) return ctl.status('לא בוצע שינוי, ולכן אין מה לשמור.', 'state');
+        if (diff.changes.agreement_state === 'signed') return confirmSigned(h, ctl, e, diff);
+        saveEngagement(h, ctl, e, diff.changes, diff.expected);
+      } });
+  }
+  function confirmSigned(h, ctl, e, diff) {
+    ctl.showPanel('<div class="ce-warn" role="alert"><strong>רישום ״חתום״ הוא דיווח שלכם.</strong> המערכת אינה מאמתת שההסכם נחתם, והרישום אינו מפעיל את ההתקשרות: ההפעלה אינה זמינה בשלב זה.</div><p class="ce-actions"><button class="btn" type="button" data-ce="go">כן, לרשום ״חתום״</button><button class="btn sec" type="button" data-ce="keep">חזרה לעריכה</button></p>', function (ev) {
+      var b = ev.target.closest('[data-ce]'); if (b && b.dataset.ce === 'go' && !ctl.isBusy()) saveEngagement(h, ctl, e, diff.changes, diff.expected);
+    });
+  }
+  function saveEngagement(h, ctl, e, changes, expected) {
+    var p = e.provider_id, s = e.service_id;
+    write(h, ctl, 'PATCH', '/catalog/engagements/' + p + '/' + s, { changes: changes, expected: expected }, {
+      ok: function () { ctl.close(); toast('נשמר'); h.reload(); },
+      conflict: function () {
+        showConflict(h, ctl, { entity: 'engagement', id: p + '/' + s, expected: expected, mine: changes, current: function () { return h.get('/catalog/engagements/' + p + '/' + s).then(function (r) { return r.engagement; }); },
+          reapply: function (cur) {
+            var c2 = {}, e2 = {}; Object.keys(changes).forEach(function (f) { if (!same(cur[f], changes[f])) { c2[f] = changes[f]; e2[f] = cur[f] === undefined ? null : cur[f]; } });
+            if (!Object.keys(c2).length) { ctl.close(); toast('כבר מעודכן'); return h.reload(); }
+            saveEngagement(h, ctl, e, c2, e2);
+          } });
+      }
+    });
+  }
+  function engagementBar(h, d) {
+    var act = d.engagement.activation, html = '', hs = {}, editable = EDITABLE_STATES.indexOf(act) !== -1;
+    if (editable) { html += button('edit', 'עדכון מעקב', ''); hs.edit = function () { editEngagement(h, d); }; }
+    if (act === 'draft') { html += button('submit', 'העברה למצב ממתין לאישור'); hs.submit = function () { submitOnly(h, d); }; }
+    if (!editable && NOT_EDITABLE[act]) html += '<p class="ct-small ce-hint-line">' + esc(NOT_EDITABLE[act]) + '</p>';
+    return html ? bar(h, html, hs) : null;
+  }
+
   /* ---------- the buttons added to the screens ---------- */
   function bar(h, html, handlers) {
     var host = h.body.querySelector('#ct-h'), el = document.createElement('div');
@@ -462,10 +608,12 @@
   }
   var button = function (a, text, cls) { return '<button type="button" class="btn ' + (cls || 'sec') + '" data-ce="' + a + '">' + esc(text) + '</button>'; };
   function afterDraw(kind, d, h) {
+    if (kind === 'engagement') return engagementBar(h, d);
     if (kind === 'providers-list') return bar(h, button('new', 'נותן שירות חדש', ''), { 'new': function () { newProvider(h); } });
     if (kind === 'services-list') return bar(h, button('new', 'שירות חדש', ''), { 'new': function () { newService(h); } });
     if (kind === 'provider') {
       var st = d.provider.state, html = button('edit', 'עריכת פרטים', ''), hs = { edit: function () { editProvider(h, d); } };
+      if (st === 'available') { html += button('engage', 'התקשרות חדשה'); hs.engage = function () { newEngagement(h, 'provider', d); }; } else html += '<p class="ct-small ce-hint-line">' + (st === 'paused' ? 'נותן שירות מושהה: אי אפשר להוסיף לו התקשרות חדשה עד שיחזור לזמינות.' : 'לנותן שירות בארכיון אי אפשר להוסיף התקשרות. יש לבטל קודם את הארכוב.') + '</p>';
       if (st === 'archived') { html += button('unarchive', 'ביטול ארכוב'); hs.unarchive = function () { providerState(h, d, 'unarchive'); }; }
       else {
         html += button('pause', st === 'paused' ? 'שינוי השהיה' : 'השהיה'); hs.pause = function () { providerState(h, d, 'pause'); };
@@ -476,6 +624,7 @@
     }
     if (kind === 'service') {
       var set = d.settings || {}, hasSettings = !!set.code, html2 = button('edit', 'עריכת פרטים', ''), hs2 = { edit: function () { editService(h, d); } };
+      html2 += button('engage', 'התקשרות חדשה'); hs2.engage = function () { newEngagement(h, 'service', d); };
       if (hasSettings) { html2 += button('settings', 'הגדרות שירות'); hs2.settings = function () { editSettings(h, d); }; html2 += button('clearance', set.legal_cleared ? 'ביטול רישום האישור המדווח' : 'רישום דיווח על אישור משפטי'); hs2.clearance = function () { clearance(h, d); }; }
       else { html2 += button('mksettings', 'יצירת הגדרות וקוד שירות'); hs2.mksettings = function () { createSettingsOnly(h, d); }; html2 += '<p class="ct-small ce-hint-line">לשירות הזה אין עדיין הגדרות וקוד, ולכן אי אפשר לרשום עבורו דיווח על אישור משפטי.</p>'; }
       return bar(h, html2, hs2);
@@ -487,5 +636,5 @@
   }
 
   C.extend({ afterDraw: afterDraw });
-  root.KaspchemCatalogEdit = { _t: { ROUTES: ROUTES, allowed: allowed, describe: describe, MSG: MSG, FIELD_OF: FIELD_OF, diffFields: diffFields, parseTags: parseTags, tagsProblem: tagsProblem, serviceCode: serviceCode, clearanceNote: clearanceNote, kindLabel: kindLabel, SOURCE_KINDS: SOURCE_KINDS, pauseUntilIso: pauseUntilIso, dupItems: dupItems, same: same, norm: norm, convert: convert, msg: msg } };
+  root.KaspchemCatalogEdit = { _t: { refusalReasons: refusalReasons, ENGAGEMENT_FIELDS: ENGAGEMENT_FIELDS, EDITABLE_STATES: EDITABLE_STATES, ROUTES: ROUTES, allowed: allowed, describe: describe, MSG: MSG, FIELD_OF: FIELD_OF, diffFields: diffFields, parseTags: parseTags, tagsProblem: tagsProblem, serviceCode: serviceCode, clearanceNote: clearanceNote, kindLabel: kindLabel, SOURCE_KINDS: SOURCE_KINDS, pauseUntilIso: pauseUntilIso, dupItems: dupItems, same: same, norm: norm, convert: convert, msg: msg } };
 })(typeof window !== 'undefined' ? window : this);
