@@ -100,3 +100,42 @@
   .ct-filters > div:first-child, .ct-filters > .ct-clear { grid-column: 1 / -1; }
   .ct-pager { gap: .6rem; }
 }
+
+/* ===== Editing (stage 5b-1): the buttons on the cards and the form dialog. Every class starts with ce-. ===== */
+.ce-bar { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin: 0 0 1rem; }
+.ce-bar .btn { min-height: 2.75rem; }
+.ce-hint-line { flex-basis: 100%; margin: 0; }
+.ce-modal { position: fixed; inset: 0; z-index: 70; background: rgba(8,38,43,.55); display: flex; align-items: center; justify-content: center; padding: 1rem; }
+.ce-form { background: #fff; width: min(620px, 100%); max-height: 100%; overflow: auto; border-radius: 16px; padding: 1.25rem; }
+.ce-form [hidden] { display: none !important; }
+.ce-form h2 { font-size: 1.35rem; margin: 0 0 .5rem; }
+.ce-form h2:focus { outline: none; }
+.ce-form :focus-visible { outline: 3px solid var(--gold-d); outline-offset: 2px; }
+.ce-intro p { margin: .3rem 0; }
+.ce-field { margin: .85rem 0; }
+.ce-field > label, .ce-field > legend { display: block; font-weight: 700; margin-bottom: .25rem; }
+fieldset.ce-field { border: 0; padding: 0; margin: .85rem 0; min-width: 0; }
+.ce-form input[type=text], .ce-form input[type=tel], .ce-form input[type=email], .ce-form input[type=number], .ce-form input[type=date], .ce-form select, .ce-form textarea { width: 100%; box-sizing: border-box; font: inherit; min-height: 2.75rem; padding: .5rem .65rem; border: 1.5px solid #b6cecb; border-radius: 10px; background: #fff; color: var(--ink); }
+.ce-form textarea { min-height: 5.5rem; }
+.ce-form .ce-ltr { text-align: start; }
+.ce-hint { color: #3e5f63; font-size: .88rem; margin: .25rem 0 0; }
+.ce-fe { color: #8c2a1d; font-weight: 700; font-size: .92rem; margin: .3rem 0 0; }
+.ce-fe:empty { display: none; }
+.ce-field.bad input, .ce-field.bad select, .ce-field.bad textarea { border: 2px solid #8c2a1d; }
+.ce-check { display: flex; gap: .6rem; align-items: flex-start; font-weight: 400; }
+.ce-form .ce-check input { width: 1.3rem; height: 1.3rem; min-height: 0; flex: none; margin-top: .15rem; }
+.ce-checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); gap: .45rem .8rem; }
+.ce-status:empty { display: none; }
+.ce-status { margin: .7rem 0 0; }
+.ce-warn, .ce-bad { border-radius: 10px; padding: .6rem .9rem; margin: .6rem 0; }
+.ce-warn { background: #fff6dc; border: 1px solid var(--gold); color: var(--ink); }
+.ce-bad { background: #fdecea; color: #8c2a1d; border: 1px solid #e3b4ad; }
+.ce-panel .ct-list li { padding: .5rem 0; }
+.ce-actions { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: 1rem; }
+.ce-form .btn { min-height: 2.75rem; }
+@media (max-width: 560px) {
+  .ce-modal { padding: .5rem; align-items: flex-end; }
+  .ce-form { padding: 1rem; border-radius: 16px 16px 0 0; max-height: 94vh; }
+  .ce-actions .btn { flex: 1 1 100%; min-height: 3rem; }
+  .ce-bar .btn { flex: 1 1 auto; }
+}

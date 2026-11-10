@@ -44,7 +44,7 @@ test('every screen draws from the real API answers of the demo catalog (no excep
   assert.equal((out.services.match(/data-ct="open-service"/g) || []).length, 7, 'all seven services');
   assert.equal((out.engagements.match(/data-ct="open-eng"/g) || []).length, 7, 'all seven engagements');
   assert.match(out.overview, /שירותים \(4 פעילים/); assert.match(out.provider11, /\[דמו\] נותן שירות א׳/); assert.match(out.imports, /CSV/); assert.match(out.history, /החלת ייבוא/);
-  assert.match(out.service1, /אושר/); assert.match(out.service1, /הצעה לציבור חסומה/);
+  assert.match(out.service1, /אישור מדווח/); assert.match(out.service1, /הצעה לציבור חסומה/);
   assert.match(out.provider14, /לא הוזן/, 'a provider with no profile shows "not entered", not an empty cell or "null"');
   assert.doesNotMatch(Object.values(out).join('\n'), /\bnull\b|\bundefined\b|NaN/);
 });

@@ -25,7 +25,22 @@
     if (method !== 'GET') h['X-Kaspchem'] = '1'; // CSRF guard checked by the server
     if (TEST_USER) { h['x-test-user'] = TEST_USER; }
     return fetch('/api/kaspchem/admin' + path, { method: method, headers: h, credentials: 'same-origin', body: body ? JSON.stringify(body) : undefined })
-      .then(function (r) { return r.json().then(function (j) { if (!r.ok) { var e = new Error(j.error || 'error'); e.status = r.status; e.userMessage = j.message; throw e; } return j; }); });
+      .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw apiError(r.status, j); return j; }); });
+  }
+  // What an error answer may hand on to the screens: the code, the server's own plain-language message, and a short list of fields that hold only codes or flags. Nothing else of the answer
+  // (no raw body, nothing the server did not name here) goes on, so no SQL, no connection detail and no personal detail can reach a screen this way.
+  var SAFE_CODE_LISTS = ['errors', 'missing', 'codes'], SAFE_FLAGS = ['documented_only'], SAFE_CODE = /^[a-z0-9_:>.-]{1,80}$/;
+  function safeDetails(j) {
+    var out = {};
+    SAFE_CODE_LISTS.forEach(function (k) { var v = j[k]; if (Array.isArray(v) && v.length <= 30 && v.every(function (x) { return typeof x === 'string' && SAFE_CODE.test(x); })) out[k] = v.slice(); });
+    SAFE_FLAGS.forEach(function (k) { if (typeof j[k] === 'boolean') out[k] = j[k]; });
+    return out;
+  }
+  function apiError(status, j) {
+    j = j && typeof j === 'object' && !Array.isArray(j) ? j : {};
+    var e = new Error(typeof j.error === 'string' && /^[A-Za-z0-9_.:-]{1,80}$/.test(j.error) ? j.error : 'error');
+    e.status = status; e.userMessage = typeof j.message === 'string' ? j.message.slice(0, 600) : undefined; e.details = safeDetails(j);
+    return e;
   }
   function fail(e) {
     if (e.status === 401) return gate('פג תוקף ההתחברות. יש להתחבר מחדש.');

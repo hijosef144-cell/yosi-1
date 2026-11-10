@@ -36,7 +36,7 @@ test('every request is a GET to the admin API: the screens never send, save or c
 
 test('overview: the counts of the demo catalog, and a link from a state to its list', async ({ page }) => {
   await open(page);
-  await expect(body(page)).toContainText('שירותים (4 פעילים, 4 ללא אישור משפטי)'); await expect(body(page)).toContainText('נותני שירות (1 מושהים, 1 בארכיון)');
+  await expect(body(page)).toContainText('שירותים (4 פעילים, 4 ללא אישור מדווח)'); await expect(body(page)).toContainText('נותני שירות (1 מושהים, 1 בארכיון)');
   await expect(page.locator('.ct-nav button[aria-current=page]')).toHaveText('סקירה');
   await body(page).locator('button[data-act=pending]').click(); await ready(page);
   await expect(page.locator('.ct-nav button[aria-current=page]')).toHaveText('התקשרויות');
@@ -81,8 +81,8 @@ test('services: topic and state filters, detail with the clearance and the provi
   await body(page).locator('button[data-ct=clear]').click(); await ready(page); await expect(rows(page)).toHaveCount(7);
   await page.locator('#ct-q').fill('החזר מס'); await expect(rows(page)).toHaveCount(1);
   await body(page).locator('button[data-ct=open-service]').click(); await ready(page);
-  await expect(body(page)).toContainText('מסים והחזרים'); await expect(body(page)).toContainText('הצעה לציבור חסומה בשלב זה'); await expect(body(page)).toContainText('אושר');
-  await expect(body(page).locator('tbody tr')).toHaveCount(2);
+  await expect(body(page)).toContainText('מסים והחזרים'); await expect(body(page)).toContainText('הצעה לציבור חסומה בשלב זה'); await expect(body(page)).toContainText('אישור מדווח');
+  await expect(body(page).locator('.panel').filter({ hasText: 'נותני שירות משויכים' }).locator('tbody tr')).toHaveCount(2); await expect(page.locator('#ct-log')).toContainText('אישור משפטי של שירות');   // the providers of the service (the change log under the card has its own table)
   await body(page).locator('button[data-ct=back]').click(); await ready(page); await body(page).locator('button[data-ct=clear]').click(); await ready(page);
   await page.locator('#ct-q').fill('ללא נותן שירות'); await expect(rows(page)).toHaveCount(1); await body(page).locator('button[data-ct=open-service]').click(); await ready(page);
   await expect(body(page)).toContainText('אין נותני שירות לשירות הזה עדיין');
@@ -211,7 +211,7 @@ test('the existing tabs are untouched and the catalog tab can be left and entere
   await page.locator('#tabs button[data-t=pricing]').click(); await expect(page.locator('#view h1')).toHaveText('תמחור');
   await page.locator('#tabs button[data-t=pros]').click(); await expect(page.locator('#view h1')).toHaveText('בעלי מקצוע');
   await page.locator('#tabs button[data-t=catalog]').click(); await ready(page); await expect(page.locator('#ct-root h1')).toHaveText('קטלוג ספקים'); await expect(page.locator('.ct-nav button[aria-current=page]')).toHaveText('סקירה');
-  await expect(page.locator('#ct-root .ct-ro')).toHaveText('לקריאה בלבד'); await expect(page.locator('#ct-root form:not(.ct-filters), #ct-root input[type=submit], #ct-root textarea')).toHaveCount(0);
+  await expect(page.locator('#ct-root .ct-ro')).toHaveText('צפייה ועריכה'); await expect(page.locator('#ct-root form:not(.ct-filters), #ct-root input[type=submit], #ct-root textarea')).toHaveCount(0);
 });
 
 test('smoke of the older admin screens: all nine open in order, each with its own heading and without a JavaScript error; the catalog tab sits between "pros" and "settings"', async ({ page }) => {

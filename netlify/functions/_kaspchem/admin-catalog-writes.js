@@ -3,7 +3,9 @@
 // catalog is closed. Rules that hold for every route here:
 //   * input is validated against a fixed list of fields (an unknown field is a 400, never ignored); nothing from the request becomes SQL text;
 //   * an edit to something that exists carries `expected` (the values the caller saw): the UPDATE only matches if they still hold (compare-and-set), otherwise nothing is written (409);
-//   * the change and its audit row are one transaction; the audit detail has field names and non-personal values, never a contact detail or a free text;
+//   * the change and its audit row are one transaction; the audit detail has field names and short non-personal values, never a contact detail and never a note. Two kinds of short text are kept in it, because the owners must be able to
+//     rebuild from the journal what was decided and why: the reason of a pause, an archive or a cancelled clearance, and the source of a reported clearance. Each is bounded and stripped of markup, control and invisible characters;
+//     the clearance ones are also refused when they look like a phone number, an e-mail address, an identity number or a link (see journalText). The audit table is append-only for this application (INSERT and SELECT only);
 //   * nothing here writes the price table, the settings table or the commission table (the database layer would refuse it); there is no DELETE anywhere;
 //   * nothing activates by itself: only the explicit `activate` / `resume` actions can, behind their own switch and checks (below).
 const db = require('./db');
@@ -66,6 +68,31 @@ const ENGAGEMENT = {
 const SAFE_DETAIL = ['name', 'topic', 'active', 'contact_state', 'agreement_state', 'priority', 'external_ref', 'delivery_method', 'capacity_open'];   // values that may be copied into the audit detail
 const changeDetail = (changes, expected) => ({ fields: Object.keys(changes), from: pick(expected, SAFE_DETAIL), to: pick(changes, SAFE_DETAIL) });
 
+// ---- short text that is kept in the journal (the clearance source and the reason of a cancelled clearance) ------------------------------------------------------------------------
+// Not a note: a bounded sentence, without markup, control or invisible characters (the ones that can reorder or hide text on screen), and refused when it looks like a contact detail, an identity number or a link.
+const INVISIBLE = /[​-‏‪-‮⁠-⁩﻿]/g;
+const CONTACT_SHAPES = [/[^\s@]+@[^\s@]+\.[^\s@]+/, /\d{7,}/, /\b0\d{1,2}[\s-]?\d{3}[\s-]?\d{4}\b/, /\+\s?\d[\d\s-]{7,}\d/, /(?:\d[ -]?){8,}\d/, /https?:\/\/|www\./i];
+// The check looks at a plain copy: full-width and Arabic-Indic digits become ASCII digits, so a number cannot hide in another script. A filter that catches the usual shapes, not a guarantee that no name is typed.
+const plainDigits = (t) => t.normalize('NFKC').replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x660)).replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x6f0));
+function journalText(v, max, badCode, contactCode) {
+  if (v === null || v === undefined || v === '') return null;
+  if (typeof v !== 'string') throw bad(badCode);
+  const t = cleanText(v.replace(INVISIBLE, ''), 0, max);   // removed, not turned into a space: an e-mail address with invisible characters inside must still read as one
+  if (t === null) throw bad(badCode);
+  if (t === '') return null;
+  const probe = plainDigits(t); if (CONTACT_SHAPES.some((re) => re.test(probe) || re.test(t))) throw bad(contactCode);
+  return t;
+}
+// The day of a reported approval: a real calendar date, not in the future (one day of room for time zones), not before 2000.
+function approvedOn(v) {
+  if (v === null || v === undefined || v === '') return null;
+  if (typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(v)) throw bad('bad_approved_on');
+  const d = new Date(v + 'T00:00:00Z');
+  if (Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== v || d.getTime() > Date.now() + 86400000 || d.getTime() < Date.UTC(2000, 0, 1)) throw bad('bad_approved_on');
+  return v;
+}
+const SOURCE_KINDS = ['written_opinion', 'email', 'meeting_summary', 'other'];
+
 async function writeOrDiagnose(statements, diagnose) {
   try { return await W.run(statements); } catch (e) { if (e && e.noRows && diagnose) throw (await diagnose()) || e; throw e; }
 }
@@ -118,11 +145,26 @@ route('PUT', /^\/catalog\/services\/(\d+)\/settings$/, 'services.settings', { pa
   return { ok: true };
 });
 route('POST', /^\/catalog\/services\/(\d+)\/clearance$/, 'services.clearance', { path: '/catalog/services/1/clearance', body: { cleared: true, expected_cleared: false } }, async (c, sid) => {
-  const id = idOf(sid), b = fields(c, ['cleared', 'expected_cleared', 'note']), cleared = boolean(b.cleared, 'bad_cleared'), was = boolean(b.expected_cleared, 'expected_required'), note = opt(b.note, 600, 'bad_note');
+  const id = idOf(sid), b = fields(c, ['cleared', 'expected_cleared', 'note', 'source_kind', 'source', 'approved_on', 'reason']), cleared = boolean(b.cleared, 'bad_cleared'), was = boolean(b.expected_cleared, 'expected_required'), note = opt(b.note, 600, 'bad_note');
+  // This records a REPORT by the signed-in owner that a written legal approval was received. It verifies nothing, and nothing is ever recorded by itself.
+  // Every event (a registration, a cancellation, a registration again) is its own append-only journal row with the structured facts that were given: the previous state, the kind and the short source of the approval, the day of the
+  // approval, the reason of a cancellation. The free remark (note) stays in the row, like every other note, and is not copied into the journal. The actor and the time are the journal's own columns.
+  if (cleared === was) throw bad('nothing_to_change');   // a registration over a registration or a cancellation of nothing would only add an empty event, and the first would replace the reporter without a cancellation in between
+  const detail = { cleared, was_cleared: was };
+  if (cleared) {
+    if (b.reason !== undefined) throw bad('field_not_for_registration');
+    detail.basis = 'reported';
+    if (b.source_kind !== undefined && b.source_kind !== null) detail.source_kind = oneOf(b.source_kind, SOURCE_KINDS, 'bad_source_kind');
+    const source = journalText(b.source, 200, 'bad_source', 'source_has_contact_detail'); if (source) detail.source = source;
+    const on = approvedOn(b.approved_on); if (on) detail.approved_on = on;
+  } else {
+    if (b.source_kind !== undefined || b.source !== undefined || b.approved_on !== undefined) throw bad('field_not_for_cancellation');
+    const reason = journalText(b.reason, 300, 'bad_clearance_reason', 'reason_has_contact_detail'); if (reason) detail.reason = reason;
+  }
   // recorded with the signed-in owner, never a name from the request; withdrawing a clearance is refused while an engagement of the service is active
   const dml = 'UPDATE service_settings SET legal_cleared = $1::boolean, legal_cleared_by = CASE WHEN $1::boolean THEN $2::text ELSE NULL END, legal_cleared_at = CASE WHEN $1::boolean THEN now() ELSE NULL END, legal_note = $3::text, updated_at = now() ' +
     "WHERE service_id = $4::bigint AND legal_cleared = $5::boolean AND ($1::boolean OR NOT EXISTS (SELECT 1 FROM provider_services x WHERE x.service_id = $4::bigint AND x.activation = 'active'))";
-  await writeOrDiagnose([...W.counted(dml, [cleared, c.me.email, note, String(id), was]), W.audit(c.me.email, 'catalog.service.clearance', 'service', id, { cleared })], async () => {
+  await writeOrDiagnose([...W.counted(dml, [cleared, c.me.email, note, String(id), was]), W.audit(c.me.email, 'catalog.service.clearance', 'service', id, detail)], async () => {
     const r = await db.query("SELECT legal_cleared, (SELECT count(*)::int FROM provider_services x WHERE x.service_id = $1::bigint AND x.activation = 'active') AS active FROM service_settings WHERE service_id = $1::bigint", [String(id)]);
     if (!r.length) return new HttpError(409, 'settings_required'); if (r[0].legal_cleared !== was) return new HttpError(409, 'conflict'); if (!cleared && r[0].active > 0) return new HttpError(409, 'active_engagements_exist'); return null;
   });
