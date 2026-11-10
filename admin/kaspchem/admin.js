@@ -35,8 +35,18 @@
       phone_exists: 'מספר הטלפון כבר רשום אצל פונה אחר',
       bad_phone: 'מספר טלפון לא תקין', bad_email: 'כתובת דוא״ל לא תקינה', bad_name: 'שם לא תקין', nothing_to_update: 'אין מה לעדכן'
     });
+    if (e.message === 'managed_in_catalog') return managedInCatalog(e);
     if (e.message === 'deep_not_ready') return toast(e.userMessage || 'הבדיקה המעמיקה אינה מוכנה להפעלה');
     toast('שגיאה: ' + (known[e.message] || e.message || 'לא ידועה'));
+  }
+  // While the catalog is open the older screens of services and providers are read only: say so where the person is looking, and offer the way to the catalog. (Nothing was saved.)
+  function managedInCatalog(e) {
+    var old = document.getElementById('mic'); if (old) old.remove();
+    var box = document.createElement('div'); box.id = 'mic'; box.className = 'warn'; box.style.margin = '1rem 0'; box.setAttribute('role', 'alert');
+    box.innerHTML = '<strong>העריכה כאן הועברה לקטלוג הספקים.</strong> ' + esc(e.userMessage || 'הנתון הזה מנוהל עכשיו בקטלוג הספקים ואי אפשר לשנות אותו מכאן.') + ' לא נשמר דבר. <button type="button" class="btn sec mini" id="mic-go">מעבר לקטלוג ספקים</button>';
+    view.insertBefore(box, view.firstChild);
+    document.getElementById('mic-go').onclick = function () { go('catalog'); };
+    box.scrollIntoView({ block: 'nearest' }); toast('הנתון מנוהל בקטלוג הספקים');
   }
   function authBox(title, inner) { tabsEl.hidden = true; document.getElementById('who').textContent = ''; view.innerHTML = '<section class="gate"><h1>' + title + '</h1>' + inner + '</section>'; }
   function gate(msg) {

@@ -227,6 +227,35 @@ test('smoke of the older admin screens: all nine open in order, each with its ow
   expect(errors).toEqual([]);
 });
 
+test('the older services and providers screens: while the catalog is open a change is refused with a clear notice that points at the catalog and nothing is saved; with the catalog closed they work exactly as before', async ({ page }) => {
+  const errors = []; page.on('pageerror', (e) => errors.push(e.message));
+  const n = async (t) => Number((await demo.pg.query('SELECT count(*)::int AS n FROM ' + t)).rows[0].n);
+  const flags = async () => JSON.stringify((await demo.pg.query('SELECT id, name, topic, active FROM services ORDER BY id')).rows);
+  await open(page);   // the demo opens with the catalog switch open
+  const services0 = await n('services'), pros0 = await n('professionals'), flags0 = await flags(), audit0 = await n('audit_log');
+  await page.locator('#tabs button[data-t=services]').click(); await expect(page.locator('#view h1')).toHaveText('קטלוג שירותים');
+  await page.locator('#sn').fill('שירות מהלשונית הישנה'); await page.locator('#sf button').click();
+  await expect(page.locator('#mic')).toBeVisible(); await expect(page.locator('#mic')).toContainText('העריכה כאן הועברה לקטלוג הספקים'); await expect(page.locator('#mic')).toContainText('לא נשמר דבר'); await expect(page.locator('#mic')).toHaveAttribute('role', 'alert');
+  expect(await n('services')).toBe(services0);
+  await page.locator('#view button[data-a]').first().click(); await expect(page.locator('#mic')).toBeVisible(); expect(await flags()).toBe(flags0);   // the switch-off / switch-on button of a service is refused as well
+  expect(await page.locator('#mic').count(), 'one notice, not a pile of them').toBe(1);
+  await page.locator('#tabs button[data-t=pros]').click(); await page.locator('#pn').fill('ספק מהלשונית הישנה'); await page.locator('#pf button').click();
+  await expect(page.locator('#mic')).toContainText('העריכה כאן הועברה לקטלוג הספקים'); expect(await n('professionals')).toBe(pros0);
+  expect(await n('audit_log'), 'a refused change leaves no audit row of a change (only the provider cards opened would)').toBe(audit0);
+  await page.locator('#mic-go').click(); await ready(page); await expect(page.locator('#ct-root h1')).toHaveText('קטלוג ספקים'); await expect(page.locator('#tabs button[aria-current=page]')).toHaveAttribute('data-t', 'catalog');
+  await expect(page.locator('#mic')).toHaveCount(0);
+  // the neighbours still work with the catalog open: the price list and the request list open
+  await page.locator('#tabs button[data-t=pricing]').click(); await expect(page.locator('#view h1')).toHaveText('תמחור'); await page.locator('#tabs button[data-t=requests]').click(); await expect(page.locator('#view h1')).toHaveText('בקשות טיפול');
+  // the catalog closed: the same screens do what they always did, with no notice
+  await demo.setMode('closed'); await open(page);
+  await page.locator('#tabs button[data-t=services]').click(); await expect(page.locator('#view h1')).toHaveText('קטלוג שירותים');
+  const s1 = await n('services'); await page.locator('#sn').fill('שירות מהלשונית הישנה'); await page.locator('#sf button').click();
+  await expect.poll(() => n('services')).toBe(s1 + 1); await expect(page.locator('#view')).toContainText('שירות מהלשונית הישנה'); await expect(page.locator('#mic')).toHaveCount(0);
+  await page.locator('#tabs button[data-t=pros]').click(); const p1 = await n('professionals'); await page.locator('#pn').fill('ספק מהלשונית הישנה'); await page.locator('#pf button').click();
+  await expect.poll(() => n('professionals')).toBe(p1 + 1); await expect(page.locator('#mic')).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
 test('the top menu: every tab can be reached and clicked at every window width (none slides under the logo or the user name), and the catalog tab is one of them', async ({ page }) => {
   await open(page);
   for (const w of [360, 390, 768, 1000, 1100, 1200, 1280, 1366, 1440, 1536, 1920]) {

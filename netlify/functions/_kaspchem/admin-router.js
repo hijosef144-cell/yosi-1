@@ -7,6 +7,7 @@ const { opsAlert } = require('./ops-alert');
 const impact = require('./impact');
 const engine = require('../../../kaspchem/assets/engine.js');
 const catalog = require('./admin-catalog-router');
+const catalogOwnedWrites = [['POST', /^\/services$/], ['PATCH', /^\/services\/\d+$/], ['POST', /^\/professionals$/], ['PATCH', /^\/professionals\/\d+$/]];   // the older routes that write what the catalog owns while it is open
 const serviceGuard = require('./service-guard');
 
 const STATUSES = ['new', 'contacted', 'in_progress', 'awaiting_client', 'done', 'closed', 'spam'];
@@ -393,6 +394,7 @@ on('GET', '/settings', async () => {
 // The deep check's readiness panel (read only). The checklist is computed from the served content and the route; nothing is stored.
 on('GET', '/deep/readiness', async () => content.deepReadiness());
 on('PUT', '/settings', async (c) => {
+  if (catalog.touchesSwitch(c.body)) throw new HttpError(400, 'use_catalog_switch', 'מתגי הקטלוג משתנים רק בהחלטה נפרדת של הבעלים, לא מכאן.');   // first of all, whatever else the request holds: nothing is saved
   const key = String(c.body.key || '');
   if (key === 'public.deep_enabled') { // OFF is always allowed and immediate; ON only when every readiness condition holds (409 with the unmet ones, nothing written)
     if (typeof c.body.value !== 'boolean') throw new HttpError(400, 'bad_value');
@@ -419,6 +421,7 @@ async function handle(event, me) {
     const path = (event.path || '').replace(/^.*\/api\/kaspchem\/admin/, '') || '/';
     const method = event.httpMethod;
     if (catalog.isCatalogPath(path)) return await catalog.handle(event, me, path);   // the catalog (stage 4a, read only) answers for /catalog/*; every other path is handled below, exactly as before
+    if (catalogOwnedWrites.some(([om, ore]) => om === method && ore.test(path.replace(/\/$/, '') || '/'))) await catalog.refuseOldWrite();   // closed for writing while the catalog switch is open (checked after who is asking, before anything is read or written)
     for (const [m, re, fn] of routes) {
       if (m !== method) continue;
       const hit = re.exec(path.replace(/\/$/, '') || '/');

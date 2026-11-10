@@ -48,4 +48,19 @@ function assertNoSecrets(value, depth) {
   }
 }
 
-module.exports = { gate, requireOwner, isOpen, activationOpen, assertNoSecrets, SWITCH_KEY, ACTIVATION_KEY };
+// The older routes that WRITE services and professionals (admin-router.js) are closed while the catalog is open: the catalog is then the one place that changes them, with its own checks.
+// Exactly the same test as the gate (the switch must be exactly JSON true) and the same answer when the switch cannot be read: closed for writing, never open by accident.
+// While the switch is closed or absent this function does nothing but read it: the older routes behave exactly as they always did.
+async function refuseOldWrite() {
+  let open;
+  try { open = await isOpen(); } catch (e) { logError('catalog.switch', e); throw new HttpError(503, 'catalog_unavailable'); }
+  if (open) throw new HttpError(409, 'managed_in_catalog', 'הנתון הזה מנוהל עכשיו בקטלוג הספקים ואי אפשר לשנות אותו מכאן.');
+}
+
+// The two catalog switches change only by a separate decision of the owners, never through the general settings route. The whole namespace "private.catalog_" is kept for the catalog, and the check
+// looks at the WHOLE request body (the key, the value, any other field, any nesting), so a request that mentions a switch anywhere, alone or together with other settings, is refused before anything is
+// saved. It does not look at the switch itself, so it works while the catalog is closed.
+const SWITCH_NAMESPACE = /private\.catalog_/i;
+function touchesSwitch(body) { try { return SWITCH_NAMESPACE.test(JSON.stringify(body)); } catch (e) { return true; } }   // a body that cannot even be written out is refused too
+
+module.exports = { gate, requireOwner, isOpen, activationOpen, assertNoSecrets, refuseOldWrite, touchesSwitch, SWITCH_KEY, ACTIVATION_KEY };

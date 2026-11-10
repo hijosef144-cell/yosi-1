@@ -23,10 +23,10 @@ test('authentication, the allow-list, the public configuration, the lead and imp
   for (const [f, pin] of Object.entries(IDENTICAL)) assert.equal(sha(read(f)), pin, f + ' changed: if that is on purpose, the pin and the review belong in the same commit');
 });
 
-test('admin-router.js differs from the live version in exactly three places: the catalog hook, the service-guard require, and the PATCH /services handler (the owner-approved block)', () => {
+test('admin-router.js differs from the live version in exactly these places: the catalog hook, the service-guard require, the PATCH /services handler (the owner-approved block), and the catalog lock (the list of older write routes, the check before them, the refusal of the catalog switches at the start of the settings route)', () => {
   let lines = read('netlify/functions/_kaspchem/admin-router.js').split('\n');
   const catalogLines = lines.filter((l) => /catalog/.test(l)).map((l) => l.trim().replace(/\s*\/\/.*$/, ''));
-  assert.deepEqual(catalogLines, ["const catalog = require('./admin-catalog-router');", 'if (catalog.isCatalogPath(path)) return await catalog.handle(event, me, path);']);
+  assert.deepEqual(catalogLines, ["const catalog = require('./admin-catalog-router');", "const catalogOwnedWrites = [['POST', /^\\/services$/], ['PATCH', /^\\/services\\/\\d+$/], ['POST', /^\\/professionals$/], ['PATCH', /^\\/professionals\\/\\d+$/]];", "if (catalog.touchesSwitch(c.body)) throw new HttpError(400, 'use_catalog_switch', 'מתגי הקטלוג משתנים רק בהחלטה נפרדת של הבעלים, לא מכאן.');", "if (catalog.isCatalogPath(path)) return await catalog.handle(event, me, path);", "if (catalogOwnedWrites.some(([om, ore]) => om === method && ore.test(path.replace(/\\/$/, '') || '/'))) await catalog.refuseOldWrite();"]);
   lines = lines.filter((l) => !/catalog/.test(l) && !/serviceGuard\s*=\s*require/.test(l));
   const a = lines.findIndex((l) => l.startsWith("on('PATCH', '/services/(\\\\d+)'")); assert.ok(a > 0); let b = a; while (lines[b] !== '});') b++;
   const handler = lines.splice(a, b - a + 1).join('\n');

@@ -80,4 +80,4 @@ async function handle(event, me, path) {
   throw new HttpError(404, 'not_found');
 }
 
-module.exports = { handle, isCatalogPath, ROUTES, WRITE_ROUTES: writes.ROUTES, readQuery };
+module.exports = { handle, isCatalogPath, ROUTES, WRITE_ROUTES: writes.ROUTES, readQuery, refuseOldWrite: guards.refuseOldWrite, touchesSwitch: guards.touchesSwitch };

@@ -59,7 +59,9 @@ test('OWNER DECISION, catalog route: the name or topic of a service tied to a pu
   assert.equal((await upd({ description: 'תיאור חדש' }, { description: 'בדיקה של החזרי מס לשכירים' })).status, 200, 'a description is free');
   assert.equal((await upd({ active: false }, { active: true })).status, 200, 'the active flag is free');
   assert.equal((await upd({ name: 'בדיקת זכאות להחזר מס', topic: 'מיסים' }, { name: 'בדיקת זכאות להחזר מס', topic: 'מיסים' })).status, 200, 'saying the same name and topic is not a change');
-  const old = await w.call('PATCH', '/services/11', YOSI, j({ topic: 'פנסיה', name: 'בדיקת זכאות להחזר מס' })); assert.deepEqual([old.status, old.body.error], [409, 'service_has_public_price'], 'the existing route is blocked the same way, on a database that has the catalog tables');
+  const OLD_BODY = j({ topic: 'פנסיה', name: 'בדיקת זכאות להחזר מס' });
+  const old = await w.call('PATCH', '/services/11', YOSI, OLD_BODY); assert.deepEqual([old.status, old.body.error], [409, 'managed_in_catalog'], 'with the catalog open the existing route is closed for writing (the lock); nothing is written');
+  await w.setSetting('private.catalog_enabled', false); const oldClosed = await w.call('PATCH', '/services/11', YOSI, OLD_BODY); assert.deepEqual([oldClosed.status, oldClosed.body.error], [409, 'service_has_public_price'], 'with the catalog closed the existing route has its own guard, exactly as before'); await w.open();
   await w.owner('UPDATE pricing SET public = false WHERE id = 7');
   assert.equal((await upd({ topic: 'פנסיה' }, { topic: 'מיסים' })).status, 200, 'once the price is off the public list the service can be edited'); assert.equal((await w.owner('SELECT topic FROM services WHERE id = 11'))[0].topic, 'פנסיה');
   await w.pg.close();
