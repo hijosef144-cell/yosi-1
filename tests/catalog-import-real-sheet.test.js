@@ -17,7 +17,8 @@ const W = require('../netlify/functions/_kaspchem/catalog-writes.js');
 test.after(closeAll);
 
 const SHEET = fs.readFileSync(path.join(__dirname, 'fixtures', 'catalog-sheet-real-shape.csv'), 'utf8');
-const TOPICS = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'kaspchem', 'content', 'topics.json'), 'utf8')).topics.map((t) => ({ id: t.id, name: t.name }));
+const { INTERNAL_TOPICS } = require('../netlify/functions/_kaspchem/catalog/internal-topics.js');
+const TOPICS = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'kaspchem', 'content', 'topics.json'), 'utf8')).topics.map((t) => ({ id: t.id, name: t.name })).concat(INTERNAL_TOPICS.map((t) => ({ id: t.id, name: t.name })));   // what the import route hands the engine: the topics of the system and the two internal catalog domains
 const preview = (csv, existing, extra) => I.buildPreview(Object.assign({ csv, existing: existing || F.EMPTY(), topics: TOPICS }, extra || {}));
 const count = (p, k) => { const o = {}; p.rows.forEach((r) => (r[k] || []).forEach((x) => { const c = typeof x === 'string' ? x : x.code; o[c] = (o[c] || 0) + 1; })); return o; };
 const rowOf = (p, n) => p.rows.find((r) => r.rowNumber === n);
@@ -52,12 +53,16 @@ test('WHAT THE SHEET SAYS BECOMES ONLY WHAT AN IMPORT MAY SET: contact and agree
   plan.operations.filter((o) => o.op === 'create_service').forEach((o) => assert.equal(o.active, false)); assert.equal(JSON.stringify(plan).includes('commission'), false);
 });
 
-test('R13 TOPICS: the topic NAME of the sheet becomes the ID of the system topic; a name the system does not have is never stored as text (no topic, said on the row); without a list of topics the older behaviour stays', () => {
+test('R13 TOPICS: the topic NAME of the sheet becomes the ID of the system topic or of an internal catalog domain; a name nobody has is never stored as text (no topic, said on the row); without a list of topics the older behaviour stays', () => {
   const p = preview(SHEET); const topic = (n) => rowOf(p, n).record.service.topic;
   assert.deepEqual([topic(5), topic(9), topic(13), topic(14), topic(19)], ['tax-refunds', 'national-insurance', 'insurance-pension', 'mortgage', 'housing']);
-  assert.deepEqual([topic(6), topic(7), topic(11)], [null, null, null], 'the two sheet topics the system does not have'); assert.deepEqual([rowOf(p, 6).record.service.topic_in_file, rowOf(p, 11).record.service.topic_in_file], ['עסקים', 'חיסכון והשקעות']);
-  assert.equal(count(p, 'warnings').topic_not_in_system, 3);
-  const plan = I.planApply(p, approveAll(p, { 15: NEW, 17: NEW }), F.EMPTY()); const svc = plan.operations.filter((o) => o.op === 'create_service'); assert.equal(svc.filter((o) => o.topic === null).length, 3); assert.equal(svc.some((o) => /[א-ת]/.test(o.topic || '')), false, 'no Hebrew text is ever stored as a topic');
+  assert.deepEqual([topic(6), topic(7), topic(11)], ['business', 'business', 'savings-investments'], 'the two sheet domains that are not topics of the public check are internal catalog domains (owner decision 2026-11-11): the service keeps its domain');
+  assert.deepEqual([rowOf(p, 6).record.service.topic_in_file, rowOf(p, 11).record.service.topic_in_file], [undefined, undefined]); assert.equal(count(p, 'warnings').topic_not_in_system, undefined, 'nothing to warn about: every domain of this sheet is known');
+  assert.deepEqual(INTERNAL_TOPICS.map((t) => t.id), ['business', 'savings-investments']); const ids = new Set(JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'kaspchem', 'content', 'topics.json'), 'utf8')).topics.map((t) => t.id)); INTERNAL_TOPICS.forEach((t) => assert.equal(ids.has(t.id), false, t.id + ' is NOT a topic of the public check, so no questionnaire, route or page has it'));
+  const odd = SHEET.split('"עסקים"').join('"תחום שאינו קיים"'), po = preview(odd);   // a domain nobody has: no topic, said on the row, never stored as text
+  assert.deepEqual([rowOf(po, 6).record.service.topic, rowOf(po, 6).record.service.topic_in_file], [null, 'תחום שאינו קיים']); assert.equal(count(po, 'warnings').topic_not_in_system, 2);
+  const plan = I.planApply(po, approveAll(po, { 15: NEW, 17: NEW }), F.EMPTY()); const svc = plan.operations.filter((o) => o.op === 'create_service'); assert.equal(svc.filter((o) => o.topic === null).length, 2); assert.equal(svc.some((o) => /[א-ת]/.test(o.topic || '')), false, 'no Hebrew text is ever stored as a topic');
+  const plan0 = I.planApply(p, approveAll(p, { 15: NEW, 17: NEW }), F.EMPTY()); assert.deepEqual(plan0.operations.filter((o) => o.op === 'create_service' && ['business', 'savings-investments'].includes(o.topic)).length, 3, 'three services keep an internal domain'); assert.equal(JSON.stringify(plan0).includes('pricing_id'), false, 'and nothing is priced or made public by it');
   assert.equal(I.buildPreview({ csv: SHEET, existing: F.EMPTY() }).rows[0].record.service.topic, 'מסים והחזרים', 'no list of topics given: the text of the file, as before');
   // an existing service whose topic is already the right id: no change is proposed; the sheet's name for the same topic is not a "change"
   const ex = F.EMPTY(); ex.services.push({ id: 5, name: '[דמו] בדיקה והגשת החזר מס לשכירים', topic: 'tax-refunds', description: null, updated_by: 'import:x' });
@@ -148,7 +153,7 @@ test('R12 THE SQL OF THE SAVE stops it on its own: even when the snapshot guard 
   await w.pg.close();
 });
 
-test('THE SHEET SHAPE END TO END ON THE DATABASE: saving it creates topics as ids (and none as text), phones with their zero, 15 services, 3 providers, 14 engagements, 14 layers; nothing active; no commission row', async () => {
+test('THE SHEET SHAPE END TO END ON THE DATABASE: saving it creates topics as ids (system topics and the two internal domains, none as text), phones with their zero, 15 services, 3 providers, 14 engagements, 14 layers; nothing active; no commission row', async () => {
   const w = await world({ seed: false }); await w.open();
   const p = await prev(w, SHEET); assert.deepEqual(p.summary, { rows_total: 22, new: 15, changed: 0, unchanged: 0, skipped: 7, problem: 0 });
   const rows = {}; for (const r of p.rows) { if (['skipped', 'problem', 'unchanged'].includes(r.status)) continue; rows[r.rowNumber] = { apply: true, accept: [], acceptManual: [], confirmed: r.needsConfirmation, decisions: (r.decisions || []).length ? NEW : undefined }; }
@@ -159,7 +164,7 @@ test('THE SHEET SHAPE END TO END ON THE DATABASE: saving it creates topics as id
   assert.equal(await n('SELECT count(*)::int AS n FROM services WHERE active'), 0, 'every imported service is off');
   assert.equal(await n('SELECT count(*)::int AS n FROM provider_service_compensation'), 0, 'no commission'); assert.equal(await n('SELECT count(*)::int AS n FROM pricing'), 0, 'no approved or client price row is created');
   const topics = (await w.owner('SELECT topic, count(*)::int AS n FROM services GROUP BY topic ORDER BY topic')).map((r) => [r.topic, r.n]);
-  assert.deepEqual(topics, [['housing', 1], ['insurance-pension', 1], ['mortgage', 5], ['national-insurance', 2], ['tax-refunds', 3], [null, 3]]);
+  assert.deepEqual(topics, [['business', 2], ['housing', 1], ['insurance-pension', 1], ['mortgage', 5], ['national-insurance', 2], ['savings-investments', 1], ['tax-refunds', 3]], 'the two internal domains are stored as their ids; none is stored as text or left empty');
   assert.deepEqual((await w.owner("SELECT contact_phone FROM provider_profiles WHERE contact_phone IS NOT NULL ORDER BY contact_phone")).map((r) => r.contact_phone), ['0500000011', '0500000022', '0500000033']);
   await w.pg.close();
 });

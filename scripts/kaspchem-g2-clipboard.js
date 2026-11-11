@@ -28,6 +28,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { spawnSync } = require('child_process');
 const G = require('./kaspchem-g2.js');
+require('./kaspchem-g2-proof.js');   // registers the proof stages (they can only be run through the sequence below)
 
 const ALLOWED_STAGES = ['identity', 'headers', 'lock-probe'];   // read-only, or rolled back by design
 const WRITE_STAGES = ['atomic-control', 'atomic-rollback', 'atomic-guard', 'atomic-import'];      // each: alone, with --allow-writes=<its own name>, once (see parseArgs and run)
@@ -38,6 +39,12 @@ const WRITE_NOTES = {
   'atomic-import': 'THIS RUN SAVES a small import of two rows of INVENTED data on the child branch in ONE atomic batch (1 new inactive service, 2 providers with their profiles, 2 engagements that are not active, 2 price layers that are only recorded, the import log and one audit row; nothing is activated, no price is approved, no commission) and then sends the SAME save again, which must be refused. Reserved ids are used up (services_id_seq +1, professionals_id_seq +2, audit_log_id_seq +1, catalog_imports_id_seq +1). It pauses BEFORE each of the two sends until the independent check has compared the database and releases that one',
 };
 const RELEASE_FILE = path.join(__dirname, '..', 'docs', 'research', 'raw', 'g2-release.txt');
+// THE PROOF SEQUENCE (one copy of the connection string for the whole run, no pause between the stages): the owner approved a continuous run on the isolated branch. The stages are the ones above, in their order, then the proof stages that go
+// through the product's own routes (scripts/kaspchem-g2-proof.js). A stage that has already PASSED on this endpoint and marker is skipped (a write stage is approved once). The chain stops at the first failure of a stage the next ones depend on;
+// the proof stages are independent of each other: one that fails is recorded and the others still run.
+const PROOF_SEQUENCE = ['identity', 'headers', 'lock-probe', 'atomic-control', 'atomic-rollback', 'atomic-guard', 'atomic-import', 'proof-crud', 'proof-twin', 'proof-r12', 'proof-concurrency', 'proof-race'];
+const SEQUENCE_APPROVAL = 'sequence-proof';
+const SEQUENCE_NOTE = 'THIS RUN is the continuous proof sequence on the ISOLATED branch, with ONE copy of the connection string: it writes invented (g2) data only, through the stages already approved (control, rollback, guard, small import) and then through the own routes of the product (create/edit, the structure twin of the real sheet: 3 providers, 22 services, 21 engagements, 21 reported prices, the rule for paused/archived providers, two-connection concurrency, and the known price race, which activates ONE synthetic engagement). Nothing is paused for an outside check';
 
 // The pause before each send of atomic-rollback, atomic-guard and atomic-import: an outside check creates the release file once it has compared the database. Any file that exists when a pause begins is deleted first, and the release
 // must carry the random code of THIS pause ("go <code>"): a stale or reused file cannot match it, even if it were created after the deletion and before the code was shown.
@@ -72,20 +79,27 @@ function windowsClipboard() {
 }
 
 function parseArgs(argv) {
-  const a = { stages: ALLOWED_STAGES.slice(), wait: 600 };
+  const a = { stages: ALLOWED_STAGES.slice(), wait: 600 }; let explicitStages = false;
   for (const x of argv) {
     let m;
     if (/:\/\/|postgres/i.test(x)) throw new Error('a connection string must never be given on the command line: it is read from the clipboard.');
     if (x === '--allow-writes') throw new Error('--allow-writes must name the one stage it approves: --allow-writes=' + WRITE_STAGES[0] + '.');
-    if ((m = /^--(expect-endpoint|expect-env|marker|stages|wait-seconds|state|allow-writes)=(.*)$/.exec(x))) {
+    if ((m = /^--(expect-endpoint|expect-env|marker|stages|wait-seconds|state|allow-writes|sequence)=(.*)$/.exec(x))) {
       const k = m[1], v = m[2];
       if (k === 'expect-endpoint') a.endpoint = v; else if (k === 'expect-env') a.env = v; else if (k === 'marker') a.marker = v; else if (k === 'state') a.state = v;
-      else if (k === 'allow-writes') a.allowWrite = v; else if (k === 'stages') a.stages = v.split(',').map((s) => s.trim()).filter(Boolean); else a.wait = Number(v);
+      else if (k === 'allow-writes') a.allowWrite = v; else if (k === 'sequence') a.sequence = v; else if (k === 'stages') { a.stages = v.split(',').map((s) => s.trim()).filter(Boolean); explicitStages = true; } else a.wait = Number(v);
     } else throw new Error('unknown option: ' + x.slice(0, 40));
   }
   if (!a.endpoint || !/^ep-[a-z0-9-]{3,60}$/.test(a.endpoint)) throw new Error('give --expect-endpoint=ep-... (the endpoint of the CHILD branch).');
   if (!a.env || !/^[a-z][a-z0-9_-]{0,30}$/.test(a.env) || a.env === 'production') throw new Error('give --expect-env=<value of meta.environment>; "production" is never accepted.');
   if (!a.marker || !/^[a-z0-9]{12,40}$/.test(a.marker)) throw new Error('give --marker=<the token of the child-branch marker>.');
+  if (a.sequence !== undefined) {   // the proof sequence: alone, named exactly, approved by its own name
+    if (a.sequence !== 'proof') throw new Error('the only sequence is --sequence=proof.');
+    if (explicitStages) throw new Error('a sequence is not combined with --stages.');
+    if (a.allowWrite !== SEQUENCE_APPROVAL) throw new Error('a sequence that writes needs its own explicit approval: --allow-writes=' + SEQUENCE_APPROVAL + '.');
+    if (!Number.isFinite(a.wait) || a.wait < 5 || a.wait > 1800) throw new Error('--wait-seconds must be between 5 and 1800.');
+    a.stages = PROOF_SEQUENCE.slice(); return a;
+  }
   if (!a.stages.length || a.stages.some((s) => !ALLOWED_STAGES.includes(s) && !WRITE_STAGES.includes(s))) throw new Error('only these stages can be run from here: ' + ALLOWED_STAGES.concat(WRITE_STAGES).join(', ') + '.');
   const writes = a.stages.filter((s) => WRITE_STAGES.includes(s));
   if (writes.length) {
@@ -104,15 +118,15 @@ async function run(argv, deps) {
   try {
     let args; try { args = parseArgs(argv); } catch (e) { out('REFUSED: ' + e.message + ' Nothing was run.'); return { code: 2, lines, results: [] }; }
     // the gate of the tool, checked here first so that nobody is asked to copy a connection string for a run that is certain to be refused: the stage before the first one must have passed on this endpoint and marker
-    const writing = args.stages.some((s) => WRITE_STAGES.includes(s)), stateFile = args.state || G.DEFAULT_STATE, gate = G.readState(stateFile);
+    const seq = !!args.sequence, writing = seq || args.stages.some((s) => WRITE_STAGES.includes(s)), stateFile = args.state || G.DEFAULT_STATE, gate = G.readState(stateFile);
     for (const need of G.STAGES[args.stages[0]].needs) if (!G.passed(gate, need, args.endpoint, args.marker)) { out('REFUSED: stage "' + args.stages[0] + '" needs stage "' + need + '" to have passed first on this endpoint and marker (state file). Nothing was run.'); return { code: 2, lines, results: [] }; }
     // a stage that writes is approved to run ONCE on an endpoint and marker: if it has already passed, running it again is not approved from here
-    if (writing && G.passed(gate, args.stages[0], args.endpoint, args.marker)) { out('REFUSED: stage "' + args.stages[0] + '" has already PASSED on this endpoint and marker; a write stage is approved to run once, so it is not run again. Nothing was run.'); return { code: 2, lines, results: [] }; }
+    if (writing && !seq && G.passed(gate, args.stages[0], args.endpoint, args.marker)) { out('REFUSED: stage "' + args.stages[0] + '" has already PASSED on this endpoint and marker; a write stage is approved to run once, so it is not run again. Nothing was run.'); return { code: 2, lines, results: [] }; }
     const clipboard = d.clipboard || windowsClipboard(), clock = d.clock || Date.now, sleep = d.sleep || ((ms) => new Promise((r) => setTimeout(r, ms))), pollMs = d.pollMs || 1500;
     const releaseFile = d.releaseFile || RELEASE_FILE; if (writing) { try { fs.unlinkSync(releaseFile); } catch (e) { /* none: a release file from an earlier time must never release anything */ } }
     const history = clipboard.historyEnabled ? await clipboard.historyEnabled() : null;
     await clipboard.read();   // proves the clipboard can be read before anyone is asked to copy anything
-    out('READY. Stages: ' + args.stages.join(' -> ') + ' on endpoint ' + args.endpoint + ' as kaspchem_app. ' + (writing ? WRITE_NOTES[args.stages[0]] + ' (approved by name with --allow-writes=' + args.allowWrite + ').' : 'Nothing is written by these stages.'));
+    out('READY. Stages: ' + args.stages.join(' -> ') + ' on endpoint ' + args.endpoint + ' as kaspchem_app. ' + (seq ? SEQUENCE_NOTE + ' (approved by name with --allow-writes=' + args.allowWrite + ').' : writing ? WRITE_NOTES[args.stages[0]] + ' (approved by name with --allow-writes=' + args.allowWrite + ').' : 'Nothing is written by these stages.'));
     out('NOW: in the Neon console open the CHILD branch, role kaspchem_app, and press "Copy snippet" for the connection string. Copy nothing else until this script says it has the string. Waiting up to ' + args.wait + ' seconds.');
     if (history === true) out('NOTE: Windows clipboard history is ON, so the copied string will also be kept in Win+V history. This script clears the clipboard but does not delete your other history items: after the run press Win+V and choose "Clear all".');
     const start = clock(); let rejected = 0;
@@ -132,13 +146,18 @@ async function run(argv, deps) {
       await sleep(pollMs);
     }
     const base = d.env || process.env, env = Object.assign({}, base, { KASPCHEM_G2_DATABASE_URL: url }), results = [];   // a COPY with the string in it: process.env itself is never touched
+    const passedAlready = (s) => G.passed(G.readState(stateFile), s, args.endpoint, args.marker);
+    let anyFailed = false;
     for (const stage of args.stages) {
+      if (seq && passedAlready(stage)) { out('SKIPPED ' + stage + ': it has already PASSED on this endpoint and marker.'); results.push([stage, 'skipped']); continue; }
       // the tool's own write flag is passed to a stage that writes and to no other stage (parseArgs has already made sure that stage is alone and approved by name)
-      const r = await G.main(['--run=' + stage, '--approved-stages=' + stage, '--expect-endpoint=' + args.endpoint, '--expect-env=' + args.env, '--marker=' + args.marker].concat(args.state ? ['--state=' + args.state] : [], WRITE_STAGES.includes(stage) ? ['--allow-writes'] : []), env, { fetch: d.fetch, write: out, now: d.now, pause: d.pause || filePause({ file: releaseFile, seconds: d.pauseSeconds || 900, clock, sleep, pollMs: d.pausePollMs || 1000, out }) });
+      const r = await G.main(['--run=' + stage, '--approved-stages=' + stage, '--expect-endpoint=' + args.endpoint, '--expect-env=' + args.env, '--marker=' + args.marker].concat(args.state ? ['--state=' + args.state] : [], (WRITE_STAGES.includes(stage) || (seq && G.STAGES[stage].kind === 'write')) ? ['--allow-writes'] : []), env, { fetch: d.fetch, write: out, now: d.now, pause: seq ? async () => true : (d.pause || filePause({ file: releaseFile, seconds: d.pauseSeconds || 900, clock, sleep, pollMs: d.pausePollMs || 1000, out })) });
       results.push([stage, r.code]);
+      if (r.code !== 0 && seq && G.STAGES[stage].independent && r.code === 1) { anyFailed = true; out('FAILED ' + stage + ' (recorded). The stages that do not depend on it still run. No retry and no repair.'); continue; }
       if (r.code !== 0) { out('STOPPED at stage ' + stage + ' (exit ' + r.code + '). No retry and no repair. The stages after it were not run.'); return { code: r.code === 2 ? 2 : 1, lines, results }; }
     }
-    out((writing ? 'WRITE STAGE RESULT: PASS (' : 'A2 RESULT: PASS (') + results.map((x) => x[0]).join(', ') + '). The connection string was held in memory only and is gone.' + (rejected ? ' (' + rejected + ' wrong string(s) were rejected and cleared first.)' : ''));
+    if (anyFailed) { out('SEQUENCE RESULT: some proof stages FAILED (see above). The connection string was held in memory only and is gone.'); return { code: 1, lines, results }; }
+    out((seq ? 'SEQUENCE RESULT: PASS (' : writing ? 'WRITE STAGE RESULT: PASS (' : 'A2 RESULT: PASS (') + results.map((x) => x[0]).join(', ') + '). The connection string was held in memory only and is gone.' + (rejected ? ' (' + rejected + ' wrong string(s) were rejected and cleared first.)' : ''));
     return { code: 0, lines, results };
   } catch (e) {
     out('STOPPED: ' + (e && e.message === 'clipboard_unavailable' ? 'the Windows clipboard could not be read.' : 'unexpected error - ' + String((e && e.message) || '').slice(0, 120)));
@@ -146,5 +165,5 @@ async function run(argv, deps) {
   } finally { url = null; }
 }
 
-module.exports = { run, parseArgs, extractUrl, windowsClipboard, filePause, ALLOWED_STAGES, WRITE_STAGES, RELEASE_FILE };
+module.exports = { run, parseArgs, extractUrl, windowsClipboard, filePause, ALLOWED_STAGES, WRITE_STAGES, PROOF_SEQUENCE, SEQUENCE_APPROVAL, RELEASE_FILE };
 if (require.main === module) run(process.argv.slice(2)).then((r) => process.exit(r.code), () => { console.error('STOPPED: unexpected failure.'); process.exit(2); });

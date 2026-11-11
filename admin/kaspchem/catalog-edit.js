@@ -179,7 +179,7 @@
     return out;
   }
   function topicOptions(h, current) {
-    var list = h.ctx.topics().slice(), have = list.some(function (t) { return t[0] === current; });
+    var list = (h.ctx.domains ? h.ctx.domains() : h.ctx.topics()).slice(), have = list.some(function (t) { return t[0] === current; });
     if (current && !have) list.push([current, current]);
     return [['', 'ללא תחום']].concat(list);
   }

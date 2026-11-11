@@ -402,4 +402,7 @@ function importLog(preview, plan, importedBy) {
   };
 }
 
-module.exports = { buildPreview, planApply, assertSafe, importLog, parseRow, mapValue, digest, snapshotDigest, stable, SAFE_TARGETS, CONFIRM_FLAGS, SENSITIVE, SHAPES };
+// What still needs a correction, a confirmation or an answer before a file can be saved, for REPORTS: row numbers and short codes only. It never holds a contact detail, a name or any other cell of the file.
+const correctionList = (preview) => (preview.rows || []).map((r) => ({ row: r.rowNumber, codes: [].concat((r.problems || []).map((p) => 'problem:' + p.code + (p.field ? ':' + String(p.field).replace(/[^a-z_]/g, '') : '')), (r.needsConfirmation || []).map((c) => 'confirm:' + c), (r.decisions || []).map((d) => 'decision:' + d.type)) })).filter((x) => x.codes.length);
+
+module.exports = { buildPreview, planApply, assertSafe, importLog, parseRow, mapValue, digest, snapshotDigest, stable, correctionList, SAFE_TARGETS, CONFIRM_FLAGS, SENSITIVE, SHAPES };

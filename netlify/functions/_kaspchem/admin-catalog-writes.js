@@ -22,6 +22,7 @@ const guards = require('./catalog-guards');
 const serviceGuard = require('./service-guard');
 const { opsAlert } = require('./ops-alert');
 const content = require('./content');
+const { INTERNAL_TOPICS } = require('./catalog/internal-topics.js');
 
 const MAX_IMPORT_ROWS = 300, MAX_IMPORT_BYTES = 1300000;
 
@@ -399,7 +400,7 @@ async function importInputs(c, extra) {
   if (typeof b.csv !== 'string' || !b.csv.length) throw bad('bad_csv');
   const mappings = mapping(b.mappings, 'bad_mappings'), columnMap = mapping(b.columnMap, 'bad_column_map');
   const snap = await store.readSnapshot();
-  const topics = ((content.seed && content.seed.topics) || []).map((t) => ({ id: t.id, name: t.name }));   // R13: the topics of the system, so the file's topic names become their ids
+  const topics = ((content.seed && content.seed.topics) || []).map((t) => ({ id: t.id, name: t.name })).concat(INTERNAL_TOPICS.map((t) => ({ id: t.id, name: t.name })));   // R13: the topics of the system (and the two internal catalog domains, which publish nothing), so the file's topic names become their ids
   const preview = Imp.buildPreview({ csv: b.csv, existing: snap.snapshot, mappings, columnMap, topics, maxRows: MAX_IMPORT_ROWS });
   return { b, snap, preview };
 }

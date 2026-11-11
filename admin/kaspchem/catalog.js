@@ -394,6 +394,8 @@
 
   /* ---------- the screens (DOM) ---------- */
   var ctx = null, rootEl = null, body = null, S = null, seq = 0, timer = null;
+  // The two internal catalog domains of the sheet ("עסקים", "חיסכון והשקעות"): domains of the CATALOG only, not topics of the public check (netlify/functions/_kaspchem/catalog/internal-topics.js).
+  var INTERNAL_DOMAINS = [['business', 'עסקים (פנימי)'], ['savings-investments', 'חיסכון והשקעות (פנימי)']], INTERNAL_DOMAIN_NAMES = { business: 'עסקים (פנימי)', 'savings-investments': 'חיסכון והשקעות (פנימי)' };
 
   function get(path) { return ctx.api('GET', path); }   // the only way this file talks to the server
   function qs(o) { var p = Object.keys(o).filter(function (k) { return o[k] !== '' && o[k] != null; }).map(function (k) { return k + '=' + encodeURIComponent(o[k]); }); return p.length ? '?' + p.join('&') : ''; }
@@ -431,7 +433,7 @@
   }
 
   function open(c) {
-    ctx = c; S = fresh(); seq++;
+    ctx = Object.assign({}, c, { topicName: function (t) { return INTERNAL_DOMAIN_NAMES[t] || c.topicName(t); }, domains: function () { return c.topics().concat(INTERNAL_DOMAINS); } }); S = fresh(); seq++;   // the domain of a service may also be one of the two internal domains
     c.view.innerHTML = '<div id="ct-root" class="ct"><div class="view-h"><h1>קטלוג ספקים</h1><span class="ct-ro">' + esc(modeLabel()) + '</span></div><nav class="ct-nav" aria-label="מסכי הקטלוג">' +
       screenList().map(function (s) { return '<button type="button" data-ct="nav" data-v="' + s[0] + '">' + esc(s[1]) + '</button>'; }).join('') + '</nav><div id="ct-body" class="ct-body"></div></div>';
     rootEl = c.view.querySelector('#ct-root'); body = rootEl.querySelector('#ct-body');
@@ -503,7 +505,7 @@
     });
   }
   function scrServices() {
-    var f = S.f.services, topics = ctx.topics();
+    var f = S.f.services, topics = ctx.domains();
     var res = listShell('סינון שירותים',
       '<div><label for="ct-q">חיפוש לפי שם שירות</label><input id="ct-q" data-f="q" type="search" autocomplete="off" value="' + esc(f.q) + '"></div><div><label for="ct-tp">תחום</label><select id="ct-tp" data-f="topic"><option value="">הכול</option>' + topics.map(function (t) { return '<option value="' + esc(t[0]) + '"' + (t[0] === f.topic ? ' selected' : '') + '>' + esc(t[1]) + '</option>'; }).join('') + (f.topic && !topics.some(function (t) { return t[0] === f.topic; }) ? '<option value="' + esc(f.topic) + '" selected>' + esc(f.topic) + '</option>' : '') + '</select></div>' +
       '<div><label for="ct-ac">מצב</label><select id="ct-ac" data-f="active">' + optionsHtml({ true: 'פעיל', false: 'כבוי' }, f.active, 'הכול') + '</select></div>', f, function (x) { return anyFilter(x, ['q', 'topic', 'active']); });

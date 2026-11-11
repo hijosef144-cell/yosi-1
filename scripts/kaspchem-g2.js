@@ -63,7 +63,7 @@ function makeRedactor(secrets) {
 // ---- the guard on the HTTP layer -------------------------------------------------------------------------------------------------------------------------------------------------
 // Wraps the driver's fetch. It knows the verified endpoint and the statements the current stage may send; a request that is not exactly that is thrown away BEFORE it is sent.
 function makeGuard(opts) {
-  const { conn, baseFetch } = opts, records = [], state = { raw: new Set(), requests: 0, blocked: 0, phase: 'identify' };
+  const { conn, baseFetch } = opts, max = opts.max || MAX_REQUESTS, extraSingle = opts.extraSingle || [], records = [], state = { raw: new Set(), requests: 0, blocked: 0, phase: 'identify' };   // extraSingle: exact shapes of single (non-read) statements ONE stage was approved to send (the proof stages that go through the product's own routes)
   const timeoutTexts = new Set([].concat(db.timeoutStatements('single'), db.timeoutStatements('import')).map((s) => s.text));
   const RESERVE = /^SELECT nextval\('(?:services_id_seq|professionals_id_seq)'\) AS id FROM generate_series\(1, \$1::int\)$/;
   const READ = /^\s*(select|with|show)\b/i, DANGEROUS_READ = /\b(nextval|setval|set_config|pg_sleep|pg_terminate_backend|pg_cancel_backend|lo_[a-z_]+|dblink[a-z_]*|pg_read_[a-z_]+|pg_ls_[a-z_]+|copy)\b/i;
@@ -72,14 +72,14 @@ function makeGuard(opts) {
     if (state.raw.has(text)) return true;                                        // the constants the running stage registered (and nothing else of its own)
     if (state.phase === 'identify') return false;                                // before the identity is proved, only the identity read
     if (RESERVE.test(text)) return true;
-    if (single) return READ.test(text) && !/;/.test(text.replace(/;\s*$/, '')) && !DANGEROUS_READ.test(text);   // a single request is a plain read, never a write
+    if (single) return (READ.test(text) && !/;/.test(text.replace(/;\s*$/, '')) && !DANGEROUS_READ.test(text)) || extraSingle.some((re) => re.test(text));   // a single request is a plain read, never a write (except the exact shapes a stage was approved to send)
     if (readOnly) return READ.test(text) && !/;/.test(text.replace(/;\s*$/, '')) && !DANGEROUS_READ.test(text);
     if (timeoutTexts.has(text)) return true;
     try { db.checkWriteStatement({ text, params: q.params }); return true; } catch (e) { return false; }
   }
   async function guarded(url, init) {
     const block = (why) => { state.blocked++; throw new Error('blocked_by_g2_guard: ' + why); };
-    state.requests++; if (state.requests > MAX_REQUESTS) block('too many requests in one run');
+    state.requests++; if (state.requests > max) block('too many requests in one run');
     let u; try { u = new URL(String(url)); } catch (e) { block('bad request url'); }
     if (init.method !== 'POST' || u.protocol !== 'https:' || u.hostname.toLowerCase() !== conn.apiHost || u.pathname !== '/sql') block('request is not to the verified endpoint');
     const h = init.headers || {}, keys = Object.keys(h);
@@ -473,7 +473,7 @@ async function main(argv, env, deps) {
     // everything below may touch the network, through the guard only
     const product = { db, W, store, Imp };
     const neon = require('@neondatabase/serverless'), cfg = neon.neonConfig, savedFetch = cfg.fetchFunction, savedEnv = process.env.KASPCHEM_DATABASE_URL;
-    const guard = makeGuard({ conn, baseFetch: d.fetch || globalThis.fetch, db: product.db }); guard.state.raw.add(IDENTITY_SQL);
+    const guard = makeGuard({ conn, baseFetch: d.fetch || globalThis.fetch, db: product.db, max: st.maxRequests, extraSingle: st.allowSingle }); guard.state.raw.add(IDENTITY_SQL);
     cfg.fetchFunction = guard.fetch; process.env.KASPCHEM_DATABASE_URL = raw; product.db.setDriver(null); product.db.setTransactionDriver(null);
     unpatch = () => { cfg.fetchFunction = savedFetch; if (savedEnv === undefined) delete process.env.KASPCHEM_DATABASE_URL; else process.env.KASPCHEM_DATABASE_URL = savedEnv; product.db.setDriver(null); product.db.setTransactionDriver(null); };
     const sql = neon.neon(raw);
@@ -493,7 +493,7 @@ async function main(argv, env, deps) {
 
     const runId = 'g2-' + (d.now ? d.now() : Date.now()).toString(36) + '-' + crypto.randomBytes(2).toString('hex'), ck = newChecks();
     const priorNotes = (id) => { const runs = state.runs.filter((r) => r.stage === id && r.pass === true && r.endpoint === conn.endpoint && r.marker === sha8(args.marker)); return runs.length ? runs[runs.length - 1].notes || null : null; };   // what an earlier PASSED stage recorded, on this endpoint and marker
-    const ctx = Object.assign(ck, { q, tx, product, guard, conn, args, identity: idr, runId, prior: priorNotes, pause: d.pause || (async () => true) });   // d.pause: an outside check that can hold back (or stop) the next scenario
+    const ctx = Object.assign(ck, { q, tx, product, guard, conn, args, identity: idr, runId, prior: priorNotes, pause: d.pause || (async () => true), allow: (t) => { registered.add(t); guard.state.raw.add(t); } });   // allow: a stage registers one more constant statement it builds while it runs   // d.pause: an outside check that can hold back (or stop) the next scenario
     ctx.notes = ck.notes; let crashed = null;
     try { await st.run(ctx); } catch (e) { crashed = e; ck.check('the stage ran to its end', false, 'stopped by ' + (e && e.message && /^blocked_by_g2_guard/.test(e.message) ? e.message : JSON.stringify(errInfo(e)))); }
     const pass = ck.checks.length > 0 && ck.checks.every((x) => x.ok);
@@ -510,7 +510,9 @@ async function main(argv, env, deps) {
   } finally { unpatch(); }
 }
 
-module.exports = { main, parseArgs, parseConnection, makeRedactor, makeGuard, STAGES, LOCKED, FORBIDDEN_ENDPOINTS, FORBIDDEN_BRANCHES, IDENTITY_SQL, COUNTS_SQL, PRIV_SQL, TABLES, wantedPriv, readState, passed, sha8, DEFAULT_STATE };
+module.exports = { main, parseArgs, parseConnection, makeRedactor, makeGuard, STAGES, LOCKED, FORBIDDEN_ENDPOINTS, FORBIDDEN_BRANCHES, IDENTITY_SQL, COUNTS_SQL, PRIV_SQL, TABLES, wantedPriv, readState, passed, sha8, DEFAULT_STATE,
+  // what the proof stages (scripts/kaspchem-g2-proof.js) build on
+  stage, attempt, errInfo, ACTOR, LOCK5, CONTENT_SQL, readContent, sameContent, differingTables, GUARD_SEQS, readGuardSeqs, seqMoved, ROOT };
 if (require.main === module) {
   main(process.argv.slice(2), process.env).then((r) => process.exit(r.code), () => { console.error('STOPPED: unexpected failure.'); process.exit(2); });
 }
