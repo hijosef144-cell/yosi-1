@@ -23,10 +23,20 @@ test('authentication, the allow-list, the public configuration, the lead and imp
   for (const [f, pin] of Object.entries(IDENTICAL)) assert.equal(sha(read(f)), pin, f + ' changed: if that is on purpose, the pin and the review belong in the same commit');
 });
 
-test('admin-router.js differs from the live version in exactly these places: the catalog hook, the service-guard require, the PATCH /services handler (the owner-approved block), and the catalog lock (the list of older write routes, the check before them, the refusal of the catalog switches at the start of the settings route)', () => {
-  let lines = read('netlify/functions/_kaspchem/admin-router.js').split('\n');
+// The older PATCH /pricing/:id as it went live (P1, owner-approved, replaces it with the guarded version below): the test puts it back in place of the guarded block before comparing everything else.
+const PRICING_LIVE = ["on('PATCH', '/pricing/(\\\\d+)', async (c, id) => {", '  await assertCompensationAllowed(c.body);', "  await db.query('UPDATE pricing SET service_id=$1, professional_id=$2, label=$3, price=$4, cost=$5, commission=$6, notes=$7, approved=false, approved_by=NULL, approved_at=NULL, public=false WHERE id=$8',",
+  '    priceFields(c.body).concat([idOf(id)]));', "  await audit(c.me.email, 'pricing.update', 'pricing', id, {});", '  return { ok: true };', '});'].join('\n');
+test('admin-router.js differs from the live version in exactly these places: the catalog hook, the service-guard require, the PATCH /services handler (the owner-approved block), the PATCH /pricing handler (P1, the owner-approved guard) and the catalog lock (the list of older write routes, the check before them, the refusal of the catalog switches at the start of the settings route)', () => {
+  let src = read('netlify/functions/_kaspchem/admin-router.js');
+  const p1s = src.indexOf('// P1: a price that the provider catalog links'), p1h = src.indexOf("on('PATCH', '/pricing/(\\\\d+)'", p1s), p1e = src.indexOf('\n});\n', p1h) + 5;
+  assert.ok(p1s > 0 && p1h > p1s && p1e > p1h, 'the P1 block is there, once'); assert.equal(src.indexOf('// P1: a price that the provider catalog links', p1s + 1), -1);
+  const p1 = src.slice(p1s, p1e); src = src.slice(0, p1s) + PRICING_LIVE + '\n' + src.slice(p1e);
+  assert.match(p1, /priceGuard\.catalogTablesExist\(\)/); assert.match(p1, /' AND NOT ' \+ priceGuard\.ACTIVE_LINK : ''\) \+ ' RETURNING id'/); assert.match(p1, /throw new HttpError\(409, 'price_linked_to_active_engagement', priceGuard\.LINKED_TO_ACTIVE\)/);
+  assert.ok(p1.indexOf('throw new HttpError(409') < p1.indexOf("await audit(c.me.email, 'pricing.update'"), 'the journal row only after a change'); assert.equal((p1.match(/db\.query\(/g) || []).length, 2, 'the UPDATE, and one read (is the price linked to a working engagement); whether the catalog exists is read in catalog-price-guard.js');
+  assert.equal(sha(p1), '3a986770616537c6', 'the guarded handler is pinned: a change to it, on purpose, updates this pin and its review');
+  let lines = src.split('\n');
   const catalogLines = lines.filter((l) => /catalog/.test(l)).map((l) => l.trim().replace(/\s*\/\/.*$/, ''));
-  assert.deepEqual(catalogLines, ["const catalog = require('./admin-catalog-router');", "const catalogOwnedWrites = [['POST', /^\\/services$/], ['PATCH', /^\\/services\\/\\d+$/], ['POST', /^\\/professionals$/], ['PATCH', /^\\/professionals\\/\\d+$/]];", "if (catalog.touchesSwitch(c.body)) throw new HttpError(400, 'use_catalog_switch', 'מתגי הקטלוג משתנים רק בהחלטה נפרדת של הבעלים, לא מכאן.');", "if (catalog.isCatalogPath(path)) return await catalog.handle(event, me, path);", "if (catalogOwnedWrites.some(([om, ore]) => om === method && ore.test(path.replace(/\\/$/, '') || '/'))) await catalog.refuseOldWrite();"]);
+  assert.deepEqual(catalogLines, ["const catalog = require('./admin-catalog-router');", "const catalogOwnedWrites = [['POST', /^\\/services$/], ['PATCH', /^\\/services\\/\\d+$/], ['POST', /^\\/professionals$/], ['PATCH', /^\\/professionals\\/\\d+$/]];", "const priceGuard = require('./catalog-price-guard');", "if (catalog.touchesSwitch(c.body)) throw new HttpError(400, 'use_catalog_switch', 'מתגי הקטלוג משתנים רק בהחלטה נפרדת של הבעלים, לא מכאן.');", "if (catalog.isCatalogPath(path)) return await catalog.handle(event, me, path);", "if (catalogOwnedWrites.some(([om, ore]) => om === method && ore.test(path.replace(/\\/$/, '') || '/'))) await catalog.refuseOldWrite();"]);
   lines = lines.filter((l) => !/catalog/.test(l) && !/serviceGuard\s*=\s*require/.test(l));
   const a = lines.findIndex((l) => l.startsWith("on('PATCH', '/services/(\\\\d+)'")); assert.ok(a > 0); let b = a; while (lines[b] !== '});') b++;
   const handler = lines.splice(a, b - a + 1).join('\n');

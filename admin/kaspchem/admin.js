@@ -47,6 +47,7 @@
     if (e.status === 403) return gate('אין לחשבון הזה הרשאת מנהל לכספכם.');
     var known = Object.assign({}, ERR_IMPACT, {
       compensation_blocked: 'עמלת הפניה חסומה בתחום הזה עד אישור משפטי בכתב',
+      price_linked_to_active_engagement: 'המחיר משויך להתקשרות פעילה בקטלוג הספקים. יש להשהות אותה בקטלוג לפני שינוי המחיר. לא נשמר דבר.',
       phone_exists: 'מספר הטלפון כבר רשום אצל פונה אחר',
       bad_phone: 'מספר טלפון לא תקין', bad_email: 'כתובת דוא״ל לא תקינה', bad_name: 'שם לא תקין', nothing_to_update: 'אין מה לעדכן'
     });

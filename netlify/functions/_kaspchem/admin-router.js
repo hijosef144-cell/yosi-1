@@ -9,6 +9,7 @@ const engine = require('../../../kaspchem/assets/engine.js');
 const catalog = require('./admin-catalog-router');
 const catalogOwnedWrites = [['POST', /^\/services$/], ['PATCH', /^\/services\/\d+$/], ['POST', /^\/professionals$/], ['PATCH', /^\/professionals\/\d+$/]];   // the older routes that write what the catalog owns while it is open
 const serviceGuard = require('./service-guard');
+const priceGuard = require('./catalog-price-guard');
 
 const STATUSES = ['new', 'contacted', 'in_progress', 'awaiting_client', 'done', 'closed', 'spam'];
 const AGREEMENTS = ['none', 'in_talks', 'signed', 'ended'];
@@ -214,10 +215,17 @@ on('POST', '/pricing', async (c) => {
   await audit(c.me.email, 'pricing.create', 'pricing', r[0].id, {});
   return { id: Number(r[0].id) };
 });
+// P1: a price that the provider catalog links to an engagement in its working state is not changed from here (catalog-price-guard.js says why). The check is part of the UPDATE itself, so there is no gap between looking and
+// writing; what remains is a concurrent activation in the very same moment (documented, closed only by a database rule). Before the catalog tables exist this route is exactly what it was.
 on('PATCH', '/pricing/(\\d+)', async (c, id) => {
   await assertCompensationAllowed(c.body);
-  await db.query('UPDATE pricing SET service_id=$1, professional_id=$2, label=$3, price=$4, cost=$5, commission=$6, notes=$7, approved=false, approved_by=NULL, approved_at=NULL, public=false WHERE id=$8',
+  const guarded = await priceGuard.catalogTablesExist();
+  const rows = await db.query('UPDATE pricing SET service_id=$1, professional_id=$2, label=$3, price=$4, cost=$5, commission=$6, notes=$7, approved=false, approved_by=NULL, approved_at=NULL, public=false WHERE id=$8' + (guarded ? ' AND NOT ' + priceGuard.ACTIVE_LINK : '') + ' RETURNING id',
     priceFields(c.body).concat([idOf(id)]));
+  if (guarded && !rows.length) {   // no row was changed: because of the guard, or because there is no such price (which has always answered "ok" and still does)
+    const linked = await db.query('SELECT 1 AS x FROM pricing WHERE id = $1 AND ' + priceGuard.ACTIVE_LINK, [idOf(id)]);
+    if (linked.length) throw new HttpError(409, 'price_linked_to_active_engagement', priceGuard.LINKED_TO_ACTIVE);
+  }
   await audit(c.me.email, 'pricing.update', 'pricing', id, {});
   return { ok: true };
 });
