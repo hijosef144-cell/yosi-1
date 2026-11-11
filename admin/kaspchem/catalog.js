@@ -1,0 +1,621 @@
+/* Catalog screens for the admin area, stage 5a: READ ONLY.
+ * Providers, their services, the state of every engagement, the four kinds of price, the import history and the change log.
+ * Every request this file makes is a GET to /api/kaspchem/admin/catalog/... (one helper, below, refuses anything else). There is no form that saves, no create / edit / approve / activate / import
+ * control, and no button that does nothing: every button on these screens either moves between screens, filters, pages, or asks the server again after a failure.
+ * Nothing about commissions or compensation is requested or shown (the server does not send it either). Text from the server is always escaped before it is put on the page.
+ * The pure functions (labels, price text, the HTML of each block) are exposed on KaspchemCatalog._t so the tests can run them without a browser.
+ */
+(function (root) {
+  'use strict';
+
+  /* ---------- labels ---------- */
+  var ACTIVATION = { draft: 'טיוטה', pending: 'ממתין לאישור', active: 'פעיל', paused: 'מושהה', retired: 'הוצא משימוש' };
+  var ACT_TONE = { draft: 'muted', pending: 'warn', active: 'ok', paused: 'warn', retired: 'muted' };
+  var CONTACT = { none: 'אין קשר', contacted: 'נוצר קשר', negotiating: 'במשא ומתן', active: 'שיתוף פעולה פעיל', stopped: 'הופסק' };
+  var CONTACT_TONE = { none: 'muted', contacted: 'warn', negotiating: 'warn', active: 'ok', stopped: 'bad' };
+  var AGREEMENT = { not_discussed: 'לא נדון', draft: 'טיוטת הסכם', signed: 'חתום', ended: 'הסתיים' };
+  var AGR_TONE = { not_discussed: 'muted', draft: 'warn', signed: 'ok', ended: 'muted' };
+  var MODEL = { fixed: 'מחיר קבוע', percent_of_result: 'אחוז מהתוצאה', percent_with_minimum: 'אחוז עם מינימום', variable: 'משתנה לפי מורכבות', quote: 'הצעת מחיר לכל מקרה', tbd: 'טרם נקבע' };
+  var PROVIDER_STATE = { available: 'זמין', paused: 'מושהה', archived: 'בארכיון' };
+  var PS_TONE = { available: 'ok', paused: 'warn', archived: 'muted' };
+  var DELIVERY = { portal: 'דרך פורטל', manual: 'ידני (הצוות מזין)' };
+  var LAYER_STATUS = { recorded: 'נרשם', awaiting_response: 'ממתין לתשובה', received: 'התקבלה תשובה', declined: 'נדחה' };
+  var SOURCE_KIND = { written_opinion: 'חוות דעת משפטית בכתב', email: 'אישור בדוא״ל', meeting_summary: 'סיכום פגישה', other: 'אחר' };
+  var ENTITY = { provider: 'נותן שירות', service: 'שירות', engagement: 'התקשרות', catalog_import: 'ייבוא' };
+  var ACTIONS = {
+    'catalog.provider.view': 'צפייה בכרטיס נותן שירות', 'catalog.provider.create': 'יצירת נותן שירות', 'catalog.provider.update': 'עדכון נותן שירות',
+    'catalog.service.create': 'יצירת שירות', 'catalog.service.update': 'עדכון שירות', 'catalog.service.settings.create': 'יצירת הגדרות שירות', 'catalog.service.settings.update': 'עדכון הגדרות שירות', 'catalog.service.clearance': 'אישור משפטי של שירות',
+    'catalog.engagement.create': 'יצירת התקשרות', 'catalog.engagement.update': 'עדכון התקשרות', 'catalog.engagement.submit': 'שליחת התקשרות לאישור', 'catalog.engagement.withdraw': 'משיכת התקשרות', 'catalog.engagement.activate': 'הפעלת התקשרות',
+    'catalog.engagement.pause': 'השהיית התקשרות', 'catalog.engagement.resume': 'חידוש התקשרות', 'catalog.engagement.retire': 'הוצאת התקשרות משימוש', 'catalog.engagement.reopen': 'פתיחה מחדש של התקשרות', 'catalog.engagement.return_to_review': 'החזרת התקשרות לבדיקה',
+    'catalog.price.classify': 'סיווג מחיר', 'catalog.price.link': 'קישור מחיר', 'catalog.price.unlink': 'ניתוק מחיר', 'catalog.price.create': 'יצירת שכבת מחיר', 'catalog.price.update': 'עדכון שכבת מחיר', 'catalog.import.apply': 'החלת ייבוא',
+    'catalog.provider.pause': 'השהיית נותן שירות', 'catalog.provider.resume': 'חידוש נותן שירות', 'catalog.provider.archive': 'ארכוב נותן שירות', 'catalog.provider.unarchive': 'ביטול ארכוב'
+  };
+  var PROBLEMS = {
+    too_many_rows: 'יותר מדי שורות בקובץ', duplicate_engagement: 'התקשרות כפולה בקובץ', duplicate_external_ref: 'מזהה חיצוני כפול', external_ref_belongs_to_another_engagement: 'המזהה החיצוני שייך להתקשרות אחרת',
+    ambiguous_existing_service: 'כמה שירותים קיימים מתאימים', ambiguous_existing_provider: 'כמה נותני שירות קיימים מתאימים', ambiguous_existing_engagement: 'כמה התקשרויות קיימות מתאימות', price_not_numeric: 'המחיר אינו מספר'
+  };
+  var ENFORCED = { database: 'נאכף בבסיס הנתונים', server: 'נאכף בשרת', later: 'שלב עתידי' };
+  var SCREENS = [['overview', 'סקירה'], ['providers', 'נותני שירות'], ['services', 'שירותים'], ['engagements', 'התקשרויות'], ['imports', 'היסטוריית ייבוא'], ['history', 'יומן שינויים']];
+  var PARENT = { provider: 'providers', service: 'services', engagement: 'engagements' };
+  var PAGE = 50, ENG_PAGE = 200, ENG_CAP = 1000;
+
+  /* ---------- small pure helpers ---------- */
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function has(map, key) { return Object.prototype.hasOwnProperty.call(map, key); }
+  function lbl(map, key) { return has(map, key) ? map[key] : (key == null ? '' : String(key)); }
+  function pill(text, tone) { return '<span class="ct-pill ct-' + (tone || 'muted') + '">' + esc(text) + '</span>'; }
+  function unset(text) { return '<span class="ct-unset">' + esc(text || 'לא הוזן') + '</span>'; }
+  function val(v, text) { return v == null || v === '' ? unset(text) : esc(v); }
+  function ltr(v) { return v == null || v === '' ? unset() : '<span dir="ltr">' + esc(v) + '</span>'; }
+  function num(n) { return Number(n).toLocaleString('he-IL', { maximumFractionDigits: 2 }); }
+  function ils(n) { if (n == null || n === '') return ''; var v = Number(n); return v.toLocaleString('he-IL', { minimumFractionDigits: Math.round(v * 100) % 100 === 0 ? 0 : 2, maximumFractionDigits: 2 }) + ' ₪'; }
+  function when(d) { return d ? new Date(d).toLocaleString('he-IL', { dateStyle: 'short', timeStyle: 'short' }) : ''; }
+  function whenH(d) { return d ? '<span dir="ltr" class="ct-nw">' + esc(when(d)) + '</span>' : ''; }
+  function mail(v) { return v ? '<span dir="ltr">' + esc(v) + '</span>' : ''; }   // a date with a time keeps its own left-to-right order inside the right-to-left page
+  function day(d) { return d ? new Date(String(d).length === 10 ? d + 'T12:00:00' : d).toLocaleDateString('he-IL') : ''; }
+  function pctRange(lo, hi) { if (lo == null) return ''; return hi == null || Number(hi) === Number(lo) ? num(lo) + '%' : num(lo) + '–' + num(hi) + '%'; }
+  function kv(label, valueHtml) { return '<div class="ct-kv"><dt>' + esc(label) + '</dt><dd>' + valueHtml + '</dd></div>'; }
+  function plural(n, one, many) { return n === 1 ? one : many; }
+
+  // The price of one layer, in words, by its model.
+  function priceText(l) {
+    if (!l) return '';
+    if (l.model === 'fixed') return ils(l.amount);
+    if (l.model === 'percent_of_result') return pctRange(l.percent_low, l.percent_high) + ' מהתוצאה';
+    if (l.model === 'percent_with_minimum') return pctRange(l.percent_low, l.percent_high) + ' מהתוצאה, לא פחות מ־' + ils(l.minimum_amount);
+    if (l.model === 'variable') return 'משתנה לפי מורכבות';
+    if (l.model === 'quote') return 'הצעת מחיר לכל מקרה';
+    return 'טרם נקבע';
+  }
+  function layerBody(l) {
+    var bits = ['<p class="ct-amount">' + esc(priceText(l)) + '</p>'];
+    if (l.terms_text) bits.push('<p class="ct-quote">״' + esc(l.terms_text) + '״</p>');
+    if (l.status && l.status !== 'recorded') bits.push('<p>' + pill(lbl(LAYER_STATUS, l.status), l.status === 'declined' ? 'bad' : 'warn') + '</p>');
+    if (l.basis_missing) bits.push('<p class="ct-small">חסר בסיס לחישוב</p>');
+    var src = [];
+    if (l.source_note) src.push('מקור: ' + esc(l.source_note));
+    if (l.source_date) src.push('תאריך: ' + esc(day(l.source_date)));
+    if (src.length) bits.push('<p class="ct-small">' + src.join(' · ') + '</p>');
+    return bits.join('');
+  }
+  function priceCard(cls, title, definition, bodyHtml) {
+    return '<section class="ct-price ct-price-' + cls + '" aria-label="' + esc(title) + '"><h3>' + esc(title) + '</h3><p class="ct-def">' + esc(definition) + '</p><div class="ct-pbody">' + bodyHtml + '</div></section>';
+  }
+  var NONE = function (t) { return '<p class="ct-none">' + esc(t) + '</p>'; };
+
+  // The four kinds of price of one engagement, kept apart: market, documented, approved, public.
+  function priceSection(d) {
+    var L = d.price_layers || {}, ap = d.approved_price;
+    var doc = (L.provider_offer ? '<h4>הצעת הספק לכספכם</h4>' + layerBody(L.provider_offer) : '') + (L.unclassified ? '<h4>ערך שטרם סווג</h4>' + layerBody(L.unclassified) : '');
+    var approved, pub;
+    if (!ap) { approved = NONE('אין מחיר מקושר'); pub = NONE('לא מוצג לציבור'); }
+    else {
+      approved = '<p class="ct-amount">' + esc(ils(ap.price)) + '</p><p>' + (ap.approved ? (priceMismatch(d) ? pill('מאושר, אך אינו מתאים להתקשרות', 'warn') : pill('מאושר', 'ok')) : pill('מקושר, לא אושר', 'warn')) + '</p><p class="ct-small">' + esc(ap.label || '') + '</p>' +
+        (ap.approved ? '' : '<p class="ct-small">עדיין לא אושר, ולכן אינו נחשב מחיר מאושר.</p>');
+      pub = ap.public ? '<p class="ct-amount">' + esc(ils(ap.price)) + '</p><p>' + pill('מוצג באתר', 'ok') + '</p>' : NONE(ap.approved ? 'מאושר לשימוש פנימי בלבד, לא מוצג לציבור' : 'לא מוצג לציבור');
+    }
+    return '<div class="ct-prices">' +
+      priceCard('market', 'מחיר שוק', 'מה שמקובל בשוק, לידיעה בלבד. אינו הצעה ואינו התחייבות.', L.market ? layerBody(L.market) : NONE('לא תועד מחיר שוק')) +
+      priceCard('doc', 'מחיר מתועד', 'מה שנרשם: הצעת הספק וערכים שטרם סווגו. רישום בלבד, ללא אישור.', doc || NONE('לא תועד מחיר')) +
+      priceCard('approved', 'מחיר מאושר', 'המחיר ללקוח שאושר בלשונית ״תמחור״. פנימי עד שמפרסמים אותו.', approved) +
+      priceCard('public', 'מחיר ציבורי', 'מה שמוצג לציבור באתר. נקבע רק בלשונית ״תמחור״.', pub) + '</div>';
+  }
+  // The server names its checklist items for its own use. Where the wording would read as a verified fact, the screens use their own: a legal clearance here is an approval REPORTED by an owner, never one the system verified.
+  var CHECK_LABELS = { service_cleared: 'לשירות יש אישור משפטי מדווח, והוא מתואם לממצא או לתחום' };
+  function checklistHtml(c) {
+    var items = (c.items || []).map(function (i) {
+      return '<li class="ct-ck ' + (i.ok ? 'ok' : 'no') + '"><b aria-hidden="true">' + (i.ok ? '✓' : '✗') + '</b><span class="ct-cklabel">' + esc(has(CHECK_LABELS, i.key) ? CHECK_LABELS[i.key] : i.label) + '</span> ' +
+        pill(i.ok ? 'מתקיים' : (i.blocking ? 'חסר' : 'לא חוסם בשלב זה'), i.ok ? 'ok' : (i.blocking ? 'bad' : 'muted')) + ' <span class="ct-small">' + esc(lbl(ENFORCED, i.enforced)) + '</span></li>';
+    }).join('');
+    var miss = (c.missing || []).length;
+    var sum = c.documented_only ? '<p class="ct-note">מודל התמחור של ההתקשרות הזו אפשר לתעד, אבל אי אפשר להפעיל אותו.</p>' : '';
+    sum += c.can_activate ? '<p>כל התנאים להפעלה מתקיימים. ההפעלה עצמה אינה זמינה במסכים האלה.</p>' : '<p><strong>חסרים ' + miss + ' ' + plural(miss, 'תנאי', 'תנאים') + ' כדי שההתקשרות תהיה פעילה.</strong></p>';
+    return sum + '<ul class="ct-checklist">' + items + '</ul>';
+  }
+  // One state of a provider / engagement as a pill.
+  function tone(map, k) { return has(map, k) ? map[k] : 'muted'; }
+  var actPill = function (a) { return pill(lbl(ACTIVATION, a), tone(ACT_TONE, a)); };
+  var contactPill = function (c) { return pill(lbl(CONTACT, c), tone(CONTACT_TONE, c)); };
+  var agrPill = function (a) { return pill(lbl(AGREEMENT, a), tone(AGR_TONE, a)); };
+  var provPill = function (s) { return pill(lbl(PROVIDER_STATE, s), tone(PS_TONE, s)); };
+
+  function priceChips(e) {
+    var k = e.price_layers || [], out = [];
+    if (k.indexOf('market') !== -1) out.push('<span class="ct-chip">שוק</span>');
+    if (k.indexOf('provider_offer') !== -1 || k.indexOf('unclassified') !== -1) out.push('<span class="ct-chip">מתועד</span>');
+    if (e.price_linked) out.push('<span class="ct-chip ct-chip-link">מקושר</span>');
+    return out.length ? out.join(' ') : unset('אין מחיר');
+  }
+
+  /* ---------- error states ---------- */
+  function classify(e) {
+    if (!e || e.status === undefined) return 'network';
+    if (e.status === 401) return 'auth';
+    if (e.status === 403) return e.message === 'catalog_disabled' ? 'closed' : 'forbidden';
+    if (e.status === 404) return 'notfound';
+    if (e.status === 503) return 'unavailable';
+    return 'server';
+  }
+  var ERRORS = {
+    closed: ['הקטלוג כבוי', 'הקטלוג סגור כרגע, ולכן לא מוצגים כאן נתונים. פתיחתו נעשית בהחלטה נפרדת של בעלי המערכת.', true],
+    forbidden: ['אין הרשאה', 'מסכי הקטלוג זמינים לבעלי המערכת בלבד.', false],
+    unavailable: ['השירות אינו זמין כרגע', 'אי אפשר היה לבדוק אם הקטלוג פתוח, ולכן הוא נשאר סגור. אפשר לנסות שוב.', true],
+    network: ['אין חיבור לשרת', 'הבקשה לא הגיעה לשרת. לא נשמר ולא שונה דבר. אפשר לנסות שוב.', true],
+    notfound: ['הרשומה לא נמצאה', 'ייתכן שהקישור ישן. אפשר לחזור לרשימה.', false],
+    server: ['אירעה שגיאה בשרת', 'הנתונים לא נטענו. לא נשמר ולא שונה דבר. אפשר לנסות שוב.', true]
+  };
+  function errorHtml(kind) {
+    var x = ERRORS[kind] || ERRORS.server;
+    return '<div class="panel ct-state ct-state-' + kind + '" role="alert"><h2 tabindex="-1">' + esc(x[0]) + '</h2><p>' + esc(x[1]) + '</p>' +
+      (x[2] ? '<p><button type="button" class="btn sec" data-ct="retry">' + (kind === 'closed' ? 'בדיקה מחדש' : 'ניסיון חוזר') + '</button></p>' : '') +
+      (kind === 'notfound' ? '<p><button type="button" class="btn sec" data-ct="back">חזרה</button></p>' : '') + '</div>';
+  }
+  var loadingHtml = function () { return '<p class="ct-loading" role="status">טוען…</p>'; };
+  function emptyHtml(title, text) { return '<div class="panel ct-state ct-empty"><h2 tabindex="-1">' + esc(title) + '</h2><p>' + esc(text) + '</p></div>'; }
+
+  /* ---------- the HTML of each screen (pure) ---------- */
+  function overviewHtml(o) {
+    var total = o.services.total + o.providers.total + o.engagements.total;
+    if (!total) return emptyHtml('הקטלוג ריק', 'עדיין אין שירותים, נותני שירות או התקשרויות בקטלוג. כשיתווספו, הם יוצגו כאן.');
+    var acts = Object.keys(ACTIVATION).map(function (k) {
+      var n = (o.engagements.by_activation || {})[k] || 0;
+      return '<li><button type="button" class="ct-link" data-ct="eng-filter" data-act="' + k + '">' + actPill(k) + '</button> <b>' + num(n) + '</b></li>';
+    }).join('');
+    var models = Object.keys(o.engagements.by_pricing_model || {}).map(function (k) { return '<li><span>' + esc(lbl(MODEL, k)) + '</span> <b>' + num(o.engagements.by_pricing_model[k]) + '</b></li>'; }).join('');
+    var li = o.last_import;
+    return '<h2 id="ct-h" tabindex="-1" class="sr">סקירה</h2><div class="grid">' +
+      '<div class="stat"><b>' + num(o.services.total) + '</b><span>שירותים (' + num(o.services.active) + ' פעילים, ' + num(o.services.not_cleared) + ' ללא אישור מדווח)</span></div>' +
+      '<div class="stat"><b>' + num(o.providers.total) + '</b><span>נותני שירות (' + num(o.providers.paused) + ' מושהים, ' + num(o.providers.archived) + ' בארכיון)</span></div>' +
+      '<div class="stat"><b>' + num(o.engagements.total) + '</b><span>התקשרויות</span></div></div>' +
+      '<div class="ct-cols"><div class="panel"><h3>התקשרויות לפי מצב</h3><ul class="ct-list">' + acts + '</ul></div>' +
+      '<div class="panel"><h3>לפי מודל תמחור</h3>' + (models ? '<ul class="ct-list">' + models + '</ul>' : '<p class="ct-small">אין התקשרויות.</p>') + '</div>' +
+      '<div class="panel"><h3>ייבוא אחרון</h3>' + (li ? '<dl class="ct-dl">' + kv('תאריך', whenH(li.created_at)) + kv('מקור', esc(String(li.source).toUpperCase())) + kv('שורות בקובץ', num(li.rows_total)) + kv('נוצרו / עודכנו / דולגו', num(li.rows_created) + ' / ' + num(li.rows_updated) + ' / ' + num(li.rows_skipped)) + kv('בעיות', num(li.problems)) + kv('בוצע על ידי', esc(li.imported_by)) + '</dl>' : '<p class="ct-small">עדיין לא בוצע ייבוא.</p>') + '</div></div>' +
+      '<p class="ct-small ct-foot">מסכי הקטלוג אינם מציגים נתוני תגמול או עמלות.</p>';
+  }
+
+  function optionsHtml(map, sel, blank) { return '<option value="">' + esc(blank) + '</option>' + Object.keys(map).map(function (k) { return '<option value="' + esc(k) + '"' + (k === sel ? ' selected' : '') + '>' + esc(map[k]) + '</option>'; }).join(''); }
+  function pagerHtml(total, offset, limit) {
+    if (total <= limit) return '';
+    var from = offset + 1, to = Math.min(total, offset + limit);
+    return '<nav class="ct-pager" aria-label="עמודים">' + (offset > 0 ? '<button type="button" class="btn sec mini" data-ct="page" data-d="-1">הקודם</button>' : '') + '<span>' + num(from) + '–' + num(to) + ' מתוך ' + num(total) + '</span>' + (to < total ? '<button type="button" class="btn sec mini" data-ct="page" data-d="1">הבא</button>' : '') + '</nav>';
+  }
+  function providersTable(r, filtered) {
+    if (!r.providers.length) return filtered ? emptyHtml('לא נמצאו נותני שירות', 'אין נותני שירות שמתאימים לסינון.') : emptyHtml('אין נותני שירות', 'עדיין לא נוספו נותני שירות לקטלוג.');
+    return '<table class="tbl ct-tbl"><caption class="sr">נותני שירות</caption><thead><tr><th>שם</th><th>עסק או ארגון</th><th>מצב</th><th>אופן העברה</th><th>התקשרויות</th></tr></thead><tbody>' + r.providers.map(function (p) {
+      return '<tr class="click" data-ct-row="provider" data-id="' + p.id + '"><td><button type="button" class="ct-link" data-ct="open-provider" data-id="' + p.id + '">' + esc(p.name) + '</button></td><td>' + val(p.business_name, '—') + '</td><td>' + provPill(p.state) +
+        (p.state === 'paused' && p.paused_until ? ' <span class="ct-small">עד ' + esc(day(p.paused_until)) + '</span>' : '') + '</td><td>' + esc(lbl(DELIVERY, p.delivery_method)) + '</td><td>' + (p.engagements ? num(p.engagements) + ' (' + num(p.engagements_active) + ' פעילות)' : unset('אין שירותים')) + '</td></tr>';
+    }).join('') + '</tbody></table>' + pagerHtml(r.total, r.offset, r.limit);
+  }
+  function servicesTable(r, filtered, topicName) {
+    if (!r.services.length) return filtered ? emptyHtml('לא נמצאו שירותים', 'אין שירותים שמתאימים לסינון.') : emptyHtml('אין שירותים', 'עדיין לא נוספו שירותים לקטלוג.');
+    return '<table class="tbl ct-tbl"><caption class="sr">שירותים</caption><thead><tr><th>שם</th><th>תחום</th><th>פעיל</th><th>אישור משפטי</th><th>התקשרויות</th><th>קוד</th></tr></thead><tbody>' + r.services.map(function (s) {
+      return '<tr class="click" data-ct-row="service" data-id="' + s.id + '"><td><button type="button" class="ct-link" data-ct="open-service" data-id="' + s.id + '">' + esc(s.name) + '</button></td><td>' + val(s.topic ? topicName(s.topic) : '', '—') + '</td><td>' + (s.active ? pill('פעיל', 'ok') : pill('כבוי', 'muted')) + '</td><td>' + (s.legal_cleared ? pill('אישור מדווח', 'ok') : pill('לא דווח אישור', 'warn')) + '</td><td>' +
+        (s.engagements ? num(s.engagements) + ' (' + num(s.engagements_active) + ' פעילות)' : unset('אין')) + '</td><td>' + ltr(s.code) + '</td></tr>';
+    }).join('') + '</tbody></table>' + pagerHtml(r.total, r.offset, r.limit);
+  }
+  function engagementsTable(rows, filtered, total, capped, offset) {
+    if (!rows.length) return filtered ? emptyHtml('לא נמצאו התקשרויות', 'אין התקשרויות שמתאימות לסינון.') : emptyHtml('אין התקשרויות', 'עדיין לא נוספו התקשרויות בין נותני שירות לשירותים.');
+    var page = rows.slice(offset, offset + PAGE);
+    return '<table class="tbl ct-tbl"><caption class="sr">התקשרויות</caption><thead><tr><th>נותן שירות</th><th>שירות</th><th>הפעלה</th><th>קשר</th><th>הסכם</th><th>מודל תמחור</th><th>מחיר</th></tr></thead><tbody>' + page.map(function (e) {
+      return '<tr class="click" data-ct-row="engagement" data-p="' + e.provider_id + '" data-s="' + e.service_id + '"><td><button type="button" class="ct-link" data-ct="open-eng" data-p="' + e.provider_id + '" data-s="' + e.service_id + '">' + esc(e.provider_name) + '</button></td><td>' + esc(e.service_name) + '</td><td>' + actPill(e.activation) + '</td><td>' + contactPill(e.contact_state) + '</td><td>' + agrPill(e.agreement_state) + '</td><td>' + esc(lbl(MODEL, e.pricing_model)) + '</td><td>' + priceChips(e) + '</td></tr>';
+    }).join('') + '</tbody></table>' + pagerHtml(rows.length, offset, PAGE) +
+      '<p class="ct-small ct-foot">מחיר: ״שוק״ = יש מחיר שוק מתועד · ״מתועד״ = יש הצעת ספק או ערך שטרם סווג · ״מקושר״ = משויכת שורת תמחור (האישור והפרסום מוצגים בכרטיס ההתקשרות).</p>' +
+      (capped ? '<p class="warn">מוצגות ' + num(rows.length) + ' התקשרויות מתוך ' + num(total) + '. צמצמו את הסינון כדי לראות את השאר.</p>' : '');
+  }
+  function providerHtml(d) {
+    var p = d.provider, es = d.engagements || [];
+    var rows = es.length ? '<div class="scroll"><table class="tbl ct-tbl"><caption class="sr">שירותים משויכים</caption><thead><tr><th>שירות</th><th>הפעלה</th><th>קשר</th><th>הסכם</th><th>מודל תמחור</th></tr></thead><tbody>' + es.map(function (e) {
+      return '<tr class="click" data-ct-row="engagement" data-p="' + p.id + '" data-s="' + e.service_id + '"><td><button type="button" class="ct-link" data-ct="open-eng" data-p="' + p.id + '" data-s="' + e.service_id + '">' + esc(e.service_name) + '</button></td><td>' + actPill(e.activation) + '</td><td>' + contactPill(e.contact_state) + '</td><td>' + agrPill(e.agreement_state) + '</td><td>' + esc(lbl(MODEL, e.pricing_model)) + '</td></tr>';
+    }).join('') + '</tbody></table></div>' : '<p class="ct-none">לנותן השירות הזה אין שירותים משויכים עדיין.</p>';
+    return '<h2 id="ct-h" tabindex="-1">' + esc(p.name) + ' ' + provPill(p.state) + '</h2>' +
+      '<div class="panel"><h3>פרטי נותן השירות</h3><dl class="ct-dl">' + kv('שם', esc(p.name)) + kv('עסק או ארגון', val(p.business_name)) + kv('טלפון', ltr(p.contact_phone)) + kv('דוא״ל', ltr(p.contact_email)) +
+      kv('אופן העברה', esc(lbl(DELIVERY, p.delivery_method))) + kv('קיבולת פתוחה', p.capacity_open == null ? unset() : num(p.capacity_open)) +
+      (p.state === 'paused' ? kv('מושהה עד', esc(day(p.paused_until))) : '') + (p.state === 'archived' ? kv('הועבר לארכיון', esc(day(p.archived_at))) : '') + kv('הערות פנימיות', p.internal_notes ? '<span class="ct-prewrap">' + esc(p.internal_notes) + '</span>' : unset('אין')) + '</dl>' +
+      '<p class="ct-small">פרטי הקשר גלויים לבעלי המערכת בלבד. פתיחת הכרטיס נרשמת ביומן השינויים (מי פתח ואיזה נותן שירות, בלי פרטי הקשר).</p></div>' +
+      '<div class="panel"><h3>שירותים משויכים (' + num(es.length) + ')</h3>' + rows + '</div>';
+  }
+  function serviceHtml(d, topicName) {
+    var s = d.service, st = d.settings || {}, es = d.engagements || [], sim = d.similar_services || [];
+    var tags = (st.finding_tags || []).map(function (t) { return '<span class="ct-chip">' + esc(t) + '</span>'; }).join(' ');
+    var topics = (st.topics || []).map(function (t) { return '<span class="ct-chip">' + esc(topicName(t)) + '</span>'; }).join(' ');
+    var rows = es.length ? '<div class="scroll"><table class="tbl ct-tbl"><caption class="sr">נותני שירות של השירות</caption><thead><tr><th>נותן שירות</th><th>הפעלה</th><th>קשר</th><th>הסכם</th><th>מודל תמחור</th></tr></thead><tbody>' + es.map(function (e) {
+      return '<tr class="click" data-ct-row="engagement" data-p="' + e.provider_id + '" data-s="' + s.id + '"><td><button type="button" class="ct-link" data-ct="open-eng" data-p="' + e.provider_id + '" data-s="' + s.id + '">' + esc(e.provider_name) + '</button></td><td>' + actPill(e.activation) + '</td><td>' + contactPill(e.contact_state) + '</td><td>' + agrPill(e.agreement_state) + '</td><td>' + esc(lbl(MODEL, e.pricing_model)) + '</td></tr>';
+    }).join('') + '</tbody></table></div>' : '<p class="ct-none">אין נותני שירות לשירות הזה עדיין.</p>';
+    return '<h2 id="ct-h" tabindex="-1">' + esc(s.name) + ' ' + (s.active ? pill('פעיל', 'ok') : pill('כבוי', 'muted')) + '</h2>' +
+      '<div class="panel"><h3>פרטי השירות</h3><dl class="ct-dl">' + kv('תחום', s.topic ? esc(topicName(s.topic)) : unset()) + kv('תיאור', val(s.description)) + kv('נוצר', whenH(s.created_at)) + kv('קוד שירות', ltr(st.code)) + kv('תגי ממצאים', tags || unset('אין')) + kv('תחומי שאלון', topics || unset('אין')) +
+      kv('אישור משפטי', st.legal_cleared ? pill('אישור מדווח', 'ok') + ' <span class="ct-small">דווח על ידי ' + [mail(st.legal_cleared_by), whenH(st.legal_cleared_at)].filter(Boolean).join(' · ') + '</span><br><span class="ct-small">תיעוד של דיווח בלבד: המערכת אינה מאמתת את האישור.</span>' + (st.legal_note ? '<br><span class="ct-small">' + esc(st.legal_note) + '</span>' : '') : pill('לא דווח אישור', 'warn')) +
+      kv('מוצע לציבור', st.offered ? pill('כן', 'ok') : pill('לא', 'muted') + ' <span class="ct-small">הצעה לציבור חסומה בשלב זה</span>') + '</dl></div>' +
+      '<div class="panel"><h3>נותני שירות משויכים (' + num(es.length) + ')</h3>' + rows + '</div>' +
+      (sim.length ? '<div class="panel"><h3>שירותים בשם דומה (לבדיקת כפילות)</h3><ul class="ct-list">' + sim.map(function (x) { return '<li><button type="button" class="ct-link" data-ct="open-service" data-id="' + x.id + '">' + esc(x.name) + '</button> ' + (x.score === 1 ? pill('אותו שם', 'warn') : '<span class="ct-small">דמיון ' + Math.round(x.score * 100) + '%</span>') + '</li>'; }).join('') + '</ul></div>' : '');
+  }
+  // What a service still lacks before an engagement of it could be activated (a marker only: the engagement checklist below says the rest, and activation is not available on these screens).
+  var SERVICE_MISSING = { settings: 'אין לשירות הגדרות (קוד שירות)', matching: 'בהגדרות השירות אין תגי ממצאים או תחומי שאלון להתאמה' };
+  function serviceNotReady(e) {
+    if (e.service_ready !== false) return '';
+    var why = (Array.isArray(e.service_missing) ? e.service_missing : []).map(function (k) { return lbl(SERVICE_MISSING, k); }).join(', ');
+    return '<p class="warn" role="note"><strong>השירות אינו מוכן להפעלה</strong>' + (why ? ': ' + esc(why) : '') + '. זה סימון בלבד: ההפעלה אינה זמינה במסכים האלה.</p>';
+  }
+  function engagementHtml(d) {
+    var e = d.engagement;
+    return '<h2 id="ct-h" tabindex="-1">' + esc(e.provider_name) + ' ← ' + esc(e.service_name) + '</h2>' +
+      '<p class="ct-links"><button type="button" class="ct-link" data-ct="open-provider" data-id="' + e.provider_id + '">לכרטיס נותן השירות</button> <button type="button" class="ct-link" data-ct="open-service" data-id="' + e.service_id + '">לכרטיס השירות</button></p>' + serviceNotReady(e) +
+      '<div class="panel"><h3>מצב ההתקשרות</h3><dl class="ct-dl">' + kv('הפעלה', actPill(e.activation)) + kv('קשר', contactPill(e.contact_state)) + kv('הסכם', agrPill(e.agreement_state)) + kv('מודל תמחור', esc(lbl(MODEL, e.pricing_model))) +
+      kv('עדיפות', e.priority == null ? unset() : num(e.priority)) + kv('מזהה מהגיליון', ltr(e.external_ref)) + kv('הערת תנאים', e.terms_note ? '<span class="ct-prewrap">' + esc(e.terms_note) + '</span>' : unset('אין')) +
+      (e.paused_reason ? kv('סיבת השהיה', esc(e.paused_reason)) : '') + (e.retired_at ? kv('הוצא משימוש', whenH(e.retired_at) + (e.retired_reason ? ' · ' + esc(e.retired_reason) : '')) : '') +
+      kv('עודכן לאחרונה', [mail(e.updated_by), whenH(e.updated_at)].filter(Boolean).join(' · ') || unset()) + '</dl>' + reopenNote(e) + '</div>' +
+      '<div class="panel"><h3>מה חסר כדי שההתקשרות תהיה פעילה</h3>' + checklistHtml(d.checklist || {}) + '</div>' +
+      '<div class="panel"><h3>ארבע שכבות מחיר, בנפרד</h3><div id="ct-price-tools"></div>' + priceLinkNote(d) + priceSection(d) + '<p class="ct-small">מחירים אלה מוצגים לקריאה בלבד. אישור ופרסום של מחיר נעשים בלשונית ״תמחור״ הקיימת.</p></div>' +
+      '<div class="panel" id="ct-life"><h3>היסטוריית מחזור החיים</h3><div id="ct-life-body">' + loadingHtml() + '</div></div>';
+  }
+  function importsTable(r) {
+    if (!r.imports.length) return emptyHtml('עדיין לא בוצע ייבוא', 'כשיבוצע ייבוא של קובץ, הוא יירשם כאן.');
+    return '<table class="tbl ct-tbl"><caption class="sr">היסטוריית ייבוא</caption><thead><tr><th>תאריך</th><th>מקור</th><th>שורות</th><th>נוצרו</th><th>עודכנו</th><th>דולגו</th><th>בעיות</th><th>בוצע על ידי</th><th>טביעת קובץ</th></tr></thead><tbody>' + r.imports.map(function (i) {
+      var probs = Array.isArray(i.problems) ? i.problems : [];
+      var list = probs.length ? '<details><summary>' + num(probs.length) + ' ' + plural(probs.length, 'בעיה', 'בעיות') + '</summary><ul>' + probs.map(function (p) { return '<li>' + (p.row ? 'שורה ' + esc(p.row) + ': ' : '') + esc(has(PROBLEMS, p.code) ? PROBLEMS[p.code] : p.code) + (p.field ? ' <span class="ct-small" dir="ltr">(' + esc(p.field) + ')</span>' : '') + '</li>'; }).join('') + '</ul></details>' : unset('אין');
+      return '<tr><td>' + whenH(i.created_at) + '</td><td>' + esc(String(i.source).toUpperCase()) + '</td><td>' + num(i.rows_total) + '</td><td>' + num(i.rows_created) + '</td><td>' + num(i.rows_updated) + '</td><td>' + num(i.rows_skipped) + '</td><td>' + list + '</td><td>' + esc(i.imported_by) + '</td><td>' + ltr(String(i.file_sha256 || '').slice(0, 10)) + '</td></tr>';
+    }).join('') + '</tbody></table>' + pagerHtml(r.total, r.offset, r.limit);
+  }
+  function historyTable(r, filtered) {
+    if (!r.history.length) return filtered ? emptyHtml('אין רישומים לסינון', 'לא נמצאו רישומים שמתאימים לסינון.') : emptyHtml('אין רישומים', 'שינויים בקטלוג יירשמו כאן.');
+    return '<table class="tbl ct-tbl"><caption class="sr">יומן שינויים בקטלוג</caption><thead><tr><th>זמן</th><th>מי</th><th>פעולה</th><th>עצם</th><th>שדות</th></tr></thead><tbody>' + r.history.map(function (h) {
+      var fields = h.detail && Array.isArray(h.detail.fields) ? h.detail.fields.join(', ') : '';
+      return '<tr><td>' + whenH(h.created_at) + '</td><td>' + esc(h.actor) + '</td><td>' + esc(lbl(ACTIONS, h.action)) + '</td><td>' + esc(lbl(ENTITY, h.entity)) + ' <span class="ct-small" dir="ltr">' + esc(h.entity_id) + '</span></td><td>' + (fields ? '<span dir="ltr">' + esc(fields) + '</span>' : unset('—')) + '</td></tr>';
+    }).join('') + '</tbody></table>' + pagerHtml(r.total, r.offset, r.limit);
+  }
+
+  // What an event moved, in words: the fields of an update (what they were -> what they are) or the state of an action. The values come from the journal's short non-personal fields (names of states, numbers, a sheet id); all of it is escaped.
+  var FIELD_NAMES = { name: 'שם', topic: 'תחום', active: 'פעיל (פנימי)', contact_state: 'מצב קשר', agreement_state: 'מצב הסכם', priority: 'עדיפות', external_ref: 'מזהה מהגיליון', delivery_method: 'אופן העברה', capacity_open: 'קיבולת פתוחה' };
+  function fieldValue(k, v) {
+    if (v === null || v === undefined || v === '') return 'ריק';
+    if (k === 'contact_state') return lbl(CONTACT, v); if (k === 'agreement_state') return lbl(AGREEMENT, v); if (k === 'delivery_method') return lbl(DELIVERY, v);
+    if (typeof v === 'boolean') return v ? 'כן' : 'לא';
+    return String(v);
+  }
+  function moves(d) {
+    var bits = [];
+    if (d.to && typeof d.to === 'object' && !Array.isArray(d.to)) Object.keys(d.to).forEach(function (k) {
+      var had = d.from && typeof d.from === 'object' && Object.prototype.hasOwnProperty.call(d.from, k);
+      bits.push(esc(lbl(FIELD_NAMES, k)) + ': ' + (had ? esc(fieldValue(k, d.from[k])) + ' ← ' : '') + esc(fieldValue(k, d.to[k])));
+    });
+    else if (typeof d.to === 'string' && typeof d.from === 'string') bits.push('מצב: ' + esc(lbl(ACTIVATION, d.from)) + ' ← ' + esc(lbl(ACTIVATION, d.to)));
+    return bits;
+  }
+
+  // Who changed a provider or a service, and when (the views of the card are not changes and are left out). The reason of a pause or an archive is the owners' own text, shown escaped.
+  // `truncated`: the server holds more records of this card than were fetched (the newest LOG_FETCH come first, and every opening of a provider card is a record too). Then "no changes" is never said: the page says what it looked at.
+  var LOG_FETCH = 200;
+  function changeLogHtml(rows, truncated) {
+    var changes = (rows || []).filter(function (h) { return !/\.view$/.test(h.action); }), list = changes.slice(0, 10), note = '';
+    if (truncated) note = list.length ? 'מוצגים רק שינויים מתוך ' + LOG_FETCH + ' הרישומים האחרונים של הכרטיס (הם כוללים גם צפיות). ייתכנו שינויים ישנים יותר שאינם מוצגים.' : 'לא נמצאו שינויים בין ' + LOG_FETCH + ' הרישומים האחרונים של הכרטיס (הם כוללים גם צפיות). ייתכן שיש שינויים ישנים יותר שאינם מוצגים כאן.';
+    else if (changes.length > 10) note = 'מוצגים 10 השינויים האחרונים.';
+    if (!list.length) return '<p class="ct-small">' + (note || 'אין שינויים רשומים.') + '</p>';
+    return '<div class="scroll"><table class="tbl ct-tbl ct-hist"><caption class="sr">היסטוריית שינויים</caption><thead><tr><th>זמן</th><th>מי</th><th>מה נעשה</th><th>פרטים</th></tr></thead><tbody>' + list.map(function (h) {
+      var d = h.detail || {}, bits = [];
+      if (Array.isArray(d.fields)) bits.push('שדות: <span dir="ltr">' + esc(d.fields.join(', ')) + '</span>');
+      bits.push.apply(bits, moves(d));
+      if (typeof d.reason === 'string') bits.push('סיבה: ' + esc(d.reason));
+      if (typeof d.previous_retired_at === 'string') bits.push('ההוצאה משימוש הקודמת (נשמרה כהיסטוריה): ' + whenH(d.previous_retired_at));
+      bits.push.apply(bits, resetBits(d));
+      if (typeof d.cleared === 'boolean') bits.push(d.cleared ? 'אישור מדווח נרשם' : 'אישור בוטל');
+      if (typeof d.source_kind === 'string') bits.push('סוג המקור: ' + esc(lbl(SOURCE_KIND, d.source_kind)));
+      if (typeof d.source === 'string') bits.push('מקור: ' + esc(d.source));
+      if (typeof d.approved_on === 'string') bits.push('תאריך האישור: ' + esc(day(d.approved_on)));
+      return '<tr><td>' + whenH(h.created_at) + '</td><td>' + (mail(h.actor) || unset('—')) + '</td><td>' + esc(lbl(ACTIONS, h.action)) + '</td><td>' + (bits.length ? bits.join(' · ') : unset('—')) + '</td></tr>';
+    }).join('') + '</tbody></table></div>' + (note ? '<p class="ct-small ct-logcap">' + note + '</p>' : '');
+  }
+
+  // Every report and every cancellation of the legal clearance of a service, from the journal (each one its own row, none overwritten): when, who, what, the source and the day of the approval, the reason of a cancellation.
+  // It documents reports by the owners, not a legal verification. `truncated`: older records than the ones fetched may exist, and the page says so.
+  function clearanceHistoryHtml(rows, truncated) {
+    var list = (rows || []).filter(function (h) { return h.action === 'catalog.service.clearance'; });
+    var intro = '<p class="ct-small">כל רישום וכל ביטול נשמרים כאן ואינם נמחקים. זה תיעוד של דיווחים של הבעלים, לא אימות משפטי.</p>';
+    if (!list.length) return intro + '<p class="ct-small">' + (truncated ? 'לא נמצאו דיווחים בין ' + LOG_FETCH + ' הרישומים האחרונים של השירות. ייתכן שיש ישנים יותר שאינם מוצגים כאן.' : 'לא דווח אישור משפטי על השירות הזה.') + '</p>';
+    return intro + '<div class="scroll"><table class="tbl ct-tbl ct-hist"><caption class="sr">היסטוריית אישור משפטי</caption><thead><tr><th>זמן</th><th>מי</th><th>אירוע</th><th>מקור</th><th>תאריך האישור</th><th>סיבת הביטול</th></tr></thead><tbody>' + list.map(function (h) {
+      var d = h.detail || {}, src = [typeof d.source_kind === 'string' ? lbl(SOURCE_KIND, d.source_kind) : '', typeof d.source === 'string' ? d.source : ''].filter(Boolean).join(' — ');
+      return '<tr><td>' + whenH(h.created_at) + '</td><td>' + (mail(h.actor) || unset('—')) + '</td><td>' + (d.cleared === true ? pill('אישור מדווח', 'ok') : d.cleared === false ? pill('הרישום בוטל', 'muted') : unset('—')) + '</td><td>' + (src ? esc(src) : unset('לא צוין')) + '</td><td>' + (typeof d.approved_on === 'string' ? esc(day(d.approved_on)) : unset('לא צוין')) + '</td><td>' + (typeof d.reason === 'string' ? esc(d.reason) : unset('—')) + '</td></tr>';
+    }).join('') + '</tbody></table></div>' + (truncated ? '<p class="ct-small ct-logcap">מוצגים רק דיווחים מתוך ' + LOG_FETCH + ' הרישומים האחרונים של השירות.</p>' : '');
+  }
+
+  /* ---------- the life cycle of an engagement (stage 5b-2b-2) ---------- */
+  // What the card says about pauses, returns, retirements and reopenings. The present and the past are kept apart: the state, the pause reason and a CURRENT retirement belong to the first panel (they come from the engagement itself);
+  // here are the EVENTS, each with its own date, from the journal. A reopened engagement shows its last retirement as the past, never as a current state. When the journal window may be cut, the page says so instead of "none".
+  var LIFE_EVENTS = ['create', 'submit', 'withdraw', 'activate', 'pause', 'resume', 'retire', 'reopen', 'return_to_review'];
+  var LIFE_NAME = { create: 'נוצרה', submit: 'נשלחה לאישור', withdraw: 'נמשכה', activate: 'הופעלה', pause: 'הושהתה', resume: 'חודשה', retire: 'הוצאה משימוש', reopen: 'נפתחה מחדש', return_to_review: 'הוחזרה לבדיקה' };
+  var LIFE_TONE = { create: 'muted', submit: 'muted', withdraw: 'muted', activate: 'ok', pause: 'warn', resume: 'ok', retire: 'bad', reopen: 'ok', return_to_review: 'warn' };
+  var LIFE_SHOWN = 15;
+  function lifeAction(h) { var m = /^catalog\.engagement\.([a-z_]+)$/.exec((h && h.action) || ''); return m && LIFE_EVENTS.indexOf(m[1]) !== -1 ? m[1] : null; }
+  // What a reopening set back, from the journal row (the old value and the new one, in words).
+  function resetBits(d) {
+    var r = d && d.reset && typeof d.reset === 'object' && !Array.isArray(d.reset) ? d.reset : null, bits = [];
+    if (!r) return bits;
+    [['agreement_state', 'הסכם', AGREEMENT], ['contact_state', 'מצב קשר', CONTACT]].forEach(function (x) { var v = r[x[0]]; if (Array.isArray(v) && v.length === 2) bits.push('אופס · ' + x[1] + ': ' + esc(lbl(x[2], v[0])) + ' ← ' + esc(lbl(x[2], v[1]))); });
+    return bits;
+  }
+  var NOTHING_RESET = 'לא אופס דבר: ההסכם לא היה חתום ושיתוף הפעולה לא היה פעיל';
+  function lifeBits(h) {
+    var d = h.detail || {}, bits = moves(d);
+    if (typeof d.reason === 'string') bits.push('סיבה: ' + esc(d.reason));
+    if (typeof d.previous_retired_at === 'string') bits.push('ההוצאה משימוש הקודמת (נשמרה כהיסטוריה): ' + whenH(d.previous_retired_at));
+    if (lifeAction(h) === 'reopen') { var r = resetBits(d); bits.push.apply(bits, r.length ? r : [NOTHING_RESET]); }
+    return bits;
+  }
+  function lifeEv(h) { var d = h.detail || {}; return whenH(h.created_at) + ' · ' + (mail(h.actor) || unset('—')) + (typeof d.reason === 'string' ? ' · סיבה: ' + esc(d.reason) : ''); }
+  function lifecycleHistoryHtml(e, rows, truncated) {
+    var life = (rows || []).filter(lifeAction), last = function (a) { for (var i = 0; i < life.length; i++) if (lifeAction(life[i]) === a) return life[i]; return null; };
+    var cut = truncated ? 'לא נמצא בין ' + LOG_FETCH + ' הרישומים האחרונים של ההתקשרות. ייתכן שיש אירוע ישן יותר שאינו מוצג.' : '';
+    var pause = last('pause'), back = last('return_to_review'), reopen = last('reopen'), retire = last('retire'), tag = function (t) { return ' <span class="ct-small">(' + t + ')</span>'; };
+    var paused = pause ? lifeEv(pause) + tag(e.activation === 'paused' ? 'ההשהיה הנוכחית' : 'בעבר: ההתקשרות אינה מושהית כעת')
+      : (e.activation === 'paused' ? esc('ההתקשרות מושהית כעת, אך ההשהיה לא נרשמה ביומן הזה.' + (cut ? ' ' + cut : '')) : (cut ? esc(cut) : unset('לא נרשמה השהיה')));
+    var returned = back ? lifeEv(back) + tag('בעבר') : (cut ? esc(cut) : unset('לא נרשמה החזרה לבדיקה'));
+    var retired = e.activation === 'retired' ? '<strong>המצב הנוכחי:</strong> הוצאה משימוש ב־' + whenH(e.retired_at) + (e.retired_reason ? ' · סיבה: ' + esc(e.retired_reason) : '') + (retire ? ' · ' + (mail(retire.actor) || unset('—')) : '')
+      : (e.last_retired_at ? whenH(e.last_retired_at) + (e.last_retired_reason ? ' · סיבה: ' + esc(e.last_retired_reason) : '') + (retire ? ' · ' + (mail(retire.actor) || unset('—')) : '') + tag('בעבר: ההתקשרות אינה מוצאת משימוש כעת') : unset('לא הוצאה משימוש'));
+    var wasReopened = !!(e.last_reopened_at || reopen);
+    var reopened = wasReopened ? whenH(e.last_reopened_at || reopen.created_at) + (reopen ? ' · ' + (mail(reopen.actor) || unset('—')) + (typeof (reopen.detail || {}).reason === 'string' ? ' · סיבה: ' + esc(reopen.detail.reason) : '') : (cut ? ' · ' + esc('פרטי הפעולה: ' + cut) : '')) + tag('בעבר') : unset('לא נפתחה מחדש');
+    var resets = wasReopened ? (reopen ? (resetBits(reopen.detail).length ? resetBits(reopen.detail).join(' · ') : esc(NOTHING_RESET)) : esc('פרטי האיפוס אינם מוצגים כאן.' + (cut ? ' ' + cut : ''))) : '';
+    var list = life.slice(0, LIFE_SHOWN);
+    var table = list.length ? '<div class="scroll"><table class="tbl ct-tbl ct-hist"><caption class="sr">אירועי מחזור החיים של ההתקשרות</caption><thead><tr><th>זמן</th><th>מי</th><th>אירוע</th><th>פרטים</th></tr></thead><tbody>' + list.map(function (h) {
+      var a = lifeAction(h), bits = lifeBits(h);
+      return '<tr><td data-label="זמן">' + whenH(h.created_at) + '</td><td data-label="מי">' + (mail(h.actor) || unset('—')) + '</td><td data-label="אירוע">' + pill(LIFE_NAME[a], LIFE_TONE[a]) + '</td><td data-label="פרטים">' + (bits.length ? bits.join(' · ') : unset('—')) + '</td></tr>';
+    }).join('') + '</tbody></table></div>' : '<p class="ct-small">' + esc(truncated ? 'לא נמצאו אירועי מחזור חיים בין ' + LOG_FETCH + ' הרישומים האחרונים של ההתקשרות. ייתכן שיש ישנים יותר שאינם מוצגים כאן.' : 'לא נרשמו אירועי מחזור חיים.') + '</p>';
+    var notes = (life.length > LIFE_SHOWN ? '<p class="ct-small">מוצגים ' + LIFE_SHOWN + ' האירועים האחרונים.</p>' : '') + (truncated && list.length ? '<p class="ct-small ct-logcap">מוצגים רק אירועים מתוך ' + LOG_FETCH + ' הרישומים האחרונים של ההתקשרות (הם כוללים גם עדכוני מעקב). ייתכנו אירועים ישנים יותר שאינם מוצגים.</p>' : '');
+    return '<p class="ct-small">כאן מוצגים אירועים שקרו בעבר, כל אחד עם התאריך שלו. המצב הנוכחי של ההתקשרות מוצג בלוח ״מצב ההתקשרות״ למעלה, ואינו נקבע לפי הרשימה הזו.</p>' +
+      '<dl class="ct-dl">' + kv('המצב הנוכחי', actPill(e.activation) + (e.activation === 'paused' && e.paused_reason ? ' · סיבה: ' + esc(e.paused_reason) : '')) + kv('הושהתה (לאחרונה)', paused) + kv('הוחזרה לבדיקה (לאחרונה)', returned) + kv('הוצאה משימוש', retired) + kv('נפתחה מחדש (לאחרונה)', reopened) + (wasReopened ? kv('מה אופס בפתיחה מחדש', resets) : '') + '</dl>' + table + notes;
+  }
+  // After a reopening: what was registered before the retirement is not valid by that fact. The values shown in the state panel are the present; the earlier ones are in the journal.
+  function reopenNote(e) {
+    if (!e.last_reopened_at || e.activation === 'active') return '';
+    return '<p class="warn" role="note"><strong>ההתקשרות נפתחה מחדש ב־' + whenH(e.last_reopened_at) + ' אחרי הוצאה משימוש.</strong> מה שנרשם לפני כן כחתום או כפעיל אינו תקף מעצם הפתיחה מחדש: הסכם שהיה חתום חוזר לטיוטה, ושיתוף פעולה שהיה פעיל חוזר ל״נוצר קשר״, ורושמים אותם מחדש רק אם הם נכונים. ההסכם והקשר שמוצגים בלוח הזה הם המצב הנוכחי; הערכים הקודמים נשמרו ביומן.</p>';
+  }
+  // The linked price, said plainly: a link is not an approval of the engagement, it is re-checked before every activation, and what is lacking is named. Only the read model is used: the checklist item says whether the price approved AND fits
+  // (the very rule of the linking route and of the activation); an approved price with an amount that does not fit belongs to another service or provider.
+  function priceCheckItem(d) { var items = (d && d.checklist && d.checklist.items) || []; for (var i = 0; i < items.length; i++) if (items[i].key === 'price_approved') return items[i]; return null; }
+  function priceMismatch(d) { var ap = d && d.approved_price, it = priceCheckItem(d); return !!(ap && ap.approved && ap.price != null && it && it.ok === false); }
+  function priceLacks(d) {
+    var ap = d.approved_price, out = [];
+    if (!ap) return out;
+    if (!ap.approved) out.push('המחיר המקושר אינו מאושר בלשונית ״תמחור״.');
+    if (ap.price == null) out.push('למחיר המקושר אין סכום.');
+    if (priceMismatch(d)) out.push('המחיר המקושר מאושר ויש לו סכום, אך אינו שייך לשירות הזה או לנותן השירות הזה (ייתכן שהועבר או שונה בלשונית ״תמחור״).');
+    return out;
+  }
+  function priceLinkNote(d) {
+    var e = d.engagement, ap = d.approved_price;
+    if (!ap) return '';
+    var lacks = priceLacks(d), it = priceCheckItem(d), html = '';
+    if (e.activation !== 'active') {
+      html += '<p class="ct-note" role="note"><strong>המחיר המקושר כפוף לבדיקה מחדש לפני הפעלה.</strong> הקישור נשמר ואינו אישור של ההתקשרות: לפני כל הפעלה נבדק שוב שהמחיר מאושר, בעל סכום ושייך לשירות ולנותן השירות.' +
+        (e.last_reopened_at ? ' פתיחה מחדש לא מחקה את הקישור ולא אישרה אותו מחדש.' : '') + '</p>';
+    }
+    if (lacks.length) html += '<div class="warn" role="note"><strong>' + (e.activation === 'active' ? 'ההתקשרות פעילה, אך המחיר המקושר אינו עומד בכללי השיוך והאישור.' : 'המחיר המקושר אינו עומד כעת בכללי השיוך והאישור, ולכן חסר.') + '</strong><ul>' + lacks.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ul>' +
+      (e.activation === 'active' ? '<p>יש לבדוק את המחיר בלשונית ״תמחור״. עד אז אפשר להשהות את ההתקשרות.</p>' : '') + '</div>';
+    else if (it && it.ok === true && e.activation !== 'active') html += '<p class="ct-small">בבדיקה של הרגע המחיר המקושר עומד בכללי השיוך והאישור. זו אינה הפעלה ואינה אישור חדש; הבדיקה תיעשה שוב בעת ההפעלה.</p>';
+    return html;
+  }
+
+  /* ---------- the screens (DOM) ---------- */
+  var ctx = null, rootEl = null, body = null, S = null, seq = 0, timer = null;
+  // The two internal catalog domains of the sheet ("עסקים", "חיסכון והשקעות"): domains of the CATALOG only, not topics of the public check (netlify/functions/_kaspchem/catalog/internal-topics.js).
+  var INTERNAL_DOMAINS = [['business', 'עסקים (פנימי)'], ['savings-investments', 'חיסכון והשקעות (פנימי)']], INTERNAL_DOMAIN_NAMES = { business: 'עסקים (פנימי)', 'savings-investments': 'חיסכון והשקעות (פנימי)' };
+
+  function get(path) { return ctx.api('GET', path); }   // the only way this file talks to the server
+  function qs(o) { var p = Object.keys(o).filter(function (k) { return o[k] !== '' && o[k] != null; }).map(function (k) { return k + '=' + encodeURIComponent(o[k]); }); return p.length ? '?' + p.join('&') : ''; }
+  function fresh() { return { screen: 'overview', arg: null, stack: [], f: { providers: { q: '', state: '', offset: 0 }, services: { q: '', topic: '', active: '', offset: 0 }, engagements: { q: '', activation: '', model: '', contact: '', agreement: '', offset: 0 }, imports: { offset: 0 }, history: { entity: '', offset: 0 } }, eng: null }; }
+
+  // The editing modules (catalog-edit.js, catalog-prices.js, catalog-import.js) plug in here when they are loaded: each is told when a screen has been drawn and may add its own buttons to it, and may add screens of its own
+  // (`screens: [{ key, label, before | after, draw(hooks, body) }]`). This file itself stays READ ONLY: it never sends anything but GET, and the tests keep it that way.
+  var EXTS = [];
+  function extend(e) { EXTS.push(e); }
+  function modeLabel() { return EXTS.length ? 'צפייה ועריכה' : 'לקריאה בלבד'; }
+  function extScreens() { var out = []; EXTS.forEach(function (e) { (e.screens || []).forEach(function (s) { out.push(s); }); }); return out; }
+  function screenList() {   // the built-in screens, with the screens of the modules put before or after the one they name (at the end if it is not there)
+    var list = SCREENS.map(function (s) { return s.slice(); });
+    extScreens().forEach(function (x) {
+      var at = list.map(function (s) { return s[0]; }).indexOf(x.before || x.after), entry = [x.key, x.label];
+      if (at === -1) list.push(entry); else list.splice(x.before ? at : at + 1, 0, entry);
+    });
+    return list;
+  }
+  function hooks() { return { ctx: ctx, body: body, esc: esc, go: go, reload: function () { render(); }, get: get, lbl: lbl, when: when, whenH: whenH, mail: mail, num: num, ils: ils, fail: fail, labels: { ACTIVATION: ACTIVATION, CONTACT: CONTACT, AGREEMENT: AGREEMENT }, root: function () { return rootEl; } }; }
+  function tell(kind, data) {
+    EXTS.forEach(function (x) {
+      if (!x.afterDraw) return;
+      try { x.afterDraw(kind, data, hooks()); } catch (err) { if (root.console && root.console.error) root.console.error('catalog: a module of the editing failed', err); }
+    });
+  }
+  // The change log of one provider or service, under its card: who changed what and when (the views of the card are left out). Read only, one GET.
+  // An engagement card passes the engagement itself (`eng`): the same one request also fills the life cycle panel of the card (it never needs a second one).
+  function paintLife(fn) { var b = body && body.querySelector('#ct-life-body'); if (!b) return; try { b.innerHTML = fn(); } catch (x) { if (root.console && root.console.error) root.console.error('catalog: drawing the life cycle failed', x); b.innerHTML = '<p class="ct-small">לא ניתן היה להציג את ההיסטוריה.</p>'; } }
+  function loadChangeLog(entity, id, eng) {
+    var my = seq, holder = document.createElement('div'), title = '<h3>היסטוריית שינויים</h3>';
+    holder.id = 'ct-log'; holder.className = 'panel'; holder.innerHTML = title + loadingHtml(); body.appendChild(holder);
+    get('/catalog/history' + qs({ entity: entity, entity_id: id, limit: LOG_FETCH })).then(function (r) { if (!(my === seq && holder.isConnected)) return; var cut = r.total > (r.history || []).length; holder.innerHTML = title + changeLogHtml(r.history, cut); if (entity === 'engagement' && eng) paintLife(function () { return lifecycleHistoryHtml(eng, r.history, cut); }); if (entity === 'service') { var clr = document.createElement('div'); clr.id = 'ct-clr'; clr.className = 'panel'; clr.innerHTML = '<h3>היסטוריית אישור משפטי (דיווחים)</h3>' + clearanceHistoryHtml(r.history, cut); holder.parentNode.insertBefore(clr, holder); } },
+      function () { if (my === seq && holder.isConnected) { holder.innerHTML = title + '<p class="ct-small">לא ניתן היה לטעון את ההיסטוריה.</p>'; if (entity === 'engagement') paintLife(function () { return '<p class="ct-small">לא ניתן היה לטעון את ההיסטוריה.</p>'; }); } });
+  }
+
+  function open(c) {
+    ctx = Object.assign({}, c, { topicName: function (t) { return INTERNAL_DOMAIN_NAMES[t] || c.topicName(t); }, domains: function () { return c.topics().concat(INTERNAL_DOMAINS); } }); S = fresh(); seq++;   // the domain of a service may also be one of the two internal domains
+    c.view.innerHTML = '<div id="ct-root" class="ct"><div class="view-h"><h1>קטלוג ספקים</h1><span class="ct-ro">' + esc(modeLabel()) + '</span></div><nav class="ct-nav" aria-label="מסכי הקטלוג">' +
+      screenList().map(function (s) { return '<button type="button" data-ct="nav" data-v="' + s[0] + '">' + esc(s[1]) + '</button>'; }).join('') + '</nav><div id="ct-body" class="ct-body"></div></div>';
+    rootEl = c.view.querySelector('#ct-root'); body = rootEl.querySelector('#ct-body');
+    rootEl.addEventListener('click', onClick);
+    rootEl.addEventListener('keydown', function (e) { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('tr[data-ct-row]')) { e.preventDefault(); openRow(e.target); } });
+    rootEl.addEventListener('input', onInput); rootEl.addEventListener('change', onInput);
+    render();
+  }
+  function paintNav() {
+    var cur = PARENT[S.screen] || S.screen;
+    [].forEach.call(rootEl.querySelectorAll('.ct-nav button'), function (b) { b.setAttribute('aria-current', b.dataset.v === cur ? 'page' : 'false'); });
+  }
+  function go(screen, arg, push) {
+    if (push) S.stack.push({ screen: S.screen, arg: S.arg }); else S.stack = [];
+    S.screen = screen; S.arg = arg == null ? null : arg; render();
+  }
+  function back() { var p = S.stack.pop(); if (!p) return go('overview'); S.screen = p.screen; S.arg = p.arg; render(); }
+  function focusHeading() { var h = body.querySelector('#ct-h') || body.querySelector('.ct-state h2'); if (h) h.focus({ preventScroll: true }); }
+  function fail(target, e, again) {
+    var k = classify(e);
+    if (k === 'auth') return ctx.fail(e);
+    if (k === 'closed') return closedShell();                  // a closed catalog shows nothing but that: no menu that leads nowhere
+    target.innerHTML = errorHtml(k); S.retry = again; focusHeading();
+  }
+  function closedShell() {
+    rootEl.innerHTML = '<div class="view-h"><h1>קטלוג ספקים</h1></div><div id="ct-body" class="ct-body">' + errorHtml('closed') + '</div>';
+    body = rootEl.querySelector('#ct-body'); S.retry = function () { open(ctx); }; focusHeading();
+  }
+  function render() {
+    paintNav(); seq++;
+    var fn = { overview: scrOverview, providers: scrProviders, services: scrServices, engagements: scrEngagements, imports: scrImports, history: scrHistory, provider: scrProvider, service: scrService, engagement: scrEngagement }[S.screen];
+    if (fn) return fn();
+    var mine = extScreens().filter(function (x) { return x.key === S.screen; })[0];   // a screen of a module: it draws itself into the body and asks the server only through the hooks
+    if (mine) { try { mine.draw(hooks(), body); } catch (err) { if (root.console && root.console.error) root.console.error('catalog: drawing a screen of a module failed', err); body.innerHTML = errorHtml('server'); S.retry = render; } }
+  }
+  // Loads one thing into `target`. A slower earlier answer never overwrites a later screen.
+  function load(path, target, done) {
+    var my = ++seq; target.innerHTML = loadingHtml();
+    function again() { load(path, target, done); }
+    // Two separate handlers: a failed request is classified by the server's answer; a bug while drawing is a different thing and is never reported as a network problem.
+    get(path).then(function (r) { if (my !== seq) return; drawn(target, again, function () { done(r); }); }, function (e) { if (my !== seq) return; fail(target, e, again); });
+  }
+  function drawn(target, again, draw) {
+    try { draw(); } catch (x) { if (root.console && root.console.error) root.console.error('catalog: drawing failed', x); target.innerHTML = errorHtml('server'); S.retry = again; }
+  }
+
+  function scrOverview() { load('/catalog/overview', body, function (o) { body.innerHTML = overviewHtml(o); focusHeading(); }); }
+
+  // A list screen: the filter bar is drawn once, only the results below it are redrawn.
+  function listShell(label, filtersHtml, f, clearable) {
+    body.innerHTML = '<h2 id="ct-h" tabindex="-1" class="sr">' + esc(label.replace('סינון ', '')) + '</h2><form class="panel row ct-filters" role="search" aria-label="' + esc(label) + '" novalidate>' + filtersHtml + '<div class="ct-clear"' + (clearable(f) ? '' : ' hidden') + '><button type="button" class="btn sec" data-ct="clear">ניקוי סינון</button></div></form><p id="ct-count" class="ct-count" role="status" aria-live="polite"></p><div id="ct-res" class="scroll"></div>';
+    return body.querySelector('#ct-res');
+  }
+  function setCount(text) { var c = body.querySelector('#ct-count'); if (c) c.textContent = text; }
+  function showClear(on) { var c = body.querySelector('.ct-clear'); if (c) c.hidden = !on; }
+  var anyFilter = function (f, keys) { return keys.some(function (k) { return !!f[k]; }); };
+
+  function scrProviders() {
+    var f = S.f.providers;
+    var res = listShell('סינון נותני שירות',
+      '<div><label for="ct-q">חיפוש לפי שם או עסק</label><input id="ct-q" data-f="q" type="search" autocomplete="off" value="' + esc(f.q) + '"></div><div><label for="ct-st">מצב</label><select id="ct-st" data-f="state">' + optionsHtml(PROVIDER_STATE, f.state, 'הכול') + '</select></div>', f, function (x) { return anyFilter(x, ['q', 'state']); });
+    tell('providers-list');
+    loadProviders(res);
+  }
+  function loadProviders(res) {
+    var f = S.f.providers; showClear(anyFilter(f, ['q', 'state']));
+    load('/catalog/providers' + qs({ q: f.q, state: f.state, limit: PAGE, offset: f.offset }), res, function (r) {
+      res.innerHTML = providersTable(r, anyFilter(f, ['q', 'state'])); setCount(r.total ? num(r.total) + ' ' + plural(r.total, 'נותן שירות', 'נותני שירות') : '');
+    });
+  }
+  function scrServices() {
+    var f = S.f.services, topics = ctx.domains();
+    var res = listShell('סינון שירותים',
+      '<div><label for="ct-q">חיפוש לפי שם שירות</label><input id="ct-q" data-f="q" type="search" autocomplete="off" value="' + esc(f.q) + '"></div><div><label for="ct-tp">תחום</label><select id="ct-tp" data-f="topic"><option value="">הכול</option>' + topics.map(function (t) { return '<option value="' + esc(t[0]) + '"' + (t[0] === f.topic ? ' selected' : '') + '>' + esc(t[1]) + '</option>'; }).join('') + (f.topic && !topics.some(function (t) { return t[0] === f.topic; }) ? '<option value="' + esc(f.topic) + '" selected>' + esc(f.topic) + '</option>' : '') + '</select></div>' +
+      '<div><label for="ct-ac">מצב</label><select id="ct-ac" data-f="active">' + optionsHtml({ true: 'פעיל', false: 'כבוי' }, f.active, 'הכול') + '</select></div>', f, function (x) { return anyFilter(x, ['q', 'topic', 'active']); });
+    tell('services-list');
+    loadServices(res);
+  }
+  function loadServices(res) {
+    var f = S.f.services; showClear(anyFilter(f, ['q', 'topic', 'active']));
+    load('/catalog/services' + qs({ q: f.q, topic: f.topic, active: f.active, limit: PAGE, offset: f.offset }), res, function (r) {
+      res.innerHTML = servicesTable(r, anyFilter(f, ['q', 'topic', 'active']), ctx.topicName); setCount(r.total ? num(r.total) + ' ' + plural(r.total, 'שירות', 'שירותים') : '');
+    });
+  }
+  // Engagements: the server filters by state and by pricing model; the text search and the two state filters work on everything that was loaded (up to ENG_CAP).
+  function scrEngagements() {
+    var f = S.f.engagements;
+    var res = listShell('סינון התקשרויות',
+      '<div><label for="ct-q">חיפוש לפי נותן שירות או שירות</label><input id="ct-q" data-f="q" type="search" autocomplete="off" value="' + esc(f.q) + '"></div>' +
+      '<div><label for="ct-ac">הפעלה</label><select id="ct-ac" data-f="activation" data-server="1">' + optionsHtml(ACTIVATION, f.activation, 'הכול') + '</select></div>' +
+      '<div><label for="ct-ct">קשר</label><select id="ct-ct" data-f="contact">' + optionsHtml(CONTACT, f.contact, 'הכול') + '</select></div>' +
+      '<div><label for="ct-ag">הסכם</label><select id="ct-ag" data-f="agreement">' + optionsHtml(AGREEMENT, f.agreement, 'הכול') + '</select></div>' +
+      '<div><label for="ct-md">מודל תמחור</label><select id="ct-md" data-f="model" data-server="1">' + optionsHtml(MODEL, f.model, 'הכול') + '</select></div>', f, function (x) { return anyFilter(x, ['q', 'activation', 'model', 'contact', 'agreement']); });
+    loadEngagements(res, true);
+  }
+  function engagementRows() {
+    var f = S.f.engagements, q = f.q.trim().toLowerCase();
+    return S.eng.rows.filter(function (e) {
+      return (!f.contact || e.contact_state === f.contact) && (!f.agreement || e.agreement_state === f.agreement) && (!q || (e.provider_name + ' ' + e.service_name).toLowerCase().indexOf(q) !== -1);
+    });
+  }
+  function paintEngagements(res) {
+    var f = S.f.engagements, rows = engagementRows(), filt = anyFilter(f, ['q', 'activation', 'model', 'contact', 'agreement']);
+    showClear(filt);
+    res.innerHTML = engagementsTable(rows, filt, S.eng.total, S.eng.capped, f.offset);
+    setCount(rows.length ? num(rows.length) + ' ' + plural(rows.length, 'התקשרות', 'התקשרויות') + (filt ? ' מתוך ' + num(S.eng.rows.length) : '') : '');
+  }
+  function loadEngagements(res, needFetch) {
+    var f = S.f.engagements, key = f.activation + '|' + f.model;
+    if (!needFetch && S.eng && S.eng.key === key) return paintEngagements(res);
+    var my = ++seq; res.innerHTML = loadingHtml();
+    var rows = [], total = 0;
+    function page(offset) {
+      return get('/catalog/engagements' + qs({ activation: f.activation, pricing_model: f.model, limit: ENG_PAGE, offset: offset })).then(function (r) {
+        rows = rows.concat(r.engagements); total = r.total;
+        if (rows.length < total && rows.length < ENG_CAP) return page(offset + ENG_PAGE);
+      });
+    }
+    var again = function () { loadEngagements(res, true); };
+    page(0).then(function () { if (my !== seq) return; S.eng = { key: key, rows: rows, total: total, capped: rows.length < total }; drawn(res, again, function () { paintEngagements(res); }); },
+      function (e) { if (my !== seq) return; fail(res, e, again); });
+  }
+  function scrImports() {
+    var f = S.f.imports;
+    load('/catalog/imports' + qs({ limit: 20, offset: f.offset }), body, function (r) { body.innerHTML = '<h2 id="ct-h" tabindex="-1" class="sr">היסטוריית ייבוא</h2>' + importsTable(r); focusHeading(); });
+  }
+  function scrHistory() {
+    var f = S.f.history;
+    var res = listShell('סינון יומן שינויים', '<div><label for="ct-en">עצם</label><select id="ct-en" data-f="entity">' + optionsHtml(ENTITY, f.entity, 'הכול') + '</select></div>', f, function (x) { return !!x.entity; });
+    loadHistory(res);
+  }
+  function loadHistory(res) {
+    var f = S.f.history; showClear(!!f.entity);
+    load('/catalog/history' + qs({ entity: f.entity, limit: PAGE, offset: f.offset }), res, function (r) { res.innerHTML = historyTable(r, !!f.entity); setCount(r.total ? num(r.total) + ' ' + plural(r.total, 'רישום', 'רישומים') : ''); });
+  }
+  function scrProvider() { load('/catalog/providers/' + encodeURIComponent(S.arg), body, function (d) { body.innerHTML = backBar() + providerHtml(d); focusHeading(); tell('provider', d); loadChangeLog('provider', d.provider.id); }); }
+  function scrService() { load('/catalog/services/' + encodeURIComponent(S.arg), body, function (d) { body.innerHTML = backBar() + serviceHtml(d, ctx.topicName); focusHeading(); tell('service', d); loadChangeLog('service', d.service.id); }); }
+  function scrEngagement() { load('/catalog/engagements/' + encodeURIComponent(S.arg[0]) + '/' + encodeURIComponent(S.arg[1]), body, function (d) { body.innerHTML = backBar() + engagementHtml(d); focusHeading(); tell('engagement', d); loadChangeLog('engagement', d.engagement.provider_id + '/' + d.engagement.service_id, d.engagement); }); }
+  function backBar() { return '<p class="ct-back"><button type="button" class="btn sec mini" data-ct="back">→ חזרה</button></p>'; }
+
+  /* ---------- events ---------- */
+  function openRow(tr) {
+    var k = tr.dataset.ctRow;
+    if (k === 'provider') go('provider', tr.dataset.id, true); else if (k === 'service') go('service', tr.dataset.id, true); else if (k === 'engagement') go('engagement', [tr.dataset.p, tr.dataset.s], true);
+  }
+  function onClick(e) {
+    var b = e.target.closest('[data-ct]');
+    if (!b) { var tr = e.target.closest('tr[data-ct-row]'); if (tr) openRow(tr); return; }
+    var a = b.dataset.ct;
+    if (a === 'nav') go(b.dataset.v);
+    else if (a === 'back') back();
+    else if (a === 'retry') { if (S.retry) S.retry(); else render(); }
+    else if (a === 'open-provider') go('provider', b.dataset.id, true);
+    else if (a === 'open-service') go('service', b.dataset.id, true);
+    else if (a === 'open-eng') go('engagement', [b.dataset.p, b.dataset.s], true);
+    else if (a === 'eng-filter') { S.f.engagements = { q: '', activation: b.dataset.act, model: '', contact: '', agreement: '', offset: 0 }; go('engagements'); }
+    else if (a === 'clear') { S.f[S.screen] = fresh().f[S.screen]; render(); }
+    else if (a === 'page') {
+      var f = S.f[S.screen], step = Number(b.dataset.d) * (S.screen === 'imports' ? 20 : PAGE); f.offset = Math.max(0, f.offset + step);
+      if (S.screen === 'engagements') paintEngagements(body.querySelector('#ct-res')); else render();
+      rootEl.scrollIntoView({ block: 'start' });
+    }
+  }
+  function onInput(e) {
+    var el = e.target, name = el.dataset && el.dataset.f; if (!name || !S.f[S.screen]) return;
+    var f = S.f[S.screen];
+    if (e.type === 'input' && el.tagName === 'SELECT') return;     // a select is handled on "change"
+    if (e.type === 'change' && el.tagName !== 'SELECT') return;     // a text box is handled while typing
+    f[name] = el.value; f.offset = 0;
+    var res = body.querySelector('#ct-res'); if (!res) return;
+    clearTimeout(timer);
+    var run = function () {
+      if (S.screen === 'providers') loadProviders(res); else if (S.screen === 'services') loadServices(res); else if (S.screen === 'history') loadHistory(res);
+      else if (S.screen === 'engagements') loadEngagements(res, false);
+    };
+    if (el.tagName === 'SELECT') run(); else timer = setTimeout(run, 250);
+  }
+
+  root.KaspchemCatalog = {
+    open: open, extend: extend,
+    _t: { actPill: actPill, ils: ils, screenList: screenList, lifecycleHistoryHtml: lifecycleHistoryHtml, reopenNote: reopenNote, priceLinkNote: priceLinkNote, priceLacks: priceLacks, resetBits: resetBits, LIFE_EVENTS: LIFE_EVENTS, LIFE_NAME: LIFE_NAME, SERVICE_MISSING: SERVICE_MISSING, serviceNotReady: serviceNotReady, FIELD_NAMES: FIELD_NAMES, CHECK_LABELS: CHECK_LABELS, changeLogHtml: changeLogHtml, clearanceHistoryHtml: clearanceHistoryHtml, SOURCE_KIND: SOURCE_KIND, esc: esc, lbl: lbl, priceText: priceText, layerBody: layerBody, priceSection: priceSection, checklistHtml: checklistHtml, classify: classify, errorHtml: errorHtml, overviewHtml: overviewHtml, providersTable: providersTable, servicesTable: servicesTable,
+      engagementsTable: engagementsTable, providerHtml: providerHtml, serviceHtml: serviceHtml, engagementHtml: engagementHtml, importsTable: importsTable, historyTable: historyTable, emptyHtml: emptyHtml, priceChips: priceChips,
+      labels: { ACTIVATION: ACTIVATION, CONTACT: CONTACT, AGREEMENT: AGREEMENT, MODEL: MODEL, PROVIDER_STATE: PROVIDER_STATE, DELIVERY: DELIVERY, LAYER_STATUS: LAYER_STATUS, ENTITY: ENTITY, ACTIONS: ACTIONS, ENFORCED: ENFORCED } }
+  };
+})(typeof window !== 'undefined' ? window : this);

@@ -4,7 +4,7 @@
   var view = document.getElementById('view'), tabsEl = document.getElementById('tabs');
   var LOCAL = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
   var TEST_USER = LOCAL ? new URLSearchParams(location.search).get('test') : null; // local dev/test only; the server ignores it in production
-  var TABS = [['dash', 'סקירה'], ['requests', 'בקשות טיפול'], ['impact', 'השפעה'], ['forms', 'שאלונים'], ['services', 'שירותים'], ['pricing', 'תמחור'], ['pros', 'בעלי מקצוע'], ['settings', 'הגדרות'], ['audit', 'יומן שינויים']];
+  var TABS = [['dash', 'סקירה'], ['requests', 'בקשות טיפול'], ['impact', 'השפעה'], ['forms', 'שאלונים'], ['services', 'שירותים'], ['pricing', 'תמחור'], ['pros', 'בעלי מקצוע'], ['catalog', 'קטלוג ספקים'], ['settings', 'הגדרות'], ['audit', 'יומן שינויים']];
   var STATUS = { new: 'חדש', contacted: 'נוצר קשר', in_progress: 'בטיפול', awaiting_client: 'ממתין ללקוח', done: 'הושלם', closed: 'סגור', spam: 'ספאם' };
   var AGR = { none: 'אין הסכם', in_talks: 'במשא ומתן', signed: 'חתום', ended: 'הסתיים' };
   var topicNames = {};
@@ -25,18 +25,44 @@
     if (method !== 'GET') h['X-Kaspchem'] = '1'; // CSRF guard checked by the server
     if (TEST_USER) { h['x-test-user'] = TEST_USER; }
     return fetch('/api/kaspchem/admin' + path, { method: method, headers: h, credentials: 'same-origin', body: body ? JSON.stringify(body) : undefined })
-      .then(function (r) { return r.json().then(function (j) { if (!r.ok) { var e = new Error(j.error || 'error'); e.status = r.status; e.userMessage = j.message; throw e; } return j; }); });
+      .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw apiError(r.status, j); return j; }); });
+  }
+  // What an error answer may hand on to the screens: the code, the server's own plain-language message, and a short list of fields that hold only codes or flags. Nothing else of the answer
+  // (no raw body, nothing the server did not name here) goes on, so no SQL, no connection detail and no personal detail can reach a screen this way.
+  var SAFE_CODE_LISTS = ['errors', 'missing', 'codes'], SAFE_FLAGS = ['documented_only'], SAFE_CODE = /^[a-z0-9_:>.-]{1,80}$/;
+  function safeDetails(j) {
+    var out = {};
+    SAFE_CODE_LISTS.forEach(function (k) { var v = j[k]; if (Array.isArray(v) && v.length <= 30 && v.every(function (x) { return typeof x === 'string' && SAFE_CODE.test(x); })) out[k] = v.slice(); });
+    SAFE_FLAGS.forEach(function (k) { if (typeof j[k] === 'boolean') out[k] = j[k]; });
+    return out;
+  }
+  function apiError(status, j) {
+    j = j && typeof j === 'object' && !Array.isArray(j) ? j : {};
+    var e = new Error(typeof j.error === 'string' && /^[A-Za-z0-9_.:-]{1,80}$/.test(j.error) ? j.error : 'error');
+    e.status = status; e.userMessage = typeof j.message === 'string' ? j.message.slice(0, 600) : undefined; e.details = safeDetails(j);
+    return e;
   }
   function fail(e) {
     if (e.status === 401) return gate('פג תוקף ההתחברות. יש להתחבר מחדש.');
     if (e.status === 403) return gate('אין לחשבון הזה הרשאת מנהל לכספכם.');
     var known = Object.assign({}, ERR_IMPACT, {
       compensation_blocked: 'עמלת הפניה חסומה בתחום הזה עד אישור משפטי בכתב',
+      price_linked_to_active_engagement: 'המחיר משויך להתקשרות פעילה בקטלוג הספקים. יש להשהות אותה בקטלוג לפני שינוי המחיר. לא נשמר דבר.',
       phone_exists: 'מספר הטלפון כבר רשום אצל פונה אחר',
       bad_phone: 'מספר טלפון לא תקין', bad_email: 'כתובת דוא״ל לא תקינה', bad_name: 'שם לא תקין', nothing_to_update: 'אין מה לעדכן'
     });
+    if (e.message === 'managed_in_catalog') return managedInCatalog(e);
     if (e.message === 'deep_not_ready') return toast(e.userMessage || 'הבדיקה המעמיקה אינה מוכנה להפעלה');
     toast('שגיאה: ' + (known[e.message] || e.message || 'לא ידועה'));
+  }
+  // While the catalog is open the older screens of services and providers are read only: say so where the person is looking, and offer the way to the catalog. (Nothing was saved.)
+  function managedInCatalog(e) {
+    var old = document.getElementById('mic'); if (old) old.remove();
+    var box = document.createElement('div'); box.id = 'mic'; box.className = 'warn'; box.style.margin = '1rem 0'; box.setAttribute('role', 'alert');
+    box.innerHTML = '<strong>העריכה כאן הועברה לקטלוג הספקים.</strong> ' + esc(e.userMessage || 'הנתון הזה מנוהל עכשיו בקטלוג הספקים ואי אפשר לשנות אותו מכאן.') + ' לא נשמר דבר. <button type="button" class="btn sec mini" id="mic-go">מעבר לקטלוג ספקים</button>';
+    view.insertBefore(box, view.firstChild);
+    document.getElementById('mic-go').onclick = function () { go('catalog'); };
+    box.scrollIntoView({ block: 'nearest' }); toast('הנתון מנוהל בקטלוג הספקים');
   }
   function authBox(title, inner) { tabsEl.hidden = true; document.getElementById('who').textContent = ''; view.innerHTML = '<section class="gate"><h1>' + title + '</h1>' + inner + '</section>'; }
   function gate(msg) {
@@ -81,7 +107,7 @@
 
   function go(t) {
     [].forEach.call(tabsEl.querySelectorAll('button'), function (b) { b.setAttribute('aria-current', b.dataset.t === t ? 'page' : 'false'); });
-    ({ dash: dash, requests: requests, impact: impact, forms: forms, services: services, pricing: pricing, pros: pros, settings: settings, audit: audit })[t]();
+    ({ dash: dash, requests: requests, impact: impact, forms: forms, services: services, pricing: pricing, pros: pros, catalog: catalog, settings: settings, audit: audit })[t]();
     view.focus({ preventScroll: true });
   }
   var H = function (title, extra) { return '<div class="view-h"><h1>' + title + '</h1>' + (extra || '') + '</div>'; };
@@ -197,6 +223,14 @@
         '<div class="scroll"><table class="tbl"><thead><tr><th>שם</th><th>קשר</th><th>תחומים</th><th>הסכם</th></tr></thead><tbody>' + r.professionals.map(function (p) { return '<tr><td>' + esc(p.name) + '</td><td>' + esc(p.contact || '') + '</td><td>' + (p.topics || []).map(function (t) { return esc(topicNames[t] || t); }).join(', ') + '</td><td>' + AGR[p.agreement_status] + '</td></tr>'; }).join('') + '</tbody></table></div>';
       document.getElementById('pf').onsubmit = function (e) { e.preventDefault(); api('POST', '/professionals', { name: pn.value, contact: pc.value, topics: [].map.call(pt.selectedOptions, function (o) { return o.value; }), agreement_status: pa.value }).then(function () { toast('נוסף'); pros(); }).catch(fail); };
     }).catch(fail);
+  }
+
+  // Catalog screens (stage 5a, read only): everything they need from this file is handed over here; they only ever call api('GET', ...).
+  function catalog() {
+    if (!window.KaspchemCatalog) { view.innerHTML = H('קטלוג ספקים') + '<p class="panel">מסכי הקטלוג לא נטענו.</p>'; return; }
+    window.KaspchemCatalog.open({ api: api, view: view, fail: fail, go: go,
+      topicName: function (t) { return topicNames[t] || t || ''; },
+      topics: function () { return Object.keys(topicNames).map(function (k) { return [k, topicNames[k]]; }); } });
   }
 
   function pricing() {
