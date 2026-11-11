@@ -4,12 +4,14 @@
 // (31337.31, 41414.14, 77.77) so the tests can prove they never reach a response or a page.
 //   node tests/catalog-demo-server.js                 -> http://localhost:4181/admin/kaspchem/?test=yosi@example.test|admin
 //   /__demo/mode?name=full|big|empty|closed|fault     -> reseeds: full (default), big (paging), empty catalog, switch closed, server error on every catalog read
+//   /__demo/sample/real-shape.csv | demo.csv           -> downloads a sample sheet (invented data) to load on the import screen
 const fs = require('fs');
 const path = require('path');
 const { start } = require('./dev-server');
 const db = require('../netlify/functions/_kaspchem/db');
 
 const ROOT = path.join(__dirname, '..');
+const SAMPLES = { 'real-shape.csv': 'catalog-sheet-real-shape.csv', 'demo.csv': 'catalog-sheet-demo.csv' };   // /__demo/sample/real-shape.csv (the structure of the owners' sheet) and /__demo/sample/demo.csv
 const M002 = fs.readFileSync(path.join(ROOT, 'db', 'migrations', '002-provider-catalog.sql'), 'utf8');
 const D = (n) => '[דמו] ' + n;
 
@@ -110,6 +112,11 @@ async function startDemo(port) {
       if (!['full', 'big', 'empty', 'closed', 'fault'].includes(name)) { res.writeHead(400); return res.end('bad mode'); }
       await queue(async () => { mode = name; await reset(pg, name === 'fault' ? 'full' : name); });
       res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify({ ok: true, mode }));
+    }
+    if (url.pathname.startsWith('/__demo/sample/')) {   // the two sample sheets of the tests, to download and try (only these two names; nothing else of the disk is ever served)
+      const f = SAMPLES[url.pathname.slice('/__demo/sample/'.length)];
+      if (!f) { res.writeHead(404); return res.end('no such sample'); }
+      res.writeHead(200, { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename="' + f + '"', 'Cache-Control': 'no-store' }); return res.end(fs.readFileSync(path.join(__dirname, 'fixtures', f)));
     }
     original.forEach((l) => l.call(server, req, res));
   });

@@ -9,6 +9,8 @@
 //   R4  clarifications copied word for word, never cut            R10 an unknown value blocks its row until it is mapped
 //   R5  a percentage is kept as a percentage, with its wording    R11 nothing of the file is kept: the log holds hashes, counts and codes
 //   R6  commission: NOT imported in M1 (deferred to M1.1); the commission columns are read only to say that they were ignored
+//   R12 a provider that is archived, or paused until a day that has not come, gets NO new engagement (the row is a problem; planApply refuses it; the save re-checks it inside the INSERT)
+//   R13 the topic of a service is the id of a topic of the system (the public site groups prices by it): the file's topic NAME is turned into that id; a name the system does not have is NOT stored as text (the service is created without a topic and the row says so)
 const crypto = require('crypto');
 const T = require('./text.js');
 const CSV = require('./csv.js');
@@ -35,12 +37,12 @@ function snapshotDigest(ex) {
 
 // ---- value mapping (R1, R2, R10) ----------------------------------------------------------------------------------------------------------------------------
 // valueKey of the file's text -> value in the system. `manual` = the file says something the importer is not allowed to set: it is imported as the safe value and reported.
-const CONTACT = { 'יצרתיקשר': 'contacted', 'במומ': 'negotiating', 'לאנוצרקשר': 'none', 'טרםנוצרקשר': 'none' };
+const CONTACT = { 'יצרתיקשר': 'contacted', 'במומ': 'negotiating', 'לאנוצרקשר': 'none', 'טרםנוצרקשר': 'none', 'לאפניתי': 'none', 'שיחהנקבעה': 'contacted' };   // the last two are words of the dropdown of the owners' sheet
 const CONTACT_MANUAL = { 'פעיל': 'negotiating', 'שיתוףפעולהפעיל': 'negotiating', 'שיתוףפעולה': 'negotiating' };
 const AGREEMENT = { 'טרםנדון': 'not_discussed', 'טיוטה': 'draft' };
 const AGREEMENT_MANUAL = { 'חתום': 'draft', 'חתומה': 'draft', 'הסכםחתום': 'draft', 'נחתם': 'draft' };
-const ACTIVATION = { 'ממתיןלאישורלהפניה': 'pending', 'ממתין': 'pending', 'טיוטה': 'draft' };
-const ACTIVATION_MANUAL = { 'פעיל': 'pending', 'פעילבאתר': 'pending' };
+const ACTIVATION = { 'ממתיןלאישורלהפניה': 'pending', 'ממתין': 'pending', 'טיוטה': 'draft', 'לאלהפניה': 'draft' };   // "לא להפניה" (do not refer) is a draft at most
+const ACTIVATION_MANUAL = { 'פעיל': 'pending', 'פעילבאתר': 'pending', 'מאושרלהפניה': 'pending' };   // "מאושר להפניה" is in the sheet's dropdown: only a person approves, so it is imported as pending and reported
 const DIRECTION_OK = new Set(['כספכםמפנהלספק']);
 const SAFE_TARGETS = { contact: ['none', 'contacted', 'negotiating'], agreement: ['not_discussed', 'draft'], activation: ['draft', 'pending'] };   // what an import may ever set (R1, R2)
 
@@ -61,8 +63,15 @@ const LIMITS = { name: 200, business: 200, note: 1000 };
 const isImportActor = (who) => typeof who === 'string' && who.startsWith('import:');
 const isManual = (who) => !isImportActor(who);   // unknown provenance is protected too
 
+// R13: { id, name }[] of the topics of the system -> a Map from the comparison key of a name (or of an id) to the id. No list given = the older behaviour (the text of the file is kept).
+function topicMapOf(topics) {
+  if (!Array.isArray(topics) || !topics.length) return null;
+  const m = new Map(); topics.forEach((t) => { if (t && t.id) { m.set(T.valueKey(t.id), t.id); if (t.name) m.set(T.valueKey(t.name), t.id); } });
+  return m;
+}
+
 // ---- one row -------------------------------------------------------------------------------------------------------------------------------------------------
-function parseRow(obj, mappings) {
+function parseRow(obj, mappings, topicMap) {
   const c = obj.cells, problems = [], warnings = [], flags = [], has = (k) => c[k] !== undefined;
   const bad = (code, field, extra) => problems.push(Object.assign({ code, field }, extra || {}));
   if (obj.blank) return { rowNumber: obj.rowNumber, skip: 'blank' };
@@ -71,13 +80,18 @@ function parseRow(obj, mappings) {
   if (obj.extra) warnings.push('extra_cells');
   if (!serviceName) bad('service_missing', 'service');
   if (serviceName.length > LIMITS.name) bad('name_too_long', 'service', { max: LIMITS.name });
-  const record = { rowNumber: obj.rowNumber, externalRef: has('externalId') ? T.normText(c.externalId) : undefined, service: { name: serviceName, key: T.nameKey(serviceName), topic: has('domain') ? (T.normText(c.domain) || null) : undefined, description: has('description') ? (T.verbatim(c.description) || undefined) : undefined }, provider: null, engagement: null, layer: null, flags, ignored: [] };
-  if (has('domain') && !T.normText(c.domain)) warnings.push('domain_missing');
+  const domainText = has('domain') ? (T.normText(c.domain) || null) : undefined;
+  let topic = domainText, topicInFile;   // R13
+  if (topicMap && domainText) { const id = topicMap.get(T.valueKey(domainText)); if (id) topic = id; else { topic = null; topicInFile = domainText; warnings.push('topic_not_in_system'); } }
+  const record = { rowNumber: obj.rowNumber, externalRef: has('externalId') ? T.normText(c.externalId) : undefined, service: { name: serviceName, key: T.nameKey(serviceName), topic, description: has('description') ? (T.verbatim(c.description) || undefined) : undefined }, provider: null, engagement: null, layer: null, flags, ignored: [] };
+  if (topicInFile !== undefined) record.service.topic_in_file = topicInFile;
+  if (has('domain') && !domainText) warnings.push('domain_missing');
 
   if (providerName) {
     if (providerName.length > LIMITS.name) bad('name_too_long', 'provider', { max: LIMITS.name });
     const business = has('business') ? T.normText(c.business) : '';
     if (business.length > LIMITS.business) bad('name_too_long', 'business', { max: LIMITS.business });
+    if (business && Sim.isGenericBusiness(business)) warnings.push('business_is_a_label');   // "פרטי" / "חברה": a type, kept as written, never used to compare names
     const prov = { name: providerName, business, key: T.nameKey(providerName) + '|' + T.nameKey(business) };
     if (has('phone')) { const ph = T.normalizePhone(c.phone); if (!ph.ok) bad(ph.problem, 'phone'); else if (!ph.empty) { prov.phone = ph.value; if (ph.restored) flags.push('phone_restored'); } }
     if (has('email')) { const em = T.normalizeEmail(c.email); if (!em.ok) bad(em.problem, 'email'); else if (!em.empty) prov.email = em.value; }
@@ -164,7 +178,8 @@ function buildPreview(input) {
   const filled = objs.filter((o) => !o.blank).length;
   if (input.maxRows !== undefined && filled > input.maxRows) { base.fileProblems.push({ code: 'too_many_rows', rows: filled, max: input.maxRows }); return finish(Object.assign(base, { ok: false, summary: emptySummary() })); }
 
-  const parsedRows = objs.map((o) => parseRow(o, input.mappings));
+  const topicMap = topicMapOf(input.topics), providerById = new Map((existing.providers || []).map((p) => [String(p.id), p]));
+  const parsedRows = objs.map((o) => parseRow(o, input.mappings, topicMap));
   // R9: the same sheet id twice, or the same provider and service twice, are errors on every row involved
   const refCount = {}, pairCount = {};
   parsedRows.forEach((r) => { if (!r.record) return; const ref = r.record.externalRef; if (ref) (refCount[T.nameKey(ref)] = refCount[T.nameKey(ref)] || []).push(r); if (r.record.provider) (pairCount[r.record.provider.key + '||' + r.record.service.key] = pairCount[r.record.provider.key + '||' + r.record.service.key] || []).push(r); });
@@ -233,6 +248,8 @@ function buildPreview(input) {
         if (rec.layer) { const d = diffLayer(rec.layer, ex.layers || []); row.layer = { action: d.action }; changes.push(...d.changes); }
       } else if (!problems.some((p) => p.code === 'external_ref_belongs_to_another_engagement' || p.code.startsWith('ambiguous'))) {
         row.engagement = { action: 'new' }; if (rec.layer) row.layer = { action: 'create' };
+        const pv = providerId !== null ? providerById.get(String(providerId)) : null;   // R12: an archived or paused provider gets no new engagement (a provider this file creates is never unavailable)
+        if (pv && pv.unavailable) { problems.push({ code: 'provider_unavailable', field: 'provider', value: pv.unavailable }); row.engagement = null; row.layer = null; }
       }
     }
     if (rec.ignored.includes('commission')) flags.push('commission_not_imported');
@@ -308,6 +325,7 @@ function planApply(preview, approvals, existingNow, opts) {
     }
     if (rec.provider && row.engagement && row.engagement.action === 'new') {
       const pk = ('id' in prov ? 'id:' + prov.id : prov.ref) + '|' + ('id' in svc ? 'id:' + svc.id : svc.ref), ext = rec.engagement.external_ref;
+      if ('id' in prov) { const pv = now.providers.find((p) => String(p.id) === String(prov.id)); if (pv && pv.unavailable) { no('provider_unavailable'); continue; } }   // R12, also for a provider the owner chose in a decision
       if ('id' in prov && 'id' in svc && usedPairs.has(prov.id + ':' + svc.id)) { no('engagement_already_exists'); continue; }   // the answer given points at a pair that already has an engagement
       if (planned.has(pk)) { no('engagement_twice_in_plan'); continue; }
       if (ext && usedRefs.has(String(ext))) { no('external_ref_in_use'); continue; }

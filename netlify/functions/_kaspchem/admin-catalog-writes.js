@@ -21,6 +21,7 @@ const store = require('./catalog-store');
 const guards = require('./catalog-guards');
 const serviceGuard = require('./service-guard');
 const { opsAlert } = require('./ops-alert');
+const content = require('./content');
 
 const MAX_IMPORT_ROWS = 300, MAX_IMPORT_BYTES = 1300000;
 
@@ -224,7 +225,7 @@ route('POST', /^\/catalog\/providers\/(\d+)\/(pause|resume|archive|unarchive)$/,
 
 // ===== engagements ===============================================================================================================================================================
 // A provider that is archived, or paused until a day that has not come yet, gets no new engagement. The check is part of the INSERT itself (not a separate look beforehand), so it holds for the very row that is written.
-const PROVIDER_UNAVAILABLE = 'EXISTS (SELECT 1 FROM provider_profiles pp WHERE pp.professional_id = $1::bigint AND (pp.archived_at IS NOT NULL OR (pp.paused_until IS NOT NULL AND pp.paused_until > now())))';
+const PROVIDER_UNAVAILABLE = W.PROVIDER_UNAVAILABLE;   // one text for the single route and the import (catalog-writes.js)
 route('POST', /^\/catalog\/engagements$/, 'engagements.create', { path: '/catalog/engagements', body: { provider_id: 1, service_id: 1 } }, async (c) => {
   const b = fields(c, ['provider_id', 'service_id', 'external_ref', 'activation']), p = idBody(b.provider_id, 'bad_provider_id'), s = idBody(b.service_id, 'bad_service_id'), ref = ENGAGEMENT.external_ref.v(b.external_ref);
   // A new engagement is a draft: nothing agreed, no price model (the table's own defaults). It may be created ALREADY PENDING with "activation": "pending": that is the draft SUBMITTED, a step the state machine itself decides
@@ -398,7 +399,8 @@ async function importInputs(c, extra) {
   if (typeof b.csv !== 'string' || !b.csv.length) throw bad('bad_csv');
   const mappings = mapping(b.mappings, 'bad_mappings'), columnMap = mapping(b.columnMap, 'bad_column_map');
   const snap = await store.readSnapshot();
-  const preview = Imp.buildPreview({ csv: b.csv, existing: snap.snapshot, mappings, columnMap, maxRows: MAX_IMPORT_ROWS });
+  const topics = ((content.seed && content.seed.topics) || []).map((t) => ({ id: t.id, name: t.name }));   // R13: the topics of the system, so the file's topic names become their ids
+  const preview = Imp.buildPreview({ csv: b.csv, existing: snap.snapshot, mappings, columnMap, topics, maxRows: MAX_IMPORT_ROWS });
   return { b, snap, preview };
 }
 route('POST', /^\/catalog\/imports\/preview$/, 'imports.preview', { path: '/catalog/imports/preview', body: { csv: '"תחום","השירות המדויק"\r\n' } }, async (c) => {

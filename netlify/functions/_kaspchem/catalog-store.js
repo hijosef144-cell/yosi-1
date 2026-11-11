@@ -187,14 +187,16 @@ async function similarServices() {
 // ---- change detection (used by the import apply of stage 4b; no route in 4a exposes it) ---------------------------------------------------------------------
 // What the import reads, read in ONE consistent snapshot, plus two fingerprints of exactly those columns: a SQL one (the very same text can be run INSIDE the write transaction and compared
 // there) and a JavaScript one. If anything the import reads changes between the preview and the save, both change.
+// R12: whether a provider can get a new engagement. Part of what the import reads AND of its fingerprint, so a provider that is archived or paused between the preview and the save makes the preview stale.
+const UNAVAILABLE_EXPR = "CASE WHEN pp.archived_at IS NOT NULL THEN 'archived' WHEN pp.paused_until IS NOT NULL AND pp.paused_until > now() THEN 'paused' END";
 const SNAP = {
   services: 'SELECT s.id::text AS id, s.name, s.topic, s.description, ' + serviceGuard.PUBLIC_PRICE_EXISTS + ' AS public_price FROM services s ORDER BY s.id',
-  providers: 'SELECT p.id::text AS id, p.name, pp.business_name, pp.contact_phone, pp.contact_email FROM professionals p LEFT JOIN provider_profiles pp ON pp.professional_id = p.id ORDER BY p.id',
+  providers: 'SELECT p.id::text AS id, p.name, pp.business_name, pp.contact_phone, pp.contact_email, ' + UNAVAILABLE_EXPR + ' AS unavailable FROM professionals p LEFT JOIN provider_profiles pp ON pp.professional_id = p.id ORDER BY p.id',
   engagements: 'SELECT professional_id::text AS professional_id, service_id::text AS service_id, external_ref, activation, contact_state, agreement_state, pricing_model, pricing_id::text AS pricing_id, terms_note, updated_by FROM provider_services ORDER BY provider_services.professional_id, provider_services.service_id',
   layers: 'SELECT professional_id::text AS professional_id, service_id::text AS service_id, kind, model, amount::float8 AS amount, percent_low::float8 AS percent_low, percent_high::float8 AS percent_high, minimum_amount::float8 AS minimum_amount, terms_text, status, basis_missing, source_note, source_date::text AS source_date, recorded_by FROM provider_service_prices ORDER BY provider_service_prices.professional_id, provider_service_prices.service_id, provider_service_prices.kind',
 };
 const FINGERPRINT_EXPR = "md5(coalesce((SELECT string_agg(ROW(s.id, s.name, s.topic, s.description, " + serviceGuard.PUBLIC_PRICE_EXISTS + ")::text, '|' ORDER BY s.id) FROM services s), '') || '#' || " +
-  "coalesce((SELECT string_agg(ROW(p.id, p.name, pp.business_name, pp.contact_phone, pp.contact_email)::text, '|' ORDER BY p.id) FROM professionals p LEFT JOIN provider_profiles pp ON pp.professional_id = p.id), '') || '#' || " +
+  "coalesce((SELECT string_agg(ROW(p.id, p.name, pp.business_name, pp.contact_phone, pp.contact_email, " + UNAVAILABLE_EXPR + ")::text, '|' ORDER BY p.id) FROM professionals p LEFT JOIN provider_profiles pp ON pp.professional_id = p.id), '') || '#' || " +
   "coalesce((SELECT string_agg(ROW(professional_id, service_id, external_ref, activation, contact_state, agreement_state, pricing_model, pricing_id, terms_note, updated_by)::text, '|' ORDER BY professional_id, service_id) FROM provider_services), '') || '#' || " +
   "coalesce((SELECT string_agg(ROW(professional_id, service_id, kind, model, amount, percent_low, percent_high, minimum_amount, terms_text, basis_missing, source_note, source_date, status, recorded_by)::text, '|' ORDER BY professional_id, service_id, kind) FROM provider_service_prices), ''))";
 const FINGERPRINT_SQL = 'SELECT ' + FINGERPRINT_EXPR + ' AS fingerprint';

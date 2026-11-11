@@ -59,6 +59,11 @@ function matchName(name, pool, opts) {
   return { key, exact, similar };
 }
 
+// The business column of the owners' sheet often holds a TYPE ("פרטי", "חברה"), not a name. Two different providers that are both "פרטי" are not similar for that reason, so such a value never makes
+// a provider look like another one (it is still kept as written, and still part of the exact match).
+const GENERIC_BUSINESS = new Set(['פרטי', 'פרטית', 'חברה', 'חברה בעמ', 'בעמ', 'עוסק', 'עוסק מורשה', 'עוסק פטור', 'עצמאי', 'עצמאית', 'עמותה', 'שותפות', 'אין', 'לא ידוע']);
+const isGenericBusiness = (s) => GENERIC_BUSINESS.has(info(s).key);
+
 // A provider is known by name AND business. The same name with another business, or a near name, is a question for a person, never a match.
 function matchProvider(p, pool, opts) {
   const at = (opts && opts.at) || SIMILAR_AT, nk = info(p.name).key, bk = info(p.business || '').key;
@@ -67,7 +72,7 @@ function matchProvider(p, pool, opts) {
     const ink = info(item.name).key, ibk = info(item.business_name || item.business || '').key;
     if (ink === nk && ibk === bk) exact.push(item);
     else if (ink === nk) sameNameOtherBusiness.push(item);
-    else { const s = Math.max(similarity(p.name, item.name), bk && ibk ? similarity(p.business, item.business_name || item.business) : 0); if (s >= at) similar.push({ item, score: Math.round(s * 100) / 100 }); }
+    else { const s = Math.max(similarity(p.name, item.name), bk && ibk && !GENERIC_BUSINESS.has(bk) && !GENERIC_BUSINESS.has(ibk) ? similarity(p.business, item.business_name || item.business) : 0); if (s >= at) similar.push({ item, score: Math.round(s * 100) / 100 }); }
   }
   similar.sort((x, y) => y.score - x.score);
   return { exact, sameNameOtherBusiness, similar };
@@ -85,4 +90,4 @@ function suggestPairs(items, opts) {
   return { same, similar };
 }
 
-module.exports = { similarity, matchName, matchProvider, suggestPairs, SIMILAR_AT };
+module.exports = { similarity, matchName, matchProvider, suggestPairs, isGenericBusiness, SIMILAR_AT };

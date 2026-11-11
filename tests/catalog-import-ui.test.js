@@ -91,7 +91,7 @@ test('the work done is kept through a new preview exactly for the rows that did 
   const edited = DEMO.replace('"[דמו] גולן כהן","[דמו] גולן ייעוץ","050-0000101"', '"[דמו] גולן כהן","[דמו] גולן ייעוץ","050-0000199"'); assert.notEqual(edited, DEMO);
   const k3 = T.reconcile(a, sigs, preview(edited)); assert.deepEqual(k3.dropped, [2]); assert.ok(!k3.approvals.rows[2] && k3.approvals.rows[3]);
   // a row that stopped being applicable (an edit made it a problem) is dropped; an approval of a row that is not there any more is dropped
-  const broken = DEMO.replace('"[דמו] ייעוץ משכנתא","ליווי בבחירת משכנתא (נתוני דמה)","[דמו] מיכל לוי"', '"","ליווי בבחירת משכנתא (נתוני דמה)","[דמו] מיכל לוי"'); assert.ok(T.reconcile(a, sigs, preview(broken)).dropped.includes(3));
+  const broken = DEMO.replace('"[דמו] ייעוץ משכנתא","ליווי בבחירת משכנתא ובמחזור (נתוני דמה)","[דמו] מיכל לוי"', '"","ליווי בבחירת משכנתא ובמחזור (נתוני דמה)","[דמו] מיכל לוי"'); assert.ok(T.reconcile(a, sigs, preview(broken)).dropped.includes(3));
   assert.deepEqual(T.reconcile(a, sigs, preview(DEMO.split('\n').slice(0, 3).join('\n') + '\n')).dropped.filter((n) => n > 3).length > 0, true);
   // the signature moves with what the approval depends on (the decisions and the changes), not with a different row
   const r5 = p1.rows.find((r) => r.rowNumber === 5); assert.equal(RAW.signature(r5), RAW.signature(JSON.parse(JSON.stringify(r5)))); const moved = JSON.parse(JSON.stringify(r5)); moved.decisions[0].candidates.pop(); assert.notEqual(RAW.signature(r5), RAW.signature(moved));

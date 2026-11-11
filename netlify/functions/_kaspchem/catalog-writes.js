@@ -18,6 +18,8 @@ const serviceGuard = require('./service-guard');
 const TABLE_LOCK = 'LOCK TABLE services, professionals, provider_profiles, provider_services, provider_service_prices IN SHARE ROW EXCLUSIVE MODE';
 const GUARD_SNAPSHOT = 'DO $guard$ BEGIN IF (SELECT ' + store.FINGERPRINT_EXPR + ") IS DISTINCT FROM current_setting('kaspchem.expect', true) THEN RAISE EXCEPTION 'snapshot_changed' USING ERRCODE = 'P0001'; END IF; END $guard$";
 const GUARD_ROWS = "DO $guard$ BEGIN IF coalesce(nullif(current_setting('kaspchem.rows', true), ''), '0')::int < 1 THEN RAISE EXCEPTION 'no_rows' USING ERRCODE = 'P0001'; END IF; END $guard$";
+// A provider that is archived, or paused until a day that has not come yet, gets no new engagement. Used INSIDE the INSERT of an engagement (the single route and the import), so it holds for the very row written.
+const PROVIDER_UNAVAILABLE = 'EXISTS (SELECT 1 FROM provider_profiles pp WHERE pp.professional_id = $1::bigint AND (pp.archived_at IS NOT NULL OR (pp.paused_until IS NOT NULL AND pp.paused_until > now())))';
 const AUDIT = 'INSERT INTO audit_log (actor, action, entity, entity_id, detail) VALUES ($1, $2, $3, $4, $5::jsonb)';
 const LOG = 'INSERT INTO catalog_imports (source, file_sha256, rows_total, rows_created, rows_updated, rows_skipped, problems, imported_by) VALUES ($1, $2, $3::int, $4::int, $5::int, $6::int, $7::jsonb, $8)';
 
@@ -134,8 +136,9 @@ function opStatements(o, ids) {
       for (const col of listed(o.set, UPD_PROVIDER)) out.push({ text: 'INSERT INTO provider_profiles (professional_id, ' + col + ') VALUES ($1::bigint, $2) ON CONFLICT (professional_id) DO UPDATE SET ' + col + ' = EXCLUDED.' + col + ', updated_at = now()', params: [String(o.id), o.set[col]] }); break;
     case 'create_engagement': {
       const s = o.set;
-      out.push({ text: 'INSERT INTO provider_services (professional_id, service_id, activation, contact_state, agreement_state, pricing_model, external_ref, terms_note, updated_by) VALUES ($1::bigint, $2::bigint, $3, $4, $5, $6, $7, $8, $9)',
-        params: [id(o.provider), id(o.service), s.activation, s.contact_state, s.agreement_state, s.pricing_model, s.external_ref, s.terms_note, o.updated_by] }); break;
+      // the provider's availability is checked INSIDE the INSERT (R12): a provider archived or paused in the last instant gives no row, and the guard after it fails the whole batch
+      out.push(...counted('INSERT INTO provider_services (professional_id, service_id, activation, contact_state, agreement_state, pricing_model, external_ref, terms_note, updated_by) SELECT $1::bigint, $2::bigint, $3, $4, $5, $6, $7, $8, $9 WHERE NOT ' + PROVIDER_UNAVAILABLE,
+        [id(o.provider), id(o.service), s.activation, s.contact_state, s.agreement_state, s.pricing_model, s.external_ref, s.terms_note, o.updated_by])); break;
     }
     case 'update_engagement':
       for (const col of listed(o.set, UPD_ENGAGEMENT)) out.push({ text: 'UPDATE provider_services SET ' + col + ' = $1::text, updated_by = $2, updated_at = now() WHERE professional_id = $3::bigint AND service_id = $4::bigint', params: [o.set[col], o.updated_by, String(o.key.professional_id), String(o.key.service_id)] }); break;
@@ -165,4 +168,4 @@ function importBatch(ops, ids, ctx) {
   return statements;
 }
 
-module.exports = { run, mapError, audit, counted, casUpdate, reserve, reserveIds, importBatch, opStatements, GUARD_SNAPSHOT, GUARD_ROWS, AUDIT, LOG, TABLE_LOCK, UPD_SERVICE, UPD_PROVIDER, UPD_ENGAGEMENT, UPD_LAYER };
+module.exports = { PROVIDER_UNAVAILABLE, run, mapError, audit, counted, casUpdate, reserve, reserveIds, importBatch, opStatements, GUARD_SNAPSHOT, GUARD_ROWS, AUDIT, LOG, TABLE_LOCK, UPD_SERVICE, UPD_PROVIDER, UPD_ENGAGEMENT, UPD_LAYER };
