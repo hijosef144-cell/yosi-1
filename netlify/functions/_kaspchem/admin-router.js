@@ -158,7 +158,8 @@ on('PATCH', '/applicants/(\\d+)', async (c, id) => {
 on('GET', '/services', async () => ({ services: await db.query('SELECT * FROM services ORDER BY topic NULLS LAST, name') }));
 on('POST', '/services', async (c) => {
   const b = c.body;
-  const r = await db.query('INSERT INTO services (topic, name, description) VALUES ($1,$2,$3) RETURNING id', [optText(b.topic, 40), text(b.name, 120), optText(b.description, 600)]);
+  const r = await db.query('INSERT INTO services (topic, name, description) SELECT $1::text, $2::text, $3::text WHERE ' + catalog.OLD_WRITE_CLOSED + ' RETURNING id', [optText(b.topic, 40), text(b.name, 120), optText(b.description, 600)]);
+  if (!r.length) { await catalog.refuseOldWrite(); throw new HttpError(409, 'conflict'); }   // the catalog was opened while this write was on its way: nothing was written
   await audit(c.me.email, 'service.create', 'service', r[0].id, {});
   return { id: Number(r[0].id) };
 });
@@ -166,8 +167,9 @@ on('PATCH', '/services/(\\d+)', async (c, id) => {
   const b = c.body;
   const v = [optText(b.topic, 40), text(b.name, 120), optText(b.description, 600), b.active !== false, idOf(id)];
   // Owner decision: the name and the topic of a service tied to a price the public site shows cannot change. The rule is part of the UPDATE itself (see service-guard.js).
-  const done = await db.query('UPDATE services s SET topic=$1, name=$2, description=$3, active=$4 WHERE s.id = $5 AND ' + serviceGuard.allowsChange('$2::text', '$1::text') + ' RETURNING s.id', v);
+  const done = await db.query('UPDATE services s SET topic=$1, name=$2, description=$3, active=$4 WHERE s.id = $5 AND ' + serviceGuard.allowsChange('$2::text', '$1::text') + ' AND ' + catalog.OLD_WRITE_CLOSED + ' RETURNING s.id', v);
   if (!done.length && await serviceGuard.isBlocked(db, v[4], v[1], v[0])) throw new HttpError(409, 'service_has_public_price', serviceGuard.MESSAGE);
+  if (!done.length) await catalog.refuseOldWrite();   // the catalog was opened while this write was on its way: nothing was written (a service that does not exist still answers ok, as it always did)
   await audit(c.me.email, 'service.update', 'service', id, {});
   return { ok: true };
 });
@@ -180,12 +182,14 @@ function proFields(b) {
   return [text(b.name, 120), optText(b.contact, 200), topics, b.agreement_status || 'none', optText(b.agreement_notes, 1000), b.routing_enabled === true];
 }
 on('POST', '/professionals', async (c) => {
-  const r = await db.query('INSERT INTO professionals (name, contact, topics, agreement_status, agreement_notes, routing_enabled) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id', proFields(c.body));
+  const r = await db.query('INSERT INTO professionals (name, contact, topics, agreement_status, agreement_notes, routing_enabled) SELECT $1::text, $2::text, $3::text[], $4::text, $5::text, $6::boolean WHERE ' + catalog.OLD_WRITE_CLOSED + ' RETURNING id', proFields(c.body));
+  if (!r.length) { await catalog.refuseOldWrite(); throw new HttpError(409, 'conflict'); }   // the catalog was opened while this write was on its way: nothing was written
   await audit(c.me.email, 'professional.create', 'professional', r[0].id, {});
   return { id: Number(r[0].id) };
 });
 on('PATCH', '/professionals/(\\d+)', async (c, id) => {
-  await db.query('UPDATE professionals SET name=$1, contact=$2, topics=$3, agreement_status=$4, agreement_notes=$5, routing_enabled=$6 WHERE id=$7', proFields(c.body).concat([idOf(id)]));
+  const done = await db.query('UPDATE professionals SET name=$1, contact=$2, topics=$3, agreement_status=$4, agreement_notes=$5, routing_enabled=$6 WHERE id=$7 AND ' + catalog.OLD_WRITE_CLOSED + ' RETURNING id', proFields(c.body).concat([idOf(id)]));
+  if (!done.length) await catalog.refuseOldWrite();   // the catalog was opened while this write was on its way: nothing was written (a professional that does not exist still answers ok, as it always did)
   await audit(c.me.email, 'professional.update', 'professional', id, {});
   return { ok: true };
 });
@@ -220,8 +224,14 @@ on('POST', '/pricing', async (c) => {
 on('PATCH', '/pricing/(\\d+)', async (c, id) => {
   await assertCompensationAllowed(c.body);
   const guarded = await priceGuard.catalogTablesExist();
-  const rows = await db.query('UPDATE pricing SET service_id=$1, professional_id=$2, label=$3, price=$4, cost=$5, commission=$6, notes=$7, approved=false, approved_by=NULL, approved_at=NULL, public=false WHERE id=$8' + (guarded ? ' AND NOT ' + priceGuard.ACTIVE_LINK : '') + ' RETURNING id',
-    priceFields(c.body).concat([idOf(id)]));
+  let rows;
+  try {
+    rows = await db.query('UPDATE pricing SET service_id=$1, professional_id=$2, label=$3, price=$4, cost=$5, commission=$6, notes=$7, approved=false, approved_by=NULL, approved_at=NULL, public=false WHERE id=$8' + (guarded ? ' AND NOT ' + priceGuard.ACTIVE_LINK : '') + ' RETURNING id',
+      priceFields(c.body).concat([idOf(id)]));
+  } catch (e) {   // migration 003 (the price race guard): the database itself refused an edit that would leave an ACTIVE engagement with a price that is no longer valid, in the very moment the check above could not see
+    if (e && e.code === 'P0001' && /price_linked_to_active_engagement/.test(String(e.message))) throw new HttpError(409, 'price_linked_to_active_engagement', priceGuard.LINKED_TO_ACTIVE);
+    throw e;
+  }
   if (guarded && !rows.length) {   // no row was changed: because of the guard, or because there is no such price (which has always answered "ok" and still does)
     const linked = await db.query('SELECT 1 AS x FROM pricing WHERE id = $1 AND ' + priceGuard.ACTIVE_LINK, [idOf(id)]);
     if (linked.length) throw new HttpError(409, 'price_linked_to_active_engagement', priceGuard.LINKED_TO_ACTIVE);

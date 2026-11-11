@@ -13,6 +13,7 @@ const ROOT = path.join(__dirname, '..', '..');
 const DDL = fs.readFileSync(path.join(ROOT, 'db', 'kaspchem-schema.sql'), 'utf8');
 const M002 = fs.readFileSync(path.join(ROOT, 'db', 'migrations', '002-provider-catalog.sql'), 'utf8');
 const GRANTS = fs.readFileSync(path.join(ROOT, 'db', 'grants', 'm1-app-grants.sql'), 'utf8');
+const M003 = fs.readFileSync(path.join(ROOT, 'db', 'migrations', '003-price-race-guard.sql'), 'utf8');   // the price race guard (two triggers): in the world only when asked for ({ guard003: true } or KC_WORLD_003=1)
 const TODAY = `GRANT INSERT, SELECT, UPDATE ON applicants, consents, outcomes, pricing, professionals, revenues, services, settings, treatment_requests TO kaspchem_app;
   GRANT INSERT, SELECT ON audit_log, request_notes TO kaspchem_app; GRANT DELETE, INSERT, SELECT, UPDATE ON questionnaire_versions TO kaspchem_app; GRANT DELETE, INSERT, SELECT ON rate_limits TO kaspchem_app;
   GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO kaspchem_app;`;   // what kaspchem_app really has on the base tables today
@@ -36,10 +37,13 @@ const SEED = `
   INSERT INTO provider_service_prices (professional_id, service_id, kind, model, amount, status, recorded_by) VALUES (21, 11, 'unclassified', 'fixed', 1200, 'recorded', 'import:owner');
   INSERT INTO provider_service_compensation (professional_id, service_id, model, percent_recorded, payer_note, recorded_by) VALUES (21, 11, 'percent', 77.77, 'PAYER-SECRET', 'owner@example.test');`;
 
+const GUARD_SWITCH = (what) => "DO $x$ BEGIN IF to_regclass('public.pricing') IS NOT NULL AND EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'kc_pricing_guard') THEN ALTER TABLE pricing " + what + " TRIGGER kc_pricing_guard; END IF; IF to_regclass('public.provider_services') IS NOT NULL AND EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'kc_engagement_price_guard') THEN ALTER TABLE provider_services " + what + " TRIGGER kc_engagement_price_guard; END IF; END $x$";
+const GUARD_OFF = GUARD_SWITCH('DISABLE'), GUARD_ON = GUARD_SWITCH('ENABLE');
 async function world(opts) {
   const o = opts || {};
   const pg = new PGlite();
   await pg.exec(DDL); await pg.exec('CREATE ROLE kaspchem_app NOLOGIN'); await pg.exec(TODAY); await pg.exec(M002); await pg.exec(GRANTS);
+  if (o.guard003 || process.env.KC_WORLD_003 === '1') for (const stmt of require('../../scripts/kaspchem-migrate.js').splitDdl(M003)) await pg.exec(stmt);
   if (o.seed !== false) { await pg.exec(SEED); await pg.exec("SELECT setval(pg_get_serial_sequence('services', 'id'), 1000); SELECT setval(pg_get_serial_sequence('professionals', 'id'), 1000)"); }
   const w = { pg, rec: [], txs: [], failAt: null, failAfterCommit: false, failSwitch: false, alerts: [] };
   w.asApp = () => pg.exec('SET SESSION AUTHORIZATION kaspchem_app'); w.asOwner = () => pg.exec('SET SESSION AUTHORIZATION postgres');
@@ -75,9 +79,12 @@ async function world(opts) {
   opsAlert.setSender(async (m) => { w.alerts.push(m); });
   w.setSetting = async (key, value) => { await w.asOwner(); await pg.exec("DELETE FROM settings WHERE key = '" + key + "'"); if (value !== undefined) await pg.query('INSERT INTO settings (key, value, updated_by) VALUES ($1, $2::jsonb, $3)', [key, JSON.stringify(value), 'test']); await w.asApp(); };
   w.open = () => w.setSetting('private.catalog_enabled', true);
+  // With the price race guard in the world (migration 003) the TEST FIXTURES, which are the owner's statements, set up states by hand, some of them states the guard makes impossible for the application (a price moved under an
+  // active engagement, as old data might have it): they run with the two guard triggers switched off for the statement and switched on again at once (the foreign-key triggers are not touched). Everything the APPLICATION role does meets the triggers.
+  const guarded = !!(o.guard003 || process.env.KC_WORLD_003 === '1');
   w.owner = async (sql, params) => {   // runs as the database owner; several statements in one string are allowed when there are no parameters
-    await w.asOwner();
-    try { if (params === undefined && /;\s*\S/.test(sql)) { const res = await pg.exec(sql); return (res[res.length - 1] || { rows: [] }).rows; } return (await pg.query(sql, params)).rows; } finally { await w.asApp(); }
+    await w.asOwner(); if (guarded) await pg.exec(GUARD_OFF);
+    try { if (params === undefined && /;\s*\S/.test(sql)) { const res = await pg.exec(sql); return (res[res.length - 1] || { rows: [] }).rows; } return (await pg.query(sql, params)).rows; } finally { if (guarded) await pg.exec(GUARD_ON); await w.asApp(); }
   };
   w.call = async (method, p, who, over) => {
     const x = over || {}, headers = { host: 'localhost', 'content-type': 'application/json' };
@@ -94,4 +101,4 @@ async function world(opts) {
   await w.asApp();
   return w;
 }
-module.exports = { world, closeAll, YOSI, AVI, STRANGER, NOW, SEED, DDL, M002, GRANTS, TODAY };
+module.exports = { world, closeAll, YOSI, AVI, STRANGER, NOW, SEED, DDL, M002, M003, GRANTS, TODAY };

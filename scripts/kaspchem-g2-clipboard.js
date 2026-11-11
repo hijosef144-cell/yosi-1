@@ -44,6 +44,10 @@ const RELEASE_FILE = path.join(__dirname, '..', 'docs', 'research', 'raw', 'g2-r
 // the proof stages are independent of each other: one that fails is recorded and the others still run.
 const PROOF_SEQUENCE = ['identity', 'headers', 'lock-probe', 'atomic-control', 'atomic-rollback', 'atomic-guard', 'atomic-import', 'proof-crud', 'proof-twin', 'proof-r12', 'proof-concurrency', 'proof-race'];
 const SEQUENCE_APPROVAL = 'sequence-proof';
+// THE MIGRATION 003 SEQUENCE: the same chain as far as atomic-import and the proof stages that do not depend on the price race, then the stages of migration 003 (they need its two triggers on the branch, put there by the branch owner
+// before the run) and the window of opening the catalog switch. The older race stage (proof-race) is not in it: it shows the violation WITHOUT the triggers.
+const PROOF003_SEQUENCE = ['identity', 'headers', 'lock-probe', 'atomic-control', 'atomic-rollback', 'atomic-guard', 'atomic-import', 'proof-crud', 'proof-twin', 'proof-r12', 'proof-concurrency', 'proof003-race', 'proof003-guard', 'proof003-locks', 'proof003-switch'];
+const SEQUENCE_APPROVAL_003 = 'sequence-proof003';
 const SEQUENCE_NOTE = 'THIS RUN is the continuous proof sequence on the ISOLATED branch, with ONE copy of the connection string: it writes invented (g2) data only, through the stages already approved (control, rollback, guard, small import) and then through the own routes of the product (create/edit, the structure twin of the real sheet: 3 providers, 22 services, 21 engagements, 21 reported prices, the rule for paused/archived providers, two-connection concurrency, and the known price race, which activates ONE synthetic engagement). Nothing is paused for an outside check';
 
 // The pause before each send of atomic-rollback, atomic-guard and atomic-import: an outside check creates the release file once it has compared the database. Any file that exists when a pause begins is deleted first, and the release
@@ -94,11 +98,12 @@ function parseArgs(argv) {
   if (!a.env || !/^[a-z][a-z0-9_-]{0,30}$/.test(a.env) || a.env === 'production') throw new Error('give --expect-env=<value of meta.environment>; "production" is never accepted.');
   if (!a.marker || !/^[a-z0-9]{12,40}$/.test(a.marker)) throw new Error('give --marker=<the token of the child-branch marker>.');
   if (a.sequence !== undefined) {   // the proof sequence: alone, named exactly, approved by its own name
-    if (a.sequence !== 'proof') throw new Error('the only sequence is --sequence=proof.');
+    if (a.sequence !== 'proof' && a.sequence !== 'proof003') throw new Error('the only sequences are --sequence=proof and --sequence=proof003.');
     if (explicitStages) throw new Error('a sequence is not combined with --stages.');
-    if (a.allowWrite !== SEQUENCE_APPROVAL) throw new Error('a sequence that writes needs its own explicit approval: --allow-writes=' + SEQUENCE_APPROVAL + '.');
+    const approval = a.sequence === 'proof003' ? SEQUENCE_APPROVAL_003 : SEQUENCE_APPROVAL;
+    if (a.allowWrite !== approval) throw new Error('a sequence that writes needs its own explicit approval: --allow-writes=' + approval + '.');
     if (!Number.isFinite(a.wait) || a.wait < 5 || a.wait > 1800) throw new Error('--wait-seconds must be between 5 and 1800.');
-    a.stages = PROOF_SEQUENCE.slice(); return a;
+    a.stages = (a.sequence === 'proof003' ? PROOF003_SEQUENCE : PROOF_SEQUENCE).slice(); return a;
   }
   if (!a.stages.length || a.stages.some((s) => !ALLOWED_STAGES.includes(s) && !WRITE_STAGES.includes(s))) throw new Error('only these stages can be run from here: ' + ALLOWED_STAGES.concat(WRITE_STAGES).join(', ') + '.');
   const writes = a.stages.filter((s) => WRITE_STAGES.includes(s));
@@ -167,5 +172,5 @@ async function run(argv, deps) {
   } finally { url = null; }
 }
 
-module.exports = { run, parseArgs, extractUrl, windowsClipboard, filePause, ALLOWED_STAGES, WRITE_STAGES, PROOF_SEQUENCE, SEQUENCE_APPROVAL, RELEASE_FILE };
+module.exports = { run, parseArgs, extractUrl, windowsClipboard, filePause, ALLOWED_STAGES, WRITE_STAGES, PROOF_SEQUENCE, PROOF003_SEQUENCE, SEQUENCE_APPROVAL, SEQUENCE_APPROVAL_003, RELEASE_FILE };
 if (require.main === module) run(process.argv.slice(2)).then((r) => process.exit(r.code), () => { console.error('STOPPED: unexpected failure.'); process.exit(2); });

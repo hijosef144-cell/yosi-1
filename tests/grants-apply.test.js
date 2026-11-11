@@ -23,7 +23,7 @@ test.after(async () => { for (const db of [...OPEN]) { try { await db.close(); }
 
 const ROOT = path.join(__dirname, '..');
 const BASE_DDL = fs.readFileSync(path.join(ROOT, 'db', 'kaspchem-schema.sql'), 'utf8');
-const REAL = M.loadMigrations();
+const REAL = require('./fixtures/migrations-002.js').upTo002();   // the files as they stood after 002 (003 has its own tests)
 const qp = (pg) => async (t, p) => (await pg.query(t, p || [])).rows;
 // the target the DO blocks are written for, adapted to PGlite (another owner name, another database name, a fake endpoint, no fixed privilege fingerprint)
 const T = (extra) => Object.assign({}, G.NEON_TARGET, { owner: 'postgres', database: 'postgres', endpoint: 'ep-test-fake', identity: G.sha256('postgres|test'), privFingerprint: null, privLines: null, defaultAclTotal: 0 }, extra || {});

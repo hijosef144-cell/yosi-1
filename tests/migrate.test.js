@@ -128,7 +128,7 @@ test('the command line: it needs the connection variable and says so', () => {
 // The versioned runner (identity, history, file integrity, structure, additive-only, read-only check). PGlite and synthetic data only: no network, no Neon.
 // =====================================================================================================================================================
 const os = require('os');
-const REAL = M.loadMigrations();
+const REAL = require('./fixtures/migrations-002.js').upTo002();   // the files as they stood after 002 (003 has its own tests)
 const BASE = [REAL.migrations[0]];   // the base schema alone: the runner's mechanics are tested on this, whatever real migrations exist
 const O = (x) => Object.assign({ migrations: BASE, expectEnv: 'production' }, x);
 const qp = (pg) => async (t, p) => (await pg.query(t, p || [])).rows;
@@ -443,7 +443,9 @@ test('migration 002 as a file: acceptable, exactly the six M1 tables, never the 
   assert.deepEqual(M.lintStatements(M2.sql).problems, []);
   assert.equal(M.OURS.length, 13); assert.deepEqual([...M.OURS].sort(), [...DDL.matchAll(/CREATE TABLE IF NOT EXISTS ([a-z_]+)/g)].map((m) => m[1]).sort(), 'OURS is still exactly the 13 base tables');
   assert.deepEqual(M.allowedTables(REAL.migrations).sort(), [...M.OURS, M.BOOKKEEPING, ...NEW_TABLES].sort());
-  assert.equal(fs.readFileSync(MANIFEST_FILE, 'utf8').replace(/\r\n/g, '\n'), M.manifestText(REAL.migrations), 'MANIFEST.sha256 is not what the runner prints for these files');
+  const FULL = M.loadMigrations(); assert.deepEqual(FULL.problems, [], 'the real folder (002 and 003) is acceptable');   // REAL is the state after 002; the folder itself now also holds 003 (tests/migrate-003.test.js)
+  assert.equal(fs.readFileSync(MANIFEST_FILE, 'utf8').replace(/\r\n/g, '\n'), M.manifestText(FULL.migrations), 'MANIFEST.sha256 is not what the runner prints for the real files');
+  assert.equal(M.manifestText(FULL.migrations).split('\n')[0], M.manifestText(REAL.migrations).split('\n')[0], 'the line of 002 is the same with and without 003');
   assert.equal(M.sha(sql), M2.sha);
 });
 
@@ -730,9 +732,10 @@ test('nothing public or existing uses the new tables yet: no page, function, scr
   (function walk(dir) {
     for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, e.name), rel = path.relative(ROOT, full).replace(/\\/g, '/');
-      if (e.isDirectory()) { if (!skip.has(e.name) && rel !== 'db/migrations' && rel !== 'db/grants') walk(full); continue; }
+      if (e.isDirectory()) { if (!skip.has(e.name) && rel !== 'db/migrations' && rel !== 'db/grants' && rel !== 'db/rollback') walk(full); continue; }
       if (!/\.(js|mjs|cjs|html|json|toml|sql|md|txt|xml|css)$/i.test(e.name) || fs.statSync(full).size > 2000000) continue;
-      if (rel === 'scripts/kaspchem-grants.js') continue;   // the one operations tool that has to name them (it builds the grant step; it is not application, public or admin code)
+      if (rel === 'scripts/kaspchem-grants.js' || rel === 'scripts/kaspchem-migrate.js') continue;   // the runner names the two tables its kc_* trigger shapes may be placed on (pricing, provider_services): it is the migration tool, not application, public or admin code
+      // the grant tool: the one operations tool that has to name them (it builds the grant step; it is not application, public or admin code)
       if (rel === 'scripts/kaspchem-g2.js' || rel === 'scripts/kaspchem-g2-proof.js') continue;   // the G2 test tool (F5) and its proof stages (by exact path: the same kind of tool): run by the owner by hand against a child branch; it names the new tables to check their privileges and counts. Not deployed (/scripts/* is a 404 on the site), not loaded by any function
       if (rel === 'netlify/functions/_kaspchem/catalog-store.js') continue;   // catalog stage 4a: the READ side of the catalog (queries only). It is reached only through admin-catalog-router.js behind the closed switch private.catalog_enabled; nothing public or existing loads it
       if (['netlify/functions/_kaspchem/catalog-price-guard.js', 'netlify/functions/_kaspchem/catalog-prices-store.js'].includes(rel)) continue;   // P1 and stage 5b-3: the guard of the older pricing route (a read of "does the catalog exist" and the condition of one UPDATE; nothing is written to a catalog table) and the READ side of the prices (queries only, behind the same switch)

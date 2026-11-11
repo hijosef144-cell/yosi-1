@@ -21,7 +21,7 @@ const stateFile = () => path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'g2-seq-
 const fakeClipboard = () => { let content = GOOD; return { read: async () => content, clear: async () => { content = ''; }, historyEnabled: async () => false }; };
 const serialized = (em) => { let q = Promise.resolve(); return (u, i) => { const r = q.then(() => em.fetch(u, i)); q = r.catch(() => {}); return r; }; };   // one connection: requests one after the other
 async function seqWorld(o) {
-  const w = await world({ seed: false });
+  const w = await world({ seed: false, guard003: !!(o && o.guard003) });
   await w.owner('CREATE TABLE IF NOT EXISTS schema_migrations (id text PRIMARY KEY)');
   await w.owner("INSERT INTO settings (key, value, updated_by) VALUES ('meta.environment', '\"test\"'::jsonb, 'test')");
   await w.owner("COMMENT ON DATABASE postgres IS 'kaspchem-g2-child:" + MARKER + "'");
@@ -100,4 +100,37 @@ test('a clipboard that another program holds for a moment is retried; a lock tha
   { const { em } = await seqWorld(), file = stateFile(); let reads = 0;
     const clip = { read: async () => { reads++; if (reads >= 2) throw new Error('clipboard_unavailable'); return ''; }, clear: async () => {}, historyEnabled: async () => false };
     const r = await L.run(argv(['--state=' + file]), deps(em, { clipboard: clip })); assert.equal(r.code, 2); assert.ok(/clipboard could not be read/.test(text(r))); assert.equal(em.requests.length, 0, 'nothing was sent'); assert.ok(reads <= 43, 'it gave up after a bounded number of tries'); }
+});
+
+// ---- the migration 003 sequence (the dedicated branch where the branch owner applied 003 before the run) ------------------------------------------------------------------------------------------------------------
+const NEEDS_REAL_003 = [/^LOCK: the activation behind a row lock/, /^LOCK: nothing was saved by the refused activation/, /^LOCK: after the lock the very same activation works/, /^SHARE: the older price edit waits/, /^DEADLOCK: the database detects it/, /^OLDER WRITE FIRST: the UPDATE that opens the catalog WAITED/, /^OPENING FIRST: an older write that started before the opening was visible WAITED/];
+test('the argument rules of the 003 sequence: its own name and its own approval, never the other sequence\'s approval', () => {
+  const ok = L.parseArgs(argv(['--sequence=proof003', '--allow-writes=sequence-proof003'])); assert.deepEqual(ok.stages, L.PROOF003_SEQUENCE); assert.equal(ok.stages.length, 15); assert.ok(!ok.stages.includes('proof-race'), 'the race stage that shows the violation WITHOUT the triggers is not in it');
+  for (const extra of [['--sequence=proof003', '--allow-writes=sequence-proof'], ['--sequence=proof', '--allow-writes=sequence-proof003'], ['--sequence=proof003'], ['--sequence=proof003', '--allow-writes=sequence-proof003', '--stages=identity']]) assert.throws(() => L.parseArgs(argv(extra)), /sequence|allow-writes|stage/, JSON.stringify(extra));
+  for (const id of ['proof003-race', 'proof003-guard', 'proof003-locks', 'proof003-switch']) { assert.equal(L.WRITE_STAGES.includes(id) || L.ALLOWED_STAGES.includes(id), false); assert.equal(G.STAGES[id].independent, true); assert.deepEqual(G.STAGES[id].needs, ['atomic-import']); assert.ok(G.STAGES[id].maxRequests >= 200); }
+  const priceInsert = 'INSERT INTO pricing (service_id, professional_id, label, price, cost, commission, notes) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id';
+  for (const id of ['proof003-race', 'proof003-guard', 'proof003-locks']) assert.ok(G.STAGES[id].allowSingle.some((re) => re.test(priceInsert)), id + ' makes its prices through the older route'); assert.ok(!G.STAGES['proof003-switch'].allowSingle.some((re) => re.test(priceInsert)), 'the switch stage writes no price');
+});
+
+test('THE WHOLE 003 SEQUENCE on the in-memory database with the guard installed: the mechanics of every stage work and the HTTP guard blocks nothing; the race in both orders and the burst, the direct writes, the role checks all pass; only the checks that need two REAL connections (waits, a deadlock) may differ here', async () => {
+  const { w, em } = await seqWorld({ guard003: true }), file = stateFile(), calls = [], realMain = G.main;
+  G.main = async (a, e, dd) => { calls.push(a[0]); return realMain(a, e, dd); };
+  let r; try { r = await L.run(argv(['--state=' + file, '--sequence=proof003', '--allow-writes=sequence-proof003']), deps(em)); } finally { G.main = realMain; }
+  assert.deepEqual(calls, L.PROOF003_SEQUENCE.map((s) => '--run=' + s)); const out = text(r); for (const x of [PW, GOOD, HOST]) assert.ok(!out.includes(x)); assert.ok(!/postgres(ql)?:\/\/\S/i.test(out)); assert.ok(/blocked by the guard: 0\)/.test(out) && !/blocked by the guard: [1-9]/.test(out), 'the HTTP guard blocked nothing');
+  const res = Object.fromEntries(r.results); for (const s of ['identity', 'atomic-import', 'proof-crud', 'proof-twin', 'proof-r12', 'proof003-race', 'proof003-guard']) assert.equal(res[s], 0, s + ' passed');
+  const failed = out.split('\n').filter((l) => /^  FAIL  /.test(l)).map((l) => l.replace(/^  FAIL  /, ''));
+  for (const f of failed) assert.ok(NEEDS_REAL_CONNECTIONS.concat(NEEDS_REAL_003).some((re) => re.test(f)), 'a check failed that is not a real-connection one: ' + f.slice(0, 180));
+  assert.equal((await w.owner("SELECT value::text AS v FROM settings WHERE key = 'private.catalog_enabled'"))[0].v, 'true', 'the switch ends open, as it was found');
+  assert.equal((await w.owner("SELECT count(*)::int AS n FROM provider_services WHERE activation = 'active'  AND pricing_id IN (SELECT id FROM pricing WHERE NOT approved)"))[0].n, 0, 'no active engagement has an unapproved price');
+});
+
+test('without the triggers on the branch the 003 stages say so and write nothing: the first check fails and the stage stops', async () => {
+  const { w, em } = await seqWorld(), file = stateFile(); const base = await w.fingerprint();   // no guard003
+  const state = { runs: ['identity', 'headers', 'lock-probe', 'atomic-control', 'atomic-rollback', 'atomic-guard', 'atomic-import'].map((s) => ({ stage: s, pass: true, endpoint: EP, marker: G.sha8(MARKER), utc: 'x', run: 'x', notes: {} })) }; fs.writeFileSync(file, JSON.stringify(state));
+  const url = GOOD, env = { KASPCHEM_G2_DATABASE_URL: url };
+  for (const id of ['proof003-race', 'proof003-guard', 'proof003-locks']) {
+    const r = await G.main(['--run=' + id, '--approved-stages=' + id, '--expect-endpoint=' + EP, '--expect-env=test', '--marker=' + MARKER, '--state=' + file, '--allow-writes'], env, { fetch: serialized(em), now: () => 1762600000000 });
+    assert.equal(r.code, 1, id); assert.ok(r.lines.some((l) => /migration 003 is in place on this branch/.test(l) && /FAIL/.test(l)), id);
+  }
+  assert.deepEqual(await w.fingerprint(), base, 'nothing was written');
 });

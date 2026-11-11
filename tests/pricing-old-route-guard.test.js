@@ -73,6 +73,7 @@ test('the other older pricing routes are untouched, even for a price linked to a
 
 test('where the catalog tables do not exist yet (before their migration) the route is exactly what it was, with no reference to them in the way; where they exist but cannot be read the route fails CLOSED and changes nothing', async () => {
   const w = await world(); await w.open();
+  await w.owner('DROP TRIGGER IF EXISTS kc_pricing_guard ON pricing');   // a database before the catalog tables cannot have migration 003 (its trigger needs provider_services): only matters when the world has the guard
   await w.owner('DROP TABLE provider_service_prices, provider_service_compensation, provider_services CASCADE');
   const r = await patch(w, 7, Object.assign({}, BASE, { price: 1400 })); assert.deepEqual([r.status, r.body], [200, { ok: true }]); assert.equal((await priceRow(w, 7)).price, 1400);
   const w2 = await world(); await w2.open(); await setEng(w2, STATES[0][1]); await w2.owner('REVOKE SELECT ON provider_services FROM kaspchem_app');

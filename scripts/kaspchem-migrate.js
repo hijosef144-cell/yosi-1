@@ -48,21 +48,48 @@ const sha = (text) => crypto.createHash('sha256').update(String(text).replace(/\
 const short = (h) => String(h).slice(0, 12);
 
 // Neon HTTP runs one statement per call; split on semicolons that end a statement, then drop comment lines.
-function splitDdl(ddl) { return ddl.split(/;\s*\n/).map((s) => s.replace(/^\s*--.*$/gm, '').trim()).filter(Boolean); }
+// A semicolon inside a dollar-quoted body ($tag$ ... $tag$, the body of a trigger function) does not end the statement.
+function splitDdl(ddl) {
+  const out = [], open = /\$([A-Za-z_][A-Za-z0-9_]*)?\$/y, end = /;\s*\n/y; let cur = '', i = 0, tag = null;
+  while (i < ddl.length) {
+    if (tag === null) {
+      open.lastIndex = i; const m = open.exec(ddl);
+      if (m) { tag = m[0]; cur += tag; i += tag.length; continue; }
+      end.lastIndex = i; const e = end.exec(ddl);
+      if (e) { out.push(cur); cur = ''; i += e[0].length; continue; }
+      cur += ddl[i++];
+    } else if (ddl.startsWith(tag, i)) { cur += tag; i += tag.length; tag = null; } else cur += ddl[i++];
+  }
+  out.push(cur);
+  return out.map((s) => s.replace(/^\s*--.*$/gm, '').trim()).filter(Boolean);
+}
 
 // ---- the additive-only rule ---------------------------------------------------------------------------------------------------------------------------------
 const TABLE_STMT = /^CREATE TABLE IF NOT EXISTS ([a-z_][a-z0-9_]*)\s*\(/i;
 const INDEX_STMT = /^CREATE (?:UNIQUE )?INDEX IF NOT EXISTS [a-z_][a-z0-9_]*\s+ON\s+[a-z_][a-z0-9_]*[\s(]/i;
+// The ONLY other statements a migration may hold (migration 003): a price-rule TRIGGER FUNCTION and the TRIGGER that calls it. Both are named kc_*, owned by the schema owner (SECURITY DEFINER, fixed search_path), the trigger
+// is BEFORE INSERT/UPDATE FOR EACH ROW on pricing or provider_services and calls a function of the same file, and the body only READS and refuses (SELECT/PERFORM, IF, RAISE, RETURN): no write, no DDL, no dynamic SQL.
+const FUNC_STMT = /^CREATE OR REPLACE FUNCTION (kc_[a-z0-9_]+)\(\) RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS \$([A-Za-z_][A-Za-z0-9_]*)?\$([\s\S]*)\$\2\$$/;
+const TRIGGER_STMT = /^CREATE OR REPLACE TRIGGER (kc_[a-z0-9_]+) BEFORE (?:INSERT OR UPDATE|UPDATE) ON (pricing|provider_services) FOR EACH ROW(?: WHEN \([^;$]*\))? EXECUTE FUNCTION (kc_[a-z0-9_]+)\(\)$/;
+const BODY_FORBIDDEN = /\b(insert|update|delete|truncate|drop|alter|create|grant|revoke|copy|execute|call|do|set_config|pg_sleep|lo_[a-z0-9_]+|dblink[a-z0-9_]*|pg_read_[a-z0-9_]+|pg_ls_[a-z0-9_]+|session_replication_role|reset|vacuum|listen|notify|lock|set)\b/i;
 function lintStatements(ddl) {
-  const problems = [], tables = [], statements = splitDdl(ddl);
+  const problems = [], tables = [], functions = [], triggers = [], statements = splitDdl(ddl);
   statements.forEach((raw, i) => {
     const s = raw.replace(/--[^\n]*/g, '').replace(/;\s*$/, '').trim(); const where = 'statement ' + (i + 1) + ' (' + s.slice(0, 48).replace(/\s+/g, ' ') + '...)';
-    if (/\$\$/.test(s)) problems.push(where + ': dollar-quoted blocks are not allowed');
+    const fn = FUNC_STMT.exec(s);
+    if (fn) {
+      const body = fn[3].replace(/'(?:[^']|'')*'/g, "''");   // the words inside string literals (the error text) are not code
+      if (BODY_FORBIDDEN.test(body)) problems.push(where + ': a trigger function may only read and refuse (found "' + BODY_FORBIDDEN.exec(body)[1] + '" in its body)');
+      else if (/\$/.test(body)) problems.push(where + ': no nested dollar quoting in a trigger function'); else functions.push(fn[1]);
+    }
+    else if (/\$\$/.test(s) || /\$[A-Za-z_]*\$/.test(s)) problems.push(where + ': dollar-quoted blocks are only allowed for a kc_* trigger function of the exact approved shape');
     else if (s.includes(';')) problems.push(where + ': more than one statement joined on a line');
     else if (TABLE_STMT.test(s)) tables.push(TABLE_STMT.exec(s)[1].toLowerCase());
-    else if (!INDEX_STMT.test(s)) problems.push(where + ': not additive. Only CREATE TABLE IF NOT EXISTS and CREATE [UNIQUE] INDEX IF NOT EXISTS are allowed');
+    else if (TRIGGER_STMT.test(s)) triggers.push(TRIGGER_STMT.exec(s)[3]);
+    else if (!INDEX_STMT.test(s)) problems.push(where + ': not additive. Only CREATE TABLE IF NOT EXISTS, CREATE [UNIQUE] INDEX IF NOT EXISTS and the kc_* trigger function / trigger shapes are allowed');
   });
-  return { statements, tables, problems };
+  triggers.forEach((f) => { if (!functions.includes(f)) problems.push('a trigger calls ' + f + ', which this file does not define as an approved kc_* function'); });
+  return { statements, tables, functions, triggers, problems };
 }
 
 // ---- the migration files ------------------------------------------------------------------------------------------------------------------------------------

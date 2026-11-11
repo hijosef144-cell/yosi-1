@@ -298,4 +298,206 @@ stage('proof-race', { kind: 'write', independent: true, maxRequests: 200, allowS
     c.note('created', { provider: R, service: S, price: PID });
   } });
 
-module.exports = { product, nm, word, phoneOf, mailOf, exp, keysOf, n, COUNT, SEQ_ALL, A1, A2, A3, A4, G2SVC, SECRET_KEY, PRICE_GUARD, demoRow, approvalsOf, TW, sleep, AUDIT_VIEW_RE };
+// =====================================================================================================================================================================================
+// THE STAGES OF MIGRATION 003 (the price race guard). They need the two triggers on the branch (the migration was applied by the branch owner before the run). The older race stage above showed the VIOLATION without the
+// triggers; these show that with them (1) the activation and the price edit are ordered by the row lock in BOTH orders and at most one succeeds, (2) a price edit that harms an active engagement is refused by the database
+// even when the application's own check is skipped, (3) the application role cannot switch the guard off, (4) locks, timeouts and a deadlock behave, and (5) the window of OPENING the catalog switch is closed.
+// =====================================================================================================================================================================================
+const TRIGGERS_Q = "SELECT count(*)::int AS n FROM pg_trigger WHERE tgname IN ('kc_pricing_guard', 'kc_engagement_price_guard') AND tgenabled = 'O' AND NOT tgisinternal";
+const STATE_BY_LABEL = 'SELECT ps.activation, pr.approved, pr.price::text AS price FROM provider_services ps LEFT JOIN pricing pr ON pr.id = ps.pricing_id WHERE ps.professional_id = $1::bigint AND ps.service_id = $2::bigint';
+const ACT_AUDITS = "SELECT count(*)::int AS n FROM audit_log WHERE action = 'catalog.engagement.activate' AND entity_id = $1";
+const IDLE_Q = "SELECT (SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() AND state LIKE 'idle in transaction%')::int AS idle_tx, (SELECT count(*) FROM pg_locks WHERE NOT granted)::int AS waiting";
+const HOLD_12 = "SELECT pg_sleep(1.2) FROM (SELECT 1 FROM pricing WHERE label LIKE '%holdme' FOR UPDATE) x";
+const HOLD_4 = "SELECT pg_sleep(4) FROM (SELECT 1 FROM pricing WHERE label LIKE '%lockprice' FOR UPDATE) x";
+const HOLD_SHARE_2 = "SELECT pg_sleep(2) FROM (SELECT 1 FROM pricing WHERE label LIKE '%sharelock' FOR SHARE) x";
+const RAW_TX = { readOnly: false, isolationLevel: 'ReadCommitted' };
+// an engagement that can be activated: provider, service (settings + a legal-clearance REPORT), engagement (pending), a price made and approved through the OLDER routes and linked, agreement signed, collaboration active
+async function activatable(c, call, tag, extra) {
+  const label = c.runId + ' ' + tag, pc = await call('POST', '/catalog/providers', { name: nm(c, tag + 'p'), business_name: nm(c, tag + 'b'), contact_phone: phoneOf(c, tag), contact_email: mailOf(c, tag) });
+  if (pc.status !== 200) return { error: 'provider ' + pc.status + ' ' + pc.code };
+  const R = pc.body.id, sv = await call('POST', '/catalog/services', { name: nm(c, tag + 's') }); if (sv.status !== 200) return { error: 'service ' + sv.status + ' ' + sv.code }; const S = sv.body.id;
+  const steps = [['settings', () => call('PUT', '/catalog/services/' + S + '/settings', { code: 'g2' + crypto.createHash('md5').update(c.runId + tag).digest('hex').slice(0, 8), finding_tags: ['g2tag'], topics: [] })],
+    ['clearance', () => call('POST', '/catalog/services/' + S + '/clearance', { cleared: true, expected_cleared: false, source_kind: 'other', source: 'g2 synthetic report', approved_on: '2026-11-01' })],
+    ['engagement', () => call('POST', '/catalog/engagements', { provider_id: R, service_id: S, activation: 'pending' })]];
+  for (const [name, fn] of steps) { const r = await fn(); if (r.status !== 200) return { error: name + ' ' + r.status + ' ' + r.code }; }
+  const pr = await call('POST', '/pricing', { service_id: S, professional_id: null, label, price: 1000, cost: 0, commission: 0, notes: null }); if (pr.status !== 200) return { error: 'price ' + pr.status + ' ' + pr.code }; const PID = pr.body.id;
+  const rest = [['approve', () => call('POST', '/pricing/' + PID + '/approve', { public: false })], ['link', () => call('POST', '/catalog/engagements/' + R + '/' + S + '/link-price', { pricing_id: PID, expected_pricing_id: null })],
+    ['states', () => call('PATCH', '/catalog/engagements/' + R + '/' + S, { changes: Object.assign({ contact_state: 'active', agreement_state: 'signed' }, extra || {}), expected: Object.assign({ contact_state: 'none', agreement_state: 'not_discussed' }, extra ? Object.fromEntries(Object.keys(extra).map((k) => [k, null])) : {}) })]];
+  for (const [name, fn] of rest) { const r = await fn(); if (r.status !== 200) return { error: name + ' ' + r.status + ' ' + r.code }; }
+  const card = await call('GET', '/catalog/engagements/' + R + '/' + S), ck = card.body && card.body.checklist;
+  if (!(card.status === 200 && ck && ck.can_activate === true)) return { error: 'checklist ' + JSON.stringify(ck && ck.missing) };
+  return { R, S, PID, label, seen: ck.seen };
+}
+const activateOf = (call, s) => call('POST', '/catalog/engagements/' + s.R + '/' + s.S + '/actions/activate', { expected_activation: 'pending', confirm: 'activate', seen: s.seen });
+const editOf = (call, s, price) => call('PATCH', '/pricing/' + s.PID, { service_id: s.S, professional_id: null, label: s.label, price: price || 1500, cost: 0, commission: 0, notes: null });
+const consistent = (st) => !!st && (st.activation !== 'active' || st.approved === true);
+const needsTriggers = async (c) => c.check('migration 003 is in place on this branch: both triggers exist and are enabled', (await n(c, TRIGGERS_Q)) === 2, 'the triggers are missing: the branch owner applies 003 before this run');
+
+stage('proof003-race', { kind: 'write', independent: true, maxRequests: 700, allowSingle: [AUDIT_VIEW_RE, exact(OLD_AUDIT), exact(PRICE_INSERT), exact(PRICE_APPROVE), exact(PRICE_PATCH)], raw: [COUNTS_SQL, CONTENT_SQL, TRIGGERS_Q, HOLD_12, STATE_BY_LABEL, ACT_AUDITS, IDLE_Q],
+  needs: ['atomic-import'], title: 'migration 003: the activation and the price edit in BOTH orders (a row lock makes them wait), then a burst of simultaneous pairs on real connections: at most one of the two succeeds, never an active engagement with an invalid price',
+  plan: ['both triggers must exist; four engagements are prepared (two for each order) through the routes, each with a price approved and linked, the checklist complete',
+    'edit first: a third connection holds a row lock on the price for 1.2 s, the older price edit is sent and waits, the activation is sent behind it; the lock is released: the edit goes first, the activation is then REFUSED by the database (409)',
+    'activation first: the same, with the activation sent first: it completes, and the price edit is then REFUSED by the database (409 price_linked_to_active_engagement)',
+    'after each: exactly one of the two succeeded, no engagement is active with a price that is not approved, and the audit holds an activation row only when the activation succeeded (nothing half-saved)',
+    'six more pairs are sent at the same moment with no lock (real concurrency): none of them may end active with an invalid price'],
+  async run(c) {
+    const P = product(c), call = P.call; if (!(await needsTriggers(c))) return;
+    const results = [];
+    for (const [order, tag] of [['edit-first', 'ef1holdme'], ['activation-first', 'af1holdme'], ['edit-first', 'ef2holdme'], ['activation-first', 'af2holdme']]) {
+      const s = await activatable(c, call, tag); if (s.error) { c.check(order + ': the engagement could be prepared', false, s.error); continue; }
+      const hold = attempt(() => c.tx([HOLD_12], RAW_TX)); await sleep(400);
+      let first, second; if (order === 'edit-first') { first = editOf(call, s); await sleep(350); second = activateOf(call, s); } else { first = activateOf(call, s); await sleep(350); second = editOf(call, s); }
+      const [r1, r2] = await Promise.all([first, second]), hr = await hold, rEdit = order === 'edit-first' ? r1 : r2, rAct = order === 'edit-first' ? r2 : r1;
+      const st = (await c.q(STATE_BY_LABEL, [String(s.R), String(s.S)]))[0], audits = await n(c, ACT_AUDITS, [s.R + '/' + s.S]), oks = [rEdit.status === 200, rAct.status === 200].filter(Boolean).length;
+      results.push({ order, edit: [rEdit.status, rEdit.code], act: [rAct.status, rAct.code], state: st && st.activation, approved: st && st.approved });
+      c.check(order + ' (' + tag + '): the lock holder finished normally', hr.ok, hr.ok ? '' : JSON.stringify(errInfo(hr.error)));
+      c.check(order + ': NEVER BOTH SUCCEED (no active engagement with an invalid price)', oks < 2 && consistent(st), JSON.stringify({ edit: [rEdit.status, rEdit.code], act: [rAct.status, rAct.code], state: st }));
+      c.check(order + ': exactly one of the two succeeded, as the lock order says (' + (order === 'edit-first' ? 'the edit, then the activation is refused' : 'the activation, then the edit is refused') + ')', oks === 1 && (order === 'edit-first' ? rEdit.status === 200 && rAct.status === 409 : rAct.status === 200 && rEdit.status === 409), JSON.stringify({ edit: [rEdit.status, rEdit.code], act: [rAct.status, rAct.code] }));
+      c.check(order + ': the refused one was refused with a clear 409 (the edit says price_linked_to_active_engagement)', order === 'edit-first' ? rAct.status === 409 : (rEdit.status === 409 && rEdit.code === 'price_linked_to_active_engagement'), JSON.stringify({ edit: [rEdit.status, rEdit.code], act: [rAct.status, rAct.code] }));
+      c.check(order + ': nothing half-saved: the activation has a journal row if and only if it succeeded', audits === (rAct.status === 200 ? 1 : 0), 'audit rows: ' + audits + ', activation answered ' + rAct.status);
+    }
+    c.note('orders', results);
+    // -- real concurrency, no lock: pairs sent at the same moment
+    const pairs = []; for (let i = 0; i < 6; i++) { const s = await activatable(c, call, 'bp' + i); if (s.error) { c.check('burst pair ' + i + ': prepared', false, s.error); continue; } pairs.push(s); }
+    const fired = await Promise.all(pairs.flatMap((s) => [editOf(call, s), activateOf(call, s)])), sts = [];
+    for (let i = 0; i < pairs.length; i++) { const s = pairs[i], st = (await c.q(STATE_BY_LABEL, [String(s.R), String(s.S)]))[0], e = fired[2 * i], a = fired[2 * i + 1]; sts.push([e.status, a.status, st && st.activation, st && st.approved]); }
+    c.note('burst', sts);
+    c.check('BURST (' + pairs.length + ' pairs at the same moment, no lock): no pair ended with an ACTIVE engagement whose price is not approved, and no pair has both succeeded', sts.length === pairs.length && sts.every((x) => !(x[0] === 200 && x[1] === 200) && (x[2] !== 'active' || x[3] === true)), JSON.stringify(sts));
+    const idle = (await c.q(IDLE_Q))[0]; c.check('nothing is left waiting: no ungranted lock and no transaction left open', idle.waiting === 0, JSON.stringify(idle));
+  } });
+
+stage('proof003-guard', { kind: 'write', independent: true, maxRequests: 400, allowSingle: [AUDIT_VIEW_RE, exact(OLD_AUDIT), exact(PRICE_INSERT), exact(PRICE_APPROVE), exact(PRICE_PATCH)],
+  raw: [COUNTS_SQL, CONTENT_SQL, TRIGGERS_Q, STATE_BY_LABEL],
+  needs: ['atomic-import'], title: 'migration 003: a price change that harms an ACTIVE engagement is refused by the DATABASE itself (direct writes, the application check skipped), what harms nothing still goes through, and the application role cannot switch the guard off',
+  plan: ['an engagement is activated normally (price approved, signed, active collaboration); the older route refuses an edit of its price (409)',
+    'DIRECT writes (no application code): un-approving the price, removing its amount, moving it to another service, giving it to another provider are each refused by the trigger (P0001 price_linked_to_active_engagement); a note and a new amount that leave it valid go through',
+    'DIRECT activation of a second engagement whose price is not approved is refused (P0001 price_not_valid_for_active_engagement); after the price is approved again the same statement works',
+    'the application role is not the owner: it cannot disable, drop, replace or bypass the triggers (permission denied), the functions cannot be called directly, and the triggers are still enabled afterwards'],
+  async run(c) {
+    const P = product(c), call = P.call; if (!(await needsTriggers(c))) return;
+    const sql = (text) => { c.allow(text); return attempt(() => c.tx([text], RAW_TX)); };
+    const refused = async (name, text, code, re) => { const r = await sql(text); const i = r.ok ? null : errInfo(r.error); c.check(name, !r.ok && (code === null || i.code === code) && (!re || re.test(String(r.error.message))), r.ok ? 'IT WAS ACCEPTED' : JSON.stringify({ code: i.code, message: String(r.error.message).slice(0, 90) })); };
+    const accepted = async (name, text) => { const r = await sql(text); c.check(name, r.ok, r.ok ? '' : JSON.stringify(errInfo(r.error))); };
+    const s = await activatable(c, call, 'guardprice'); if (s.error) { c.check('an activatable engagement was prepared', false, s.error); return; }
+    exp(c, 'activate it normally', await activateOf(call, s), 200);
+    exp(c, 'the OLDER route refuses an edit of that price (the application check)', await editOf(call, s), 409, 'price_linked_to_active_engagement');
+    const os = await call('POST', '/catalog/services', { name: nm(c, 'os') + ' otherservice' }), op = await call('POST', '/catalog/providers', { name: nm(c, 'op') + ' otherprovider', business_name: nm(c, 'ob'), contact_phone: phoneOf(c, 'op'), contact_email: mailOf(c, 'op') });
+    if (!exp(c, 'another service and another provider exist (to move the price to)', os, 200) || !exp(c, '(the provider)', op, 200)) return;
+    const before = await readContent(c);
+    await refused('DIRECT: un-approving the price of an ACTIVE engagement is refused by the database', "UPDATE pricing SET approved = false WHERE label LIKE '%guardprice'", 'P0001', /price_linked_to_active_engagement/);
+    await refused('DIRECT: removing its amount is refused', "UPDATE pricing SET price = NULL WHERE label LIKE '%guardprice'", 'P0001', /price_linked_to_active_engagement/);
+    await refused('DIRECT: moving it to another service is refused', "UPDATE pricing SET service_id = (SELECT id FROM services WHERE name LIKE '%otherservice' ORDER BY id DESC LIMIT 1) WHERE label LIKE '%guardprice'", 'P0001', /price_linked_to_active_engagement/);
+    await refused('DIRECT: giving it to another provider is refused', "UPDATE pricing SET professional_id = (SELECT id FROM professionals WHERE name LIKE '%otherprovider' ORDER BY id DESC LIMIT 1) WHERE label LIKE '%guardprice'", 'P0001', /price_linked_to_active_engagement/);
+    const mid = await readContent(c); c.check('the refused writes changed NOTHING (every readable table has the same count and content hash)', sameContent(before, mid), differingTables(before, mid).join(','));
+    await accepted('DIRECT: a note on the price (it stays valid) goes through', "UPDATE pricing SET notes = 'g2 note' WHERE label LIKE '%guardprice'");
+    await accepted('DIRECT: a new amount (it stays valid) goes through', "UPDATE pricing SET price = 1100 WHERE label LIKE '%guardprice'");
+    const st = (await c.q(STATE_BY_LABEL, [String(s.R), String(s.S)]))[0]; c.check('and the engagement is still ACTIVE with an approved price of the new amount', st.activation === 'active' && st.approved === true && String(st.price) === '1100.00', JSON.stringify(st));
+    // the activation side, directly
+    const d = await activatable(c, call, 'dirprice', { external_ref: 'g2dir' + crypto.createHash('md5').update(c.runId).digest('hex').slice(0, 8) }); if (d.error) { c.check('the second engagement was prepared', false, d.error); return; }
+    await accepted('DIRECT: the price of a PENDING engagement may be un-approved (nothing is active)', "UPDATE pricing SET approved = false WHERE label LIKE '%dirprice'");
+    await refused('DIRECT ACTIVATION with a price that is not approved is refused by the database', "UPDATE provider_services SET activation = 'active' WHERE external_ref LIKE 'g2dir%'", 'P0001', /price_not_valid_for_active_engagement/);
+    await accepted('the price is approved again', "UPDATE pricing SET approved = true WHERE label LIKE '%dirprice'");
+    await accepted('and now the same direct activation is accepted (the rule, not a blanket refusal)', "UPDATE provider_services SET activation = 'active' WHERE external_ref LIKE 'g2dir%'");
+    // the application role is not the owner of the guard
+    await refused('ROLE: the application role cannot disable the pricing trigger', 'ALTER TABLE pricing DISABLE TRIGGER kc_pricing_guard', '42501');
+    await refused('ROLE: nor drop it', 'DROP TRIGGER kc_pricing_guard ON pricing', '42501');
+    await refused('ROLE: nor disable the engagement trigger (all user triggers)', 'ALTER TABLE provider_services DISABLE TRIGGER USER', '42501');
+    await refused('ROLE: nor drop a trigger function', 'DROP FUNCTION kc_pricing_guard()', '42501');
+    await refused('ROLE: nor replace a trigger function by one that lets everything through', 'CREATE OR REPLACE FUNCTION kc_pricing_guard() RETURNS trigger LANGUAGE plpgsql AS $x$ BEGIN RETURN NEW; END $x$', '42501');
+    await refused('ROLE: nor drop the index', 'DROP INDEX provider_services_active_price_idx', '42501');
+    await refused('ROLE: nor add a trigger of its own to the table', 'CREATE TRIGGER g2x BEFORE UPDATE ON pricing FOR EACH ROW EXECUTE FUNCTION kc_pricing_guard()', '42501');
+    await refused('ROLE: nor switch triggers off for the session (session_replication_role)', 'SET session_replication_role = replica', '42501');
+    await refused('ROLE: the trigger function cannot be called directly', 'SELECT kc_pricing_guard()', null);
+    c.check('both triggers are still enabled afterwards', (await n(c, TRIGGERS_Q)) === 2, 'a trigger was disabled or dropped');
+  } });
+
+stage('proof003-locks', { kind: 'write', independent: true, maxRequests: 300, allowSingle: [AUDIT_VIEW_RE, exact(OLD_AUDIT), exact(PRICE_INSERT), exact(PRICE_APPROVE), exact(PRICE_PATCH)],
+  raw: [COUNTS_SQL, CONTENT_SQL, TRIGGERS_Q, STATE_BY_LABEL, ACT_AUDITS, IDLE_Q, HOLD_4, HOLD_SHARE_2,
+    "UPDATE provider_services SET terms_note = 'g2 t1' WHERE external_ref LIKE 'g2dl%'", "UPDATE pricing SET notes = 'g2 t1' WHERE label LIKE '%lockprice'", "UPDATE pricing SET notes = 'g2 t2' WHERE label LIKE '%lockprice'", "UPDATE provider_services SET terms_note = 'g2 t2' WHERE external_ref LIKE 'g2dl%'", 'SELECT pg_sleep(1.5)',
+    "SELECT terms_note AS a FROM provider_services WHERE external_ref LIKE 'g2dl%'", "SELECT notes AS a FROM pricing WHERE label LIKE '%lockprice'"],
+  needs: ['atomic-import'], title: 'migration 003: locks, timeouts and a deadlock on real connections: the activation waits its lock timeout (409 busy_retry) behind a lock on the price, a price edit waits out a share lock, and a deadlock between a write to an active engagement and a write to its price is detected and leaves nothing half-saved',
+  plan: ['a third connection holds a row lock on a price for 4 s: the activation (the trigger asks for FOR SHARE) waits its lock timeout (1.5 s) and is refused 409 busy_retry, nothing is saved (no journal row, still pending); after the lock the same activation works',
+    'a share lock held on a price for 2 s: the older price edit waits, then succeeds (an engagement that is not active), and does not time out',
+    'a deadlock, made on purpose: one transaction edits the price then (after a pause) the active engagement, another edits the active engagement (its trigger takes FOR SHARE on the price) then the price: the database detects it (40P01), exactly one is aborted, the other commits, and the data is consistent',
+    'no lock and no transaction is left behind'],
+  async run(c) {
+    const P = product(c), call = P.call; if (!(await needsTriggers(c))) return;
+    const sub = async (label, fn) => { try { await fn(); } catch (e) { c.check(label + ': the part ran to its end', false, 'stopped by ' + (e && e.message ? String(e.message).slice(0, 160) : JSON.stringify(errInfo(e)))); } };
+    const l = await activatable(c, call, 'lockprice', { external_ref: 'g2dl' + crypto.createHash('md5').update(c.runId).digest('hex').slice(0, 8) }); if (l.error) { c.check('the engagement was prepared', false, l.error); return; }
+    await sub('LOCK TIMEOUT', async () => {
+      const hold = attempt(() => c.tx([HOLD_4], RAW_TX)), t0 = Date.now(); await sleep(500);
+      const w0 = Date.now(), r = await activateOf(call, l), ms = Date.now() - w0, hr = await hold;
+      c.check('LOCK: the activation behind a row lock on its price waits its lock timeout and is refused 409 busy_retry (about 1.5 s)', r.status === 409 && r.code === 'busy_retry' && ms >= 1200 && ms < 3800, r.status + ' ' + r.code + ' in ' + ms + ' ms'); c.note('activation_wait_ms', ms);
+      c.check('LOCK: the holder finished normally (about 4 s)', hr.ok && Date.now() - t0 >= 3600, hr.ok ? '' : JSON.stringify(errInfo(hr.error)));
+      const st = (await c.q(STATE_BY_LABEL, [String(l.R), String(l.S)]))[0]; c.check('LOCK: nothing was saved by the refused activation (still pending, no journal row)', st.activation === 'pending' && (await n(c, ACT_AUDITS, [l.R + '/' + l.S])) === 0, JSON.stringify(st));
+      exp(c, 'LOCK: after the lock the very same activation works (nothing left behind)', await activateOf(call, l), 200);
+    });
+    await sub('SHARE LOCK AGAINST THE PRICE EDIT', async () => {
+      const q2 = await activatable(c, call, 'sharelock'); if (q2.error) { c.check('SHARE: the engagement was prepared', false, q2.error); return; }
+      const hold = attempt(() => c.tx([HOLD_SHARE_2], RAW_TX)); await sleep(400); const w0 = Date.now(), r = await editOf(call, q2), ms = Date.now() - w0, hr = await hold;
+      c.check('SHARE: the older price edit waits behind the share lock and then succeeds (the engagement is not active), no timeout', r.status === 200 && ms >= 900 && hr.ok, r.status + ' ' + r.code + ' in ' + ms + ' ms'); c.note('edit_wait_ms', ms);
+    });
+    await sub('DEADLOCK', async () => {
+      // the engagement of `lockprice` is ACTIVE now; its external_ref starts with g2dl
+      const T1 = [ "UPDATE provider_services SET terms_note = 'g2 t1' WHERE external_ref LIKE 'g2dl%'", 'SELECT pg_sleep(1.5)', "UPDATE pricing SET notes = 'g2 t1' WHERE label LIKE '%lockprice'" ];
+      const T2 = [ "UPDATE pricing SET notes = 'g2 t2' WHERE label LIKE '%lockprice'", 'SELECT pg_sleep(1.5)', "UPDATE provider_services SET terms_note = 'g2 t2' WHERE external_ref LIKE 'g2dl%'" ];
+      const base = await readContent(c), p2 = attempt(() => c.tx(T2, RAW_TX)); await sleep(450); const p1 = attempt(() => c.tx(T1, RAW_TX)), [a2, a1] = [await p2, await p1];
+      const codes = [a1, a2].map((x) => (x.ok ? 'ok' : errInfo(x.error).code));
+      c.check('DEADLOCK: the database detects it: exactly one transaction is aborted with 40P01 and the other commits', codes.filter((x) => x === '40P01').length === 1 && codes.filter((x) => x === 'ok').length === 1, JSON.stringify(codes));
+      const st = (await c.q(STATE_BY_LABEL, [String(l.R), String(l.S)]))[0]; c.check('DEADLOCK: the data is consistent: the engagement is still ACTIVE with an approved price', st.activation === 'active' && st.approved === true, JSON.stringify(st));
+      const note = (await c.q("SELECT terms_note AS a FROM provider_services WHERE external_ref LIKE 'g2dl%'"))[0].a, pn = (await c.q("SELECT notes AS a FROM pricing WHERE label LIKE '%lockprice'"))[0].a;
+      c.check('DEADLOCK: nothing is half-saved: both notes come from the SAME transaction, the one that committed (an aborted transaction leaves no trace)', (note === 'g2 t1' && pn === 'g2 t1') || (note === 'g2 t2' && pn === 'g2 t2'), JSON.stringify([note, pn]));
+      c.note('deadlock', { outcomes: codes, survivor: note }); void base;
+    });
+    const idle = (await c.q(IDLE_Q))[0]; c.check('nothing is left behind: no ungranted lock', idle.waiting === 0, JSON.stringify(idle));
+  } });
+
+// the window of OPENING the catalog switch: an older write in flight and the owner's UPDATE that opens the catalog, in both orders
+const SW_SET_FALSE = "UPDATE settings SET value = 'false'::jsonb WHERE key = 'private.catalog_enabled'", SW_FLIP = "UPDATE settings SET value = 'true'::jsonb WHERE key = 'private.catalog_enabled'";
+const SW_HOLD_SVC = "SELECT pg_sleep(2.5) FROM (SELECT 1 FROM services WHERE name LIKE '%swholdsvc' FOR UPDATE) x", SW_FLIP_SLOW = 'SELECT pg_sleep(1.5)';
+const SW_DESC = "SELECT description AS a FROM services WHERE name LIKE '%swholdsvc'", SW_VALUE = "SELECT value::text AS a FROM settings WHERE key = 'private.catalog_enabled'";
+const guardsMod = require('../netlify/functions/_kaspchem/catalog-guards.js'), serviceGuardMod = require('../netlify/functions/_kaspchem/service-guard.js');
+const OLD_SVC_INSERT = 'INSERT INTO services (topic, name, description) SELECT $1::text, $2::text, $3::text WHERE ' + guardsMod.OLD_WRITE_CLOSED + ' RETURNING id';
+const OLD_SVC_UPDATE = 'UPDATE services s SET topic=$1, name=$2, description=$3, active=$4 WHERE s.id = $5 AND ' + serviceGuardMod.allowsChange('$2::text', '$1::text') + ' AND ' + guardsMod.OLD_WRITE_CLOSED + ' RETURNING s.id';
+stage('proof003-switch', { kind: 'write', independent: true, maxRequests: 200, allowSingle: [AUDIT_VIEW_RE, exact(OLD_AUDIT), exact(OLD_SVC_INSERT), exact(OLD_SVC_UPDATE)],
+  raw: [COUNTS_SQL, CONTENT_SQL, SW_SET_FALSE, SW_FLIP, SW_HOLD_SVC, SW_FLIP_SLOW, SW_DESC, SW_VALUE, IDLE_Q],
+  needs: ['atomic-import'], title: 'THE WINDOW OF OPENING THE CATALOG SWITCH: an older write in flight and the UPDATE that opens the catalog are ordered by a lock on the switch row, in both orders; no older write can commit after the opening',
+  plan: ['the switch is set to false (the row exists, closed); an older service is made through the older route',
+    'older write first: a lock on its row makes it wait; the UPDATE that opens the catalog is sent meanwhile and WAITS for it (the older write holds a share lock on the switch row); the older write commits first, then the opening commits',
+    'after the opening an older write is refused 409 managed_in_catalog and the catalog answers',
+    'opening first: the opening is held in flight for 1.5 s; an older write that started before it was visible waits on the switch row, and when the opening commits it changes NOTHING and answers 409 managed_in_catalog',
+    'the switch ends open, as it was found'],
+  async run(c) {
+    const P = product(c), call = P.call, sql = (text) => { c.allow(text); return attempt(() => c.tx([text], RAW_TX)); };
+    if (!c.check('the switch row exists before the run (the guard needs it)', (await c.q(SW_VALUE)).length === 1, 'private.catalog_enabled is missing')) return;
+    const f = await sql(SW_SET_FALSE); if (!c.check('the switch is set to false for the experiment', f.ok, f.ok ? '' : JSON.stringify(errInfo(f.error)))) return;
+    try {
+      const mk = await call('POST', '/services', { name: c.runId + ' swholdsvc', topic: 'g2', description: '' }); if (!exp(c, 'an older service is made through the older route while the switch is false', mk, 200)) return; const X = mk.body.id;
+      const patch = (txt) => call('PATCH', '/services/' + X, { name: c.runId + ' swholdsvc', topic: 'g2', description: txt, active: false });
+      // 1. the older write is in flight when the owner opens the catalog
+      const hold = attempt(() => c.tx([SW_HOLD_SVC], RAW_TX)); await sleep(400);
+      const oldDone = { t: 0 }, flipDone = { t: 0 }, t0 = Date.now();
+      const pOld = patch('g2 sw one').then((r) => { oldDone.t = Date.now() - t0; return r; }); await sleep(400);
+      const pFlip = sql(SW_FLIP).then((r) => { flipDone.t = Date.now() - t0; return r; });
+      const [rOld, rFlip, hr] = await Promise.all([pOld, pFlip, hold]);
+      c.check('OLDER WRITE FIRST: the older write (already in flight) committed: 200', rOld.status === 200 && hr.ok, rOld.status + ' ' + rOld.code);
+      c.check('OLDER WRITE FIRST: the UPDATE that opens the catalog WAITED for the older write that was in flight (it could only be sent after the older write had taken its share lock on the switch row): it took more than 1.2 s although it is a single quick statement', rFlip.ok && oldDone.t > 0 && flipDone.t - 400 >= 1200, JSON.stringify({ older_done_ms: oldDone.t, opening_done_ms: flipDone.t })); c.note('older_first', { older_done_ms: oldDone.t, opening_done_ms: flipDone.t });
+      c.check('the older write took effect (it was before the opening)', (await c.q(SW_DESC))[0].a === 'g2 sw one', 'the description is not the one written');
+      exp(c, 'AFTER THE OPENING an older edit is refused', await patch('g2 sw two'), 409, 'managed_in_catalog');
+      exp(c, 'AFTER THE OPENING an older create is refused', await call('POST', '/services', { name: c.runId + ' swother', topic: 'g2', description: '' }), 409, 'managed_in_catalog');
+      c.check('and nothing was written by the refused ones', (await c.q(SW_DESC))[0].a === 'g2 sw one', 'the description changed');
+      exp(c, 'AFTER THE OPENING the catalog answers', await call('GET', '/catalog/overview'), 200);
+      // 2. the opening is in flight when the older write comes
+      const f2 = await sql(SW_SET_FALSE); if (!c.check('the switch is closed again for the second order', f2.ok, f2.ok ? '' : JSON.stringify(errInfo(f2.error)))) return;
+      const flipTx = attempt(() => c.tx([SW_FLIP, SW_FLIP_SLOW], RAW_TX)); await sleep(500);
+      const w0 = Date.now(), rLate = await patch('g2 sw three'), lateMs = Date.now() - w0, ft = await flipTx;
+      c.check('OPENING FIRST: the opening committed', ft.ok, ft.ok ? '' : JSON.stringify(errInfo(ft.error)));
+      c.check('OPENING FIRST: an older write that started before the opening was visible WAITED for it and then changed NOTHING: 409 managed_in_catalog', rLate.status === 409 && rLate.code === 'managed_in_catalog' && lateMs >= 700, rLate.status + ' ' + rLate.code + ' in ' + lateMs + ' ms'); c.note('opening_first_wait_ms', lateMs);
+      c.check('and the service still holds what the first order wrote', (await c.q(SW_DESC))[0].a === 'g2 sw one', 'the description changed');
+    } finally {
+      const back = await sql(SW_FLIP); c.check('the switch ends open, as it was found', back.ok && (await c.q(SW_VALUE))[0].a === 'true', back.ok ? 'not true' : JSON.stringify(errInfo(back.error)));
+    }
+    const idle = (await c.q(IDLE_Q))[0]; c.check('nothing is left behind: no ungranted lock', idle.waiting === 0, JSON.stringify(idle));
+  } });
+
+module.exports = { product, nm, word, phoneOf, mailOf, exp, keysOf, n, COUNT, SEQ_ALL, A1, A2, A3, A4, G2SVC, SECRET_KEY, PRICE_GUARD, demoRow, approvalsOf, TW, sleep, AUDIT_VIEW_RE, activatable, consistent };

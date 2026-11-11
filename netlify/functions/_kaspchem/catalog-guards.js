@@ -57,10 +57,16 @@ async function refuseOldWrite() {
   if (open) throw new HttpError(409, 'managed_in_catalog', 'הנתון הזה מנוהל עכשיו בקטלוג הספקים ואי אפשר לשנות אותו מכאן.');
 }
 
+// THE WINDOW OF OPENING THE SWITCH. refuseOldWrite() looks at the switch once, before the older route starts; an older write that passed that look a moment before the owner opened the catalog could still land after the catalog
+// started to write the same rows. The older statements therefore carry this condition INSIDE their own SQL: it reads the switch row with FOR SHARE, so (1) the owner's UPDATE that opens the catalog WAITS for every older write in flight
+// and no older write can commit after the opening, and (2) a statement that starts after the opening reads "open" and changes nothing. It needs the switch row to exist (created closed, by the owner, before the first opening);
+// while the row does not exist the condition is true and the older routes behave exactly as they always did.
+const OLD_WRITE_CLOSED = "NOT COALESCE((SELECT value = 'true'::jsonb FROM settings WHERE key = '" + SWITCH_KEY + "' FOR SHARE), false)";
+
 // The two catalog switches change only by a separate decision of the owners, never through the general settings route. The whole namespace "private.catalog_" is kept for the catalog, and the check
 // looks at the WHOLE request body (the key, the value, any other field, any nesting), so a request that mentions a switch anywhere, alone or together with other settings, is refused before anything is
 // saved. It does not look at the switch itself, so it works while the catalog is closed.
 const SWITCH_NAMESPACE = /private\.catalog_/i;
 function touchesSwitch(body) { try { return SWITCH_NAMESPACE.test(JSON.stringify(body)); } catch (e) { return true; } }   // a body that cannot even be written out is refused too
 
-module.exports = { gate, requireOwner, isOpen, activationOpen, assertNoSecrets, refuseOldWrite, touchesSwitch, SWITCH_KEY, ACTIVATION_KEY };
+module.exports = { gate, requireOwner, isOpen, activationOpen, assertNoSecrets, refuseOldWrite, touchesSwitch, OLD_WRITE_CLOSED, SWITCH_KEY, ACTIVATION_KEY };

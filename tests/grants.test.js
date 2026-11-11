@@ -29,7 +29,7 @@ const GRANTS_DIR = process.env.KC_GRANTS_DIR || path.join(ROOT, 'db', 'grants');
 const GRANTS_FILE = path.join(GRANTS_DIR, 'm1-app-grants.sql');
 const ROLLBACK_FILE = path.join(GRANTS_DIR, 'm1-app-grants.rollback.sql');
 const BASE_DDL = fs.readFileSync(path.join(ROOT, 'db', 'kaspchem-schema.sql'), 'utf8');
-const REAL = M.loadMigrations();
+const REAL = require('./fixtures/migrations-002.js').upTo002();   // the files as they stood after 002 (003 has its own tests)
 const qp = (pg) => async (t, p) => (await pg.query(t, p || [])).rows;
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------
