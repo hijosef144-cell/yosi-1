@@ -428,3 +428,43 @@ test('R9 for providers: the answer for a provider holds for the later rows of th
   // a re-import creates nothing again
   const state = SIM.applyOps(ex, r.operations), p2 = preview(file, state); assert.ok(p2.rows.every((x) => ['unchanged', 'problem'].includes(x.status)), 'no row of the second preview is new'); assert.equal(plan(p2, approveAll(p2), state).operations.length, 0);
 });
+
+test('R9, a question that belongs to an EARLIER row of the file: a later row that repeats it cannot be approved alone (it would create a record nobody was asked about), with the earlier row it works, and a clean earlier row changes nothing', () => {
+  const ex = F.existing();
+  const files = {
+    service: csvOf([{ domain: 'נדל"ן', service: 'ייעוץ משכנתאות', provider: 'אבי רוזן', business: 'משרד רוזן', externalId: 'A-1' }, { domain: 'נדל"ן', service: ' ייעוץ  משכנתאות ', provider: 'שרון דוד', business: 'דוד פיננסים', externalId: 'A-2' }]),
+    provider: csvOf([{ domain: 'מסים', service: 'הגשת ערר ארנונה', provider: 'דנה לבנאי', business: 'לבני מס', externalId: 'B-1' }, { domain: 'מסים', service: 'תכנון צוואה', provider: 'דנה לבנאי', business: 'לבני מס', externalId: 'B-2' }]) };
+  for (const entity of ['service', 'provider']) {
+    const p = preview(files[entity], ex); assert.deepEqual([rowOf(p, 2)[entity].action, rowOf(p, 3)[entity].action], ['decision', 'same_as_row'], entity);
+    const alone = plan(p, approveAll(p, { only: [3] }), ex); assert.equal(alone.ok, false, entity); assert.deepEqual(alone.refused, [{ row: 3, reason: 'decision_missing', entity, anchor_row: 2 }], entity); assert.deepEqual(alone.operations, [], 'nothing is created');
+    const answer = { [entity]: { use: 'existing', id: entity === 'service' ? 12 : 21 } }, both = plan(p, approveAll(p, { decisions: { 2: answer } }), ex); assert.equal(both.ok, true, entity);
+    assert.deepEqual(opsOf(both, 'create_engagement').map((o) => o[entity]), [{ id: answer[entity].id }, { id: answer[entity].id }], entity + ': both rows use the record the owner chose');
+  }
+  // a clean earlier row (no question) that is not approved: the later row still has its service, as before
+  const pc = preview(csvOf([{ service: 'ייעוץ פיננסי', provider: 'ספק ראשון', externalId: 'S-1' }, { service: 'ייעוץ פיננסי', provider: 'ספק שני', externalId: 'S-2' }])), later = plan(pc, approveAll(pc, { only: [3] }));
+  assert.equal(later.ok, true); assert.equal(opsOf(later, 'create_service').length, 1);
+});
+
+test('R9, the candidate that is an EARLIER row of the same file ("row:N") works: "the same record as that row" links both rows to ONE record; it needs that row in the plan, and nothing else can be named', () => {
+  const file = csvOf([{ domain: 'נדל"ן', service: 'ייעוץ משכנתא', provider: 'אבי רוזן', business: 'משרד רוזן', externalId: 'C-1' }, { domain: 'נדל"ן', service: 'ייעוץ משכנתאות', provider: 'שרון דוד', business: 'דוד פיננסים', externalId: 'C-2' }]);
+  const p = preview(file, F.EMPTY()), d = rowOf(p, 3).decisions[0]; assert.deepEqual([d.entity, d.type, d.candidates.map((c) => c.id)], ['service', 'similar_service', ['row:2']], 'the screen offers the earlier row of the file');
+  const same = plan(p, approveAll(p, { decisions: { 3: { service: { use: 'existing', id: 'row:2' } } } }), F.EMPTY()); assert.equal(same.ok, true);
+  assert.equal(opsOf(same, 'create_service').length, 1, 'one record for the two rows'); const e = opsOf(same, 'create_engagement'); assert.equal(e[0].service.ref, e[1].service.ref);
+  assert.equal(opsOf(plan(p, approveAll(p, { decisions: { 3: { service: { use: 'new' } } } }), F.EMPTY()), 'create_service').length, 2, '"create a new one" still makes two records');
+  // that earlier row is not part of the plan: nothing to point at
+  const noEarlier = plan(p, approveAll(p, { only: [3], decisions: { 3: { service: { use: 'existing', id: 'row:2' } } } }), F.EMPTY()); assert.deepEqual(noEarlier.refused, [{ row: 3, reason: 'decision_unknown_id', entity: 'service' }]); assert.deepEqual(noEarlier.operations, []);
+  // an id that was not offered, a later row, a made-up one: refused, nothing is created
+  for (const id of ['row:99', 'row:3', 'row:abc', 'row:']) { const bad = plan(p, approveAll(p, { decisions: { 3: { service: { use: 'existing', id } } } }), F.EMPTY()); assert.equal(bad.ok, false, id); assert.equal(bad.refused[0].reason, 'decision_unknown_id', id); assert.deepEqual(bad.operations, []); }
+  // providers: two similar provider names in one file
+  const pp = preview(csvOf([{ domain: 'מסים', service: 'הגשת ערר ארנונה', provider: 'דנה לבני', business: 'לבני מס', externalId: 'D-1' }, { domain: 'מסים', service: 'תכנון צוואה', provider: 'דנה לבנאי', business: 'לבני מס', externalId: 'D-2' }]), F.EMPTY());
+  assert.deepEqual(rowOf(pp, 3).decisions.map((x) => [x.entity, x.type, x.candidates.map((c) => c.id)]), [['provider', 'similar_provider', ['row:2']]]);
+  const sameP = plan(pp, approveAll(pp, { decisions: { 3: { provider: { use: 'existing', id: 'row:2' } } } }), F.EMPTY()); assert.equal(sameP.ok, true); assert.equal(opsOf(sameP, 'create_provider').length, 1); const pe = opsOf(sameP, 'create_engagement'); assert.equal(pe[0].provider.ref, pe[1].provider.ref);
+});
+
+test('the structure twin of the real sheet: its one question is answered "create a new one" (22 services, 21 engagements, 3 providers); "the same as that other row" is refused plainly because it would give one provider the same service twice, and nothing is merged silently', () => {
+  const csv = require('fs').readFileSync(require('path').join(__dirname, 'fixtures', 'catalog-sheet-structure-twin.csv'), 'utf8');
+  const p = I.buildPreview({ csv, existing: F.EMPTY() }), q = p.rows.find((r) => (r.decisions || []).length); assert.equal(p.decisionsNeeded, 1); assert.match(String(q.decisions[0].candidates[0].id), /^row:\d+$/, 'the only candidate of the question of the real sheet is a row of the same file');
+  const fresh = plan(p, approveAll(p, { decisions: { [q.rowNumber]: { service: { use: 'new' } } } })); assert.equal(fresh.ok, true);
+  assert.equal(opsOf(fresh, 'create_service').length, 22, 'the 22 services of the first import'); assert.equal(opsOf(fresh, 'create_engagement').length, 21); assert.equal(opsOf(fresh, 'create_provider').length, 3);
+  const same = plan(p, approveAll(p, { decisions: { [q.rowNumber]: { service: { use: 'existing', id: q.decisions[0].candidates[0].id } } } })); assert.equal(same.ok, false); assert.deepEqual(same.refused, [{ row: q.rowNumber, reason: 'engagement_twice_in_plan' }]); assert.deepEqual(same.operations, []);
+});

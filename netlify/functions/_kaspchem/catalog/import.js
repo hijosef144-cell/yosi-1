@@ -297,12 +297,24 @@ function planApply(preview, approvals, existingNow, opts) {
     // R9: a similar name needs an explicit answer: use the existing one (by id) or create a new one. Nothing is ever merged.
     let svc = null, prov = null, bad = false;
     const dec = a.decisions || {};
+    // a row that repeats the service or the provider of an EARLIER row of the file, where that earlier row carries a similarity question: the question belongs to the earlier row, so that row has to be part of this plan and answered there.
+    // Otherwise this row would create a new record without anyone having answered the question (the screen's "approve all clean rows" selects such a dependent row and skips its predecessor).
+    for (const entity of ['service', 'provider']) {
+      const rel = row[entity];
+      if (rel && rel.action === 'same_as_row') { const anchor = byNumber.get(String(rel.row)); if (anchor && (anchor.decisions || []).some((x) => x.entity === entity) && !approved.includes(String(rel.row))) { no('decision_missing', { entity, anchor_row: rel.row }); bad = true; } }
+    }
     for (const d of row.decisions || []) {
       const ans = dec[d.entity];
       if (!ans || !['existing', 'new'].includes(ans.use)) { no('decision_missing', { entity: d.entity }); bad = true; continue; }
       if (ans.use === 'existing') {
-        if (!known[d.entity].has(String(ans.id))) { no('decision_unknown_id', { entity: d.entity }); bad = true; continue; }
-        if (d.entity === 'service') { svc = { id: ans.id }; created.service.set(rec.service.key, { id: ans.id }); } else { prov = { id: ans.id }; created.provider.set(rec.provider.key, { id: ans.id }); }   // the answer holds for every later row of the file with the same key (the same name; for a provider the same name AND business), not for a merely similar one
+        let target = null;
+        const asRow = /^row:(\d+)$/.exec(String(ans.id));
+        if (asRow) {   // the candidate is an EARLIER row of this same file ("the same record as that row"): it must be one the screen offered, an earlier row, and part of this plan (already resolved above)
+          const er = (byNumber.get(asRow[1]) || {}).record, other = er && (d.entity === 'service' ? er.service : er.provider);
+          if ((d.candidates || []).some((c) => String(c.id) === String(ans.id)) && other && Number(asRow[1]) < row.rowNumber && created[d.entity].has(other.key)) target = Object.assign({}, created[d.entity].get(other.key));
+        } else if (known[d.entity].has(String(ans.id))) target = { id: ans.id };
+        if (!target) { no('decision_unknown_id', { entity: d.entity }); bad = true; continue; }
+        if (d.entity === 'service') { svc = target; created.service.set(rec.service.key, Object.assign({}, target)); } else { prov = target; created.provider.set(rec.provider.key, Object.assign({}, target)); }   // the answer holds for every later row of the file with the same key (the same name; for a provider the same name AND business), not for a merely similar one
       }
     }
     if (bad) continue;
