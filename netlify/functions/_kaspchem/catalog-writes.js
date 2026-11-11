@@ -58,7 +58,7 @@ function mapError(e) {
   let out;
   if (code === 'P0001' && /snapshot_changed/.test(msg)) out = new HttpError(409, 'preview_stale', 'הנתונים השתנו מאז התצוגה המקדימה. יש להפיק תצוגה חדשה.');
   else if (code === 'P0001' && /no_rows/.test(msg)) { out = new HttpError(409, 'conflict', 'הרשומה השתנתה או אינה מתאימה. יש לרענן ולנסות שוב.'); out.noRows = true; }
-  else if (code === '55P03') out = new HttpError(409, 'busy_retry', 'המערכת עסוקה כרגע (פעולה אחרת בעיצומה). לא נשמר דבר. יש לנסות שוב בעוד רגע.');
+  else if (code === 'P0001' && /price_not_valid_for_active_engagement|price_linked_to_active_engagement/.test(msg)) out = new HttpError(409, 'seen_changed', 'המצב השתנה מאז שצפיתם בו (המחיר של ההתקשרות שונה במקביל). לא נשמר דבר. יש לרענן ולבדוק.'); else if (code === '55P03') out = new HttpError(409, 'busy_retry', 'המערכת עסוקה כרגע (פעולה אחרת בעיצומה). לא נשמר דבר. יש לנסות שוב בעוד רגע.');
   else if (code === '57014' || code === '25P04') { logError('catalog.write', { code: 'timeout_' + code }); out = new HttpError(503, 'write_timeout', 'השמירה לקחה יותר מדי זמן ובוטלה. לא נשמר דבר. אפשר לנסות שוב; אם זה חוזר, יש לצמצם את הקובץ או לפנות לתמיכה.'); }
   else if (code === '40001' || code === '40P01') out = new HttpError(409, 'conflict_retry', 'הפעולה התנגשה בפעולה אחרת. לא נשמר דבר. יש לרענן ולנסות שוב.');
   else if (code === '23505') { out = new HttpError(409, 'duplicate'); out.constraint = e.constraint; }

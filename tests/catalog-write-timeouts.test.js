@@ -134,7 +134,7 @@ test('F2: what each error code means (nothing saved / not known), and the log ne
     const err = (o) => Object.assign(new Error(o.message || 'x'), o);
     const rows = [
       // inside the transaction: the whole batch was rolled back
-      [{ code: 'P0001', message: 'snapshot_changed' }, 409, 'preview_stale'], [{ code: 'P0001', message: 'no_rows' }, 409, 'conflict'], [{ code: '55P03', message: 'canceling statement due to lock timeout' }, 409, 'busy_retry'],
+      [{ code: 'P0001', message: 'snapshot_changed' }, 409, 'preview_stale'], [{ code: 'P0001', message: 'no_rows' }, 409, 'conflict'], [{ code: 'P0001', message: 'price_not_valid_for_active_engagement' }, 409, 'seen_changed'], [{ code: 'P0001', message: 'price_linked_to_active_engagement' }, 409, 'seen_changed'],[{ code: '55P03', message: 'canceling statement due to lock timeout' }, 409, 'busy_retry'],
       [{ code: '57014', message: 'canceling statement due to statement timeout' }, 503, 'write_timeout'], [{ code: '25P04', message: 'terminating connection due to transaction timeout' }, 503, 'write_timeout'],
       [{ code: '40P01', message: 'deadlock detected' }, 409, 'conflict_retry'], [{ code: '40001', message: 'could not serialize access' }, 409, 'conflict_retry'],
       [{ code: '23505', message: 'duplicate key', constraint: 'x_key' }, 409, 'duplicate'], [{ code: '23503', message: 'fk' }, 422, 'bad_reference'], [{ code: '23514', message: 'check', constraint: 'c' }, 422, 'rule_violation'],

@@ -307,7 +307,39 @@ const TRIGGERS_Q = "SELECT count(*)::int AS n FROM pg_trigger WHERE tgname IN ('
 const STATE_BY_LABEL = 'SELECT ps.activation, pr.approved, pr.price::text AS price FROM provider_services ps LEFT JOIN pricing pr ON pr.id = ps.pricing_id WHERE ps.professional_id = $1::bigint AND ps.service_id = $2::bigint';
 const ACT_AUDITS = "SELECT count(*)::int AS n FROM audit_log WHERE action = 'catalog.engagement.activate' AND entity_id = $1";
 const IDLE_Q = "SELECT (SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() AND state LIKE 'idle in transaction%')::int AS idle_tx, (SELECT count(*) FROM pg_locks WHERE NOT granted)::int AS waiting";
-const HOLD_12 = "SELECT pg_sleep(1.2) FROM (SELECT 1 FROM pricing WHERE label LIKE '%holdme' FOR UPDATE) x";
+// Seeing the order of two requests on the SERVER: another connection reads pg_stat_activity (the same role sees its own sessions) and looks for a request that is waiting for a lock. waitFor waits until one is seen, and stops
+// as soon as the request has answered (then it was not held up at all). The order of two requests is then the order of the lock queue, not a guess of timing.
+const WAITING = (like) => "SELECT count(*)::int AS n FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid() AND state = 'active' AND wait_event_type = 'Lock' AND query LIKE '" + like + "'";
+const WAIT_ACT = WAITING('%UPDATE provider_services SET activation%'), WAIT_EDIT = WAITING('%UPDATE pricing SET service_id%'), WAIT_OLDWRITE = WAITING('%UPDATE services s SET%');
+async function waitFor(c, sql, ms, pending) {
+  let done = false; pending.then(() => { done = true; }, () => { done = true; });
+  const end = Date.now() + ms;
+  while (!done) { if ((await n(c, sql)) >= 1) return true; if (Date.now() > end) return false; await sleep(120); }
+  return false;
+}
+// The lock holders of the race stage name ONE row, by id (a pattern matched the rows of earlier rounds and earlier runs, and "SELECT pg_sleep(n) FROM (... FOR UPDATE)" sleeps once PER row and locks them one after the other).
+//   exclusive: FOR UPDATE for up to 30 s, released by CANCELLING it (the activation waits only 1.5 s for a lock, so the holder must go the moment both requests are seen waiting);
+//   shared: FOR SHARE for 9 s (the activation's own share lock is compatible with it, so the activation does not wait; the older price edit, which needs an exclusive row lock, does).
+const holdOf = (id, exclusive) => { if (!Number.isInteger(Number(id))) throw new Error('bad_id'); return 'WITH l AS (SELECT 1 FROM pricing WHERE id = ' + Number(id) + (exclusive ? ' FOR UPDATE) SELECT pg_sleep(30) FROM l' : ' FOR SHARE) SELECT pg_sleep(9) FROM l'); };
+const CANCEL_HOLDER = "SELECT count(*) FILTER (WHERE ok)::int AS n FROM (SELECT pg_cancel_backend(pid) AS ok FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid() AND state = 'active' AND query LIKE '%FOR UPDATE) SELECT pg_sleep(30) FROM l') x";
+const INVALID_ACTIVE = "SELECT count(*)::int AS n FROM provider_services ps LEFT JOIN pricing pr ON pr.id = ps.pricing_id WHERE ps.activation = 'active' AND NOT (pr.id IS NOT NULL AND pr.approved AND pr.price IS NOT NULL AND pr.service_id = ps.service_id AND (pr.professional_id IS NULL OR pr.professional_id = ps.professional_id))";
+// ONE round of the race: the interleaving is built on purpose and SEEN on the server (another connection reads pg_stat_activity), then the outcome is read.
+async function racePair(c, call, s, order, real) {
+  if (!real) {   // the in-memory test database has no second connection: plain order, one request after the other
+    const a = order === 'edit-first' ? await editOf(call, s) : await activateOf(call, s), b = order === 'edit-first' ? await activateOf(call, s) : await editOf(call, s);
+    return { rEdit: order === 'edit-first' ? a : b, rAct: order === 'edit-first' ? b : a, hr: { ok: true }, q1: null, q2: null, released: null };
+  }
+  const exclusive = order === 'edit-first', holdSql = holdOf(s.PID, exclusive); c.allow(holdSql);
+  const hold = attempt(() => c.tx([holdSql], RAW_TX)); await sleep(500);
+  if (exclusive) {   // the edit goes into the queue first (it waits as long as it must), the activation behind it; when both are SEEN waiting the holder is cancelled and the queue decides
+    const edit = editOf(call, s), q1 = await waitFor(c, WAIT_EDIT, 8000, edit), act = activateOf(call, s), q2 = await waitFor(c, WAIT_ACT, 5000, act), released = await n(c, CANCEL_HOLDER);
+    const [rEdit, rAct, hr] = await Promise.all([edit, act, hold]); return { rEdit, rAct, hr, q1, q2, released };
+  }
+  // the edit waits behind a SHARE lock; the activation takes a share lock of its own (compatible), completes, and only then the holder lets go: the edit then meets an ACTIVE engagement
+  const edit = editOf(call, s); let editSettled = false; edit.then(() => { editSettled = true; }, () => { editSettled = true; });
+  const q1 = await waitFor(c, WAIT_EDIT, 8000, edit), rAct = await activateOf(call, s), q2 = !editSettled;
+  const [rEdit, hr] = await Promise.all([edit, hold]); return { rEdit, rAct, hr, q1, q2, released: null };
+}
 const HOLD_4 = "SELECT pg_sleep(4) FROM (SELECT 1 FROM pricing WHERE label LIKE '%lockprice' FOR UPDATE) x";
 const HOLD_SHARE_2 = "SELECT pg_sleep(2) FROM (SELECT 1 FROM pricing WHERE label LIKE '%sharelock' FOR SHARE) x";
 const RAW_TX = { readOnly: false, isolationLevel: 'ReadCommitted' };
@@ -333,27 +365,29 @@ const editOf = (call, s, price) => call('PATCH', '/pricing/' + s.PID, { service_
 const consistent = (st) => !!st && (st.activation !== 'active' || st.approved === true);
 const needsTriggers = async (c) => c.check('migration 003 is in place on this branch: both triggers exist and are enabled', (await n(c, TRIGGERS_Q)) === 2, 'the triggers are missing: the branch owner applies 003 before this run');
 
-stage('proof003-race', { kind: 'write', independent: true, maxRequests: 700, allowSingle: [AUDIT_VIEW_RE, exact(OLD_AUDIT), exact(PRICE_INSERT), exact(PRICE_APPROVE), exact(PRICE_PATCH)], raw: [COUNTS_SQL, CONTENT_SQL, TRIGGERS_Q, HOLD_12, STATE_BY_LABEL, ACT_AUDITS, IDLE_Q],
+stage('proof003-race', { kind: 'write', independent: true, maxRequests: 1000, allowSingle: [AUDIT_VIEW_RE, exact(OLD_AUDIT), exact(PRICE_INSERT), exact(PRICE_APPROVE), exact(PRICE_PATCH)], raw: [COUNTS_SQL, CONTENT_SQL, TRIGGERS_Q, STATE_BY_LABEL, ACT_AUDITS, IDLE_Q],
   needs: ['atomic-import'], title: 'migration 003: the activation and the price edit in BOTH orders (a row lock makes them wait), then a burst of simultaneous pairs on real connections: at most one of the two succeeds, never an active engagement with an invalid price',
   plan: ['both triggers must exist; four engagements are prepared (two for each order) through the routes, each with a price approved and linked, the checklist complete',
-    'edit first: a third connection holds a row lock on the price for 1.2 s, the older price edit is sent and waits, the activation is sent behind it; the lock is released: the edit goes first, the activation is then REFUSED by the database (409)',
-    'activation first: the same, with the activation sent first: it completes, and the price edit is then REFUSED by the database (409 price_linked_to_active_engagement)',
+    'edit first: a third connection holds an exclusive row lock on the price; the older price edit is sent and is SEEN waiting (another connection reads pg_stat_activity), then the activation is sent behind it and is SEEN waiting; the holder is cancelled: the queue decides, the edit goes first and the activation is then REFUSED by the database trigger (409 seen_changed)',
+    'activation first: a SHARE lock is held on the price; the edit is SEEN waiting behind it; the activation (its own share lock is compatible) completes meanwhile, and when the holder lets go the edit meets an ACTIVE engagement and is REFUSED by the database trigger (409 price_linked_to_active_engagement)',
     'after each: exactly one of the two succeeded, no engagement is active with a price that is not approved, and the audit holds an activation row only when the activation succeeded (nothing half-saved)',
     'six more pairs are sent at the same moment with no lock (real concurrency): none of them may end active with an invalid price'],
   async run(c) {
     const P = product(c), call = P.call; if (!(await needsTriggers(c))) return;
-    const results = [];
+    const results = [], real = !!(c.identity && c.identity.neon_endpoint);
     for (const [order, tag] of [['edit-first', 'ef1holdme'], ['activation-first', 'af1holdme'], ['edit-first', 'ef2holdme'], ['activation-first', 'af2holdme']]) {
-      const s = await activatable(c, call, tag); if (s.error) { c.check(order + ': the engagement could be prepared', false, s.error); continue; }
-      const hold = attempt(() => c.tx([HOLD_12], RAW_TX)); await sleep(400);
-      let first, second; if (order === 'edit-first') { first = editOf(call, s); await sleep(350); second = activateOf(call, s); } else { first = activateOf(call, s); await sleep(350); second = editOf(call, s); }
-      const [r1, r2] = await Promise.all([first, second]), hr = await hold, rEdit = order === 'edit-first' ? r1 : r2, rAct = order === 'edit-first' ? r2 : r1;
-      const st = (await c.q(STATE_BY_LABEL, [String(s.R), String(s.S)]))[0], audits = await n(c, ACT_AUDITS, [s.R + '/' + s.S]), oks = [rEdit.status === 200, rAct.status === 200].filter(Boolean).length;
-      results.push({ order, edit: [rEdit.status, rEdit.code], act: [rAct.status, rAct.code], state: st && st.activation, approved: st && st.approved });
-      c.check(order + ' (' + tag + '): the lock holder finished normally', hr.ok, hr.ok ? '' : JSON.stringify(errInfo(hr.error)));
+      let s, x, tries = 0;
+      do { tries++; s = await activatable(c, call, tag + (tries > 1 ? 'x' + tries : '')); if (s.error) break; x = await racePair(c, call, s, order, real); } while (real && !(x.q1 && x.q2) && tries < 2);
+      if (s.error) { c.check(order + ': the engagement could be prepared', false, s.error); continue; }
+      const { rEdit, rAct, hr } = x, st = (await c.q(STATE_BY_LABEL, [String(s.R), String(s.S)]))[0], audits = await n(c, ACT_AUDITS, [s.R + '/' + s.S]), oks = [rEdit.status === 200, rAct.status === 200].filter(Boolean).length;
+      results.push({ order, tries, seen: [x.q1, x.q2], cancelled: x.released, edit: [rEdit.status, rEdit.code], act: [rAct.status, rAct.code], state: st && st.activation, approved: st && st.approved });
+      if (real) {
+        c.check(order + ': the intended interleaving was SEEN on the server (' + (order === 'edit-first' ? 'the edit waiting behind the lock, then the activation waiting behind it, then the holder cancelled' : 'the edit waiting behind a share lock while the activation completed') + ')', x.q1 && x.q2, JSON.stringify({ seen_first: x.q1, seen_second: x.q2, attempts: tries }));
+        c.check(order + ': the lock holder was released as designed', order === 'edit-first' ? (x.released >= 1 && !hr.ok && errInfo(hr.error).code === '57014') : hr.ok, JSON.stringify({ cancelled: x.released, holder: hr.ok ? 'finished' : errInfo(hr.error) }));
+      }
       c.check(order + ': NEVER BOTH SUCCEED (no active engagement with an invalid price)', oks < 2 && consistent(st), JSON.stringify({ edit: [rEdit.status, rEdit.code], act: [rAct.status, rAct.code], state: st }));
       c.check(order + ': exactly one of the two succeeded, as the lock order says (' + (order === 'edit-first' ? 'the edit, then the activation is refused' : 'the activation, then the edit is refused') + ')', oks === 1 && (order === 'edit-first' ? rEdit.status === 200 && rAct.status === 409 : rAct.status === 200 && rEdit.status === 409), JSON.stringify({ edit: [rEdit.status, rEdit.code], act: [rAct.status, rAct.code] }));
-      c.check(order + ': the refused one was refused with a clear 409 (the edit says price_linked_to_active_engagement)', order === 'edit-first' ? rAct.status === 409 : (rEdit.status === 409 && rEdit.code === 'price_linked_to_active_engagement'), JSON.stringify({ edit: [rEdit.status, rEdit.code], act: [rAct.status, rAct.code] }));
+      c.check(order + ': the refused one was refused with a clear 409 (the activation says seen_changed, the edit says price_linked_to_active_engagement)', order === 'edit-first' ? (rAct.status === 409 && rAct.code === 'seen_changed') : (rEdit.status === 409 && rEdit.code === 'price_linked_to_active_engagement'), JSON.stringify({ edit: [rEdit.status, rEdit.code], act: [rAct.status, rAct.code] }));
       c.check(order + ': nothing half-saved: the activation has a journal row if and only if it succeeded', audits === (rAct.status === 200 ? 1 : 0), 'audit rows: ' + audits + ', activation answered ' + rAct.status);
     }
     c.note('orders', results);
@@ -363,7 +397,7 @@ stage('proof003-race', { kind: 'write', independent: true, maxRequests: 700, all
     for (let i = 0; i < pairs.length; i++) { const s = pairs[i], st = (await c.q(STATE_BY_LABEL, [String(s.R), String(s.S)]))[0], e = fired[2 * i], a = fired[2 * i + 1]; sts.push([e.status, a.status, st && st.activation, st && st.approved]); }
     c.note('burst', sts);
     c.check('BURST (' + pairs.length + ' pairs at the same moment, no lock): no pair ended with an ACTIVE engagement whose price is not approved, and no pair has both succeeded', sts.length === pairs.length && sts.every((x) => !(x[0] === 200 && x[1] === 200) && (x[2] !== 'active' || x[3] === true)), JSON.stringify(sts));
-    const idle = (await c.q(IDLE_Q))[0]; c.check('nothing is left waiting: no ungranted lock and no transaction left open', idle.waiting === 0, JSON.stringify(idle));
+    c.check('no engagement on the branch is ACTIVE with a price that does not fit it (every round and the burst included)', (await n(c, INVALID_ACTIVE)) === 0, 'an active engagement with an invalid price exists'); const idle = (await c.q(IDLE_Q))[0]; c.check('nothing is left waiting: no ungranted lock and no transaction left open', idle.waiting === 0, JSON.stringify(idle));
   } });
 
 stage('proof003-guard', { kind: 'write', independent: true, maxRequests: 400, allowSingle: [AUDIT_VIEW_RE, exact(OLD_AUDIT), exact(PRICE_INSERT), exact(PRICE_APPROVE), exact(PRICE_PATCH)],
@@ -454,18 +488,18 @@ stage('proof003-locks', { kind: 'write', independent: true, maxRequests: 300, al
 
 // the window of OPENING the catalog switch: an older write in flight and the owner's UPDATE that opens the catalog, in both orders
 const SW_SET_FALSE = "UPDATE settings SET value = 'false'::jsonb WHERE key = 'private.catalog_enabled'", SW_FLIP = "UPDATE settings SET value = 'true'::jsonb WHERE key = 'private.catalog_enabled'";
-const SW_HOLD_SVC = "SELECT pg_sleep(2.5) FROM (SELECT 1 FROM services WHERE name LIKE '%swholdsvc' FOR UPDATE) x", SW_FLIP_SLOW = 'SELECT pg_sleep(1.5)';
-const SW_DESC = "SELECT description AS a FROM services WHERE name LIKE '%swholdsvc'", SW_VALUE = "SELECT value::text AS a FROM settings WHERE key = 'private.catalog_enabled'";
+const swHoldOf = (id) => { if (!Number.isInteger(Number(id))) throw new Error('bad_id'); return 'WITH l AS (SELECT 1 FROM services WHERE id = ' + Number(id) + ' FOR UPDATE) SELECT pg_sleep(6) FROM l'; }, SW_FLIP_SLOW = 'SELECT pg_sleep(4)';
+const swDescOf = (id) => { if (!Number.isInteger(Number(id))) throw new Error('bad_id'); return 'SELECT description AS a FROM services WHERE id = ' + Number(id); }, SW_VALUE = "SELECT value::text AS a FROM settings WHERE key = 'private.catalog_enabled'";
 const guardsMod = require('../netlify/functions/_kaspchem/catalog-guards.js'), serviceGuardMod = require('../netlify/functions/_kaspchem/service-guard.js');
 const OLD_SVC_INSERT = 'INSERT INTO services (topic, name, description) SELECT $1::text, $2::text, $3::text WHERE ' + guardsMod.OLD_WRITE_CLOSED + ' RETURNING id';
 const OLD_SVC_UPDATE = 'UPDATE services s SET topic=$1, name=$2, description=$3, active=$4 WHERE s.id = $5 AND ' + serviceGuardMod.allowsChange('$2::text', '$1::text') + ' AND ' + guardsMod.OLD_WRITE_CLOSED + ' RETURNING s.id';
 stage('proof003-switch', { kind: 'write', independent: true, maxRequests: 200, allowSingle: [AUDIT_VIEW_RE, exact(OLD_AUDIT), exact(OLD_SVC_INSERT), exact(OLD_SVC_UPDATE)],
-  raw: [COUNTS_SQL, CONTENT_SQL, SW_SET_FALSE, SW_FLIP, SW_HOLD_SVC, SW_FLIP_SLOW, SW_DESC, SW_VALUE, IDLE_Q],
+  raw: [COUNTS_SQL, CONTENT_SQL, SW_SET_FALSE, SW_FLIP, SW_FLIP_SLOW, SW_VALUE, IDLE_Q],
   needs: ['atomic-import'], title: 'THE WINDOW OF OPENING THE CATALOG SWITCH: an older write in flight and the UPDATE that opens the catalog are ordered by a lock on the switch row, in both orders; no older write can commit after the opening',
   plan: ['the switch is set to false (the row exists, closed); an older service is made through the older route',
-    'older write first: a lock on its row makes it wait; the UPDATE that opens the catalog is sent meanwhile and WAITS for it (the older write holds a share lock on the switch row); the older write commits first, then the opening commits',
+    'older write first: a lock held for 6 s on its row makes it wait; it is SEEN waiting (so it already holds its share lock on the switch row), only then the UPDATE that opens the catalog is sent, and it WAITS for the older write; the older write commits first, then the opening commits',
     'after the opening an older write is refused 409 managed_in_catalog and the catalog answers',
-    'opening first: the opening is held in flight for 1.5 s; an older write that started before it was visible waits on the switch row, and when the opening commits it changes NOTHING and answers 409 managed_in_catalog',
+    'opening first: the opening is held in flight for 4 s; an older write that started before it was visible is SEEN waiting on the switch row, and when the opening commits it changes NOTHING and answers 409 managed_in_catalog',
     'the switch ends open, as it was found'],
   async run(c) {
     const P = product(c), call = P.call, sql = (text) => { c.allow(text); return attempt(() => c.tx([text], RAW_TX)); };
@@ -475,25 +509,25 @@ stage('proof003-switch', { kind: 'write', independent: true, maxRequests: 200, a
       const mk = await call('POST', '/services', { name: c.runId + ' swholdsvc', topic: 'g2', description: '' }); if (!exp(c, 'an older service is made through the older route while the switch is false', mk, 200)) return; const X = mk.body.id;
       const patch = (txt) => call('PATCH', '/services/' + X, { name: c.runId + ' swholdsvc', topic: 'g2', description: txt, active: false });
       // 1. the older write is in flight when the owner opens the catalog
-      const hold = attempt(() => c.tx([SW_HOLD_SVC], RAW_TX)); await sleep(400);
+      const holdSql = swHoldOf(X), descSql = swDescOf(X); c.allow(holdSql); c.allow(descSql); const descNow = async () => (await c.q(descSql))[0].a; const hold = attempt(() => c.tx([holdSql], RAW_TX)); await sleep(300);
       const oldDone = { t: 0 }, flipDone = { t: 0 }, t0 = Date.now();
-      const pOld = patch('g2 sw one').then((r) => { oldDone.t = Date.now() - t0; return r; }); await sleep(400);
+      const pOld = patch('g2 sw one').then((r) => { oldDone.t = Date.now() - t0; return r; }), sawOld = await waitFor(c, WAIT_OLDWRITE, 5000, pOld), flipSent = Date.now() - t0;
       const pFlip = sql(SW_FLIP).then((r) => { flipDone.t = Date.now() - t0; return r; });
       const [rOld, rFlip, hr] = await Promise.all([pOld, pFlip, hold]);
       c.check('OLDER WRITE FIRST: the older write (already in flight) committed: 200', rOld.status === 200 && hr.ok, rOld.status + ' ' + rOld.code);
-      c.check('OLDER WRITE FIRST: the UPDATE that opens the catalog WAITED for the older write that was in flight (it could only be sent after the older write had taken its share lock on the switch row): it took more than 1.2 s although it is a single quick statement', rFlip.ok && oldDone.t > 0 && flipDone.t - 400 >= 1200, JSON.stringify({ older_done_ms: oldDone.t, opening_done_ms: flipDone.t })); c.note('older_first', { older_done_ms: oldDone.t, opening_done_ms: flipDone.t });
-      c.check('the older write took effect (it was before the opening)', (await c.q(SW_DESC))[0].a === 'g2 sw one', 'the description is not the one written');
+      c.check('OLDER WRITE FIRST: the older write was SEEN waiting for its row lock (so it already held its share lock on the switch row) when the opening was sent, and the UPDATE that opens the catalog WAITED for it: it took at least 0.8 s although it is a single quick statement (and the older write, committed first, took effect: the next check)', sawOld && rFlip.ok && oldDone.t > 0 && flipDone.t - flipSent >= 800, JSON.stringify({ older_seen_waiting: sawOld, older_done_ms: oldDone.t, opening_sent_ms: flipSent, opening_done_ms: flipDone.t })); c.note('older_first', { older_seen_waiting: sawOld, older_done_ms: oldDone.t, opening_sent_ms: flipSent, opening_done_ms: flipDone.t });
+      c.check('the older write took effect (it was before the opening)', (await descNow()) === 'g2 sw one', 'the description is not the one written');
       exp(c, 'AFTER THE OPENING an older edit is refused', await patch('g2 sw two'), 409, 'managed_in_catalog');
       exp(c, 'AFTER THE OPENING an older create is refused', await call('POST', '/services', { name: c.runId + ' swother', topic: 'g2', description: '' }), 409, 'managed_in_catalog');
-      c.check('and nothing was written by the refused ones', (await c.q(SW_DESC))[0].a === 'g2 sw one', 'the description changed');
+      c.check('and nothing was written by the refused ones', (await descNow()) === 'g2 sw one', 'the description changed');
       exp(c, 'AFTER THE OPENING the catalog answers', await call('GET', '/catalog/overview'), 200);
       // 2. the opening is in flight when the older write comes
       const f2 = await sql(SW_SET_FALSE); if (!c.check('the switch is closed again for the second order', f2.ok, f2.ok ? '' : JSON.stringify(errInfo(f2.error)))) return;
       const flipTx = attempt(() => c.tx([SW_FLIP, SW_FLIP_SLOW], RAW_TX)); await sleep(500);
-      const w0 = Date.now(), rLate = await patch('g2 sw three'), lateMs = Date.now() - w0, ft = await flipTx;
+      const w0 = Date.now(), pLate = patch('g2 sw three'), sawLate = await waitFor(c, WAIT_OLDWRITE, 3500, pLate), rLate = await pLate, lateMs = Date.now() - w0, ft = await flipTx;
       c.check('OPENING FIRST: the opening committed', ft.ok, ft.ok ? '' : JSON.stringify(errInfo(ft.error)));
-      c.check('OPENING FIRST: an older write that started before the opening was visible WAITED for it and then changed NOTHING: 409 managed_in_catalog', rLate.status === 409 && rLate.code === 'managed_in_catalog' && lateMs >= 700, rLate.status + ' ' + rLate.code + ' in ' + lateMs + ' ms'); c.note('opening_first_wait_ms', lateMs);
-      c.check('and the service still holds what the first order wrote', (await c.q(SW_DESC))[0].a === 'g2 sw one', 'the description changed');
+      c.check('OPENING FIRST: an older write that started before the opening was visible WAITED for it and then changed NOTHING: 409 managed_in_catalog', sawLate && rLate.status === 409 && rLate.code === 'managed_in_catalog' && lateMs >= 700, rLate.status + ' ' + rLate.code + ' in ' + lateMs + ' ms, seen waiting: ' + sawLate); c.note('opening_first_wait_ms', lateMs); c.note('opening_first_seen_waiting', sawLate);
+      c.check('and the service still holds what the first order wrote', (await descNow()) === 'g2 sw one', 'the description changed');
     } finally {
       const back = await sql(SW_FLIP); c.check('the switch ends open, as it was found', back.ok && (await c.q(SW_VALUE))[0].a === 'true', back.ok ? 'not true' : JSON.stringify(errInfo(back.error)));
     }
