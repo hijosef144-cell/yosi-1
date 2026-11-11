@@ -32,20 +32,20 @@ const eng = (p, s) => one('SELECT activation, contact_state, agreement_state, pr
 const journal = (p, s) => q("SELECT actor, action, detail FROM audit_log WHERE entity = 'engagement' AND entity_id = $1 ORDER BY id", [p + '/' + s]);
 const options = (page) => page.locator('#ce-target option');
 
-test('the buttons of the cards: a new engagement from a provider (only an available one: not archived, not paused) and from a service; on an engagement only "update" and, for a draft, "move to pending"; never pause, retire, withdraw, activate or resume', async ({ page }) => {
+test('the buttons of the cards: a new engagement from a provider (only an available one: not archived, not paused) and from a service; on an engagement "update", for a draft "move to pending", and the controlled pause / return / reopen (stage 5b-2b-2, tests/e2e/catalog-lifecycle.spec.js); never retire, withdraw, activate or resume', async ({ page }) => {
   await open(page);
   await openProvider(page, 14); await expect(bar(page, 'engage')).toHaveText('התקשרות חדשה');
   await openProvider(page, 13); await expect(bar(page, 'engage')).toHaveCount(0); await expect(page.locator('.ce-bar')).toContainText('לנותן שירות בארכיון אי אפשר להוסיף התקשרות');
   await openProvider(page, 12); await expect(bar(page, 'engage')).toHaveCount(0); await expect(page.locator('.ce-bar')).toContainText('נותן שירות מושהה: אי אפשר להוסיף לו התקשרות חדשה עד שיחזור לזמינות');
   await openService(page, 7); await expect(bar(page, 'engage')).toHaveText('התקשרות חדשה');
-  const cases = [[11, 2, ['עדכון מעקב', 'העברה למצב ממתין לאישור'], null], [11, 1, ['עדכון מעקב'], null], [12, 3, [], 'ההתקשרות מושהית'], [13, 5, [], 'ההתקשרות הוצאה משימוש']];
+  const cases = [[11, 2, ['עדכון מעקב', 'העברה למצב ממתין לאישור'], null], [11, 1, ['עדכון מעקב', 'השהיה'], null], [12, 3, [], 'ההתקשרות מושהית'], [13, 5, [], 'ההתקשרות הוצאה משימוש']];   // 12 is a paused provider and 13 an archived one: no way back for their engagements
   for (const [p, s, buttons, sentence] of cases) {
     await openEngagement(page, p, s); await expect(page.locator('.ce-bar button')).toHaveText(buttons);
     if (sentence) await expect(page.locator('.ce-bar')).toContainText(sentence);
   }
   await q("UPDATE provider_services SET activation = 'active', agreement_state = 'signed', contact_state = 'active' WHERE professional_id = 11 AND service_id = 1");
-  await openEngagement(page, 11, 1); await expect(page.locator('.ce-bar button')).toHaveCount(0); await expect(page.locator('.ce-bar')).toContainText('ההתקשרות פעילה'); await expect(page.locator('.ce-bar')).toContainText('אינן זמינות במסך הזה');
-  for (const [p, s] of [[11, 1], [11, 2], [12, 3], [13, 5], [15, 1]]) { await openEngagement(page, p, s); expect(await page.locator('#ct-root').innerText()).not.toMatch(/להשהות|השהיית התקשרות|להוציא משימוש|משיכה|הפעלת התקשרות|לחדש/); }
+  await openEngagement(page, 11, 1); await expect(page.locator('.ce-bar button')).toHaveText(['השהיה']); await expect(page.locator('.ce-bar')).toContainText('ההתקשרות פעילה'); await expect(page.locator('.ce-bar')).toContainText('אינן זמינות במסך הזה');
+  for (const [p, s] of [[11, 1], [11, 2], [12, 3], [13, 5], [15, 1]]) { await openEngagement(page, p, s); expect(await page.locator('#ct-root').innerText()).not.toMatch(/להוציא משימוש|משיכה|הפעלת התקשרות|לחדש/); }
 });
 
 test('create from a provider card: pick a service (search narrows the list), an optional sheet id; ONE request, made already pending; the result is PENDING with no contact, no agreement, no price model; both steps are in the journal and shown', async ({ page }) => {
@@ -62,7 +62,7 @@ test('create from a provider card: pick a service (search narrows the list), an 
   expect(writes.map((w) => w.method + ' ' + w.path)).toEqual(['POST /catalog/engagements']);
   expect(writes[0].body).toEqual({ provider_id: 16, service_id: Number(chosen), activation: 'pending', external_ref: 'ZZ-01' }); expect(writes.every((w) => w.csrf === '1')).toBe(true);
   expect(await eng(16, Number(chosen))).toEqual({ activation: 'pending', contact_state: 'none', agreement_state: 'not_discussed', pricing_model: 'tbd', pricing_id: null, priority: 100, external_ref: 'ZZ-01', terms_note: null, updated_by: 'yosi@example.test' });
-  await expect(body(page).locator('h2').first()).toContainText('ייעוץ משכנתא'); await expect(body(page)).toContainText('ממתין לאישור'); await expect(page.locator('.ce-bar button')).toHaveText(['עדכון מעקב']);
+  await expect(body(page).locator('h2').first()).toContainText('ייעוץ משכנתא'); await expect(body(page)).toContainText('ממתין לאישור'); await expect(page.locator('.ce-bar button')).toHaveText(['עדכון מעקב', 'השהיה']);   // a pending engagement: update the tracking, or pause it (stage 5b-2b-2)
   const rows = await journal(16, Number(chosen)); expect(rows.map((r) => [r.actor, r.action, r.detail])).toEqual([['yosi@example.test', 'catalog.engagement.create', {}], ['yosi@example.test', 'catalog.engagement.submit', { from: 'draft', to: 'pending' }]]);
   await expect(page.locator('#ct-log')).toContainText('יצירת התקשרות'); await expect(page.locator('#ct-log')).toContainText('שליחת התקשרות לאישור'); await expect(page.locator('#ct-log')).toContainText('מצב: טיוטה ← ממתין לאישור');
   expect(Number((await one('SELECT count(*)::int AS n FROM provider_service_prices')).n)).toBe(pricesBefore);   // no price was touched

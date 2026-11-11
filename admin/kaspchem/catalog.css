@@ -127,6 +127,15 @@ fieldset.ce-field { border: 0; padding: 0; margin: .85rem 0; min-width: 0; }
 .ce-checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); gap: .45rem .8rem; }
 .ce-status:empty { display: none; }
 .ce-status { margin: .7rem 0 0; }
+/* the history tables (the change log, the clearance reports, the life cycle events): the last column of every .tbl does not wrap (admin.css), which squeezed the "who" column to one letter per line; here the details wrap, the time and the person keep their words whole */
+.ct-tbl.ct-hist th, .ct-tbl.ct-hist td { overflow-wrap: break-word; }
+.ct-tbl.ct-hist td:last-child { white-space: normal; overflow-wrap: anywhere; }
+@media (min-width: 701px) { .ct-tbl.ct-hist td:first-child { white-space: nowrap; } }
+/* the "what will change" table of the life cycle dialogs (stage 5b-2b-2): the first column keeps its words whole, the others wrap between words */
+.ce-conseq { width: 100%; }
+.ct-tbl.ce-conseq td, .ct-tbl.ce-conseq th { overflow-wrap: break-word; word-break: normal; vertical-align: top; }
+.ct-tbl.ce-conseq td:last-child { white-space: normal; }
+@media (min-width: 701px) { .ct-tbl.ce-conseq td:first-child, .ct-tbl.ce-conseq th:first-child { white-space: nowrap; } }
 .ce-warn, .ce-bad { border-radius: 10px; padding: .6rem .9rem; margin: .6rem 0; }
 .ce-warn { background: #fff6dc; border: 1px solid var(--gold); color: var(--ink); }
 .ce-bad { background: #fdecea; color: #8c2a1d; border: 1px solid #e3b4ad; }

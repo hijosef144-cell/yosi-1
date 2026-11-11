@@ -31,17 +31,17 @@ test('the editing module is wired: it loads after the catalog screens and before
   assert.equal(typeof sandbox.window.KaspchemCatalog.extend, 'function');
 });
 
-test('the ONLY requests it can send are the ten editing routes (providers, services, engagements); of the engagement actions only "submit"; everything else is refused before it leaves the page', () => {
-  assert.equal(T.ROUTES.length, 10);
+test('the ONLY requests it can send are the eleven editing routes (providers, services, engagements); of the engagement actions only "submit" and the three controlled ones (pause, return_to_review, reopen); everything else is refused before it leaves the page', () => {
+  assert.equal(T.ROUTES.length, 11);
   const ok = [['POST', '/catalog/providers'], ['PATCH', '/catalog/providers/12'], ['POST', '/catalog/providers/12/pause'], ['POST', '/catalog/providers/12/resume'], ['POST', '/catalog/providers/12/archive'], ['POST', '/catalog/providers/12/unarchive'],
     ['POST', '/catalog/services'], ['PATCH', '/catalog/services/3'], ['PUT', '/catalog/services/3/settings'], ['POST', '/catalog/services/3/clearance'],
-    ['POST', '/catalog/engagements'], ['PATCH', '/catalog/engagements/11/2'], ['POST', '/catalog/engagements/11/2/actions/submit']];
+    ['POST', '/catalog/engagements'], ['PATCH', '/catalog/engagements/11/2'], ['POST', '/catalog/engagements/11/2/actions/submit'], ['POST', '/catalog/engagements/11/2/actions/pause'], ['POST', '/catalog/engagements/11/2/actions/return_to_review'], ['POST', '/catalog/engagements/11/2/actions/reopen']];
   for (const [m, p] of ok) assert.equal(T.allowed(m, p), true, m + ' ' + p);
   const refused = [['DELETE', '/catalog/providers/12'], ['DELETE', '/catalog/services/3'], ['GET', '/catalog/providers'], ['POST', '/catalog/engagements/1/2/activate'],
     ['POST', '/catalog/engagements/1/2/submit'], ['POST', '/catalog/engagements/1/2/resume'], ['PUT', '/catalog/engagements/1/2/prices/market'], ['POST', '/catalog/imports/apply'], ['POST', '/catalog/imports/preview'], ['PUT', '/settings'], ['POST', '/services'],
     ['PATCH', '/services/3'], ['POST', '/professionals'], ['PUT', '/catalog/providers/12'], ['POST', '/catalog/providers/12/activate'], ['POST', '/catalog/providers/12/pause/extra'], ['PATCH', '/catalog/services/3/settings'],
     ['PUT', '/catalog/services/3'], ['POST', '/catalog/services/3/offer'], ['POST', '/catalog/services/3/clearance?x=1'], ['POST', '/catalog/providers/../services'], ['POST', '/catalog/providers/abc'], ['POST', '//catalog/providers'], ['POST', '/catalog/providers/'], ['post', '/catalog/providers'],
-    ...['activate', 'resume', 'withdraw', 'pause', 'retire', 'reopen', 'return_to_review', 'Submit', 'SUBMIT', 'submit/', 'submit/x', ''].map((a) => ['POST', '/catalog/engagements/1/2/actions/' + a]), ['DELETE', '/catalog/engagements/1/2'], ['PUT', '/catalog/engagements/1/2'], ['GET', '/catalog/engagements'], ['POST', '/catalog/engagements/1/2'],
+    ...['activate', 'resume', 'withdraw', 'retire', 'Submit', 'SUBMIT', 'submit/', 'submit/x', 'Pause', 'pause/', 'pause/x', 'reopen/', 'Reopen', 'return-to-review', 'return_to_review/', 'pause?x=1', ''].map((a) => ['POST', '/catalog/engagements/1/2/actions/' + a]), ['DELETE', '/catalog/engagements/1/2'], ['PUT', '/catalog/engagements/1/2'], ['GET', '/catalog/engagements'], ['POST', '/catalog/engagements/1/2'],
     ['PATCH', '/catalog/engagements/1'], ['PATCH', '/catalog/engagements/a/2'], ['POST', '/catalog/engagements/a/2/actions/submit'], ['POST', '/catalog/engagements/1/2/actions/submit?x=1'], ['POST', '/catalog/engagements/'], ['POST', '/catalog/engagements/1/2/actions'],
     ['PUT', '/catalog/engagements/1/2/prices/market'], ['POST', '/catalog/engagements/1/2/price-link']];
   for (const [m, p] of refused) assert.equal(T.allowed(m, p), false, m + ' ' + p);
@@ -263,23 +263,23 @@ test('the clearance history of a service lists every report and cancellation fro
   assert.ok(CATALOG.includes("clr.id = 'ct-clr'") && CATALOG.includes("if (entity === 'service')"), 'only a service card gets the clearance history');
 });
 
-test('engagements, stage 5b-2a: one is made PENDING by ONE request (nothing half-made), only draft and pending ones are edited, and there is no way to pause, retire, withdraw, activate or resume one from here', () => {
+test('engagements, stages 5b-2a and 5b-2b-2: one is made PENDING by ONE request (nothing half-made), only draft and pending ones are edited, and the only actions from here are submit and the three controlled ones (pause, return to review, reopen): no way to retire, withdraw, activate or resume one', () => {
   const sec = CODE.slice(CODE.indexOf('var ENGAGEMENT_FIELDS'), CODE.indexOf('function engagementBar') + 700);
   assert.ok(sec.length > 4000 && sec.includes('function submitStep') && sec.includes('function saveEngagement'), 'the engagement section was found');
-  assert.doesNotMatch(sec, /\/actions\/(?!submit)|button\('(pause|retire|withdraw|resume|activate)|(pause|retire|withdraw|resume|activate)(Engagement|Step|Only)|confirm: 'activate'/i, 'no route, button or function for pausing, retiring, withdrawing, activating or resuming');
+  assert.doesNotMatch(sec, /\/actions\/(?!submit|' \+ action)|button\('(retire|withdraw|resume|activate)|(retire|withdraw|resume|activate)(Engagement|Step|Only)|confirm: 'activate'/i, 'no route, button or function for retiring, withdrawing, activating or resuming');
   assert.match(sec, /var EDITABLE_STATES = \['draft', 'pending'\];/);
   // ONE request that ends pending: the creation has no second request, so there is nothing half-made to recover
   const create = sec.slice(sec.indexOf('function createEngagement'), sec.indexOf('function submitStep'));
   assert.ok(create.includes("var body = { provider_id: p, service_id: s, activation: 'pending' };") && create.includes("write(h, ctl, 'POST', '/catalog/engagements', body, {"));
   assert.doesNotMatch(create, /submitStep|seal\(|\/actions\//);
   assert.ok(sec.includes("'/actions/submit', { expected_activation: 'draft' }"), 'the step that remains is for a draft that already exists, and it says which state it saw');
-  assert.equal((sec.match(/\/actions\//g) || []).length, 1, 'exactly one engagement action path in the whole section');
+  assert.equal((sec.match(/\/actions\//g) || []).length, 2, 'exactly two engagement action paths in the whole section: the fixed one of "submit" and the one of the three controlled actions (built from the action name; tests/catalog-lifecycle-ui.test.js)');
   // one attempt per click: the retry button exists only for "the server was busy", and nothing calls the step by itself
   assert.ok(sec.includes("retry = dd.kind === 'busy'")); assert.doesNotMatch(sec, /setTimeout|setInterval/);
   // the buttons of an engagement card: draft gets "update" and "move to pending"; pending gets "update"; the other states get a sentence and no button
   const bar = sec.slice(sec.indexOf('function engagementBar'));
   assert.ok(bar.includes("if (editable) { html += button('edit', 'עדכון מעקב', '');") && bar.includes("if (act === 'draft') { html += button('submit', 'העברה למצב ממתין לאישור');"));
-  assert.equal((bar.match(/button\('/g) || []).length, 2, 'two buttons exist in the whole bar');
+  assert.equal((bar.match(/button\('/g) || []).length, 2, 'two fixed buttons exist in the whole bar; the others come from the table of the three controlled actions');
   for (const [state, sentence] of [['paused', /מושהית/], ['active', /פעילה/], ['retired', /הוצאה משימוש/]]) assert.match(CODE.match(new RegExp(state + ": '([^']*)'", 'g')).join(' '), sentence);
   // the words: not an activation, pending, a reported "signed", where a note is kept
   for (const text of ['ההפעלה אינה זמינה בשלב זה', 'ממתין לאישור', 'רישום ״חתום״ הוא דיווח שלכם', 'המערכת אינה מאמתת', 'נשמרת בכרטיס בלבד, לא ביומן', 'סדר תצוגה בלבד']) assert.ok(sec.includes(text), text);
@@ -347,7 +347,7 @@ test('the history of an engagement says what moved: the fields of an update (wha
   const s = L([{ created_at: '2026-11-11T10:00:00Z', actor: 'y@x.test', action: 'catalog.service.update', detail: { fields: ['active'], from: { active: false }, to: { active: true } } }], false); assert.match(s, /פעיל \(פנימי\): לא ← כן/);
   assert.doesNotMatch(html, /\bundefined\b|\bnull\b|NaN/);
   // the engagement card asks for its history under the id "provider/service", encoded
-  assert.ok(CATALOG.includes("loadChangeLog('engagement', d.engagement.provider_id + '/' + d.engagement.service_id)") && CATALOG.includes("tell('engagement', d)"));
+  assert.ok(CATALOG.includes("loadChangeLog('engagement', d.engagement.provider_id + '/' + d.engagement.service_id, d.engagement)") && CATALOG.includes("tell('engagement', d)"));
 });
 
 test('admin.js passes on only codes, messages and fields from a short safe list: no SQL, connection detail, personal detail or raw body reaches the screens', () => {
