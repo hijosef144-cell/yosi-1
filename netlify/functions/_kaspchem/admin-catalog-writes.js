@@ -411,7 +411,7 @@ route('POST', /^\/catalog\/imports\/apply$/, 'imports.apply', { path: '/catalog/
   if (!preview.ok) throw refusal(422, 'file_not_usable', { problems: preview.fileProblems }, 'הקובץ אינו תקין ולכן לא נשמר דבר.');
   if (preview.previewId !== b.previewId) throw new HttpError(409, 'preview_stale', 'התצוגה המקדימה כבר אינה תואמת לקובץ או לנתונים. יש להפיק תצוגה חדשה.');
   const plan = Imp.planApply(preview, b.approvals, snap.snapshot, { actor: c.me.email, previewId: b.previewId });
-  if (!plan.ok) { if (plan.reason === 'rows_refused') throw refusal(422, 'rows_refused', { refused: plan.refused }, 'חלק מהשורות שאושרו אינן ניתנות לשמירה, ולכן לא נשמר דבר.'); throw new HttpError(409, plan.reason === 'snapshot_changed' ? 'preview_stale' : plan.reason); }
+  if (!plan.ok) { if (plan.reason === 'rows_refused') throw refusal(422, 'rows_refused', { refused: plan.refused, codes: plan.refused.slice(0, 30).map((r) => 'r' + r.row + ':' + r.reason + (r.entity ? ':' + r.entity : r.why ? ':' + r.why : '')) }, 'חלק מהשורות שאושרו אינן ניתנות לשמירה, ולכן לא נשמר דבר.'); throw new HttpError(409, plan.reason === 'snapshot_changed' ? 'preview_stale' : plan.reason); }   // `codes`: the refused rows again, as short codes that the admin page lets through to the screens (row, reason, and the entity or the reason of the block)
   if (!plan.operations.length) return { applied: false, operations: {} };   // nothing approved changes anything: nothing is written, not even a log row
   Imp.assertSafe(plan.operations);   // the safety rules again, on the operations themselves, right before they are turned into SQL
   const ids = await W.reserveIds(plan.operations), log = Imp.importLog(preview, plan, c.me.email);

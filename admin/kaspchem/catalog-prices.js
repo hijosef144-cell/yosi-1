@@ -236,6 +236,8 @@
     var end = Math.min(r.offset + r.limit, r.total);
     return r.total > r.limit ? '<nav class="ct-pager" aria-label="דפדוף"><button type="button" class="btn sec" data-cpp="-1"' + (r.offset ? '' : ' disabled') + '>→ הקודם</button><span role="status">' + (r.offset + 1) + '–' + end + ' מתוך ' + r.total + '</span><button type="button" class="btn sec" data-cpp="1"' + (end >= r.total ? ' disabled' : '') + '>הבא ←</button></nav>' : '';
   }
+  // Entering the screen from the menu starts from the first view, with no filter and no search; the views and the filters then move inside the screen (drawScreen).
+  function enter(h, body) { var seq = S.seq; S = { view: 'by', q: '', filter: '', offset: 0, seq: seq }; drawScreen(h, body); }
   function drawScreen(h, body) {
     var my = ++S.seq, wrap = document.createElement('div'); wrap.className = 'cp'; body.innerHTML = ''; body.appendChild(wrap);   // a wrapper of its own per drawing: its listeners go with it
     wrap.innerHTML = '<h2 id="ct-h" tabindex="-1">מחירים</h2>' +
@@ -265,6 +267,6 @@
     load();
   }
 
-  C.extend({ afterDraw: afterDraw, screens: [{ key: 'prices', label: 'מחירים', after: 'engagements', draw: drawScreen }] });
+  C.extend({ afterDraw: afterDraw, screens: [{ key: 'prices', label: 'מחירים', after: 'engagements', draw: enter }] });
   root.KaspchemCatalogPrices = { _t: { layerProblems: layerProblems, layerFromForm: layerFromForm, bodyOf: bodyOf, sameLayer: sameLayer, layerRefine: layerRefine, priceRefine: priceRefine, USES: USES, LAYER_CODE: LAYER_CODE, KIND: KIND, FILTER_NAME: FILTER_NAME, toolsHtml: toolsHtml, byTable: byTable, rowsTable: rowsTable, whyNot: whyNot, rowState: rowState, toNumber: toNumber } };
 })(typeof window !== 'undefined' ? window : this);
