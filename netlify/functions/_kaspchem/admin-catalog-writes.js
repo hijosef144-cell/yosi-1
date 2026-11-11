@@ -359,12 +359,21 @@ route('PUT', /^\/catalog\/engagements\/(\d+)\/(\d+)\/prices\/(market|provider_of
   await writeOrDiagnose([...W.counted(dml, params), W.audit(c.me.email, 'catalog.price.' + (detail.created ? 'create' : 'update'), 'engagement', p + '/' + s, detail)], async () => (!(await exists()) ? new HttpError(404, 'not_found') : new HttpError(409, detail.created ? 'layer_exists' : 'conflict')));
   return { ok: true };
 });
-route('POST', /^\/catalog\/engagements\/(\d+)\/(\d+)\/prices\/(market|provider_offer|unclassified)\/classify$/, 'prices.classify', { path: '/catalog/engagements/1/1/prices/unclassified/classify', body: { to: 'market' } }, async (c, pid, sid, kind) => {
-  const p = idOf(pid), s = idOf(sid), b = fields(c, ['to']), to = oneOf(b.to, ['market', 'provider_offer'], 'bad_target');
+route('POST', /^\/catalog\/engagements\/(\d+)\/(\d+)\/prices\/(market|provider_offer|unclassified)\/classify$/, 'prices.classify', { path: '/catalog/engagements/1/1/prices/unclassified/classify', body: { to: 'market', expected_updated_at: '2026-01-01T00:00:00.000Z' } }, async (c, pid, sid, kind) => {
+  const p = idOf(pid), s = idOf(sid), b = fields(c, ['to', 'expected_updated_at']), to = oneOf(b.to, ['market', 'provider_offer'], 'bad_target');
   if (kind !== 'unclassified') throw bad('only_unclassified_can_be_classified');
-  const dml = "UPDATE provider_service_prices SET kind = $1, status = 'recorded', recorded_by = $2, updated_at = now() WHERE professional_id = $3::bigint AND service_id = $4::bigint AND kind = 'unclassified'";
-  try { await W.run([...W.counted(dml, [to, c.me.email, String(p), String(s)]), W.audit(c.me.email, 'catalog.price.classify', 'engagement', p + '/' + s, { from: 'unclassified', to })]); }
-  catch (e) { if (e.noRows) throw new HttpError(404, 'not_found'); if (e.code === 'duplicate') throw new HttpError(409, 'layer_exists'); throw e; }
+  // the classification applies to the value the person SAW: the version of the layer (updated_at) is required and compared inside the UPDATE itself, so a change made by someone else in between is never classified by mistake
+  if (b.expected_updated_at === undefined) throw bad('expected_required');
+  const at = typeof b.expected_updated_at === 'string' && !Number.isNaN(new Date(b.expected_updated_at).getTime()) ? new Date(b.expected_updated_at).toISOString() : (() => { throw bad('bad_expected_updated_at'); })();
+  const dml = "UPDATE provider_service_prices SET kind = $1, status = 'recorded', recorded_by = $2, updated_at = now() WHERE professional_id = $3::bigint AND service_id = $4::bigint AND kind = 'unclassified' AND date_trunc('milliseconds', updated_at) = $5::timestamptz";
+  try { await W.run([...W.counted(dml, [to, c.me.email, String(p), String(s), at]), W.audit(c.me.email, 'catalog.price.classify', 'engagement', p + '/' + s, { from: 'unclassified', to })]); }
+  catch (e) {
+    if (e.noRows) {   // nothing matched: the layer is gone (404), or it is not the version that was shown (409). Only the wording of the answer is decided here: the comparison itself was part of the UPDATE
+      const still = await db.query("SELECT 1 FROM provider_service_prices WHERE professional_id = $1::bigint AND service_id = $2::bigint AND kind = 'unclassified'", [String(p), String(s)]);
+      throw still.length ? new HttpError(409, 'conflict', 'הערך שונה מאז שנפתח חלון הסיווג, ולכן לא סווג ולא נשמר דבר. יש לרענן ולבדוק את הערך הנוכחי.') : new HttpError(404, 'not_found');
+    }
+    if (e.code === 'duplicate') throw new HttpError(409, 'layer_exists'); throw e;
+  }
   return { ok: true };
 });
 route('POST', /^\/catalog\/engagements\/(\d+)\/(\d+)\/link-price$/, 'prices.link', { path: '/catalog/engagements/1/1/link-price', body: { pricing_id: 1, expected_pricing_id: null } }, async (c, pid, sid) => {

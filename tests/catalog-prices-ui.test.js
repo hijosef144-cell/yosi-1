@@ -92,6 +92,7 @@ test('every request of the module goes through the dialog kit and its allow-list
   assert.ok(code.includes('h.get(\'/catalog/pricing-rows?service_id=') && code.includes("'/catalog/prices'"), 'the reads are the two read routes of the prices');
   // the dialog sends the version it saw (compare-and-set), and a form that changes nothing sends nothing
   assert.ok(code.includes('if (cur) body.expected_updated_at = cur.updated_at;') && code.includes('if (cur && sameLayer(l, cur))'));
+  assert.ok(code.includes('{ to: v.to, expected_updated_at: u.updated_at }'), 'the classification dialog sends the version of the layer it showed');
   assert.ok(code.includes('expected_pricing_id: ap ? ap.id : null') && code.includes('{ expected_pricing_id: ap.id }'));
   assert.match(EDIT, /\['PUT', \/\^\\\/catalog\\\/engagements\\\/\\d\+\\\/\\d\+\\\/prices\\\/\(market\|provider_offer\|unclassified\)\$\/\]/);
   assert.ok(SRC.startsWith('/* Catalog prices, stage 5b-3'));

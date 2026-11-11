@@ -106,7 +106,7 @@ test('CLASSIFY a value that has no kind yet: the person says what it is, it move
   const writes = await open(page);
   await openEngagement(page, 11, 2); await cp(page, 'classify').click(); await expect(dlg(page)).toContainText('8–10% מהתוצאה'); await expect(dlg(page)).toContainText('לא נוצר מחיר מאושר, ואין בכך הסכמה של הספק');
   await page.locator('#ce-to').selectOption('provider_offer'); await submit(page).click(); await expect(dlg(page)).toHaveCount(0); await ready(page);
-  expect(writes.length).toBe(1); expect(writes[0]).toMatchObject({ method: 'POST', path: '/catalog/engagements/11/2/prices/unclassified/classify', body: { to: 'provider_offer' } });
+  expect(writes.length).toBe(1); expect(writes[0]).toMatchObject({ method: 'POST', path: '/catalog/engagements/11/2/prices/unclassified/classify', body: { to: 'provider_offer' } }); expect(typeof writes[0].body.expected_updated_at).toBe('string');
   expect((await layer(11, 2, 'unclassified'))).toBeUndefined(); expect(await layer(11, 2, 'provider_offer')).toMatchObject({ model: 'percent_of_result', percent_low: 8, percent_high: 10, status: 'recorded' });
   expect((await journal(11, 2)).map((r) => [r.action, r.detail])).toEqual([['catalog.price.classify', { from: 'unclassified', to: 'provider_offer' }]]); await expect(page.locator('.ct-price-doc')).toContainText('8–10% מהתוצאה'); await expect(cp(page, 'classify')).toHaveCount(0);
   // a kind that exists: refused before anything is sent
@@ -197,4 +197,20 @@ test('text from the records is shown as text, never as markup: a source, an offe
   await page.keyboard.press('Escape'); await expect(dlg(page)).toHaveCount(0);
   await nav(page, 'מחירים'); await expect(body(page).locator('img, script')).toHaveCount(0); await page.locator('[data-cpv=rows]').click(); await expect(body(page)).toContainText('<img src=x'); await expect(body(page).locator('img, script')).toHaveCount(0);
   await openEngagement(page, 15, 5); await cp(page, 'link').click(); await expect(dlg(page)).toContainText('<img src=x'); await expect(dlg(page).locator('img, script')).toHaveCount(0); expect(await page.evaluate(() => window.__xss)).toBeUndefined();
+});
+
+test('CLASSIFY with a stale view: another owner changed the value after the dialog was opened, so nothing is classified (409), the box says what changed and offers a refresh, and with the fresh view it goes through', async ({ page }) => {
+  await q("DELETE FROM provider_service_prices WHERE professional_id = 11 AND service_id = 2 AND kind IN ('unclassified', 'market')");
+  await q("INSERT INTO provider_service_prices (professional_id, service_id, kind, model, amount, status, recorded_by) VALUES (11, 2, 'unclassified', 'fixed', 640, 'recorded', 'import:x')");
+  const writes = await open(page);
+  await openEngagement(page, 11, 2); await cp(page, 'classify').click(); await expect(dlg(page)).toContainText('640');
+  await q("UPDATE provider_service_prices SET amount = 660, recorded_by = 'avi@example.test', updated_at = now() + interval '2 seconds' WHERE professional_id = 11 AND service_id = 2 AND kind = 'unclassified'");
+  await q("INSERT INTO audit_log (actor, action, entity, entity_id, detail) VALUES ('avi@example.test', 'catalog.price.update', 'engagement', '11/2', '{}')");
+  await page.locator('#ce-to').selectOption('market'); await submit(page).click();
+  const panel = dlg(page).locator('.ce-panel'); await expect(panel).toContainText('השכבה השתנתה מאז שצפיתם בה'); await expect(panel).toContainText('avi@example.test'); await expect(panel).toContainText('לא נשמר דבר'); await expect(submit(page)).toBeHidden();
+  expect(writes.length).toBe(1); expect(writes[0].body).toMatchObject({ to: 'market' }); expect(typeof writes[0].body.expected_updated_at).toBe('string');
+  expect(await layer(11, 2, 'market')).toBeUndefined(); expect(await layer(11, 2, 'unclassified')).toMatchObject({ amount: 660 }); expect((await journal(11, 2)).filter((r) => r.action === 'catalog.price.classify')).toEqual([]);
+  await panel.locator('[data-ce=refresh]').click(); await ready(page); await expect(page.locator('.ct-price-doc')).toContainText('660');
+  await cp(page, 'classify').click(); await page.locator('#ce-to').selectOption('market'); await submit(page).click(); await expect(dlg(page)).toHaveCount(0); await ready(page);
+  expect(await layer(11, 2, 'market')).toMatchObject({ amount: 660, status: 'recorded' }); expect(await layer(11, 2, 'unclassified')).toBeUndefined(); expect(writes.length).toBe(2);
 });

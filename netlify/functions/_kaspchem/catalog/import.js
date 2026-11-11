@@ -282,7 +282,7 @@ function planApply(preview, approvals, existingNow, opts) {
   const wanted = (approvals && approvals.rows) || {}, byNumber = new Map(preview.rows.map((r) => [String(r.rowNumber), r]));
   const approved = Object.keys(wanted).filter((n) => wanted[n] && wanted[n].apply === true).sort((a, b) => Number(a) - Number(b));
   const known = { service: new Set(now.services.map((s) => String(s.id))), provider: new Set(now.providers.map((p) => String(p.id))) };
-  const created = { service: new Map(), provider: new Map() };           // name key -> ref of what an earlier approved row of this plan creates
+  const created = { service: new Map(), provider: new Map() };           // identity key -> what an earlier approved row of this plan resolved: { ref } of what it creates, or { id } of the existing record the owner chose for it
   const usedPairs = new Set(now.engagements.map((e) => e.professional_id + ':' + e.service_id));
   const usedRefs = new Set(now.engagements.filter((e) => e.external_ref).map((e) => String(e.external_ref)));
   const planned = new Set();
@@ -302,13 +302,13 @@ function planApply(preview, approvals, existingNow, opts) {
       if (!ans || !['existing', 'new'].includes(ans.use)) { no('decision_missing', { entity: d.entity }); bad = true; continue; }
       if (ans.use === 'existing') {
         if (!known[d.entity].has(String(ans.id))) { no('decision_unknown_id', { entity: d.entity }); bad = true; continue; }
-        if (d.entity === 'service') svc = { id: ans.id }; else prov = { id: ans.id };
+        if (d.entity === 'service') { svc = { id: ans.id }; created.service.set(rec.service.key, { id: ans.id }); } else { prov = { id: ans.id }; created.provider.set(rec.provider.key, { id: ans.id }); }   // the answer holds for every later row of the file with the same key (the same name; for a provider the same name AND business), not for a merely similar one
       }
     }
     if (bad) continue;
     const ensure = (entity, key, make) => {   // a reference to a record this plan creates, created once
-      if (!created[entity].has(key)) { const ref = entity + ':row' + row.rowNumber; created[entity].set(key, ref); myOps.push(make(ref)); }
-      return { ref: created[entity].get(key) };
+      if (!created[entity].has(key)) { const ref = entity + ':row' + row.rowNumber; created[entity].set(key, { ref }); myOps.push(make(ref)); }
+      return Object.assign({}, created[entity].get(key));
     };
     if (!svc) svc = row.service.action === 'existing' ? { id: row.service.id } : ensure('service', rec.service.key, (ref) => ({ op: 'create_service', ref, name: rec.service.name, topic: rec.service.topic || null, description: rec.service.description || null, active: false, source_row: row.rowNumber }));
     if (rec.provider && !prov) prov = row.provider.action === 'existing' ? { id: row.provider.id } : ensure('provider', rec.provider.key, (ref) => ({ op: 'create_provider', ref, name: rec.provider.name, business_name: rec.provider.business || null, contact_phone: rec.provider.phone || null, contact_email: rec.provider.email || null, source_row: row.rowNumber }));

@@ -394,3 +394,37 @@ test('a service with a public price: its topic change is shown but BLOCKED, appr
   const free = F.existing(); const q = preview(csvOf([{ domain: 'פנסיה', service: 'בדיקת זכאות להחזר מס', provider: 'דנה לבני', business: 'לבני מס', externalId: 'TX-01', contact: 'יצרתי קשר', agreement: 'טרם נדון', activation: 'ממתין' }]), free);
   assert.equal(rowOf(q, 2).changes.find((c) => c.id === 'service.topic').blocked, undefined); assert.deepEqual(opsOf(plan(q, { rows: { 2: { apply: true, accept: ['service.topic'] } } }, free), 'update_service').map((o) => o.set), [{ topic: 'פנסיה' }]);
 });
+
+test('R9 across the rows of ONE file: "use the existing one" holds for every later row with the same service key (the same name), a different service does not inherit it, "create a new one" keeps one record for the repeated rows, and a re-import never creates anything', () => {
+  const ex = F.existing(), file = csvOf([
+    { domain: 'נדל"ן', service: 'ייעוץ משכנתאות', provider: 'אבי רוזן', business: 'משרד רוזן', externalId: 'A-1' },
+    { domain: 'נדל"ן', service: ' ייעוץ  משכנתאות ', provider: 'שרון דוד', business: 'דוד פיננסים', externalId: 'A-2' },
+    { domain: 'משפט', service: 'הגשת ערר ארנונה', provider: 'מאיה גולן', business: 'גולן משפט', externalId: 'A-3' }]);
+  const p = preview(file, ex); assert.deepEqual(p.rows.map((r) => r.service.action), ['decision', 'same_as_row', 'new']); assert.equal(p.decisionsNeeded, 1, 'one question: the first row of the repeated name');
+  const r = plan(p, approveAll(p, { decisions: { 2: { service: { use: 'existing', id: 12 } } } }), ex); assert.equal(r.ok, true);
+  assert.deepEqual(opsOf(r, 'create_service').map((o) => o.name), ['הגשת ערר ארנונה'], 'the repeated name creates nothing: the owner chose the existing service');
+  const eng = opsOf(r, 'create_engagement'); assert.deepEqual(eng.map((o) => o.service), [{ id: 12 }, { id: 12 }, { ref: opsOf(r, 'create_service')[0].ref }], 'rows 2 and 3 are engagements of the existing service, the different service is its own');
+  assert.equal(opsOf(r, 'create_provider').length, 3, 'each row keeps its own provider');
+  // "create a new one": ONE record for the repeated name, as before
+  const fresh = plan(p, approveAll(p, { decisions: { 2: { service: { use: 'new' } } } }), ex); assert.equal(fresh.ok, true); assert.equal(opsOf(fresh, 'create_service').length, 2);
+  const fe = opsOf(fresh, 'create_engagement'); assert.equal(fe[0].service.ref, fe[1].service.ref, 'the two rows of the repeated name share the one new service'); assert.notEqual(fe[0].service.ref, fe[2].service.ref);
+  // a re-import of the same file after it was saved creates nothing again (a row that cannot be matched is refused as a problem, never duplicated)
+  const state = SIM.applyOps(ex, r.operations), p2 = preview(file, state);
+  assert.equal(state.services.length, ex.services.length + 1); assert.equal(state.engagements.filter((e) => e.service_id === 12).length, 3, 'service 12 has its old engagement and the two of the file');
+  assert.ok(p2.rows.every((x) => ['unchanged', 'problem'].includes(x.status)), 'no row of the second preview is new'); assert.equal(plan(p2, approveAll(p2), state).operations.length, 0, 'the second import creates nothing');
+});
+
+test('R9 for providers: the answer for a provider holds for the later rows of the SAME provider (same name and business) and not for the same name with another business, which asks its own question', () => {
+  const ex = F.existing(), file = csvOf([
+    { domain: 'מסים', service: 'הגשת ערר ארנונה', provider: 'דנה לבנאי', business: 'לבני מס', externalId: 'B-1' },
+    { domain: 'מסים', service: 'תכנון צוואה', provider: 'דנה לבנאי', business: 'לבני מס', externalId: 'B-2' },
+    { domain: 'מסים', service: 'בדיקת ביטוח רכב', provider: 'דנה לבנאי', business: 'עסק אחר לגמרי', externalId: 'B-3' }]);
+  const p = preview(file, ex); assert.deepEqual(p.rows.map((r) => [r.provider.action, (r.decisions || []).map((d) => d.type)]), [['decision', ['similar_provider']], ['same_as_row', []], ['decision', ['same_name_other_business']]]);
+  const r = plan(p, approveAll(p, { decisions: { 2: { provider: { use: 'existing', id: 21 } }, 4: { provider: { use: 'new' } } } }), ex); assert.equal(r.ok, true);
+  assert.deepEqual(opsOf(r, 'create_provider').map((o) => [o.name, o.business_name]), [['דנה לבנאי', 'עסק אחר לגמרי']], 'only the other business is a new provider');
+  assert.deepEqual(opsOf(r, 'create_engagement').map((o) => o.provider), [{ id: 21 }, { id: 21 }, { ref: opsOf(r, 'create_provider')[0].ref }], 'rows 1 and 2 are the existing provider, row 3 the new one');
+  // the other business needs its OWN answer: the first answer is not carried over to it
+  const noOwn = plan(p, approveAll(p, { decisions: { 2: { provider: { use: 'existing', id: 21 } } } }), ex); assert.equal(noOwn.ok, false); assert.deepEqual(noOwn.refused, [{ row: 4, reason: 'decision_missing', entity: 'provider' }]);
+  // a re-import creates nothing again
+  const state = SIM.applyOps(ex, r.operations), p2 = preview(file, state); assert.ok(p2.rows.every((x) => ['unchanged', 'problem'].includes(x.status)), 'no row of the second preview is new'); assert.equal(plan(p2, approveAll(p2), state).operations.length, 0);
+});

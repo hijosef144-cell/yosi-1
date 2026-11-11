@@ -188,8 +188,8 @@ test('price layers: market, offer to Kaspchem and unclassified are kept apart; c
   assert.equal((await w.call('PUT', '/catalog/engagements/9/9/prices/market', YOSI, j({ layer: { model: 'fixed', amount: 5 } }))).body.error, 'not_found');
   // classify
   assert.equal((await w.call('POST', base + '/prices/unclassified/classify', YOSI, j({ to: 'offer' }))).body.error, 'bad_target'); assert.equal((await w.call('POST', base + '/prices/market/classify', YOSI, j({ to: 'provider_offer' }))).body.error, 'only_unclassified_can_be_classified');
-  assert.equal((await w.call('POST', base + '/prices/unclassified/classify', YOSI, j({ to: 'market' }))).body.error, 'layer_exists', 'the market layer already exists: a person must decide which wins');
-  assert.equal((await w.call('POST', '/catalog/engagements/21/11/prices/unclassified/classify', YOSI, j({ to: 'market' }))).status, 200); card = (await w.call('GET', '/catalog/engagements/21/11', YOSI)).body.price_layers; assert.deepEqual([card.market.amount, card.unclassified], [1200, null]); assert.equal((await w.call('POST', '/catalog/engagements/21/11/prices/unclassified/classify', YOSI, j({ to: 'market' }))).body.error, 'not_found');
+  assert.equal((await w.call('POST', base + '/prices/unclassified/classify', YOSI, j({ to: 'market', expected_updated_at: card.unclassified.updated_at }))).body.error, 'layer_exists', 'the market layer already exists: a person must decide which wins');
+  const tok = (await w.call('GET', '/catalog/engagements/21/11', YOSI)).body.price_layers.unclassified.updated_at; assert.equal((await w.call('POST', '/catalog/engagements/21/11/prices/unclassified/classify', YOSI, j({ to: 'market', expected_updated_at: tok }))).status, 200); card = (await w.call('GET', '/catalog/engagements/21/11', YOSI)).body.price_layers; assert.deepEqual([card.market.amount, card.unclassified], [1200, null]); assert.equal((await w.call('POST', '/catalog/engagements/21/11/prices/unclassified/classify', YOSI, j({ to: 'market', expected_updated_at: tok }))).body.error, 'not_found');
   assert.deepEqual(await w.fingerprint(['pricing', 'settings', 'provider_service_compensation']), pricingBefore, 'the approved-price table, the settings and the commission table are exactly as before');
   assert.deepEqual((await w.audits("action LIKE 'catalog.price.%'")).map((a) => a.action), ['catalog.price.create', 'catalog.price.create', 'catalog.price.create', 'catalog.price.update', 'catalog.price.classify']); await w.pg.close();
 });
@@ -287,4 +287,31 @@ test('the clearance cannot be attributed to anyone else: no field of the request
   const w = await world(); await w.open(); await w.call('PUT', '/catalog/services/12/settings', YOSI, j({ code: 'mortgage-advice' }));
   for (const extra of [{ by: 'someone-else' }, { legal_cleared_by: 'someone-else' }, { actor: 'someone-else' }, { cleared_by: 'someone-else' }]) assert.equal((await w.call('POST', '/catalog/services/12/clearance', YOSI, j(Object.assign({ cleared: true, expected_cleared: false }, extra)))).body.error, 'unknown_field', JSON.stringify(extra));
   assert.equal((await w.owner('SELECT legal_cleared FROM service_settings WHERE service_id = 12'))[0].legal_cleared, false); await w.pg.close();
+});
+
+test('classification of a price layer is compare-and-set on the version the person saw: a change made by someone else in between is never classified by mistake (409, nothing saved, a clear sentence), and the comparison is part of the one UPDATE', async () => {
+  const w = await world(); await w.open(); const base = '/catalog/engagements/22/12';
+  const put = (kind, layer, extra, who) => w.call('PUT', base + '/prices/' + kind, who || YOSI, j(Object.assign({ layer }, extra || {})));
+  const cls = (to, at) => w.call('POST', base + '/prices/unclassified/classify', YOSI, j(at === undefined ? { to } : { to, expected_updated_at: at }));
+  const layersNow = async () => (await w.call('GET', base, YOSI)).body.price_layers;
+  assert.equal((await put('unclassified', { model: 'fixed', amount: 700 })).status, 200);
+  // the version is required, and must be a time
+  const none = await cls('market'); assert.deepEqual([none.status, none.body.error], [400, 'expected_required']); assert.equal((await cls('market', 'x')).body.error, 'bad_expected_updated_at'); assert.equal((await cls('market', 5)).body.error, 'bad_expected_updated_at');
+  const seen = (await layersNow()).unclassified.updated_at;
+  // the second owner edits the layer after the first one opened the dialog
+  assert.equal((await put('unclassified', { model: 'fixed', amount: 999 }, { expected_updated_at: seen }, AVI)).status, 200);
+  const fp = await w.fingerprint(['provider_service_prices', 'pricing', 'settings']), audits = (await w.audits("action = 'catalog.price.classify'")).length;
+  const stale = await cls('provider_offer', seen); assert.deepEqual([stale.status, stale.body.error], [409, 'conflict']);
+  assert.match(stale.body.message, /הערך שונה מאז שנפתח חלון הסיווג/); assert.match(stale.body.message, /לא נשמר דבר/); assert.match(stale.body.message, /יש לרענן/);
+  let layers = await layersNow(); assert.deepEqual([layers.unclassified.amount, layers.provider_offer], [999, null], 'still unclassified, with the value the other owner wrote');
+  assert.deepEqual(await w.fingerprint(['provider_service_prices', 'pricing', 'settings']), fp, 'nothing moved'); assert.equal((await w.audits("action = 'catalog.price.classify'")).length, audits, 'no journal row for a classification that did not happen');
+  // with the version of what is there now it works, and only then the layer moves, as it is
+  const now = layers.unclassified.updated_at; assert.notEqual(now, seen); assert.equal((await cls('provider_offer', now)).status, 200);
+  layers = await layersNow(); assert.deepEqual([layers.unclassified, layers.provider_offer.amount, layers.provider_offer.recorded_by], [null, 999, YOSI]);
+  // a layer that is gone: 404, not a "changed" message
+  assert.equal((await cls('market', now)).body.error, 'not_found');
+  // the comparison is inside the UPDATE statement itself, not a look before it
+  const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'netlify', 'functions', '_kaspchem', 'admin-catalog-writes.js'), 'utf8').replace(/\r\n/g, '\n');
+  assert.ok(/UPDATE provider_service_prices SET kind = \$1[^"]*kind = 'unclassified' AND date_trunc\('milliseconds', updated_at\) = \$5::timestamptz"/.test(src), 'the version is compared in the same UPDATE that classifies');
+  await w.pg.close();
 });

@@ -136,7 +136,7 @@
       intro: '<p><strong>' + esc(e.provider_name) + ' ← ' + esc(e.service_name) + '</strong></p><p>הערך: <strong>' + esc(T.priceText(u)) + '</strong></p><p>הערך יעבור לשכבה שתבחרו, כמות שהוא. המחיר אינו משתנה, לא נוצר מחיר מאושר, ואין בכך הסכמה של הספק.</p>',
       fields: K.field('to', 'מה הערך הזה', K.select('to', [['market', 'מחיר שוק (מדווח, לידיעה בלבד)'], ['provider_offer', 'הצעת הספק (מוצע, ללא הסכמה)']], 'market'), 'אם כבר קיימת שכבה כזו, הסיווג נדחה ולא נשמר דבר.'),
       submit: 'לסווג', check: function (v) { return have[v.to] ? { field: 'to', message: 'כבר קיימת שכבת ״' + KIND[v.to].title + '״. יש לערוך אותה קודם.' } : null; },
-      onSubmit: function (v) { K.write(h, ctl, 'POST', path, { to: v.to }, { refine: layerRefine, ok: function () { ctl.close(); K.toast('הערך סווג כ' + KIND[v.to].title); h.reload(); }, stale: function (dd) { K.stale(h, ctl, e.provider_id, e.service_id, dd.message); }, conflict: function () { K.stale(h, ctl, e.provider_id, e.service_id, 'השכבה השתנתה מאז שצפיתם בה.'); } }); } });
+      onSubmit: function (v) { K.write(h, ctl, 'POST', path, { to: v.to, expected_updated_at: u.updated_at }, { refine: layerRefine, ok: function () { ctl.close(); K.toast('הערך סווג כ' + KIND[v.to].title); h.reload(); }, stale: function (dd) { K.stale(h, ctl, e.provider_id, e.service_id, dd.message); }, conflict: function () { K.stale(h, ctl, e.provider_id, e.service_id, 'השכבה השתנתה מאז שצפיתם בה.'); } }); } });
   }
 
   /* ---------- the approved price: link one of the older "תמחור" tab, or let go of it ---------- */
