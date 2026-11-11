@@ -92,3 +92,12 @@ test('the HTTP guard lets a stage send only the single (non-read) statements it 
   assert.ok((G.STAGES['proof-race'].allowSingle || []).some((re) => re.test(priceInsert)), 'only the race stage may');
   for (const id of Object.keys(G.STAGES).filter((k) => /^proof-/.test(k))) { assert.ok(G.STAGES[id].maxRequests >= 200, id + ' has its own request cap'); assert.deepEqual(G.STAGES[id].needs, ['atomic-import']); assert.equal(G.STAGES[id].independent, true); }
 });
+
+test('a clipboard that another program holds for a moment is retried; a lock that does not end still stops the run before anything is sent', async () => {
+  { const { em } = await seqWorld(), file = stateFile(); let reads = 0, content = GOOD;
+    const clip = { read: async () => { reads++; if (reads >= 2 && reads <= 6) throw new Error('clipboard_unavailable'); return content; }, clear: async () => { content = ''; }, historyEnabled: async () => false };
+    const r = await L.run(argv(['--state=' + file]), deps(em, { clipboard: clip })); assert.equal(r.code, 0, text(r)); assert.ok(reads > 6, 'it read again after the failures'); assert.equal(content, '', 'and the string was cleared'); }
+  { const { em } = await seqWorld(), file = stateFile(); let reads = 0;
+    const clip = { read: async () => { reads++; if (reads >= 2) throw new Error('clipboard_unavailable'); return ''; }, clear: async () => {}, historyEnabled: async () => false };
+    const r = await L.run(argv(['--state=' + file]), deps(em, { clipboard: clip })); assert.equal(r.code, 2); assert.ok(/clipboard could not be read/.test(text(r))); assert.equal(em.requests.length, 0, 'nothing was sent'); assert.ok(reads <= 43, 'it gave up after a bounded number of tries'); }
+});

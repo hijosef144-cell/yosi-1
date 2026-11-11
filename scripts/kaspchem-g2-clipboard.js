@@ -129,10 +129,12 @@ async function run(argv, deps) {
     out('READY. Stages: ' + args.stages.join(' -> ') + ' on endpoint ' + args.endpoint + ' as kaspchem_app. ' + (seq ? SEQUENCE_NOTE + ' (approved by name with --allow-writes=' + args.allowWrite + ').' : writing ? WRITE_NOTES[args.stages[0]] + ' (approved by name with --allow-writes=' + args.allowWrite + ').' : 'Nothing is written by these stages.'));
     out('NOW: in the Neon console open the CHILD branch, role kaspchem_app, and press "Copy snippet" for the connection string. Copy nothing else until this script says it has the string. Waiting up to ' + args.wait + ' seconds.');
     if (history === true) out('NOTE: Windows clipboard history is ON, so the copied string will also be kept in Win+V history. This script clears the clipboard but does not delete your other history items: after the run press Win+V and choose "Clear all".');
-    const start = clock(); let rejected = 0;
+    const start = clock(); let rejected = 0, readFailures = 0;
     while (url === null) {
       if (clock() - start > args.wait * 1000) { out('TIMEOUT: no usable connection string was copied. Nothing was run and the clipboard was not touched.'); return { code: 2, lines, results: [] }; }
-      const found = extractUrl(await clipboard.read());
+      // the clipboard is sometimes held by another program for a moment (right when it is copied into): one failed read is not the end, a long run of them is (it was readable at the start, so it is a lock, not a missing clipboard)
+      let seen = null; try { seen = await clipboard.read(); readFailures = 0; } catch (e) { if (!(e && e.message === 'clipboard_unavailable') || ++readFailures > 40) throw e; }
+      const found = seen === null ? null : extractUrl(seen);
       if (found) {
         let reason = null;
         try { const c = G.parseConnection(found); if (c.pooler) reason = 'it is a pooled address (use the direct one)'; else if (c.endpoint !== args.endpoint) reason = 'its endpoint is not ' + args.endpoint; } catch (e) { reason = e.message.replace(/^KASPCHEM_G2_DATABASE_URL /, 'the string '); }
