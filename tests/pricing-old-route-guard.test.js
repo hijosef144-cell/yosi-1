@@ -71,14 +71,26 @@ test('the other older pricing routes are untouched, even for a price linked to a
   assert.equal((await w.call('PATCH', '/pricing/7', YOSI, { body: BASE, noCsrf: true })).status, 403);
 });
 
-test('where the catalog tables do not exist yet (before their migration) the route is exactly what it was, with no reference to them in the way; where they exist but cannot be read the route fails CLOSED and changes nothing', async () => {
-  const w = await world(); await w.open();
-  await w.owner('DROP TRIGGER IF EXISTS kc_pricing_guard ON pricing');   // a database before the catalog tables cannot have migration 003 (its trigger needs provider_services): only matters when the world has the guard
-  await w.owner('DROP TABLE provider_service_prices, provider_service_compensation, provider_services CASCADE');
-  const r = await patch(w, 7, Object.assign({}, BASE, { price: 1400 })); assert.deepEqual([r.status, r.body], [200, { ok: true }]); assert.equal((await priceRow(w, 7)).price, 1400);
-  const w2 = await world(); await w2.open(); await setEng(w2, STATES[0][1]); await w2.owner('REVOKE SELECT ON provider_services FROM kaspchem_app');
-  const fp = await w2.fingerprint(['pricing']), r2 = await patch(w2, 7, BASE);
-  assert.ok(r2.status >= 500, 'an unreadable guard is an error, not a pass: ' + r2.status); assert.deepEqual(await w2.fingerprint(['pricing']), fp, 'nothing changed'); assert.equal((await priceRow(w2, 7)).approved, true);
+test('THE THREE STATES of the database: before migration 002 the older route is exactly what it was; after 002 and before the grants (the tables exist, the application role cannot read them) it is STILL exactly what it was, with no permission error; after the grants the guard applies', async () => {
+  const REVOKES = require('../scripts/kaspchem-grants.js').loadStatements('rollback');   // the three REVOKEs of db/grants/m1-app-grants.rollback.sql: they put kaspchem_app back to "no privilege on the catalog tables"
+  const canRead = async (w) => (await w.owner("SELECT has_table_privilege('kaspchem_app', 'public.provider_services', 'SELECT') AS x"))[0].x;
+  // 1. before 002: no catalog tables at all, and nothing about them in the way
+  const w1 = await world(); await w1.open();
+  await w1.owner('DROP TRIGGER IF EXISTS kc_pricing_guard ON pricing');   // a database before the catalog tables cannot have migration 003 (its trigger needs provider_services): only matters when the world has the guard
+  await w1.owner('DROP TABLE provider_service_prices, provider_service_compensation, provider_services CASCADE');
+  const r1 = await patch(w1, 7, Object.assign({}, BASE, { price: 1400 })); assert.deepEqual([r1.status, r1.body], [200, { ok: true }]); assert.equal((await priceRow(w1, 7)).price, 1400);
+  // 2. after 002, before the grants: the tables exist and kaspchem_app has no privilege on them. The route used to answer 500 here although nothing was wrong; now it is what it was, journal row included
+  const w2 = await world(); await w2.open(); for (const s of REVOKES) await w2.owner(s);
+  assert.equal(await canRead(w2), false, 'the role cannot read the catalog table in this state');
+  const audits0 = (await pricingAudits(w2)).length, r2 = await patch(w2, 7, Object.assign({}, BASE, { price: 1450 }));
+  assert.deepEqual([r2.status, r2.body], [200, { ok: true }], 'no permission error: the older route behaves as before'); assert.equal((await priceRow(w2, 7)).price, 1450); assert.equal((await pricingAudits(w2)).length - audits0, 1, 'one journal row');
+  const missing = await patch(w2, 99999, BASE); assert.deepEqual([missing.status, missing.body], [200, { ok: true }], 'a price that does not exist has always answered ok');
+  // 3. after the grants: the guard applies (the application role can read the table, an ACTIVE engagement blocks the edit)
+  const w3 = await world(); await w3.open(); await setEng(w3, STATES[0][1]); assert.equal(await canRead(w3), true);
+  const fp3 = await w3.fingerprint(['pricing']), r3 = await patch(w3, 7, BASE); assert.deepEqual([r3.status, r3.body.error], [409, 'price_linked_to_active_engagement']); assert.deepEqual(await w3.fingerprint(['pricing']), fp3, 'nothing changed');
+  // the corner: the grants taken back while an engagement is active. The application check is skipped (the role cannot read), and with migration 003 in place the DATABASE refuses the edit, mapped to the same 409
+  const w4 = await world({ guard003: true }); await w4.open(); await setEng(w4, STATES[0][1]); for (const s of REVOKES) await w4.owner(s);
+  const fp4 = await w4.fingerprint(['pricing']), r4 = await patch(w4, 7, BASE); assert.deepEqual([r4.status, r4.body.error], [409, 'price_linked_to_active_engagement'], 'the trigger of 003 still protects'); assert.deepEqual(await w4.fingerprint(['pricing']), fp4); assert.equal((await priceRow(w4, 7)).approved, true);
 });
 
 test('the guard is part of the UPDATE itself and the screen says it in words; the route keeps its shape for everything else', () => {
