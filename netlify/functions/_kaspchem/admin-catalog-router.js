@@ -6,6 +6,7 @@
 const { json, HttpError, parseBody, logError } = require('./http');
 const guards = require('./catalog-guards');
 const store = require('./catalog-store');
+const prices = require('./catalog-prices-store');
 const writes = require('./admin-catalog-writes');
 
 const MAX_ID = 9007199254740991;
@@ -42,6 +43,8 @@ const ROUTES = [
   { name: 'providers.get', re: /^\/catalog\/providers\/(\d+)$/, sample: '/catalog/providers/1', query: {}, run: (c, id) => store.getProvider(idOf(id), c.me.email) },
   { name: 'engagements.list', re: /^\/catalog\/engagements$/, sample: '/catalog/engagements', query: { provider_id: 'id', service_id: 'id', activation: ACTIVATION, pricing_model: MODELS }, run: (c) => store.listEngagements(c.q) },
   { name: 'engagements.get', re: /^\/catalog\/engagements\/(\d+)\/(\d+)$/, sample: '/catalog/engagements/1/1', query: {}, run: (c, p, s) => store.getEngagement(idOf(p), idOf(s)) },
+  { name: 'prices.list', re: /^\/catalog\/prices$/, sample: '/catalog/prices', query: { q: 'text', provider_id: 'id', service_id: 'id', filter: prices.FILTERS }, run: (c) => prices.listPrices(c.q) },
+  { name: 'pricing.rows', re: /^\/catalog\/pricing-rows$/, sample: '/catalog/pricing-rows', query: { q: 'text', service_id: 'id', for_provider_id: 'id', for_service_id: 'id' }, run: (c) => prices.listPricingRows(c.q) },
   { name: 'imports.list', re: /^\/catalog\/imports$/, sample: '/catalog/imports', query: {}, run: (c) => store.listImports(c.q) },
   { name: 'history', re: /^\/catalog\/history$/, sample: '/catalog/history', query: { entity: 'text', entity_id: 'text' }, run: (c) => store.listHistory(c.q) },
   { name: 'similar.services', re: /^\/catalog\/similar\/services$/, sample: '/catalog/similar/services', query: {}, run: () => store.similarServices() },

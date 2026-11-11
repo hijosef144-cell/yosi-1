@@ -1,10 +1,12 @@
-/* Catalog editing, stages 5b-1, 5b-2a and 5b-2b-2: providers and services (create, edit, states, service settings, the report of a legal clearance) and engagements (create as PENDING, edit the tracking by hand,
- * and the three controlled life cycle actions: pause, return to review, reopen).
+/* Catalog editing, stages 5b-1, 5b-2a, 5b-2b-2, 5b-3 and 5c: providers and services (create, edit, states, service settings, the report of a legal clearance) and engagements (create as PENDING, edit the tracking by hand,
+ * and the three controlled life cycle actions: pause, return to review, reopen). It is also the one place that lists every request the catalog screens may send, and it hands its dialog kit (`KaspchemCatalogEdit.kit`) to the two
+ * modules that use it for the prices (catalog-prices.js, stage 5b-3) and for the import of the sheet (catalog-import.js, stage 5c), which can therefore send nothing that is not listed here.
  * It plugs into the read-only catalog screens (catalog.js) and adds its buttons to them.
  *
  * What it never does:
- *   - it sends nothing but the eleven routes listed in ROUTES below (one helper, `send`, refuses every other path and method); of the engagement actions only `submit` (draft -> pending, part of creating one) and the controlled
- *     `pause`, `return_to_review` and `reopen`; no retire, no withdraw, no activation or resume, no price, no import, no delete; there is no button that activates an engagement, and none that goes round the closed activation switch;
+ *   - it sends nothing but the routes listed in ROUTES below (one helper, `send`, refuses every other path and method); of the engagement actions only `submit` (draft -> pending, part of creating one) and the controlled
+ *     `pause`, `return_to_review` and `reopen`; of the prices only the layers, their classification and the link of an approved price (never an approval, a publication or a price row of the older pricing screen); of the import only
+ *     the preview (it writes nothing) and the explicitly approved save; no retire, no withdraw, no activation or resume, no delete; there is no button that activates an engagement, and none that goes round the closed activation switch;
  *   - it never saves by itself: only a click on the button of an open form sends anything; closing a form sends nothing;
  *   - it never sends twice: the form is locked from the moment it sends, and a second click or a second Enter does nothing;
  *   - it never tries again by itself, whatever the answer; after an answer nobody can read ("unknown result") it offers a refresh and no resend;
@@ -20,7 +22,11 @@
   var ROUTES = [
     ['POST', /^\/catalog\/providers$/], ['PATCH', /^\/catalog\/providers\/\d+$/], ['POST', /^\/catalog\/providers\/\d+\/(pause|resume|archive|unarchive)$/],
     ['POST', /^\/catalog\/services$/], ['PATCH', /^\/catalog\/services\/\d+$/], ['PUT', /^\/catalog\/services\/\d+\/settings$/], ['POST', /^\/catalog\/services\/\d+\/clearance$/],
-    ['POST', /^\/catalog\/engagements$/], ['PATCH', /^\/catalog\/engagements\/\d+\/\d+$/], ['POST', /^\/catalog\/engagements\/\d+\/\d+\/actions\/submit$/], ['POST', /^\/catalog\/engagements\/\d+\/\d+\/actions\/(pause|return_to_review|reopen)$/]
+    ['POST', /^\/catalog\/engagements$/], ['PATCH', /^\/catalog\/engagements\/\d+\/\d+$/], ['POST', /^\/catalog\/engagements\/\d+\/\d+\/actions\/submit$/], ['POST', /^\/catalog\/engagements\/\d+\/\d+\/actions\/(pause|return_to_review|reopen)$/],
+    // stage 5b-3, the prices: a layer (create or update), the classification of a value that has no kind yet, the link of an approved price and its removal
+    ['PUT', /^\/catalog\/engagements\/\d+\/\d+\/prices\/(market|provider_offer|unclassified)$/], ['POST', /^\/catalog\/engagements\/\d+\/\d+\/prices\/unclassified\/classify$/], ['POST', /^\/catalog\/engagements\/\d+\/\d+\/link-price$/], ['POST', /^\/catalog\/engagements\/\d+\/\d+\/unlink-price$/],
+    // stage 5c, the import of the sheet: the preview (reads and compares, writes nothing) and the save of what the owners approved
+    ['POST', /^\/catalog\/imports\/preview$/], ['POST', /^\/catalog\/imports\/apply$/]
   ];
   function allowed(method, path) { return ROUTES.some(function (r) { return r[0] === method && r[1].test(path); }); }
   function send(ctx, method, path, body) {
@@ -735,5 +741,8 @@
   }
 
   C.extend({ afterDraw: afterDraw });
-  root.KaspchemCatalogEdit = { _t: { lifecycleAfter: lifecycleAfter, LIFE: LIFE, LIFE_FROM: LIFE_FROM, NEEDS_PROVIDER: NEEDS_PROVIDER, PROVIDER_BLOCK: PROVIDER_BLOCK, lifeRefine: lifeRefine, providerOk: providerOk, refusalReasons: refusalReasons, ENGAGEMENT_FIELDS: ENGAGEMENT_FIELDS, EDITABLE_STATES: EDITABLE_STATES, ROUTES: ROUTES, allowed: allowed, describe: describe, MSG: MSG, FIELD_OF: FIELD_OF, diffFields: diffFields, parseTags: parseTags, tagsProblem: tagsProblem, serviceCode: serviceCode, clearanceNote: clearanceNote, kindLabel: kindLabel, SOURCE_KINDS: SOURCE_KINDS, pauseUntilIso: pauseUntilIso, dupItems: dupItems, same: same, norm: norm, convert: convert, msg: msg } };
+  // The kit of the modules that come after this one (the prices, the import): the same dialog, the same one helper that writes, the same words. They can send only what ROUTES lists, because `send` is the only way out.
+  var kit = { esc: esc, toast: toast, field: field, input: input, textarea: textarea, select: select, readForm: readForm, openDialog: openDialog, write: write, send: send, describe: describe, msg: msg, same: same, norm: norm, lastChange: lastChange,
+    stale: function (h, ctl, p, s, headline) { return lifeStale(h, ctl, { provider_id: p, service_id: s }, headline); } };
+  root.KaspchemCatalogEdit = { kit: kit, _t: { lifecycleAfter: lifecycleAfter, LIFE: LIFE, LIFE_FROM: LIFE_FROM, NEEDS_PROVIDER: NEEDS_PROVIDER, PROVIDER_BLOCK: PROVIDER_BLOCK, lifeRefine: lifeRefine, providerOk: providerOk, refusalReasons: refusalReasons, ENGAGEMENT_FIELDS: ENGAGEMENT_FIELDS, EDITABLE_STATES: EDITABLE_STATES, ROUTES: ROUTES, allowed: allowed, describe: describe, MSG: MSG, FIELD_OF: FIELD_OF, diffFields: diffFields, parseTags: parseTags, tagsProblem: tagsProblem, serviceCode: serviceCode, clearanceNote: clearanceNote, kindLabel: kindLabel, SOURCE_KINDS: SOURCE_KINDS, pauseUntilIso: pauseUntilIso, dupItems: dupItems, same: same, norm: norm, convert: convert, msg: msg } };
 })(typeof window !== 'undefined' ? window : this);

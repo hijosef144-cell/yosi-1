@@ -228,7 +228,7 @@
   // Catalog screens (stage 5a, read only): everything they need from this file is handed over here; they only ever call api('GET', ...).
   function catalog() {
     if (!window.KaspchemCatalog) { view.innerHTML = H('קטלוג ספקים') + '<p class="panel">מסכי הקטלוג לא נטענו.</p>'; return; }
-    window.KaspchemCatalog.open({ api: api, view: view, fail: fail,
+    window.KaspchemCatalog.open({ api: api, view: view, fail: fail, go: go,
       topicName: function (t) { return topicNames[t] || t || ''; },
       topics: function () { return Object.keys(topicNames).map(function (k) { return [k, topicNames[k]]; }); } });
   }

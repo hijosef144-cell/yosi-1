@@ -39,7 +39,7 @@ test('which action each state offers: pending or active -> pause, paused -> retu
   assert.doesNotMatch(CODE, /actions\/(activate|resume|withdraw|retire)|confirm: 'activate'/, 'and nowhere else either');
   for (const a of ['activate', 'resume', 'withdraw', 'retire']) assert.equal(T.allowed('POST', '/catalog/engagements/1/2/actions/' + a), false, a);
   for (const a of ACTIONS) { assert.equal(T.allowed('POST', '/catalog/engagements/1/2/actions/' + a), true, a); assert.equal(T.allowed('GET', '/catalog/engagements/1/2/actions/' + a), false); assert.equal(T.allowed('PATCH', '/catalog/engagements/1/2/actions/' + a), false); assert.equal(T.allowed('POST', '/catalog/engagements/1/2/actions/' + a + '/'), false); assert.equal(T.allowed('POST', '/catalog/engagements/x/2/actions/' + a), false); }
-  assert.equal(T.ROUTES.length, 11);
+  assert.equal(T.ROUTES.length, 17, 'the eleven of the editing and the six of the prices and the import (tests/catalog-edit.test.js lists them all)');
 });
 
 test('the table of the dialog says what the server does, for EVERY combination of state, agreement and contact (one rule, not two): the screen and the state machine agree', () => {

@@ -31,19 +31,23 @@ test('the editing module is wired: it loads after the catalog screens and before
   assert.equal(typeof sandbox.window.KaspchemCatalog.extend, 'function');
 });
 
-test('the ONLY requests it can send are the eleven editing routes (providers, services, engagements); of the engagement actions only "submit" and the three controlled ones (pause, return_to_review, reopen); everything else is refused before it leaves the page', () => {
-  assert.equal(T.ROUTES.length, 11);
+test('the ONLY requests it can send are the seventeen routes of the catalog screens (providers, services, engagements, the prices, the import); of the engagement actions only "submit" and the three controlled ones (pause, return_to_review, reopen); never an approval or a publication of a price, never a deletion; everything else is refused before it leaves the page', () => {
+  assert.equal(T.ROUTES.length, 17);
+  for (const [m, p] of [['PUT', '/catalog/engagements/11/2/prices/market'], ['PUT', '/catalog/engagements/11/2/prices/provider_offer'], ['PUT', '/catalog/engagements/11/2/prices/unclassified'], ['POST', '/catalog/engagements/11/2/prices/unclassified/classify'], ['POST', '/catalog/engagements/11/2/link-price'], ['POST', '/catalog/engagements/11/2/unlink-price'], ['POST', '/catalog/imports/preview'], ['POST', '/catalog/imports/apply']]) assert.equal(T.allowed(m, p), true, m + ' ' + p);
+  for (const [m, p] of [['PUT', '/catalog/engagements/1/2/prices/other'], ['PUT', '/catalog/engagements/1/2/prices/market/'], ['PATCH', '/catalog/engagements/1/2/prices/market'], ['DELETE', '/catalog/engagements/1/2/prices/market'], ['POST', '/catalog/engagements/1/2/prices/market/classify'], ['POST', '/catalog/engagements/1/2/prices/provider_offer/classify'], ['POST', '/catalog/engagements/1/2/prices/unclassified/classify/'],
+    ['POST', '/catalog/engagements/1/2/approve-price'], ['POST', '/catalog/engagements/1/2/publish-price'], ['PUT', '/catalog/engagements/1/2/link-price'], ['GET', '/catalog/engagements/1/2/link-price'], ['POST', '/catalog/engagements/1/2/link-price?x=1'], ['POST', '/catalog/engagements/a/2/unlink-price'], ['POST', '/catalog/imports'], ['POST', '/catalog/imports/other'], ['GET', '/catalog/imports/preview'], ['PUT', '/catalog/imports/apply'], ['POST', '/catalog/imports/apply/'], ['DELETE', '/catalog/imports/apply'],
+    ['POST', '/pricing/7/approve'], ['PATCH', '/pricing/7'], ['POST', '/pricing'], ['POST', '/pricing/7/unpublish']]) assert.equal(T.allowed(m, p), false, m + ' ' + p);
   const ok = [['POST', '/catalog/providers'], ['PATCH', '/catalog/providers/12'], ['POST', '/catalog/providers/12/pause'], ['POST', '/catalog/providers/12/resume'], ['POST', '/catalog/providers/12/archive'], ['POST', '/catalog/providers/12/unarchive'],
     ['POST', '/catalog/services'], ['PATCH', '/catalog/services/3'], ['PUT', '/catalog/services/3/settings'], ['POST', '/catalog/services/3/clearance'],
     ['POST', '/catalog/engagements'], ['PATCH', '/catalog/engagements/11/2'], ['POST', '/catalog/engagements/11/2/actions/submit'], ['POST', '/catalog/engagements/11/2/actions/pause'], ['POST', '/catalog/engagements/11/2/actions/return_to_review'], ['POST', '/catalog/engagements/11/2/actions/reopen']];
   for (const [m, p] of ok) assert.equal(T.allowed(m, p), true, m + ' ' + p);
   const refused = [['DELETE', '/catalog/providers/12'], ['DELETE', '/catalog/services/3'], ['GET', '/catalog/providers'], ['POST', '/catalog/engagements/1/2/activate'],
-    ['POST', '/catalog/engagements/1/2/submit'], ['POST', '/catalog/engagements/1/2/resume'], ['PUT', '/catalog/engagements/1/2/prices/market'], ['POST', '/catalog/imports/apply'], ['POST', '/catalog/imports/preview'], ['PUT', '/settings'], ['POST', '/services'],
+    ['POST', '/catalog/engagements/1/2/submit'], ['POST', '/catalog/engagements/1/2/resume'], ['PUT', '/settings'], ['POST', '/services'],
     ['PATCH', '/services/3'], ['POST', '/professionals'], ['PUT', '/catalog/providers/12'], ['POST', '/catalog/providers/12/activate'], ['POST', '/catalog/providers/12/pause/extra'], ['PATCH', '/catalog/services/3/settings'],
     ['PUT', '/catalog/services/3'], ['POST', '/catalog/services/3/offer'], ['POST', '/catalog/services/3/clearance?x=1'], ['POST', '/catalog/providers/../services'], ['POST', '/catalog/providers/abc'], ['POST', '//catalog/providers'], ['POST', '/catalog/providers/'], ['post', '/catalog/providers'],
     ...['activate', 'resume', 'withdraw', 'retire', 'Submit', 'SUBMIT', 'submit/', 'submit/x', 'Pause', 'pause/', 'pause/x', 'reopen/', 'Reopen', 'return-to-review', 'return_to_review/', 'pause?x=1', ''].map((a) => ['POST', '/catalog/engagements/1/2/actions/' + a]), ['DELETE', '/catalog/engagements/1/2'], ['PUT', '/catalog/engagements/1/2'], ['GET', '/catalog/engagements'], ['POST', '/catalog/engagements/1/2'],
     ['PATCH', '/catalog/engagements/1'], ['PATCH', '/catalog/engagements/a/2'], ['POST', '/catalog/engagements/a/2/actions/submit'], ['POST', '/catalog/engagements/1/2/actions/submit?x=1'], ['POST', '/catalog/engagements/'], ['POST', '/catalog/engagements/1/2/actions'],
-    ['PUT', '/catalog/engagements/1/2/prices/market'], ['POST', '/catalog/engagements/1/2/price-link']];
+    ['POST', '/catalog/engagements/1/2/price-link']];
   for (const [m, p] of refused) assert.equal(T.allowed(m, p), false, m + ' ' + p);
 });
 
@@ -374,9 +378,9 @@ test('admin.js passes on only codes, messages and fields from a short safe list:
 });
 
 test('the editing buttons are added by the read-only screens only through one small hook, and the read-only file still never sends anything but GET', () => {
-  assert.match(CATALOG, /function extend\(e\) \{ EXT = e; \}/); assert.match(CATALOG, /EXT\.afterDraw\(kind, data, hooks\(\)\)/);
-  assert.match(CATALOG, /try \{ EXT\.afterDraw[\s\S]*?catch \(x\)/, 'a failure of the editing module never breaks the read-only screens');
+  assert.match(CATALOG, /function extend\(e\) \{ EXTS\.push\(e\); \}/); assert.match(CATALOG, /x\.afterDraw\(kind, data, hooks\(\)\)/);
+  assert.match(CATALOG, /try \{ x\.afterDraw[\s\S]*?catch \(err\)/, 'a failure of one editing module never breaks the read-only screens, nor the other modules');
   assert.equal((CATALOG.match(/ctx\.api\(/g) || []).length, 1); assert.match(CATALOG, /function get\(path\) \{ return ctx\.api\('GET', path\); \}/);
   assert.doesNotMatch(CATALOG, /ctx\.api\('(POST|PUT|PATCH|DELETE)'/);
-  assert.match(CATALOG, /modeLabel\(\) \{ return EXT \? 'צפייה ועריכה' : 'לקריאה בלבד'; \}/, 'the badge tells the truth in both situations');
+  assert.match(CATALOG, /modeLabel\(\) \{ return EXTS\.length \? 'צפייה ועריכה' : 'לקריאה בלבד'; \}/, 'the badge tells the truth in both situations');
 });

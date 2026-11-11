@@ -136,6 +136,41 @@ fieldset.ce-field { border: 0; padding: 0; margin: .85rem 0; min-width: 0; }
 .ct-tbl.ce-conseq td, .ct-tbl.ce-conseq th { overflow-wrap: break-word; word-break: normal; vertical-align: top; }
 .ct-tbl.ce-conseq td:last-child { white-space: normal; }
 @media (min-width: 701px) { .ct-tbl.ce-conseq td:first-child, .ct-tbl.ce-conseq th:first-child { white-space: nowrap; } }
+/* ===== Prices (stage 5b-3, catalog-prices.js: classes cp-) and the import of the sheet (stage 5c, catalog-import.js: classes cip-) ===== */
+.cp-tools { margin: 0 0 1rem; }
+.cp-legend { margin: 0 0 .6rem; }
+.cp-bar .btn, .cip .ce-bar .btn { min-height: 2.75rem; }
+.cp-agreed { margin: .6rem 0 0; }
+.cp-pick { border: 0; padding: 0; margin: 0; min-width: 0; }
+.cp-pick legend { font-weight: 700; margin-bottom: .3rem; }
+.cp-row { display: flex; gap: .6rem; align-items: flex-start; padding: .55rem .6rem; border: 1px solid var(--line); border-radius: 10px; margin: .35rem 0; font-weight: 400; cursor: pointer; }
+.cp-row input { width: 1.3rem; height: 1.3rem; flex: none; margin-top: .15rem; }
+.cp-row.cp-off { color: #577175; background: #f6f9f8; cursor: default; }
+.cp-views { margin-bottom: .8rem; }
+.cp-bar, .cp-views { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.cp-bar { margin: 0 0 .6rem; }
+@media (max-width: 560px) { .cp-bar .btn { flex: 1 1 auto; } }
+.cip-intro p { margin: .3rem 0; }
+.cip-counts { display: flex; flex-wrap: wrap; gap: .5rem 1.2rem; align-items: center; margin: .6rem 0; }
+.cip-row { background: #fff; border: 1px solid var(--line); border-inline-start: 6px solid #9db9b6; border-radius: 12px; padding: .7rem 1rem; margin: .7rem 0; }
+.cip-row.cip-new { border-inline-start-color: var(--teal-d); } .cip-row.cip-changed { border-inline-start-color: var(--gold); } .cip-row.cip-problem { border-inline-start-color: #8c2a1d; } .cip-row.cip-unchanged, .cip-row.cip-skipped { border-inline-start-color: #c7d6d4; background: #fafcfb; }
+.cip-h { margin: 0 0 .3rem; font-size: 1rem; display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; }
+.cip-ent { list-style: none; margin: .2rem 0; padding: 0; }
+.cip-ent li, .cip-notes li, .cip-changes li { margin: .25rem 0; }
+.cip-notes, .cip-changes ul { margin: .3rem 0; padding-inline-start: 1.2rem; }
+.cip-changes ul { list-style: none; padding: 0; }
+.cip-dec { border: 1px solid var(--line); border-radius: 10px; margin: .5rem 0; padding: .5rem .8rem; min-width: 0; }
+.cip-dec legend { font-weight: 700; padding: 0 .3rem; }
+.cip-apply { margin-top: .6rem; font-weight: 700; }
+.cip-map { display: flex; flex-wrap: wrap; gap: .5rem 1rem; align-items: center; margin: .5rem 0; }
+.cip-map label { flex: 1 1 14rem; }
+.cip-map select { min-height: 2.75rem; min-width: 12rem; }
+.cip-bottom { margin-top: 1rem; padding-top: .8rem; border-top: 2px solid var(--line); }
+.cip-sum, .cip-never { margin: .4rem 0; padding-inline-start: 1.2rem; }
+.cip-text { width: 100%; box-sizing: border-box; min-height: 16rem; font-family: monospace; font-size: .9rem; }
+.cip-load .row { align-items: end; }
+.cip input[type=file] { max-width: 100%; }
+@media (max-width: 700px) { .cip-map select { width: 100%; } .cip-row { padding: .6rem .7rem; } }
 .ce-warn, .ce-bad { border-radius: 10px; padding: .6rem .9rem; margin: .6rem 0; }
 .ce-warn { background: #fff6dc; border: 1px solid var(--gold); color: var(--ink); }
 .ce-bad { background: #fdecea; color: #8c2a1d; border: 1px solid #e3b4ad; }

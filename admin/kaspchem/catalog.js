@@ -244,7 +244,7 @@
       (e.paused_reason ? kv('סיבת השהיה', esc(e.paused_reason)) : '') + (e.retired_at ? kv('הוצא משימוש', whenH(e.retired_at) + (e.retired_reason ? ' · ' + esc(e.retired_reason) : '')) : '') +
       kv('עודכן לאחרונה', [mail(e.updated_by), whenH(e.updated_at)].filter(Boolean).join(' · ') || unset()) + '</dl>' + reopenNote(e) + '</div>' +
       '<div class="panel"><h3>מה חסר כדי שההתקשרות תהיה פעילה</h3>' + checklistHtml(d.checklist || {}) + '</div>' +
-      '<div class="panel"><h3>ארבע שכבות מחיר, בנפרד</h3>' + priceLinkNote(d) + priceSection(d) + '<p class="ct-small">מחירים אלה מוצגים לקריאה בלבד. אישור ופרסום של מחיר נעשים בלשונית ״תמחור״ הקיימת.</p></div>' +
+      '<div class="panel"><h3>ארבע שכבות מחיר, בנפרד</h3><div id="ct-price-tools"></div>' + priceLinkNote(d) + priceSection(d) + '<p class="ct-small">מחירים אלה מוצגים לקריאה בלבד. אישור ופרסום של מחיר נעשים בלשונית ״תמחור״ הקיימת.</p></div>' +
       '<div class="panel" id="ct-life"><h3>היסטוריית מחזור החיים</h3><div id="ct-life-body">' + loadingHtml() + '</div></div>';
   }
   function importsTable(r) {
@@ -399,15 +399,26 @@
   function qs(o) { var p = Object.keys(o).filter(function (k) { return o[k] !== '' && o[k] != null; }).map(function (k) { return k + '=' + encodeURIComponent(o[k]); }); return p.length ? '?' + p.join('&') : ''; }
   function fresh() { return { screen: 'overview', arg: null, stack: [], f: { providers: { q: '', state: '', offset: 0 }, services: { q: '', topic: '', active: '', offset: 0 }, engagements: { q: '', activation: '', model: '', contact: '', agreement: '', offset: 0 }, imports: { offset: 0 }, history: { entity: '', offset: 0 } }, eng: null }; }
 
-  // The editing module (catalog-edit.js) plugs in here when it is loaded: it is told when a screen has been drawn and may add its own buttons to it. This file itself stays READ ONLY:
-  // it never sends anything but GET, and the tests keep it that way.
-  var EXT = null;
-  function extend(e) { EXT = e; }
-  function modeLabel() { return EXT ? 'צפייה ועריכה' : 'לקריאה בלבד'; }
-  function hooks() { return { ctx: ctx, body: body, esc: esc, go: go, reload: function () { render(); }, get: get, lbl: lbl, when: when, whenH: whenH, mail: mail, num: num, fail: fail, labels: { ACTIVATION: ACTIVATION, CONTACT: CONTACT, AGREEMENT: AGREEMENT }, root: function () { return rootEl; } }; }
+  // The editing modules (catalog-edit.js, catalog-prices.js, catalog-import.js) plug in here when they are loaded: each is told when a screen has been drawn and may add its own buttons to it, and may add screens of its own
+  // (`screens: [{ key, label, before | after, draw(hooks, body) }]`). This file itself stays READ ONLY: it never sends anything but GET, and the tests keep it that way.
+  var EXTS = [];
+  function extend(e) { EXTS.push(e); }
+  function modeLabel() { return EXTS.length ? 'צפייה ועריכה' : 'לקריאה בלבד'; }
+  function extScreens() { var out = []; EXTS.forEach(function (e) { (e.screens || []).forEach(function (s) { out.push(s); }); }); return out; }
+  function screenList() {   // the built-in screens, with the screens of the modules put before or after the one they name (at the end if it is not there)
+    var list = SCREENS.map(function (s) { return s.slice(); });
+    extScreens().forEach(function (x) {
+      var at = list.map(function (s) { return s[0]; }).indexOf(x.before || x.after), entry = [x.key, x.label];
+      if (at === -1) list.push(entry); else list.splice(x.before ? at : at + 1, 0, entry);
+    });
+    return list;
+  }
+  function hooks() { return { ctx: ctx, body: body, esc: esc, go: go, reload: function () { render(); }, get: get, lbl: lbl, when: when, whenH: whenH, mail: mail, num: num, ils: ils, fail: fail, labels: { ACTIVATION: ACTIVATION, CONTACT: CONTACT, AGREEMENT: AGREEMENT }, root: function () { return rootEl; } }; }
   function tell(kind, data) {
-    if (!EXT || !EXT.afterDraw) return;
-    try { EXT.afterDraw(kind, data, hooks()); } catch (x) { if (root.console && root.console.error) root.console.error('catalog: the editing module failed', x); }
+    EXTS.forEach(function (x) {
+      if (!x.afterDraw) return;
+      try { x.afterDraw(kind, data, hooks()); } catch (err) { if (root.console && root.console.error) root.console.error('catalog: a module of the editing failed', err); }
+    });
   }
   // The change log of one provider or service, under its card: who changed what and when (the views of the card are left out). Read only, one GET.
   // An engagement card passes the engagement itself (`eng`): the same one request also fills the life cycle panel of the card (it never needs a second one).
@@ -422,7 +433,7 @@
   function open(c) {
     ctx = c; S = fresh(); seq++;
     c.view.innerHTML = '<div id="ct-root" class="ct"><div class="view-h"><h1>קטלוג ספקים</h1><span class="ct-ro">' + esc(modeLabel()) + '</span></div><nav class="ct-nav" aria-label="מסכי הקטלוג">' +
-      SCREENS.map(function (s) { return '<button type="button" data-ct="nav" data-v="' + s[0] + '">' + esc(s[1]) + '</button>'; }).join('') + '</nav><div id="ct-body" class="ct-body"></div></div>';
+      screenList().map(function (s) { return '<button type="button" data-ct="nav" data-v="' + s[0] + '">' + esc(s[1]) + '</button>'; }).join('') + '</nav><div id="ct-body" class="ct-body"></div></div>';
     rootEl = c.view.querySelector('#ct-root'); body = rootEl.querySelector('#ct-body');
     rootEl.addEventListener('click', onClick);
     rootEl.addEventListener('keydown', function (e) { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('tr[data-ct-row]')) { e.preventDefault(); openRow(e.target); } });
@@ -452,7 +463,9 @@
   function render() {
     paintNav(); seq++;
     var fn = { overview: scrOverview, providers: scrProviders, services: scrServices, engagements: scrEngagements, imports: scrImports, history: scrHistory, provider: scrProvider, service: scrService, engagement: scrEngagement }[S.screen];
-    fn();
+    if (fn) return fn();
+    var mine = extScreens().filter(function (x) { return x.key === S.screen; })[0];   // a screen of a module: it draws itself into the body and asks the server only through the hooks
+    if (mine) { try { mine.draw(hooks(), body); } catch (err) { if (root.console && root.console.error) root.console.error('catalog: drawing a screen of a module failed', err); body.innerHTML = errorHtml('server'); S.retry = render; } }
   }
   // Loads one thing into `target`. A slower earlier answer never overwrites a later screen.
   function load(path, target, done) {
@@ -599,7 +612,7 @@
 
   root.KaspchemCatalog = {
     open: open, extend: extend,
-    _t: { lifecycleHistoryHtml: lifecycleHistoryHtml, reopenNote: reopenNote, priceLinkNote: priceLinkNote, priceLacks: priceLacks, resetBits: resetBits, LIFE_EVENTS: LIFE_EVENTS, LIFE_NAME: LIFE_NAME, SERVICE_MISSING: SERVICE_MISSING, serviceNotReady: serviceNotReady, FIELD_NAMES: FIELD_NAMES, CHECK_LABELS: CHECK_LABELS, changeLogHtml: changeLogHtml, clearanceHistoryHtml: clearanceHistoryHtml, SOURCE_KIND: SOURCE_KIND, esc: esc, lbl: lbl, priceText: priceText, layerBody: layerBody, priceSection: priceSection, checklistHtml: checklistHtml, classify: classify, errorHtml: errorHtml, overviewHtml: overviewHtml, providersTable: providersTable, servicesTable: servicesTable,
+    _t: { actPill: actPill, ils: ils, screenList: screenList, lifecycleHistoryHtml: lifecycleHistoryHtml, reopenNote: reopenNote, priceLinkNote: priceLinkNote, priceLacks: priceLacks, resetBits: resetBits, LIFE_EVENTS: LIFE_EVENTS, LIFE_NAME: LIFE_NAME, SERVICE_MISSING: SERVICE_MISSING, serviceNotReady: serviceNotReady, FIELD_NAMES: FIELD_NAMES, CHECK_LABELS: CHECK_LABELS, changeLogHtml: changeLogHtml, clearanceHistoryHtml: clearanceHistoryHtml, SOURCE_KIND: SOURCE_KIND, esc: esc, lbl: lbl, priceText: priceText, layerBody: layerBody, priceSection: priceSection, checklistHtml: checklistHtml, classify: classify, errorHtml: errorHtml, overviewHtml: overviewHtml, providersTable: providersTable, servicesTable: servicesTable,
       engagementsTable: engagementsTable, providerHtml: providerHtml, serviceHtml: serviceHtml, engagementHtml: engagementHtml, importsTable: importsTable, historyTable: historyTable, emptyHtml: emptyHtml, priceChips: priceChips,
       labels: { ACTIVATION: ACTIVATION, CONTACT: CONTACT, AGREEMENT: AGREEMENT, MODEL: MODEL, PROVIDER_STATE: PROVIDER_STATE, DELIVERY: DELIVERY, LAYER_STATUS: LAYER_STATUS, ENTITY: ENTITY, ACTIONS: ACTIONS, ENFORCED: ENFORCED } }
   };

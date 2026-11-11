@@ -80,9 +80,9 @@ async function world() {
 }
 const PATHS = ['/catalog/overview', '/catalog/services', '/catalog/services/11', '/catalog/providers', '/catalog/providers/21', '/catalog/engagements', '/catalog/engagements/21/11', '/catalog/imports', '/catalog/similar/services'];
 
-test('the read routes are exactly these ten GETs and the write routes exactly these sixteen (POST, PUT, PATCH); no route uses any other method', () => {
-  assert.deepEqual(router.ROUTES.map((r) => r.name), ['overview', 'services.list', 'services.get', 'providers.list', 'providers.get', 'engagements.list', 'engagements.get', 'imports.list', 'history', 'similar.services']);
-  assert.deepEqual(router.ROUTES.map((r) => r.sample).sort(), ['/catalog/engagements', '/catalog/engagements/1/1', '/catalog/history', '/catalog/imports', '/catalog/overview', '/catalog/providers', '/catalog/providers/1', '/catalog/services', '/catalog/services/1', '/catalog/similar/services'].sort());
+test('the read routes are exactly these twelve GETs (ten, and the two of the prices, stage 5b-3) and the write routes exactly these sixteen (POST, PUT, PATCH); no route uses any other method', () => {
+  assert.deepEqual(router.ROUTES.map((r) => r.name), ['overview', 'services.list', 'services.get', 'providers.list', 'providers.get', 'engagements.list', 'engagements.get', 'prices.list', 'pricing.rows', 'imports.list', 'history', 'similar.services']);
+  assert.deepEqual(router.ROUTES.map((r) => r.sample).sort(), ['/catalog/engagements', '/catalog/engagements/1/1', '/catalog/history', '/catalog/imports', '/catalog/overview', '/catalog/prices', '/catalog/pricing-rows', '/catalog/providers', '/catalog/providers/1', '/catalog/services', '/catalog/services/1', '/catalog/similar/services'].sort());
   assert.ok(router.ROUTES.every((r) => typeof r.run === 'function' && r.re instanceof RegExp));
   assert.deepEqual(router.WRITE_ROUTES.map((r) => r.method + ' ' + r.name), ['POST services.create', 'PATCH services.update', 'PUT services.settings', 'POST services.clearance', 'POST providers.create', 'PATCH providers.update', 'POST providers.state', 'POST engagements.create', 'PATCH engagements.update',
     'POST engagements.action', 'PUT prices.put', 'POST prices.classify', 'POST prices.link', 'POST prices.unlink', 'POST imports.preview', 'POST imports.apply']);
@@ -289,11 +289,11 @@ test('no catalog answer, statement or module can approve a price or make one pub
 test('the catalog read modules are clean by construction: no SELECT *, no string-built SQL, no commission or cost, no network, no clock of their own except the injectable one, one write statement in total (the audit row)', () => {
   const strip = (t) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '').replace(/\s\/\/ .*$/gm, '');
   const read = (f) => fs.readFileSync(path.join(FN, '_kaspchem', f), 'utf8');
-  for (const f of ['catalog-store.js', 'admin-catalog-router.js']) { const t = strip(read(f)); assert.equal(/select\s+\*|\b\w+\.\*/i.test(t), false, f + ': SELECT *'); assert.equal(/\$\{/.test(t), false, f + ': template interpolation'); assert.equal(/commission|compensation|\bcost\b|fetch\(|require\('(fs|http|https|child_process)'\)|process\.env/i.test(t), false, f); }
+  for (const f of ['catalog-store.js', 'catalog-prices-store.js', 'admin-catalog-router.js']) { const t = strip(read(f)); assert.equal(/select\s+\*|\b\w+\.\*/i.test(t), false, f + ': SELECT *'); assert.equal(/\$\{/.test(t), false, f + ': template interpolation'); assert.equal(/commission|compensation|\bcost\b|fetch\(|require\('(fs|http|https|child_process)'\)|process\.env/i.test(t), false, f); }
   const store_ = strip(read('catalog-store.js'));
   assert.deepEqual([...store_.matchAll(/INSERT\s+INTO\s+(\w+)/gi)].map((m) => m[1]), ['audit_log'], 'the only INSERT in the read store is the audit row');
   assert.equal(/new Date\(\)/.test(store_), true); assert.equal((store_.match(/new Date\(\)/g) || []).length, 2, 'only the default of the injectable clock');
-  assert.deepEqual([...strip(read('admin-catalog-router.js')).matchAll(/require\('([^']+)'\)/g)].map((m) => m[1]).sort(), ['./admin-catalog-writes', './catalog-guards', './catalog-store', './http']);
+  assert.deepEqual([...strip(read('admin-catalog-router.js')).matchAll(/require\('([^']+)'\)/g)].map((m) => m[1]).sort(), ['./admin-catalog-writes', './catalog-guards', './catalog-prices-store', './catalog-store', './http']);
   assert.deepEqual([...store_.matchAll(/require\('([^']+)'\)/g)].map((m) => m[1]).sort(), ['./catalog/import.js', './catalog/similarity.js', './catalog/states.js', './db', './http', './service-guard']);
 });
 
