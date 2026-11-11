@@ -132,8 +132,9 @@ test('lifecycle without activation: submit, withdraw, pause, retire follow the s
   assert.equal((await act('submit', { expected_activation: 'draft' })).body.activation, 'pending'); assert.equal((await act('submit', { expected_activation: 'draft' })).body.error, 'conflict', 'a second click on the same state'); assert.equal((await act('submit', { expected_activation: 'pending' })).body.error, 'transition_refused');
   assert.equal((await act('withdraw', { expected_activation: 'pending' }, AVI)).body.activation, 'draft'); assert.equal((await state()).updated_by, AVI);
   assert.equal((await act('submit', { expected_activation: 'draft' })).status, 200);
-  let r = await act('pause', { expected_activation: 'pending' }); assert.deepEqual([r.status, r.body.error, r.body.errors], [422, 'transition_refused', ['reason_required']]);
-  r = await act('pause', { expected_activation: 'pending', reason: 'ממתינים לספק' }); assert.equal(r.body.activation, 'paused'); assert.equal((await state()).paused_reason, 'ממתינים לספק');
+  const seenOf = async () => (await w.call('GET', '/catalog/engagements/22/12', YOSI)).body.checklist.seen;   // pausing is a controlled action since 5b-2b-1: it needs its confirmation and the view the owner had
+  let r = await act('pause', { expected_activation: 'pending', confirm: 'pause', seen: await seenOf() }); assert.deepEqual([r.status, r.body.error, r.body.errors], [422, 'transition_refused', ['reason_required']]);
+  r = await act('pause', { expected_activation: 'pending', reason: 'ממתינים לספק', confirm: 'pause', seen: await seenOf() }); assert.equal(r.body.activation, 'paused'); assert.equal((await state()).paused_reason, 'ממתינים לספק');
   assert.deepEqual([(await act('explode', { expected_activation: 'paused' })).status, (await act('retire', {})).body.error, (await act('retire', { expected_activation: 'live' })).body.error, (await act('retire', { expected_activation: 'paused', foo: 1 })).body.error], [404, 'expected_required', 'expected_required', 'unknown_field']);
   assert.equal((await act('retire', { expected_activation: 'paused' })).body.errors[0], 'reason_required'); r = await act('retire', { expected_activation: 'paused', reason: 'הספק עזב' }); assert.equal(r.body.activation, 'retired'); const st = await state(); assert.deepEqual([st.activation, st.retired_reason, st.retired_at !== null], ['retired', 'הספק עזב', true]);
   for (const a of ['submit', 'withdraw', 'pause', 'retire', 'activate', 'resume']) assert.notEqual((await act(a, { expected_activation: 'retired', reason: 'x', confirm: 'activate', seen: 'x' })).status, 200, 'retired is final: ' + a);
@@ -168,7 +169,7 @@ test('ACTIVATION: off by default, never by itself; it needs the switch, the type
   assert.equal(await w.count('provider_service_compensation'), 1);
   // while active: the price cannot be swapped, the clearance cannot be withdrawn, the provider cannot be archived; pausing is always allowed, and coming back needs everything again
   assert.equal((await w.call('POST', E + '/unlink-price', YOSI, j({ expected_pricing_id: 7 }))).body.error, 'engagement_active'); assert.equal((await w.call('POST', '/catalog/services/11/clearance', YOSI, j({ cleared: false, expected_cleared: true }))).body.error, 'active_engagements_exist');
-  assert.equal((await act('pause', { expected_activation: 'active', reason: 'בדיקה' })).body.activation, 'paused');
+  assert.equal((await act('pause', { expected_activation: 'active', reason: 'בדיקה', confirm: 'pause', seen: (await card()).checklist.seen })).body.activation, 'paused');
   await w.setSetting('private.catalog_activation_enabled', false); seen = (await card()).checklist.seen; assert.equal((await act('resume', { expected_activation: 'paused', confirm: 'activate', seen })).body.error, 'activation_disabled', 'coming back to active is an activation too');
   await w.setSetting('private.catalog_activation_enabled', true); assert.equal((await act('resume', { expected_activation: 'paused', confirm: 'activate', seen })).body.activation, 'active'); assert.equal(w.alerts.length, 2);
   await w.pg.close();

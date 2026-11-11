@@ -116,7 +116,7 @@ async function listEngagements(q) {
 const ENGAGEMENT_ONE = 'SELECT ps.professional_id::text AS provider_id, p.name AS provider_name, ps.service_id::text AS service_id, s.name AS service_name, s.topic AS service_topic, ' +
   'ps.activation, ps.contact_state, ps.agreement_state, ps.pricing_model, ps.pricing_id::text AS pricing_id, ps.external_ref, ps.priority, ps.terms_note, ps.paused_reason, ps.retired_reason, ps.retired_at, ps.updated_by, ps.updated_at, ' +
   "(ss.service_id IS NOT NULL) AS service_has_settings, coalesce(ss.legal_cleared, false) AS service_legal_cleared, coalesce(ss.finding_tags, '{}'::text[]) AS service_finding_tags, coalesce(ss.topics, '{}'::text[]) AS service_topics, pp.paused_until AS provider_paused_until, pp.archived_at AS provider_archived_at, " +
-  'pr.id::text AS price_id, pr.label AS price_label, pr.price::float8 AS price_value, pr.approved AS price_approved, pr.public AS price_public ' +
+  'pr.id::text AS price_id, pr.label AS price_label, pr.price::float8 AS price_value, pr.approved AS price_approved, pr.public AS price_public, pr.service_id::text AS price_service_id, pr.professional_id::text AS price_provider_id ' +
   'FROM provider_services ps JOIN professionals p ON p.id = ps.professional_id JOIN services s ON s.id = ps.service_id LEFT JOIN service_settings ss ON ss.service_id = ps.service_id ' +
   'LEFT JOIN provider_profiles pp ON pp.professional_id = ps.professional_id LEFT JOIN pricing pr ON pr.id = ps.pricing_id WHERE ps.professional_id = $1::bigint AND ps.service_id = $2::bigint';
 const LAYERS_ONE = 'SELECT kind, model, amount::float8 AS amount, percent_low::float8 AS percent_low, percent_high::float8 AS percent_high, minimum_amount::float8 AS minimum_amount, terms_text, status, basis_missing, source_note, source_date::text AS source_date, recorded_by, updated_at ' +
@@ -127,11 +127,17 @@ async function loadEngagement(providerId, serviceId) {
   if (!eng.length) return null;
   const r = eng[0], now = clock();
   const e = { activation: r.activation, agreement_state: r.agreement_state, contact_state: r.contact_state, pricing_model: r.pricing_model, pricing_id: num(r.pricing_id) };
+  // Does the linked price row still FIT this engagement: it has an amount, it belongs to the engagement's service, and it is general or the provider's own. The very rule of the linking route (and of the UPDATE of the activation, PRICE_FITS in
+  // admin-catalog-writes.js): the link stays when the older pricing screen moves or changes the price row, so this is decided afresh every time, never from the fact that the link exists.
+  const priceFits = r.price_id !== null && r.price_value !== null && r.price_value !== undefined && r.price_service_id === r.service_id && (r.price_provider_id === null || r.price_provider_id === r.provider_id);
   const ctx = { service: { legal_cleared: r.service_legal_cleared, finding_tags: r.service_finding_tags, topics: r.service_topics }, provider: { paused_until: r.provider_paused_until, archived_at: r.provider_archived_at },
-    pricing: r.price_id === null ? null : { approved: r.price_approved === true }, now };
+    pricing: r.price_id === null ? null : { approved: r.price_approved === true, fits: priceFits }, now };
   // what the owner saw when deciding: a fingerprint of everything the activation checklist depends on. "Activate" must send it back; if anything moved in between, the answer is "look again".
+  // (the pause reason and the date of the last retirement are part of it: the controlled actions, pause / reopen / return to review, are decided on what the owner saw, and a pause that was renewed with another reason is another view)
   const seen = Imp.digest({ activation: r.activation, agreement: r.agreement_state, contact: r.contact_state, model: r.pricing_model, pricing_id: e.pricing_id, price: r.price_value, price_approved: r.price_approved === true,
-    cleared: r.service_legal_cleared, tags: r.service_finding_tags, topics: r.service_topics, archived: !!r.provider_archived_at, paused: r.provider_paused_until ? new Date(r.provider_paused_until) > now : false });
+    cleared: r.service_legal_cleared, tags: r.service_finding_tags, topics: r.service_topics, archived: !!r.provider_archived_at, paused: r.provider_paused_until ? new Date(r.provider_paused_until) > now : false,
+    paused_reason: r.paused_reason || null, retired_at: r.retired_at ? new Date(r.retired_at).toISOString() : null,
+    price_service: r.price_service_id || null, price_provider: r.price_provider_id || null, price_fits: priceFits });   // a price row that was moved, or lost its amount, is another view
   return { r, layers, e, ctx, list: States.checklist(e, ctx), seen };
 }
 // Is the SERVICE set up for an engagement of it to be activated one day: it needs its settings (a code) and at least one finding tag or questionnaire topic to be matched by. This is a marker, not a switch: nothing here activates anything.
@@ -146,8 +152,12 @@ async function getEngagement(providerId, serviceId) {
   const { r, layers, list, seen } = loaded, setup = setupOf(r.service_has_settings, r.service_finding_tags, r.service_topics);
   const byKind = { market: null, provider_offer: null, unclassified: null };
   for (const l of layers) byKind[l.kind] = { model: l.model, amount: l.amount, percent_low: l.percent_low, percent_high: l.percent_high, minimum_amount: l.minimum_amount, terms_text: l.terms_text, status: l.status, basis_missing: l.basis_missing, source_note: l.source_note, source_date: l.source_date, recorded_by: l.recorded_by, updated_at: l.updated_at };
+  // A reopened engagement keeps the date and the reason of its last retirement on its row, but it is not retired any more. So the CURRENT retirement (retired_*) is only ever set while the state is "retired"; what is left of a past one is
+  // `last_retired_*`, and `last_reopened_at` (from the journal) says when it was reopened. Nothing that is history can be read as a current retirement.
+  const retiredNow = r.activation === 'retired', hadRetired = !retiredNow && r.retired_at !== null && r.retired_at !== undefined;
+  const reopened = await rd("SELECT max(created_at) AS at FROM audit_log WHERE action = 'catalog.engagement.reopen' AND entity = 'engagement' AND entity_id = $1", [num(r.provider_id) + '/' + num(r.service_id)]);
   return {
-    engagement: { provider_id: num(r.provider_id), provider_name: r.provider_name, service_id: num(r.service_id), service_name: r.service_name, service_topic: r.service_topic, activation: r.activation, contact_state: r.contact_state, agreement_state: r.agreement_state, pricing_model: r.pricing_model, external_ref: r.external_ref, priority: r.priority, terms_note: r.terms_note, paused_reason: r.paused_reason, retired_reason: r.retired_reason, retired_at: r.retired_at, updated_by: r.updated_by, updated_at: r.updated_at, service_ready: setup.ready, service_missing: setup.missing },
+    engagement: { provider_id: num(r.provider_id), provider_name: r.provider_name, service_id: num(r.service_id), service_name: r.service_name, service_topic: r.service_topic, activation: r.activation, contact_state: r.contact_state, agreement_state: r.agreement_state, pricing_model: r.pricing_model, external_ref: r.external_ref, priority: r.priority, terms_note: r.terms_note, paused_reason: r.paused_reason, retired_reason: retiredNow ? r.retired_reason : null, retired_at: retiredNow ? r.retired_at : null, last_retired_reason: hadRetired ? r.retired_reason : null, last_retired_at: hadRetired ? r.retired_at : null, last_reopened_at: reopened.length ? reopened[0].at : null, updated_by: r.updated_by, updated_at: r.updated_at, service_ready: setup.ready, service_missing: setup.missing },
     price_layers: byKind,
     approved_price: r.price_id === null ? null : { id: num(r.price_id), label: r.price_label, price: r.price_value, approved: r.price_approved === true, public: r.price_public === true },
     checklist: { items: list.items.map((i) => ({ key: i.key, label: i.label, ok: i.ok, blocking: i.blocking, enforced: i.enforced })), missing: list.missing, can_activate: list.canActivate, documented_only: list.documentedOnly, seen },

@@ -263,39 +263,62 @@ route('PATCH', /^\/catalog\/engagements\/(\d+)\/(\d+)$/, 'engagements.update', {
 //   depends on moved since, it is refused), a complete checklist, and the server-side items (service cleared, provider available, price approved) re-checked INSIDE the UPDATE. The database's own
 //   rule (signed agreement, active collaboration, fixed price with a linked price row) is the last fence. Nothing about the public site changes: no price is published, no service offered.
 const REACTIVATING = ['activate', 'resume'];
+// "Controlled" actions (stage 5b-2b-1): they need, beside the owner role and the open catalog, a REASON, the explicit confirmation (`confirm` is the action's own name) and `seen` (the fingerprint of the engagement as the owner looked at it: if
+// anything it holds moved since, nothing is written). `reopen` (retired -> draft) and `return_to_review` (paused -> pending) also need an AVAILABLE provider, checked again INSIDE the UPDATE. None of the three can ever give an active engagement.
+const CONTROLLED = ['pause', 'reopen', 'return_to_review'], NEEDS_AVAILABLE_PROVIDER = ['reopen', 'return_to_review'];
+const PROVIDER_ROW_FREE = ' AND NOT EXISTS (SELECT 1 FROM provider_profiles pp WHERE pp.professional_id = provider_services.professional_id AND (pp.archived_at IS NOT NULL OR (pp.paused_until IS NOT NULL AND pp.paused_until > now())))';
+// ONE rule for "this price row may be the price of this engagement", used by the linking route AND by the activation, so that there are not two sets of rules: the row is approved, has an amount, belongs to the SERVICE of the engagement,
+// and is either general (no provider) or the provider's own. The activation checks it again at the moment of activating (the older pricing screen can move, change or un-approve a price row after it was linked: the link stays), inside the UPDATE itself.
+const PRICE_FITS = 'pr.approved AND pr.price IS NOT NULL AND pr.service_id = provider_services.service_id AND (pr.professional_id IS NULL OR pr.professional_id = provider_services.professional_id)';
 const ACTIVATION_CHECKS = ' AND EXISTS (SELECT 1 FROM service_settings ss WHERE ss.service_id = provider_services.service_id AND ss.legal_cleared AND (cardinality(ss.finding_tags) > 0 OR cardinality(ss.topics) > 0))' +
-  ' AND NOT EXISTS (SELECT 1 FROM provider_profiles pp WHERE pp.professional_id = provider_services.professional_id AND (pp.archived_at IS NOT NULL OR (pp.paused_until IS NOT NULL AND pp.paused_until > now())))' +
-  ' AND EXISTS (SELECT 1 FROM pricing pr WHERE pr.id = provider_services.pricing_id AND pr.approved)' +
+  PROVIDER_ROW_FREE +
+  ' AND EXISTS (SELECT 1 FROM pricing pr WHERE pr.id = provider_services.pricing_id AND ' + PRICE_FITS + ')' +
   " AND EXISTS (SELECT 1 FROM settings st WHERE st.key = 'private.catalog_activation_enabled' AND st.value = 'true'::jsonb)";
-route('POST', /^\/catalog\/engagements\/(\d+)\/(\d+)\/actions\/(submit|withdraw|activate|pause|resume|retire)$/, 'engagements.action', { path: '/catalog/engagements/1/1/actions/submit', body: { expected_activation: 'draft' } }, async (c, pid, sid, action) => {
+const SEEN_CHANGED = 'המצב השתנה מאז שצפיתם בו. יש לרענן ולאשר שוב.';
+route('POST', /^\/catalog\/engagements\/(\d+)\/(\d+)\/actions\/(submit|withdraw|activate|pause|resume|retire|reopen|return_to_review)$/, 'engagements.action', { path: '/catalog/engagements/1/1/actions/submit', body: { expected_activation: 'draft' } }, async (c, pid, sid, action) => {
   const p = idOf(pid), s = idOf(sid), b = fields(c, ['expected_activation', 'reason', 'confirm', 'seen']);
   if (!States.ACTIVATION.includes(b.expected_activation)) throw bad('expected_required');
-  const reactivates = REACTIVATING.includes(action), loaded = await store.loadEngagement(p, s);
+  const reactivates = REACTIVATING.includes(action), controlled = CONTROLLED.includes(action), loaded = await store.loadEngagement(p, s);
   if (!loaded) throw new HttpError(404, 'not_found');
   if (loaded.r.activation !== b.expected_activation) throw new HttpError(409, 'conflict');
   if (reactivates) {
     if (!(await guards.activationOpen())) throw new HttpError(403, 'activation_disabled', 'הפעלת התקשרויות כבויה (private.catalog_activation_enabled).');
     if (b.confirm !== 'activate') throw bad('confirmation_required');
-    if (b.seen !== loaded.seen) throw new HttpError(409, 'seen_changed', 'המצב השתנה מאז שצפיתם בו. יש לרענן ולאשר שוב.');
+    if (b.seen !== loaded.seen) throw new HttpError(409, 'seen_changed', SEEN_CHANGED);
   }
-  const reason = b.reason === undefined ? undefined : req(b.reason, 1, 300, 'bad_reason');
+  if (controlled) {
+    if (b.confirm !== action) throw bad('confirmation_required');
+    if (typeof b.seen !== 'string' || b.seen === '') throw bad('expected_required');   // the same answer as for a missing "expected state": the form did not say what the owner saw
+    if (b.seen !== loaded.seen) throw new HttpError(409, 'seen_changed', SEEN_CHANGED);
+  }
+  // the reason of a controlled action stays in the journal for good (it is append-only), so it is held to the rule of the other journal texts: a bounded sentence, no markup, and nothing that looks like a contact detail
+  const reason = b.reason === undefined ? undefined : controlled ? (journalText(b.reason, 300, 'bad_reason', 'reason_has_contact_detail') || '') : req(b.reason, 1, 300, 'bad_reason');
   const res = States.act(Object.assign({}, loaded.e, { retired_at: loaded.r.retired_at }), action, { reason }, loaded.ctx);
   if (!res.ok) throw refusal(422, 'transition_refused', { errors: res.errors, missing: res.missing || [], documented_only: !!res.documentedOnly });
   const e = loaded.e, params = [], q = (v, cast) => { params.push(v); return '$' + params.length + '::' + cast; };
   const sets = ['activation = ' + q(res.next.activation, 'text'), 'updated_by = ' + q(c.me.email, 'text'), 'updated_at = now()'];
-  if (action === 'pause') sets.push('paused_reason = ' + q(reason, 'text')); if (reactivates) sets.push('paused_reason = NULL');
+  if (action === 'pause') sets.push('paused_reason = ' + q(reason, 'text')); if (reactivates || action === 'return_to_review' || action === 'reopen') sets.push('paused_reason = NULL');
+  if (action === 'reopen') sets.push('agreement_state = ' + q(res.next.agreement_state, 'text'), 'contact_state = ' + q(res.next.contact_state, 'text'));   // "signed" goes back to "draft", "active" contact to "contacted"; the date and the reason of the last retirement, the price model and the price link are NOT touched
   if (action === 'retire') sets.push('retired_reason = ' + q(reason, 'text'), 'retired_at = now()');
   let where = 'professional_id = ' + q(String(p), 'bigint') + ' AND service_id = ' + q(String(s), 'bigint') + ' AND activation = ' + q(b.expected_activation, 'text');
-  if (reactivates) where += ' AND agreement_state = ' + q(e.agreement_state, 'text') + ' AND contact_state = ' + q(e.contact_state, 'text') + ' AND pricing_model = ' + q(e.pricing_model, 'text') + ' AND pricing_id IS NOT DISTINCT FROM ' + q(e.pricing_id === null ? null : String(e.pricing_id), 'bigint') + ACTIVATION_CHECKS;
+  if (reactivates || controlled) where += ' AND agreement_state = ' + q(e.agreement_state, 'text') + ' AND contact_state = ' + q(e.contact_state, 'text') + ' AND pricing_model = ' + q(e.pricing_model, 'text') + ' AND pricing_id IS NOT DISTINCT FROM ' + q(e.pricing_id === null ? null : String(e.pricing_id), 'bigint');
+  if (reactivates) where += ACTIVATION_CHECKS; else if (NEEDS_AVAILABLE_PROVIDER.includes(action)) where += PROVIDER_ROW_FREE;
   const detail = { from: b.expected_activation, to: res.next.activation }; if (reason) detail.reason = reason; if (reactivates) detail.checklist = loaded.list.items.filter((i) => i.blocking).map((i) => i.key + ':' + (i.ok ? 'ok' : 'missing'));
+  const agreementReset = action === 'reopen' && res.next.agreement_state !== e.agreement_state, contactReset = action === 'reopen' && res.next.contact_state !== e.contact_state;
+  if (action === 'reopen') {   // the reason of the retirement is in the journal row of the retirement: not copied again; what was set back is, with the value it had (the old state stays readable in the journal)
+    detail.previous_retired_at = loaded.r.retired_at ? new Date(loaded.r.retired_at).toISOString() : null;
+    if (agreementReset || contactReset) { detail.reset = {}; if (agreementReset) detail.reset.agreement_state = [e.agreement_state, res.next.agreement_state]; if (contactReset) detail.reset.contact_state = [e.contact_state, res.next.contact_state]; }
+  }
   await writeOrDiagnose([...W.counted('UPDATE provider_services SET ' + sets.join(', ') + ' WHERE ' + where, params), W.audit(c.me.email, 'catalog.engagement.' + action, 'engagement', p + '/' + s, detail)], async () => {
     const again = await store.loadEngagement(p, s);
     if (!again) return new HttpError(404, 'not_found'); if (again.r.activation !== b.expected_activation) return new HttpError(409, 'conflict');
-    if (reactivates && !(await guards.activationOpen())) return new HttpError(403, 'activation_disabled'); return new HttpError(409, 'seen_changed', 'המצב השתנה מאז שצפיתם בו. יש לרענן ולאשר שוב.');
+    if (reactivates && !(await guards.activationOpen())) return new HttpError(403, 'activation_disabled');
+    if (NEEDS_AVAILABLE_PROVIDER.includes(action)) { const pp = again.ctx.provider; if (pp.archived_at) return new HttpError(409, 'provider_archived'); if (pp.paused_until && new Date(pp.paused_until) > new Date()) return new HttpError(409, 'provider_paused'); }
+    return new HttpError(409, 'seen_changed', SEEN_CHANGED);
   });
   if (reactivates) await opsAlert('הפעלת התקשרות שונתה', 'התקשרות ' + p + '/' + s + ' הועברה למצב פעיל על ידי ' + c.me.email + '.');   // no personal detail; a failure to send never breaks the request
   else if (action === 'retire') await opsAlert('התקשרות הוצאה משימוש', 'התקשרות ' + p + '/' + s + ' הוצאה משימוש על ידי ' + c.me.email + '.');
-  return { activation: res.next.activation };
+  return action === 'reopen' ? { activation: res.next.activation, agreement_state: res.next.agreement_state, agreement_reset: agreementReset, contact_state: res.next.contact_state, contact_reset: contactReset } : { activation: res.next.activation };
 });
 
 // ===== price layers and the link to an approved price ===========================================================================================================================
@@ -347,7 +370,7 @@ route('POST', /^\/catalog\/engagements\/(\d+)\/(\d+)\/link-price$/, 'prices.link
   if (b.expected_pricing_id === undefined) throw bad('expected_required'); const was = b.expected_pricing_id === null ? null : String(idBody(b.expected_pricing_id, 'bad_expected'));
   // only a price that EXISTS, is APPROVED, has a price, belongs to this service (and is general or this provider's); read here, never written. Not while the engagement is active.
   const dml = "UPDATE provider_services SET pricing_id = $1::bigint, pricing_model = 'fixed', updated_by = $2, updated_at = now() WHERE professional_id = $3::bigint AND service_id = $4::bigint AND pricing_id IS NOT DISTINCT FROM $5::bigint AND activation <> 'active' " +
-    'AND EXISTS (SELECT 1 FROM pricing pr WHERE pr.id = $1::bigint AND pr.approved AND pr.price IS NOT NULL AND pr.service_id = provider_services.service_id AND (pr.professional_id IS NULL OR pr.professional_id = provider_services.professional_id))';
+    'AND EXISTS (SELECT 1 FROM pricing pr WHERE pr.id = $1::bigint AND ' + PRICE_FITS + ')';
   await writeOrDiagnose([...W.counted(dml, [String(pricingId), c.me.email, String(p), String(s), was]), W.audit(c.me.email, 'catalog.price.link', 'engagement', p + '/' + s, { pricing_id: pricingId })], async () => {
     const r = await db.query('SELECT activation, pricing_id::text AS pricing_id FROM provider_services WHERE professional_id = $1::bigint AND service_id = $2::bigint', [String(p), String(s)]);
     if (!r.length) return new HttpError(404, 'not_found'); if (r[0].activation === 'active') return new HttpError(409, 'engagement_active', 'יש להשהות את ההתקשרות לפני החלפת המחיר המקושר.');
