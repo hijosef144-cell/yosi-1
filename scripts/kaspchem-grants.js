@@ -56,6 +56,7 @@ const BASE_TODAY = {   // the real grants of kaspchem_app on the 13 base tables 
 };
 const BASE_SEQUENCES = ['applicants', 'audit_log', 'consents', 'outcomes', 'pricing', 'professionals', 'questionnaire_versions', 'request_notes', 'revenues', 'services', 'treatment_requests'].map((t) => t + '_id_seq');
 const MIGRATIONS = [['001-base', '55d6624afcab982addf23f798375ea4aed43c518be90942017114dfe07222860'], ['002-provider-catalog', '5138ec64630d79788ff135c3db14972e1290643d5a3eccbbf62c05eea41dbbf6']];
+const MIGRATION_003 = ['003-price-race-guard', '84c0d179ba75c8c5d3fe9672c9ecc4113882633c9afc0e32570fe02f36ce24f2'];   // only a production target that has 003 applied BEFORE the grants lists it
 
 // The database this step is written for: the Neon temporary branch br-temp-baseline-aaaaaa after migrations 001 (adopted) and 002.
 const NEON_TARGET = {
@@ -65,7 +66,22 @@ const NEON_TARGET = {
   structureMd5: 'ee041cea851f2dc3287abe67ae6f8a56', structureLines: 429,
   privFingerprint: 'd856a513b97dcba04e2c584f9910ab1d', privLines: 215,   // role/membership/ACL/schema/database lines, the six changing relations left out (they carry no ACL today)
 };
-const historyOf = (t) => MIGRATIONS.map(([id, sum]) => id + ':' + sum).concat(['@identity:' + t.identity]).join(',');
+// The PRODUCTION database (read-only, step 0, 2026-11-12: 13 tables, no schema_migrations table yet, structure d1e08acf... = 001-base exactly, privilege fingerprint d856a513... with 215 lines, kaspchem_app with a password and
+// exactly the grants of BASE_TODAY, only kaspchem_app sessions). The state the grants meet is the state AFTER the migrations: 20 tables (13 + the bookkeeping table + six catalog tables), the history 001 (adopted), 002 and the identity
+// record of this database, optionally 003 when it was applied first. Nothing here can name the database: the endpoint id is given at run time (--expect-endpoint=ep-...) so that the public repository never carries it. The identity checks
+// are stricter than the temporary branch's: besides what every target checks, the DO block compares the STRUCTURE and the PRIVILEGE fingerprint from inside and refuses when a catalog switch is already open.
+function productionTarget(endpoint, opts) {
+  if (typeof endpoint !== 'string' || !/^ep-[a-z0-9]+(-[a-z0-9]+){1,4}$/.test(endpoint) || endpoint.length > 60) throw new Error('the production target needs --expect-endpoint=ep-... (the endpoint id of the production branch, read from Neon, never from this file)');
+  const with003 = !!(opts && opts.after003);
+  return {
+    owner: 'neondb_owner', database: 'neondb', env: 'production', endpoint, pg: '18.6', tables: 20, defaultAclTotal: 2, identity: sha256('neondb|production'),
+    migrations: with003 ? MIGRATIONS.concat([MIGRATION_003]) : MIGRATIONS,
+    structureMd5: with003 ? '6e4d3d7e5b8b63a8cd0e38d07edc60e3' : 'ee041cea851f2dc3287abe67ae6f8a56', structureLines: with003 ? 430 : 429,
+    privFingerprint: 'd856a513b97dcba04e2c584f9910ab1d', privLines: 215,
+    guardStructure: true, switchesClosed: true,
+  };
+}
+const historyOf = (t) => (t.migrations || MIGRATIONS).map(([id, sum]) => id + ':' + sum).concat(['@identity:' + t.identity]).join(',');
 const lit = (v) => { const s = String(v); if (!/^[A-Za-z0-9_:.,|@\-]+$/.test(s)) throw new Error('unsafe literal: ' + s); return "'" + s + "'"; };
 const arr = (list) => 'ARRAY[' + list.map(lit).join(', ') + ']';
 
@@ -113,8 +129,13 @@ function guardsSql(t, kind) {
   if (t.endpoint) g.push(`IF current_setting('neon.endpoint_id', true) IS DISTINCT FROM ${lit(t.endpoint)} THEN RAISE EXCEPTION 'kaspchem-grants: refused, endpoint is % (expected ${t.endpoint})', coalesce(current_setting('neon.endpoint_id', true), '(none)'); END IF;`);
   g.push(`IF (SELECT value #>> '{}' FROM settings WHERE key = 'meta.environment') IS DISTINCT FROM ${lit(t.env)} THEN RAISE EXCEPTION 'kaspchem-grants: refused, environment label is not ${t.env}'; END IF;`);
   g.push(`IF (SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relkind = 'r') <> ${Number(t.tables)} THEN RAISE EXCEPTION 'kaspchem-grants: refused, the database does not have exactly ${t.tables} tables'; END IF;`);
-  g.push(`IF (SELECT coalesce(string_agg(id || ':' || checksum, ',' ORDER BY id COLLATE "C"), '') FROM schema_migrations) <> ${lit(historyOf(t))} THEN RAISE EXCEPTION 'kaspchem-grants: refused, the migration history is not 001-base, 002-provider-catalog and the identity record'; END IF;`);
+  g.push(`IF (SELECT coalesce(string_agg(id || ':' || checksum, ',' ORDER BY id COLLATE "C"), '') FROM schema_migrations) <> ${lit(historyOf(t))} THEN RAISE EXCEPTION 'kaspchem-grants: refused, the migration history is not ${(t.migrations || MIGRATIONS).map((m) => m[0]).join(', ')} and the identity record'; END IF;`);
   g.push(`IF to_regrole('kaspchem_app') IS NULL THEN RAISE EXCEPTION 'kaspchem-grants: refused, the role kaspchem_app does not exist'; END IF;`);
+  if (t.guardStructure && kind !== 'rollback') {   // the strict identity of a production target, checked from inside the same transaction that grants
+    if (t.structureMd5) g.push(`IF (SELECT md5(signature) FROM (${signatureSql()}) sig) IS DISTINCT FROM ${lit(t.structureMd5)} THEN RAISE EXCEPTION 'kaspchem-grants: refused, the structure of the database is not the reviewed one'; END IF;`);
+    if (t.privFingerprint) g.push(`IF (SELECT md5(string_agg(line, E'\\n' ORDER BY line)) FROM (${privLinesSql(CHANGED)}) l) IS DISTINCT FROM ${lit(t.privFingerprint)} THEN RAISE EXCEPTION 'kaspchem-grants: refused, the privileges of the database are not the reviewed ones'; END IF;`);
+  }
+  if (t.switchesClosed && kind !== 'rollback') g.push(`IF EXISTS (SELECT 1 FROM settings WHERE key IN ('private.catalog_enabled', 'private.catalog_activation_enabled') AND value = 'true'::jsonb) THEN RAISE EXCEPTION 'kaspchem-grants: refused, a catalog switch is already open'; END IF;`);
   // Neon itself keeps default privileges for objects created by its own admin role (cloud_admin -> neon_superuser): those are harmless here. What must not exist: a default that applies to objects
   // created by the owner role, or one that reaches PUBLIC or kaspchem_app (it would hand out privileges on future tables by itself).
   g.push(`IF EXISTS (SELECT 1 FROM pg_default_acl d CROSS JOIN LATERAL aclexplode(d.defaclacl) a WHERE d.defaclrole = (SELECT oid FROM pg_roles WHERE rolname = ${lit(t.owner)}) OR a.grantee = 0 OR a.grantee = (SELECT oid FROM pg_roles WHERE rolname = 'kaspchem_app')) THEN RAISE EXCEPTION 'kaspchem-grants: refused, default privileges exist that apply to objects created by ${t.owner} or that reach PUBLIC or kaspchem_app'; END IF;`);
@@ -186,20 +207,29 @@ function evaluate(phase, rawState, rawBefore, opts) {
   return { ok: problems.length === 0, problems };
 }
 
-module.exports = { APPLY, ROLLBACK, NEW_APP, NEW_RELATIONS, CHANGED, CLOSED, BASE_TODAY, NEON_TARGET, MIGRATIONS, historyOf, loadStatements, statementsOf, sql, stateSql, guardsSql, evaluate, parseState, sha256 };
+module.exports = { APPLY, ROLLBACK, NEW_APP, NEW_RELATIONS, CHANGED, CLOSED, BASE_TODAY, NEON_TARGET, productionTarget, MIGRATION_003, MIGRATIONS, historyOf, loadStatements, statementsOf, sql, stateSql, guardsSql, evaluate, parseState, sha256 };
 
 // ---- command line ---------------------------------------------------------------------------------------------------------------------------------------------
+// --target production --expect-endpoint=ep-... [--after-003]: the production target (the endpoint is never read from this file). Without --target the temporary branch's target is used, and on any other database its guards refuse.
+function targetFromArgs(a) {
+  const i = a.indexOf('--target');
+  if (i < 0) { if (a.some((x) => /^--(expect-endpoint|after-003)/.test(x))) throw new Error('--expect-endpoint and --after-003 belong to --target production'); return undefined; }
+  if (a[i + 1] !== 'production') throw new Error('the only target that can be named is production (without --target the temporary branch is the target)');
+  const e = a.find((x) => /^--expect-endpoint=/.test(x));
+  return productionTarget(e ? e.slice('--expect-endpoint='.length) : undefined, { after003: a.includes('--after-003') });
+}
 if (require.main === module) {
   const a = process.argv.slice(2);
   try {
-    if (a[0] === '--print') { process.stdout.write(sql(a[1]) + '\n'); return; }
+    const target = targetFromArgs(a), topts = target ? { target } : undefined;
+    if (a[0] === '--print') { process.stdout.write(sql(a[1], topts) + '\n'); return; }
     if (a[0] === '--evaluate') {
       const bi = a.indexOf('--before');
-      const res = evaluate(a[1], fs.readFileSync(a[2], 'utf8'), bi > 0 ? fs.readFileSync(a[bi + 1], 'utf8') : null);
+      const res = evaluate(a[1], fs.readFileSync(a[2], 'utf8'), bi > 0 ? fs.readFileSync(a[bi + 1], 'utf8') : null, topts);
       res.problems.forEach((p) => console.log('PROBLEM ' + p));
       console.log(res.ok ? 'VERDICT (' + a[1] + '): GO, every check passed' : 'VERDICT (' + a[1] + '): STOP, ' + res.problems.length + ' problem(s) above');
       process.exit(res.ok ? 0 : 1);
     }
-    console.error('usage: --print pre|probe|dryrun|apply|post|rollback   |   --evaluate pre|post|post-rollback <results.json> [--before <pre-results.json>]'); process.exit(2);
+    console.error('usage: --print pre|probe|dryrun|apply|post|rollback   |   --evaluate pre|post|post-rollback <results.json> [--before <pre-results.json>]   (both: [--target production --expect-endpoint=ep-... [--after-003]])'); process.exit(2);
   } catch (e) { console.error(e.message); process.exit(1); }
 }

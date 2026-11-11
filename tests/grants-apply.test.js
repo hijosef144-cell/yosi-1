@@ -221,3 +221,86 @@ test('THE COMMAND LINE prints the same SQL and judges result files (also in the 
   fs.writeFileSync(path.join(dir, 'junk.json'), 'not json'); assert.equal(run(['--evaluate', 'pre', path.join(dir, 'junk.json')]).status, 1);
   const src = fs.readFileSync(script, 'utf8'); assert.ok(!/require\(['"](https?|net|tls|child_process|@neondatabase)/.test(src), 'the script has no way to reach a database or the network');
 });
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------------------------
+// THE PRODUCTION TARGET (values measured read-only on 2026-11-12): the same guarded step with stricter identity checks, and an endpoint id that is only ever given at run time.
+// The database here is the same in-memory one (another owner and database name, a fake endpoint, no fixed privilege fingerprint, any Postgres version).
+const PT = (extra, after003) => Object.assign({}, G.productionTarget('ep-production-test', { after003: !!after003 }), { owner: 'postgres', database: 'postgres', identity: G.sha256('postgres|test'), pg: null, privFingerprint: null, privLines: null, defaultAclTotal: 0 }, extra || {});
+const prodWorld = async (endpoint) => { const pg = await fresh(endpoint || 'ep-production-test'); await pg.exec("UPDATE settings SET value = '\"production\"' WHERE key = 'meta.environment'"); return pg; };
+
+test('THE PRODUCTION TARGET is built only from a well formed endpoint, its values follow from the files, and no endpoint id is written in the script', () => {
+  for (const bad of [undefined, null, '', 'ep-', 'ep-x', 'EP-A-B-C', 'ep-a b-c', "ep-a-b'; DROP TABLE x", 'ep-' + 'a-'.repeat(40) + 'b', 'br-some-branch-aaaaaa', 42]) assert.throws(() => G.productionTarget(bad), /--expect-endpoint/, String(bad));
+  const t = G.productionTarget('ep-production-test'), t3 = G.productionTarget('ep-production-test', { after003: true }), all = M.loadMigrations().migrations;
+  assert.equal(t.env, 'production'); assert.equal(t.owner, 'neondb_owner'); assert.equal(t.database, 'neondb'); assert.equal(t.tables, 20); assert.equal(t.endpoint, 'ep-production-test'); assert.equal(t.identity, G.sha256('neondb|production'));
+  assert.equal(t.guardStructure, true); assert.equal(t.switchesClosed, true); assert.equal(t.defaultAclTotal, 2);
+  assert.deepEqual(G.historyOf(t).split(',').map((x) => x.split(':')[0]), ['001-base', '002-provider-catalog', '@identity']);
+  assert.deepEqual(G.historyOf(t3).split(',').map((x) => x.split(':')[0]), ['001-base', '002-provider-catalog', '003-price-race-guard', '@identity']);
+  assert.equal(G.MIGRATION_003[0], all[2].id); assert.equal(G.MIGRATION_003[1], all[2].sha, 'the pinned fingerprint of 003 is the file\'s');
+  assert.notEqual(G.historyOf(t), G.historyOf(G.NEON_TARGET), 'another identity record than the temporary branch\'s');
+  const src = fs.readFileSync(path.join(ROOT, 'scripts', 'kaspchem-grants.js'), 'utf8');
+  assert.ok(!/ep-[a-z]+-[a-z]+-[a-z0-9]{8}\b/.test(src), 'no real-looking endpoint id may be written in the script (the public repository must not carry one)');
+});
+
+test('THE PRODUCTION TARGET: the structure and the privilege fingerprint equal what the files compute (after 002, and after 003), and the strict guards refuse from inside', async () => {
+  // the structure the target pins is the one the files give
+  const crypto = require('crypto'), S = require('../scripts/schema-signature.js');
+  const md5Of = async (pg) => { const text = await S.signatureOf(qp(pg)); return [crypto.createHash('md5').update(text).digest('hex'), text.split('\n').length]; };
+  const w2 = await prodWorld(); const s2 = await md5Of(w2); const t2 = G.productionTarget('ep-production-test');
+  assert.deepEqual(s2, [t2.structureMd5, t2.structureLines], 'structure after 002'); await w2.close();
+  const w3 = new PGlite(); await w3.exec(BASE_DDL); await w3.exec("INSERT INTO settings (key, value, updated_by) VALUES ('meta.environment', '\"production\"', 'setup')"); await w3.exec('CREATE ROLE kaspchem_app LOGIN; CREATE ROLE stranger NOLOGIN'); await w3.exec(TODAY_GRANTS);
+  const r3 = await M.apply(qp(w3), { migrations: M.loadMigrations().migrations, expectEnv: 'production' }); assert.equal(r3.refused, false, (r3.problems || []).join('; '));
+  const t3 = G.productionTarget('ep-production-test', { after003: true }); assert.deepEqual(await md5Of(w3), [t3.structureMd5, t3.structureLines], 'structure after 003'); await w3.close();
+  // the strict guards, from inside, for apply, dry run and probe: nothing is granted
+  const cases = [
+    ['another endpoint', () => prodWorld('ep-somewhere-else'), (pg) => pg, PT(), /endpoint is ep-somewhere-else/],
+    ['the environment label is test (the temporary branch)', () => fresh('ep-production-test'), (pg) => pg, PT(), /environment label is not production/],
+    ['the catalog switch is already open', () => prodWorld(), (pg) => pg.exec("INSERT INTO settings (key, value, updated_by) VALUES ('private.catalog_enabled', 'true', 'x')"), PT(), /a catalog switch is already open/],
+    ['the activation switch is already open', () => prodWorld(), (pg) => pg.exec("INSERT INTO settings (key, value, updated_by) VALUES ('private.catalog_activation_enabled', 'true', 'x')"), PT(), /a catalog switch is already open/],
+    ['an index more (structure drift)', () => prodWorld(), (pg) => pg.exec('CREATE INDEX stray_idx ON services (name)'), PT(), /structure of the database is not the reviewed one/],
+    ['a column more (structure drift)', () => prodWorld(), (pg) => pg.exec('ALTER TABLE services ADD COLUMN stray text'), PT(), /structure of the database is not the reviewed one/],
+    ['the identity record is another database\'s', () => prodWorld(), (pg) => pg.exec("UPDATE schema_migrations SET checksum = 'ab' WHERE id = '@identity'"), PT(), /migration history is not 001-base, 002-provider-catalog and the identity record/],
+    ['003 is recorded but the target says 001+002', () => prodWorld(), (pg) => pg.exec("INSERT INTO schema_migrations (id, checksum) VALUES ('003-price-race-guard', 'ab')"), PT(), /migration history/],
+    ['the privilege fingerprint differs (a role more)', () => prodWorld(), (pg) => pg.exec('CREATE ROLE intruder NOLOGIN'), PT({ privFingerprint: '0'.repeat(32), privLines: 1 }), /privileges of the database are not the reviewed ones/],
+  ];
+  for (const [name, make, prepare, target, re] of cases) {
+    const pg = await make(); await prepare(pg); const before = await aclSnapshot(pg);
+    for (const kind of ['apply', 'dryrun', 'probe']) await assert.rejects(() => pg.query(G.sql(kind, { target })), (e) => { assert.match(e.message, REFUSED, name + ' (' + kind + ')'); assert.match(e.message, re, name + ' (' + kind + ')'); return true; });
+    assert.equal(await aclSnapshot(pg), before, name + ': an ACL changed although the guard refused');
+    await pg.close();
+  }
+});
+
+test('THE PRODUCTION TARGET, happy path and rollback: pre-check GO, dry run grants nothing, apply, post-check GO; the rollback works from any state, an open switch included', async () => {
+  const pg = await prodWorld(), T0 = PT();
+  const pre = await stateOf(pg, T0); assert.deepEqual(G.evaluate('pre', pre, null, { target: T0 }).problems, []);
+  await assert.rejects(() => pg.query(G.sql('probe', { target: T0 })), /DRY RUN, every guard passed/);
+  const before = await aclSnapshot(pg); await assert.rejects(() => pg.query(G.sql('dryrun', { target: T0 })), /DRY RUN, every guard passed/); assert.equal(await aclSnapshot(pg), before, 'a dry run grants nothing');
+  await pg.query(G.sql('apply', { target: T0 }));
+  const post = await stateOf(pg, T0); assert.deepEqual(G.evaluate('post', post, pre, { target: T0 }).problems, []);
+  // the judge is as strict as the temporary branch's: the same state judged against another endpoint or environment is STOP
+  assert.equal(G.evaluate('post', post, pre, { target: PT({ endpoint: 'ep-another-one' }) }).ok, false); assert.equal(G.evaluate('post', post, pre, { target: PT({ env: 'test' }) }).ok, false);
+  // the rollback must work from any state, also when a switch has been opened since (it is the way back)
+  await pg.exec("INSERT INTO settings (key, value, updated_by) VALUES ('private.catalog_enabled', 'true', 'x')");
+  await pg.query(G.sql('rollback', { target: T0 })); const back = await stateOf(pg, T0); assert.deepEqual(G.evaluate('post-rollback', back, pre, { target: T0 }).problems.filter((p) => !/settings/.test(p)), []);
+  await pg.close();
+  // with 003 applied first the target for that order is the one that fits (structure and history differ)
+  const w3 = new PGlite(); await w3.exec(BASE_DDL); await w3.exec("INSERT INTO settings (key, value, updated_by) VALUES ('meta.environment', '\"production\"', 'setup')"); await w3.exec('CREATE ROLE kaspchem_app LOGIN'); await w3.exec(TODAY_GRANTS);
+  const r3 = await M.apply(qp(w3), { migrations: M.loadMigrations().migrations, expectEnv: 'production' }); assert.equal(r3.refused, false, (r3.problems || []).join('; ')); await w3.exec("SELECT set_config('neon.endpoint_id', 'ep-production-test', false)");
+  const T3 = PT({ identity: G.sha256('postgres|production') }, true); await assert.rejects(() => w3.query(G.sql('probe', { target: PT() })), /migration history/, 'the 001+002 target refuses a database that already has 003');
+  await assert.rejects(() => w3.query(G.sql('probe', { target: T3 })), /DRY RUN, every guard passed/); await w3.query(G.sql('apply', { target: T3 }));
+  const s3 = JSON.parse((await w3.query(G.sql('pre', { target: T3 }))).rows[0].state); assert.deepEqual(G.evaluate('post', s3, null, { target: T3 }).problems.filter((p) => !/compared with before/.test(p)), []); await w3.close();
+});
+
+test('THE PRODUCTION TARGET on the command line: it needs the endpoint, nothing else can be named, and the output is exactly the module\'s', () => {
+  const script = path.join(ROOT, 'scripts', 'kaspchem-grants.js'); const run = (args) => spawnSync(process.execPath, [script].concat(args), { encoding: 'utf8', env: Object.assign({}, process.env, { KASPCHEM_DATABASE_URL: '' }) });
+  const ok = run(['--print', 'apply', '--target', 'production', '--expect-endpoint=ep-production-test']);
+  assert.equal(ok.status, 0); assert.equal(ok.stdout, G.sql('apply', { target: G.productionTarget('ep-production-test') }) + '\n'); assert.match(ok.stdout, /structure of the database is not the reviewed one/);
+  for (const w of ['pre', 'probe', 'dryrun', 'rollback']) { const r = run(['--print', w, '--target', 'production', '--expect-endpoint=ep-production-test']); assert.equal(r.status, 0, w); assert.equal(r.stdout, G.sql(w, { target: G.productionTarget('ep-production-test') }) + '\n', w); }
+  assert.notEqual(run(['--print', 'apply', '--target', 'production', '--expect-endpoint=ep-production-test', '--after-003']).stdout, ok.stdout, '--after-003 changes the expected history and structure');
+  for (const args of [['--print', 'apply', '--target', 'production'], ['--print', 'apply', '--target', 'production', '--expect-endpoint=nope'], ['--print', 'apply', '--target', 'test', '--expect-endpoint=ep-production-test'], ['--print', 'apply', '--expect-endpoint=ep-production-test'], ['--print', 'apply', '--after-003']]) { const r = run(args); assert.equal(r.status, 1, args.join(' ')); assert.equal(r.stdout, '', 'nothing is printed when the arguments are refused: ' + args.join(' ')); }
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kc-ga-prod-')); const t = G.NEON_TARGET;
+  const temp = { database: t.database, user: t.owner, pg: t.pg, endpoint: t.endpoint, env: t.env, tables: t.tables, history: G.historyOf(t), structure: { md5: t.structureMd5, lines: t.structureLines }, default_acl_total: 2, default_acl_risky: 0, app_role: null, privileges: { md5: t.privFingerprint, lines: t.privLines }, relations: {} };
+  fs.writeFileSync(path.join(dir, 'temp.json'), JSON.stringify([{ state: JSON.stringify(temp) }]));
+  const j = run(['--evaluate', 'pre', path.join(dir, 'temp.json'), '--target', 'production', '--expect-endpoint=ep-production-test']);
+  assert.equal(j.status, 1); assert.match(j.stdout, /VERDICT \(pre\): STOP/); assert.match(j.stdout, /^PROBLEM environment: "test" \(expected "production"\)/m); assert.match(j.stdout, /^PROBLEM endpoint: /m); assert.match(j.stdout, /^PROBLEM migration history: /m);
+});
